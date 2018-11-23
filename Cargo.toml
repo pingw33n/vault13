@@ -1,0 +1,19 @@
+[package]
+name = "render"
+version = "0.1.0"
+authors = [" <>"]
+
+[dependencies]
+bstring = "0.1"
+byteorder = "1.2"
+enumflags = "0.4"
+enumflags_derive = "0.4"
+enum-map = "0.4"
+enum-primitive-derive = "0.1"
+flate2 = "1.0"
+icecream = "0.1"
+if_chain = "0.1"
+num-traits = "0.1"
+png = "0.13"
+sdl2 = { version = "0.32.0-beta.2", features = ["unsafe_textures"] }
+slotmap = "0.3"
