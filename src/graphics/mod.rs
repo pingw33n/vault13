@@ -5,6 +5,7 @@ use std::ops;
 use std::rc::Rc;
 
 pub mod color;
+pub mod frm;
 pub mod geometry;
 pub mod lightmap;
 pub mod map;

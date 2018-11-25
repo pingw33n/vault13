@@ -1,7 +1,7 @@
 pub mod hex;
 pub mod sqr;
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Enum, PartialEq, PartialOrd, Primitive)]
 pub enum Direction {
     NE  = 0,
     E   = 1,

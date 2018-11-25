@@ -1,9 +1,13 @@
 use enum_map::EnumMap;
+use std::cell::{Ref, RefCell};
+use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
 
 use asset::{EntityKind, LstEntry, read_lst, WeaponKind};
 use fs::FileSystem;
+use graphics::frm::FrameSet;
+use graphics::render::TextureHandle;
 use super::*;
 use util::EnumExt;
 
@@ -11,6 +15,7 @@ pub struct FrmDb {
     fs: Rc<FileSystem>,
     language: Option<String>,
     lst: EnumMap<EntityKind, Vec<LstEntry>>,
+    frms: RefCell<HashMap<Fid, FrameSet>>,
 }
 
 impl FrmDb {
@@ -21,15 +26,17 @@ impl FrmDb {
             fs,
             language,
             lst,
+            frms: RefCell::new(HashMap::new()),
         })
     }
 
     // art_get_name()
-    pub fn path(&self, fid: Fid) -> Option<String> {
+    /// Returns .frm or .frN file name without path.
+    pub fn name(&self, fid: Fid) -> Option<String> {
         let fid = self.normalize_fid(fid);
         let base_name = &self.lst[fid.kind()].get(fid.id0() as usize)?.fields[0];
 
-        let name = match fid.kind() {
+        Some(match fid.kind() {
             EntityKind::Critter => {
                 let wk = WeaponKind::from_u8(fid.id1())?;
                 let anim = CritterAnim::from_u8(fid.id2())?;
@@ -58,9 +65,27 @@ impl FrmDb {
                 }
             }
             _ => base_name.to_string(),
-        };
-        let lang = self.language.as_ref().map(|s| s.as_ref());
-        Some(Self::make_path(fid.kind(), &name, lang))
+        })
+    }
+
+    //  art_exists()
+    pub fn exists(&self, fid: Fid) -> bool {
+        self.read(fid).is_ok()
+    }
+
+    pub fn get_or_load(&self, fid: Fid, render: &mut Render) -> io::Result<Ref<FrameSet>> {
+        {
+            let mut frms = self.frms.borrow_mut();
+            if !frms.contains_key(&fid) {
+                let frm = read_frm(&mut self.read(fid)?, render)?;
+                frms.insert(fid, frm);
+            }
+        }
+        Ok(self.get(fid))
+    }
+
+    pub fn get(&self, fid: Fid) -> Ref<FrameSet> {
+        Ref::map(self.frms.borrow(), |v| &v[&fid])
     }
 
     // art_alias_fid()
@@ -91,16 +116,31 @@ impl FrmDb {
         }
     }
 
+    fn read(&self, fid: Fid) -> io::Result<Box<BufRead + Send>> {
+        let name = self.name(fid)
+            .ok_or_else(|| Error::new(ErrorKind::NotFound,
+                format!("no name exists for FID: {:?}", fid)))?;
+        let path = Self::full_path(fid.kind(), &name, self.language.as_ref());
+        let path = if self.fs.exists(&path) ||
+                // Let the fs.reader() fail with NotFound.
+                self.language.is_none() {
+            path
+        } else {
+            Self::full_path(fid.kind(), &name, None)
+        };
+        self.fs.reader(&path)
+    }
+
     fn read_lst_files(fs: &FileSystem) -> io::Result<EnumMap<EntityKind, Vec<LstEntry>>> {
         let mut lst = EnumMap::new();
         for kind in EntityKind::iter() {
-            let path = Self::make_path(kind, &format!("{}.lst", kind.dir()), None);
+            let path = Self::full_path(kind, &format!("{}.lst", kind.dir()), None);
             lst[kind] = read_lst(&mut fs.reader(&path)?)?;
         }
         Ok(lst)
     }
 
-    fn make_path(kind: EntityKind, path: &str, language: Option<&str>) -> String {
+    fn full_path(kind: EntityKind, path: &str, language: Option<&String>) -> String {
         if let Some(language) = language {
             format!("art/{}/{}/{}", kind.dir(), language, path)
         } else {

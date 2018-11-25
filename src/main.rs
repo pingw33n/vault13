@@ -55,6 +55,7 @@ use std::rc::Rc;
 use enumflags::BitFlags;
 use asset::Flag;
 use asset::message::Messages;
+use util::EnumExt;
 
 fn read_color_pal(rd: &mut impl Read) -> io::Result<Palette> {
     let mut color_idx_to_rgb18 = [Rgb::black(); 256];
@@ -416,7 +417,7 @@ fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool) -> io::Result<()> 
         let flags = rd.read_u32::<BigEndian>()?;
         let elevation = rd.read_u32::<BigEndian>()?;
         let pid = Pid::from_packed(rd.read_u32::<BigEndian>()?)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Invalid object ProtoId"))?;
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Invalid object Pid"))?;
         let cid = rd.read_u32::<BigEndian>()?;
         let light_radius = rd.read_i32::<BigEndian>()?;
         let light_intensity = rd.read_i32::<BigEndian>()?;
@@ -436,7 +437,7 @@ fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool) -> io::Result<()> 
         ic!(pid);
 
         if pid.kind() == EntityKind::Critter {
-            // comat data
+            // combat data
             let damage_last_turn = rd.read_u32::<BigEndian>()?;
             let combat_state = rd.read_u32::<BigEndian>()?;
             let action_points = rd.read_u32::<BigEndian>()?;
@@ -572,13 +573,22 @@ fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool) -> io::Result<()> 
     Ok(())
 }
 
-
-
-
-
-
-
-
+fn all_fids(fid: Fid) -> Vec<Fid> {
+    let mut r = vec![fid];
+    match fid.kind() {
+        EntityKind::Critter => {
+            for wk in WeaponKind::iter() {
+                for anim in CritterAnim::iter() {
+                    for variant in 0..=5 {
+                        r.push(Fid::new(EntityKind::Critter, variant as u8, anim as u8, wk as u8, fid.id0()).unwrap());
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    r
+}
 
 fn main() {
     let master_dat = "/Users/dlysai/Dropbox/f2/MASTER.DAT";
@@ -593,24 +603,6 @@ fn main() {
 //    let messages = Messages::read(&mut fs.reader("text/english/game/skill.msg").unwrap()).unwrap();
 //    println!("{:#?}", messages);
 //    return;
-
-//    println!("{:x}", BitFlags::<Flags>::all().bits());
-//    return;
-    let kind = EntityKind::Critter;
-    for i in 1..proto_db.len(kind)+1 {
-        let pid = Pid::new(kind, i as u32);
-        println!("{:?}", proto_db.name(pid));
-        println!("{:?}", proto_db.description(pid));
-        if let Ok(proto) = proto_db.proto(pid) {
-            let path = frm_db.path(proto.fid).unwrap();
-            println!("{:?} {:?} {:?}", proto.fid, path, fs.metadata(&path).unwrap());
-        } else {
-            println!("{:?}", proto_db.proto(pid));
-        }
-//        println!("{:#?}", proto_db.proto(pid));
-        println!();
-    }
-    return;
 
     let pal = read_color_pal(&mut fs.reader("color.pal").unwrap()).unwrap();
 
@@ -635,6 +627,32 @@ fn main() {
         let mut render: Box<Render> = Box::new(SoftwareRender::new(canvas, Box::new(pal.clone()),
             overlay)) as Box<Render>;
         let mut render = render.as_mut();
+
+        let kind = EntityKind::Critter;
+        for i in 1..proto_db.len(kind)+1 {
+            let pid = Pid::new(kind, i as u32);
+            println!("{:?}", proto_db.name(pid));
+            println!("{:?}", proto_db.description(pid));
+            if let Ok(proto) = proto_db.proto(pid) {
+//                let path = frm_db.name(proto.fid).unwrap();
+//                println!("{:?} {:?} {:?}", proto.fid, path, fs.metadata(&path).unwrap());
+//                let frm = frm_db.get_or_load(proto.fid, render);
+//                println!("{} {:#?}", i, frm);
+                println!("{:?}", proto.fid);
+                for fid in all_fids(proto.fid) {
+                    if frm_db.exists(fid) {
+                        println!("  {:?}", fid);
+                        println!("  {:?}", frm_db.name(fid));
+                    }
+                }
+
+            } else {
+                println!("{:?}", proto_db.proto(pid));
+            }
+    //        println!("{:#?}", proto_db.proto(pid));
+            println!();
+        }
+        return;
 
         let tiles_lst = read_lst(&mut fs.reader("art/tiles/tiles.lst").unwrap()).unwrap();
         let (map_tiles, player_pos) = load_map(&mut fs.reader("maps/artemple.map").unwrap(), &proto_db).unwrap();
