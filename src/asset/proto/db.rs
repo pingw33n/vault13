@@ -526,33 +526,33 @@ impl ProtoDb {
 }
 
 struct Lst {
-    lists: EnumMap<EntityKind, Vec<String>>,
+    lst: EnumMap<EntityKind, Vec<LstEntry>>,
 }
 
 impl Lst {
     pub fn read(fs: &FileSystem) -> io::Result<Self> {
-        let mut lists = EnumMap::new();
+        let mut lst = EnumMap::new();
         for k in proto_entity_kinds() {
-            lists[k] = Self::read_lst_file(fs, k)?;
+            lst[k] = Self::read_lst_file(fs, k)?;
         }
         Ok(Self {
-            lists,
+            lst,
         })
     }
 
     pub fn len(&self, kind: EntityKind) -> usize {
-        self.lists[kind].len()
+        self.lst[kind].len()
     }
 
     pub fn get(&self, pid: Pid) -> Option<&str> {
         if pid.id() > 0 {
-            self.lists[pid.kind()].get(pid.id() as usize - 1).map(|s| s.as_ref())
+            self.lst[pid.kind()].get(pid.id() as usize - 1).map(|e| e.fields[0].as_ref())
         } else {
             None
         }
     }
 
-    fn read_lst_file(fs: &FileSystem, kind: EntityKind) -> io::Result<Vec<String>> {
+    fn read_lst_file(fs: &FileSystem, kind: EntityKind) -> io::Result<Vec<LstEntry>> {
         let path = format!("proto/{0}/{0}.lst", kind.dir());
         read_lst(&mut fs.reader(&path)?)
     }

@@ -428,17 +428,23 @@ pub enum AttackKind {
     FireContinuous  = 8,
 }
 
-pub fn read_lst(rd: &mut impl BufRead) -> io::Result<Vec<String>> {
+pub struct LstEntry {
+    pub fields: Vec<String>,
+}
+
+pub fn read_lst(rd: &mut impl BufRead) -> io::Result<Vec<LstEntry>> {
     let mut r = Vec::new();
     for l in rd.lines() {
         let l = l?;
         let l = l.splitn(2, |c|
                 c == ' '
                 || c == ';'
-                || c == ','
                 || c == '\t'
             ).next().unwrap_or(&l);
-        r.push(l.to_string());
+        let fields = l.split(',').map(|s| s.to_owned()).collect();
+        r.push(LstEntry {
+            fields,
+        });
     }
     Ok(r)
 }
