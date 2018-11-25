@@ -1,5 +1,6 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 #![allow(unused)]
+#![deny(non_snake_case)]
 
 extern crate bstring;
 extern crate byteorder;
@@ -589,9 +590,6 @@ fn main() {
     let proto_db = ProtoDb::new(fs.clone(), "english").unwrap();
     let frm_db = FrmDb::new(fs.clone(), "english").unwrap();
 
-    println!("{:?}", frm_db.path(Fid::from_packed(0x0100003e).unwrap()));
-    return;
-
 //    let messages = Messages::read(&mut fs.reader("text/english/game/skill.msg").unwrap()).unwrap();
 //    println!("{:#?}", messages);
 //    return;
@@ -603,7 +601,13 @@ fn main() {
         let pid = Pid::new(kind, i as u32);
         println!("{:?}", proto_db.name(pid));
         println!("{:?}", proto_db.description(pid));
-        println!("{:#?}", proto_db.proto(pid));
+        if let Ok(proto) = proto_db.proto(pid) {
+            let path = frm_db.path(proto.fid).unwrap();
+            println!("{:?} {:?} {:?}", proto.fid, path, fs.metadata(&path).unwrap());
+        } else {
+            println!("{:?}", proto_db.proto(pid));
+        }
+//        println!("{:#?}", proto_db.proto(pid));
         println!();
     }
     return;
@@ -640,7 +644,7 @@ fn main() {
             for &tile_id in &[floor, roof] {
                 match map_tiles_tex.entry(tile_id) {
                     Entry::Vacant(v) => {
-                        let path = format!("art/tiles/{}", &tiles_lst[tile_id as usize]);
+                        let path = format!("art/tiles/{}", &tiles_lst[tile_id as usize].fields[0]);
     //                    println!("loading {}", path);
                         if let Ok(ref mut reader) = fs.reader(&path) {
                             let tex = read_frm_(render, reader).unwrap();

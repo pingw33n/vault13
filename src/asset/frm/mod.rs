@@ -13,6 +13,19 @@ use asset::EntityKind;
 pub struct Fid(u32);
 
 impl Fid {
+    pub fn new(kind: EntityKind, id3: u8, id2: u8, id1: u8, id0: u16) -> Option<Self> {
+        assert!(id3 >> 3 == 0);
+        assert!(id1 >> 4 == 0);
+        assert!(id0 >> 12 == 0);
+        let v =
+            (id3 as u32) << 28 |
+            (kind as u32) << 24 |
+            (id2 as u32) << 16 |
+            (id1 as u32) << 12 |
+            (id0 as u32);
+        Some(Fid(v))
+    }
+
     pub fn from_packed(v: u32) -> Option<Self> {
         let r = Fid(v);
         // Check kind.
@@ -55,12 +68,104 @@ impl Fid {
     }
 
     pub fn id0(self) -> u16 {
-        self.0 as u16 & 0b111_1111_1111
+        self.0 as u16 & 0b1111_1111_1111
+    }
+
+    pub fn with_id0(self, id0: u16) -> Option<Self> {
+        Self::new(self.kind(), self.id3(), self.id2(), self.id1(), id0)
     }
 }
 
 impl fmt::Debug for Fid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Fid(0x{:08x})", self.0)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
+pub enum CritterAnim {
+    // basic animations  0-19
+    Stand                   =  0, // AA, [D-M]A
+    Walk                    =  1, // AB, [D-M]B
+    JumpBegin               =  2, // AC?
+    JumpEnd                 =  3, // AD?
+    ClimbLadder             =  4, // AE
+    Falling                 =  5, // AF?
+    UpStairsRight           =  6, // AG
+    UpStairsLeft            =  7, // AH
+    DownStairsRight         =  8, // AI
+    DownStairsLeft          =  9, // AJ
+    MagicHandsGround        = 10, // AK
+    MagicHandsMiddle        = 11, // AL
+    MagicHandsUp            = 12, // AM?
+    DodgeAnim               = 13, // AN
+    HitFromFront            = 14, // AO
+    HitFromBack             = 15, // AP
+    ThrowPunch              = 16, // AQ
+    KickLeg                 = 17, // AR
+    ThrowAnim               = 18, // AS, DM, GM
+    Running                 = 19, // AT
+                                  // AU?
+
+    // knockdown and death   20-35
+    FallBack                = 20, // BA
+    FallFront               = 21, // BB
+    BadLanding              = 22, // BC
+    BigHole                 = 23, // BD
+    CharredBody             = 24, // BE
+    ChunksOfFlesh           = 25, // BF
+    DancingAutofire         = 26, // BG
+    Electrify               = 27, // BH
+    SlicedInHalf            = 28, // BI
+    BurnedToNothing         = 29, // BJ
+    ElectrifiedToNothing    = 30, // BK
+    ExplodedToNothing       = 31, // BL
+    MeltedToNothing         = 32, // BM
+    FireDance               = 33, // BN
+    FallBackBlood           = 34, // BO
+    FallFrontBlood          = 35, // BP
+
+    // change positions  36-37
+    ProneToStanding         = 36, // CH
+    BackToStanding          = 37, // CJ
+
+    // weapon 38-47
+    TakeOut                 = 38, // [D-M]C
+    PutAway                 = 39, // [D-M]D
+    ParryAnim               = 40, // [D-M]E
+    ThrustAnim              = 41, // [D-G]F
+    SwingAnim               = 42, // [D-F]G
+    Point                   = 43, // [H-M]H
+    Unpoint                 = 44, // [H-M]I
+    FireSingle              = 45, // [H-M]J
+    FireBurst               = 46, // [H-M]K
+    FireContinuous          = 47, // [H-M]L
+
+    // single-frame death animations = the last frame of knockdown and death animations)   48-63
+    FallBackSf              = 48, // RA
+    FallFrontSf             = 49, // RB
+    BadLandingSf            = 50, // RC
+    BigHoleSf               = 51, // RD
+    CharredBodySf           = 52, // RE
+    ChunksOfFleshSf         = 53, // RF
+    DancingAutofireSf       = 54, // RG
+    ElectrifySf             = 55, // RH
+    SlicedInHalfSf          = 56, // RI
+    BurnedToNothingSf       = 57, // RJ
+    ElectrifiedToNothingSf  = 58, // RK
+    ExplodedToNothingSf     = 59, // RL
+    MeltedToNothingSf       = 60, // RM
+    FallBackBloodSf         = 61, // RO
+    FallFrontBloodSf        = 62, // RP
+
+    // called shot interface picture
+    CalledShotPic           = 64, // NA
+}
+
+impl CritterAnim {
+    pub fn code(self, base: Self, char_base: u8) -> char {
+        let c = char_base + self as u8 - base as u8;
+        assert!(c.is_ascii());
+        c as char
     }
 }
