@@ -125,10 +125,10 @@ impl Render for SoftwareRender {
     fn new_texture(&mut self, width: i32, height: i32, data: Box<[u8]>) -> TextureHandle {
         let key = self.textures.insert(());
         self.textures_sm.insert(key, Texture::new(width, height, data));
-        TextureHandle(TextureHandleInner {
+        TextureHandle(Rc::new(TextureHandleInner {
             key,
             drop_list: self.texture_drop_list.clone(),
-        })
+        }))
     }
 
     fn cleanup(&mut self) {

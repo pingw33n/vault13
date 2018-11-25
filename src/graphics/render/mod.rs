@@ -9,7 +9,7 @@ use graphics::color::Rgb15;
 pub mod software;
 
 #[derive(Clone)]
-pub struct TextureHandle(TextureHandleInner);
+pub struct TextureHandle(Rc<TextureHandleInner>);
 
 impl fmt::Debug for TextureHandle {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
