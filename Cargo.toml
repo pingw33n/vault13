@@ -1,7 +1,7 @@
 [package]
-name = "render"
+name = "vault13"
 version = "0.1.0"
-authors = [" <>"]
+authors = ["pingw33n <d@emphased.net>"]
 
 [dependencies]
 bstring = "0.1"
@@ -10,9 +10,11 @@ enumflags = "0.4"
 enumflags_derive = "0.4"
 enum-map = "0.4"
 enum-primitive-derive = "0.1"
+env_logger = "0.6"
 flate2 = "1.0"
 icecream = "0.1"
 if_chain = "0.1"
+log = "0.4"
 num-traits = "0.1"
 png = "0.13"
 sdl2 = { version = "0.32.0-beta.2", features = ["unsafe_textures"] }
