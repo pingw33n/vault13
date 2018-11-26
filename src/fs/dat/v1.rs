@@ -10,8 +10,12 @@ use super::lzss;
 use super::super::{Metadata, Provider};
 use super::util::{build_normalized_path, normalize_path};
 
+pub fn new_provider<P: AsRef<Path>>(path: P) -> Result<Box<Provider>> {
+    Ok(Box::new(Dat::new(path)?))
+}
+
 #[derive(Debug)]
-pub struct Dat {
+struct Dat {
     path: PathBuf,
     files: HashMap<String, DatFile>,
 }
