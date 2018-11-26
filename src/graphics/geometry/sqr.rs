@@ -2,6 +2,7 @@ use std::cmp;
 
 use graphics::Point;
 
+#[derive(Debug)]
 pub struct TileGrid {
     // Position in screen coordinates.
     // Tile at `pos` will be mapped to screen at screen_pos.
