@@ -96,7 +96,7 @@ impl FrmDb {
 
         // TODO replace unwraps with logging
 
-        use CritterAnim::*;
+        use self::CritterAnim::*;
         match CritterAnim::from_u8(fid.id2()).unwrap() {
             | Electrify
             | BurnedToNothing
@@ -150,7 +150,7 @@ impl FrmDb {
 }
 
 fn critter_anim_codes(weapon_kind: WeaponKind, anim: CritterAnim) -> Option<(char, char)> {
-    use WeaponKind::*;
+    use self::WeaponKind::*;
     use self::CritterAnim::*;
     Some(match anim {
         ProneToStanding => ('c', 'h'),
