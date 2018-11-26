@@ -67,61 +67,6 @@ pub fn is_scroll_limited(htg: &hex::TileGrid,
 //     || tile_y >= g_map_border_tile_y_max)
 //}
 
-// tile_set_center()
-pub fn center(hex: &mut hex::TileGrid, sqr: &mut sqr::TileGrid, hex_pos: impl Into<Point>,
-        screen_width: i32, screen_height: i32) {
-    let mut hex_pos = hex_pos.into();
 
-    let mut hex_screen_pos = Point::new((screen_width - 32) / 2, (screen_height - 16) / 2);
-    if hex_pos.x % 2 != 0 {
-        hex_pos.x -= 1;
-        hex_screen_pos.x -= 32;
-    }
-    hex.set_pos(hex_pos);
-    hex.set_screen_pos(hex_screen_pos);
 
-    let sqr_pos = Point::new(hex_pos.x / 2, hex_pos.y / 2);
-    let mut sqr_screen_pos = Point::new(hex_screen_pos.x - 16, hex_screen_pos.y - 2);
-    if hex_pos.y % 2 != 0 {
-        sqr_screen_pos.x -= 16;
-        sqr_screen_pos.y -= 12;
-    }
-    sqr.set_pos(sqr_pos);
-    sqr.set_screen_pos(sqr_screen_pos);
 
-    trace!("centered: hex::pos={:?}, {:?} hex::screen_pos={:?} sqr::pos={:?}, {:?} sqr::screen_pos={:?}",
-        hex_pos.tuple(), hex.to_linear(hex_pos), hex_screen_pos.tuple(),
-        sqr_pos.tuple(), sqr.to_linear(sqr_pos), sqr_screen_pos.tuple());
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn center_() {
-        let ref mut h = hex::TileGrid::default();
-        let ref mut s = sqr::TileGrid::default();
-
-        let pos = h.from_linear(0x4e85);
-        center(h, s, pos, 640, 380);
-        assert_eq!(h.pos(), Point::new(0x62, 0x64));
-        assert_eq!(h.screen_pos(), Point::new(0x130, 0xb6));
-        assert_eq!(s.pos(), Point::new(0x31, 0x32));
-        assert_eq!(s.screen_pos(), Point::new(0x120, 0xb4));
-
-        let pos = h.from_linear(0x4e86);
-        center(h, s, pos, 640, 380);
-        assert_eq!(h.pos(), Point::new(0x60, 0x64));
-        assert_eq!(h.screen_pos(), Point::new(0x110, 0xb6));
-        assert_eq!(s.pos(), Point::new(0x30, 0x32));
-        assert_eq!(s.screen_pos(), Point::new(0x100, 0xb4));
-
-        let pos = h.from_linear(0x623a);
-        center(h, s, pos, 640, 380);
-        assert_eq!(h.pos(), Point::new(0x34, 0x7d));
-        assert_eq!(h.screen_pos(), Point::new(0x110, 0xb6));
-        assert_eq!(s.pos(), Point::new(0x1a, 0x3e));
-        assert_eq!(s.screen_pos(), Point::new(0xf0, 0xa8));
-    }
-}

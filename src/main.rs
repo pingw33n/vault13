@@ -59,6 +59,7 @@ use asset::Flag;
 use asset::message::Messages;
 use util::EnumExt;
 use graphics::frm::*;
+use graphics::geometry::map::MapGrid;
 
 fn read_color_pal(rd: &mut impl Read) -> io::Result<Palette> {
     let mut color_idx_to_rgb18 = [Rgb::black(); 256];
@@ -275,7 +276,7 @@ struct Map {
     objs: Vec<Object>,
 }
 
-fn load_map(rd: &mut impl Read, proto_db: &ProtoDb, hex_tg: &hex::TileGrid) -> io::Result<Map> {
+fn load_map(rd: &mut impl Read, proto_db: &ProtoDb, htg: &hex::TileGrid) -> io::Result<Map> {
     // header
 
     let version = rd.read_u32::<BigEndian>()?;
@@ -284,7 +285,7 @@ fn load_map(rd: &mut impl Read, proto_db: &ProtoDb, hex_tg: &hex::TileGrid) -> i
     rd.read_exact(&mut name[..]).unwrap();
 
     let entrance_pos_lin = rd.read_i32::<BigEndian>()?;
-    let entrance_pos = hex_tg.from_linear(entrance_pos_lin);
+    let entrance_pos = htg.from_linear(entrance_pos_lin);
     debug!("entrance_pos={} ({:?})", entrance_pos_lin, entrance_pos);
     let entrance_elevation = rd.read_u32::<BigEndian>()? as usize;
 //    assert!(entrance_elevation <= MAX_ELEVATIONS);
@@ -403,7 +404,7 @@ fn load_map(rd: &mut impl Read, proto_db: &ProtoDb, hex_tg: &hex::TileGrid) -> i
         debug!("object count at elevation {}: {}", elev, obj_count);
 
         for _ in 0..obj_count {
-            let obj = read_obj(rd, proto_db, version != 19, hex_tg)?;
+            let obj = read_obj(rd, proto_db, version != 19, htg)?;
             objs.push(obj)
         }
     }
@@ -418,8 +419,8 @@ fn load_map(rd: &mut impl Read, proto_db: &ProtoDb, hex_tg: &hex::TileGrid) -> i
     })
 }
 
-fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool, hex_tg: &hex::TileGrid) -> io::Result<Object> {
-    fn do_read(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool, hex_tg: &hex::TileGrid) -> io::Result<Object> {
+fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool, htg: &hex::TileGrid) -> io::Result<Object> {
+    fn do_read(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool, htg: &hex::TileGrid) -> io::Result<Object> {
         let id = rd.read_u32::<BigEndian>()?;
         trace!("object ID {}", id);
         let hex_pos = rd.read_i32::<BigEndian>()?;
@@ -569,13 +570,13 @@ fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool, hex_tg: &hex::Tile
             trace!("loading inventory item {}/{}", i, inventory_len);
             let item_count = rd.read_i32::<BigEndian>()?;
             trace!("item count: {}", item_count);
-            do_read(rd, proto_db, f2, hex_tg)?;
+            do_read(rd, proto_db, f2, htg)?;
         }
 
         let hex_pos = if hex_pos >= 0 {
             Some(ElevatedPoint {
                 elevation,
-                point: hex_tg.from_linear(hex_pos),
+                point: htg.from_linear(hex_pos),
             })
         } else {
             None
@@ -592,7 +593,7 @@ fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool, hex_tg: &hex::Tile
         })
     }
 
-    do_read(rd, proto_db, f2, hex_tg)
+    do_read(rd, proto_db, f2, htg)
 }
 
 fn all_fids(fid: Fid) -> Vec<Fid> {
@@ -784,8 +785,7 @@ fn main() {
 //        }
 //        return;
 
-        let mut htg = hex::TileGrid::default();
-        let mut stg = sqr::TileGrid::default();
+        let mut mg = MapGrid::new(640, 380);
         
         /*let maps = vec![
             "maps/arbridge.map",
@@ -1050,7 +1050,7 @@ fn main() {
                 continue;
             }
             ic!(f);
-            let mut m = load_map(&mut fs.reader(f).unwrap(), &proto_db, &htg).unwrap();
+            let mut m = load_map(&mut fs.reader(f).unwrap(), &proto_db, mg.hex()).unwrap();
 
             for elev in &m.sqr_tiles {
                 if let Some(ref elev) = elev {
@@ -1078,8 +1078,8 @@ fn main() {
         let mut player_pos = map.entrance;
 //        let player_pos = htg.from_linear(0x4450);
         ic!(player_pos);
-        let p = stg.from_screen(htg.to_screen(player_pos.point));
-        map::center(&mut htg, &mut stg, player_pos.point, 640, 380);
+//        let p = stg.from_screen(htg.to_screen(player_pos.point));
+        mg.center2(player_pos.point);
 //        println!("{:#?} {:#?}", htg, stg);
 //        println!("{:?}", htg.to_screen(htg.from_linear(0x2da4)));
 //        return;
@@ -1133,35 +1133,46 @@ fn main() {
 
         frm_db.get_or_load(Fid::EGG, render).unwrap();
 
+        let scroll_inc = 10;
+        let mut elevation = map.entrance.elevation;
+
         'running: loop {
             for event in event_pump.poll_iter() {
                 match event {
                     Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
-                        player_pos.point = htg.go(player_pos.point, Direction::E, 1);
-                        map::center(&mut htg, &mut stg, player_pos.point, 640, 380);
+                        mg.scroll((scroll_inc, 0));
+                        player_pos.point = mg.center_hex();
                     }
                     Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
-                        player_pos.point = htg.go(player_pos.point, Direction::W, 1);
-                        map::center(&mut htg, &mut stg, player_pos.point, 640, 380);
+                        mg.scroll((-scroll_inc, 0));
+                        player_pos.point = mg.center_hex();
                     }
                     Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
-                        player_pos.point = if player_pos.point.x % 2 == 1 {
-                            htg.go(player_pos.point, Direction::NE, 1)
-                        } else {
-                            htg.go(player_pos.point, Direction::NW, 1)
-                        };
-                        map::center(&mut htg, &mut stg, player_pos.point, 640, 380);
+                        mg.scroll((0, -scroll_inc));
+                        player_pos.point = mg.center_hex();
                     }
                     Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
-                        player_pos.point = if player_pos.point.y % 2 == 1 {
-                            htg.go(player_pos.point, Direction::SE, 1)
-                        } else {
-                            htg.go(player_pos.point, Direction::SW, 1)
-                        };
-                        map::center(&mut htg, &mut stg, player_pos.point, 640, 380);
+                        mg.scroll((0, scroll_inc));
+                        player_pos.point = mg.center_hex();
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::X), .. } => {
+                        let mut d = dude_obj.direction.ordinal() as isize - 1;
+                        if d < 0 {
+                            d += Direction::len() as isize;
+                        }
+                        dude_obj.direction = Direction::from_ordinal(d as usize);
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::C), .. } => {
+                        dude_obj.direction = Direction::from_ordinal((dude_obj.direction.ordinal() + 1) % Direction::len());
                     }
                     Event::KeyDown { keycode: Some(Keycode::A), .. } => {
-
+                        let new_elevation = map.sqr_tiles.iter().enumerate()
+                            .skip(elevation)
+                            .filter_map(|(i, v)| v.as_ref().map(|_| i))
+                            .next();
+                        if let Some(new_elevation) = new_elevation {
+                            elevation = new_elevation;
+                        }
                     }
                     Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                         break 'running
@@ -1170,19 +1181,19 @@ fn main() {
                 }
             }
 
-            render_floor(render, &stg, &visible_rect,
-                |num| Some(frm_db.get(Fid::new(EntityKind::SqrTile, 0, 0, 0, map.sqr_tiles[map.entrance.elevation].as_ref().unwrap()[num as usize].0).unwrap()).frame_lists[Direction::NE].frames[0].texture.clone())
+            render_floor(render, mg.sqr(), &visible_rect,
+                |num| Some(frm_db.get(Fid::new(EntityKind::SqrTile, 0, 0, 0, map.sqr_tiles[elevation].as_ref().unwrap()[num as usize].0).unwrap()).frame_lists[Direction::NE].frames[0].texture.clone())
             );
             for obj in &mut map.objs {
-                let elevation = map.entrance.elevation;
+                let elevation = elevation;
                 if obj.hex_pos.map(|p| p.elevation == elevation).unwrap_or(true) {
-                    obj.render(render, &visible_rect, 0x10000, &frm_db, &proto_db, &htg,
+                    obj.render(render, &visible_rect, 0x10000, &frm_db, &proto_db, mg.hex(),
                         player_pos.point, Fid::EGG);
                 }
             }
 
             dude_obj.hex_pos = Some(player_pos);
-            dude_obj.render(render, &visible_rect, 0x10000, &frm_db, &proto_db, &htg,
+            dude_obj.render(render, &visible_rect, 0x10000, &frm_db, &proto_db, mg.hex(),
                 player_pos.point, Fid::EGG);
 
 //            render_roof(render, &stg, &visible_rect,

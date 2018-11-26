@@ -66,6 +66,10 @@ impl TileGrid {
         self.screen_pos
     }
 
+    pub fn screen_pos_mut(&mut self) -> &mut Point {
+        &mut self.screen_pos
+    }
+
     pub fn set_screen_pos(&mut self, pos: impl Into<Point>) {
         self.screen_pos = pos.into();
     }
