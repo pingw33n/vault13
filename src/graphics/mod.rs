@@ -40,6 +40,10 @@ impl Point {
 //    pub fn add_xy(self, x: i32, y: i32) -> Self {
 //        Self::new(self.x + x, self.y + y)
 //    }
+
+    pub fn tuple(self) -> (i32, i32) {
+        (self.x, self.y)
+    }
 }
 
 impl Default for Point {

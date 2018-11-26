@@ -88,6 +88,10 @@ pub fn center(hex: &mut hex::TileGrid, sqr: &mut sqr::TileGrid, hex_pos: impl In
     }
     sqr.set_pos(sqr_pos);
     sqr.set_screen_pos(sqr_screen_pos);
+
+    trace!("centered: hex::pos={:?}, {:?} hex::screen_pos={:?} sqr::pos={:?}, {:?} sqr::screen_pos={:?}",
+        hex_pos.tuple(), hex.to_linear(hex_pos), hex_screen_pos.tuple(),
+        sqr_pos.tuple(), sqr.to_linear(sqr_pos), sqr_screen_pos.tuple());
 }
 
 #[cfg(test)]

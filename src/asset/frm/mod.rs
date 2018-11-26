@@ -20,6 +20,8 @@ use util::EnumExt;
 pub struct Fid(u32);
 
 impl Fid {
+    pub const EGG: Fid = Fid(0x6000_002);
+
     pub fn new(kind: EntityKind, id3: u8, id2: u8, id1: u8, id0: u16) -> Option<Self> {
         assert!(id3 >> 3 == 0);
         assert!(id1 >> 4 == 0);

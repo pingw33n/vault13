@@ -5,12 +5,14 @@
 extern crate bstring;
 extern crate byteorder;
 extern crate enumflags;
+extern crate env_logger;
 #[macro_use] extern crate enumflags_derive;
 #[macro_use] extern crate enum_map;
 #[macro_use] extern crate enum_primitive_derive;
+extern crate flate2;
 #[macro_use] extern crate icecream;
 #[macro_use] extern crate if_chain;
-extern crate flate2;
+#[macro_use] extern crate log;
 extern crate num_traits;
 extern crate png;
 extern crate sdl2;
@@ -56,6 +58,7 @@ use enumflags::BitFlags;
 use asset::Flag;
 use asset::message::Messages;
 use util::EnumExt;
+use graphics::frm::*;
 
 fn read_color_pal(rd: &mut impl Read) -> io::Result<Palette> {
     let mut color_idx_to_rgb18 = [Rgb::black(); 256];
@@ -266,9 +269,13 @@ impl ScriptKind {
     }
 }
 
+struct Map {
+    entrance: ElevatedPoint,
+    sqr_tiles: Vec<Option<Vec<(u16, u16)>>>,
+    objs: Vec<Object>,
+}
 
-
-pub fn load_map(rd: &mut impl Read, proto_db: &ProtoDb) -> io::Result<(Box<[(u16, u16)]>, i32)> {
+fn load_map(rd: &mut impl Read, proto_db: &ProtoDb, hex_tg: &hex::TileGrid) -> io::Result<Map> {
     // header
 
     let version = rd.read_u32::<BigEndian>()?;
@@ -276,8 +283,9 @@ pub fn load_map(rd: &mut impl Read, proto_db: &ProtoDb) -> io::Result<(Box<[(u16
     let mut name = [0; 16];
     rd.read_exact(&mut name[..]).unwrap();
 
-    let entrance_pos = rd.read_i32::<BigEndian>()?;
-     println!("entrance_pos={}", entrance_pos);
+    let entrance_pos_lin = rd.read_i32::<BigEndian>()?;
+    let entrance_pos = hex_tg.from_linear(entrance_pos_lin);
+    debug!("entrance_pos={} ({:?})", entrance_pos_lin, entrance_pos);
     let entrance_elevation = rd.read_u32::<BigEndian>()? as usize;
 //    assert!(entrance_elevation <= MAX_ELEVATIONS);
     let entrance_direction = Direction::from_u32(rd.read_u32::<BigEndian>()?)
@@ -309,12 +317,12 @@ pub fn load_map(rd: &mut impl Read, proto_db: &ProtoDb) -> io::Result<(Box<[(u16
 
     // tiles
 
-    let mut elevation_tiles: Vec<Option<_>> = Vec::with_capacity(MAX_ELEVATIONS);
+    let mut sqr_tiles: Vec<Option<_>> = Vec::with_capacity(MAX_ELEVATIONS);
 
     for i in 0..MAX_ELEVATIONS {
         if flags & (1 << (i as u32 + 1)) != 0 {
-            println!("No {} elevation", i);
-            elevation_tiles.push(None);
+            debug!("no {} elevation", i);
+            sqr_tiles.push(None);
             continue;
         }
         let mut tiles = Vec::with_capacity(10000);
@@ -323,7 +331,7 @@ pub fn load_map(rd: &mut impl Read, proto_db: &ProtoDb) -> io::Result<(Box<[(u16
             let floor_id = rd.read_u16::<BigEndian>()?;
             tiles.push((floor_id, roof_id));
         }
-        elevation_tiles.push(Some(tiles));
+        sqr_tiles.push(Some(tiles));
     }
 
     // scripts
@@ -388,36 +396,56 @@ pub fn load_map(rd: &mut impl Read, proto_db: &ProtoDb) -> io::Result<(Box<[(u16
     // objects
 
     let total_obj_count = rd.read_i32::<BigEndian>()?;
-    if true {
-        for _ in 0..MAX_ELEVATIONS {
-            let obj_count = rd.read_u32::<BigEndian>()?;
-            println!("obj_count={}", obj_count);
+    debug!("object count: {}", total_obj_count);
+    let mut objs = Vec::with_capacity(total_obj_count as usize);
+    for elev in 0..MAX_ELEVATIONS {
+        let obj_count = rd.read_u32::<BigEndian>()?;
+        debug!("object count at elevation {}: {}", elev, obj_count);
 
-            for _ in 0..obj_count {
-                let obj = read_obj(rd, proto_db, version != 19)?;
-            }
+        for _ in 0..obj_count {
+            let obj = read_obj(rd, proto_db, version != 19, hex_tg)?;
+            objs.push(obj)
         }
     }
 
-    Ok((elevation_tiles[entrance_elevation].take().unwrap().into(), entrance_pos))
+    Ok(Map {
+        entrance: ElevatedPoint {
+            elevation: entrance_elevation,
+            point: entrance_pos,
+        },
+        sqr_tiles,
+        objs,
+    })
 }
 
-fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool) -> io::Result<()> {
-    fn read_without_inventory(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool) -> io::Result<i32> {
+fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool, hex_tg: &hex::TileGrid) -> io::Result<Object> {
+    fn do_read(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool, hex_tg: &hex::TileGrid) -> io::Result<Object> {
         let id = rd.read_u32::<BigEndian>()?;
-        let pos = rd.read_u32::<BigEndian>()?;
-        let x = rd.read_i32::<BigEndian>()?;
-        let y = rd.read_i32::<BigEndian>()?;
-        let sx = rd.read_i32::<BigEndian>()?;
-        let sy = rd.read_i32::<BigEndian>()?;
+        trace!("object ID {}", id);
+        let hex_pos = rd.read_i32::<BigEndian>()?;
+        trace!("hex_pos={}", hex_pos);
+        let scr_shift = Point::new(
+            rd.read_i32::<BigEndian>()?,
+            rd.read_i32::<BigEndian>()?);
+        let scr_pos = Point::new(
+            rd.read_i32::<BigEndian>()?,
+            rd.read_i32::<BigEndian>()?);
         let frm_idx = rd.read_i32::<BigEndian>()?;
-        let direction = Direction::from_u32(rd.read_u32::<BigEndian>()?)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Invalid object direction"));
-        let fid = rd.read_u32::<BigEndian>()?;
+        let direction = rd.read_u32::<BigEndian>()?;
+        let direction = Direction::from_u32(direction)
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                format!("invalid object direction: {}", direction)))?;
+        let fid = Fid::read(rd)?;
+        trace!("{:?}", fid);
+
         let flags = rd.read_u32::<BigEndian>()?;
-        let elevation = rd.read_u32::<BigEndian>()?;
-        let pid = Pid::from_packed(rd.read_u32::<BigEndian>()?)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Invalid object Pid"))?;
+        let flags = BitFlags::from_bits(flags)
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                format!("unknown object flags: {:x}", flags)))?;
+
+        let elevation = rd.read_u32::<BigEndian>()? as usize;
+        let pid = Pid::read(rd)?;
+        trace!("{:?} {:?}", pid, proto_db.name(pid));
         let cid = rd.read_u32::<BigEndian>()?;
         let light_radius = rd.read_i32::<BigEndian>()?;
         let light_intensity = rd.read_i32::<BigEndian>()?;
@@ -429,12 +457,9 @@ fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool) -> io::Result<()> 
 
         let inventory_len = rd.read_i32::<BigEndian>()?;
         let inventory_max = rd.read_i32::<BigEndian>()?;
-        let _unused = rd.read_u32::<BigEndian>()?;
+        let _ = rd.read_u32::<BigEndian>()?;
 
         let updated_flags = rd.read_u32::<BigEndian>()?;
-
-        ic!(id);
-        ic!(pid);
 
         if pid.kind() == EntityKind::Critter {
             // combat data
@@ -450,27 +475,42 @@ fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool) -> io::Result<()> 
             let radiation = rd.read_i32::<BigEndian>()?;
             let poison = rd.read_i32::<BigEndian>()?;
         } else {
-            let update_flags = if updated_flags == 0xcccccccc {
-                0
-            } else {
-                updated_flags
-            };
-            println!("pid {:?}", pid);
+            assert!(updated_flags != 0xcccccccc);
+//            let update_flags = if updated_flags == 0xcccccccc {
+//                0
+//            } else {
+//                updated_flags
+//            };
             match pid.kind() {
                 EntityKind::Item => {
-                    let kind = proto_db.kind(pid).item().unwrap();
-                    match kind {
-                        ItemKind::Weapon => {
+                    let proto = proto_db.proto(pid).unwrap();
+                    match proto.proto.item().unwrap().item {
+                        ItemVariant::Weapon(ref proto) => {
                             let charges = rd.read_i32::<BigEndian>()?;
-                            let ammo_pid = rd.read_u32::<BigEndian>()?;
+                            let ammo_pid = Pid::from_packed(rd.read_u32::<BigEndian>()?);
+
+                            // object_fix_weapon_ammo()
+                            let charges = proto.max_ammo;
+                            let ammo_pid = if ammo_pid.is_none() {
+                                proto.ammo_pid
+                            } else {
+                                ammo_pid
+                            };
                         }
-                        ItemKind::Ammo => {
+                        ItemVariant::Ammo(_) => {
                             let charges = rd.read_i32::<BigEndian>()?;
                         }
-                        ItemKind::Misc => {
+                        ItemVariant::Misc(ref proto) => {
                             let charges = rd.read_i32::<BigEndian>()?;
+
+                            // object_fix_weapon_ammo()
+                            let charges = if charges < 0 {
+                                proto.max_charges
+                            } else {
+                                charges
+                            };
                         }
-                        ItemKind::Key => {
+                        ItemVariant::Key(_) => {
                             let key_code = rd.read_i32::<BigEndian>()?;
                         }
                         _ => {}
@@ -504,7 +544,15 @@ fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool) -> io::Result<()> 
                 EntityKind::Misc => {
                     if pid.is_exit_area() {
                         // Exit area.
-                        let map_id = rd.read_u32::<BigEndian>()?;
+                        let map_id = rd.read_i32::<BigEndian>()?;
+                        trace!("map_id={}", map_id);
+                        assert!(map_id >= 0 || fid.id0() >= 33);
+                        /* if charges <= 0
+//          {
+//            v7 = obj->art_fid & 0xFFF;
+//            if ( v7 < 33 )
+//              obj->art_fid = art_id_(OBJ_TYPE_MISC, v7 + 16, (obj->art_fid & 0xFF0000) >> 16, 0);
+//          }*/
                         let dude_pos = rd.read_u32::<BigEndian>()?;
                         let elevation = rd.read_u32::<BigEndian>()?;
                         let direction = Direction::from_u32(rd.read_u32::<BigEndian>()?)
@@ -515,62 +563,36 @@ fn read_obj(rd: &mut impl Read, proto_db: &ProtoDb, f2: bool) -> io::Result<()> 
             }
         }
 
-        if pid.is_exit_area() {
-            /* TODO  if charges <= 0
-          {
-            v7 = obj->art_fid & 0xFFF;
-            if ( v7 < 33 )
-              obj->art_fid = art_id_(OBJ_TYPE_MISC, v7 + 16, (obj->art_fid & 0xFF0000) >> 16, 0);
-          }*/
-        } else if pid.kind() == EntityKind::Item && flags & 1 == 0 {
-            // object_fix_weapon_ammo_
-            match proto_db.kind(pid) {
-                ExactEntityKind::Item(ItemKind::Weapon) => {
-                    //                if charges == 0xcccccccc || charges == -1 {
-//                                // object_fix_weapon_ammo()
-//                                // TODO
-//                                // obj_->_.item.charges = proto->_.item._.weapon.maxAmmo;
-//                            }
-//                            let ammo_pid = if ammo_pid == 0xcccccccc || ammo_pid == 0xffffffff {
-//                                // object_fix_weapon_ammo()
-//                                // TODO
-//                                // obj_->_.item.ammoPid = proto->_.item._.weapon.ammoPid;
-//                            }
-//                            let ammo_pid = Self::from_packed(ammo_pid)
-//                                .ok_or_else(|| Error::new(ErrorKind::InvalidData, "malformed ResourceId"));
-                    unimplemented!();
-                }
-                ExactEntityKind::Item(ItemKind::Misc) => {
-                     // TODO
-                        // max_charges = proto->_.item._.misc.maxCharges;
-//                            if max_charges == 0xCCCCCCCC
-//        {
-//          name = proto_name_(obj->_.pid);
-//          debug_printf_(aErrorMiscItemP, name);
-//          obj_->_.item.charges = 0;
-//        }
-//                            let charges = if charges == 0xcccccccc {
-//                                 obj_->_.item.charges = max_charges;
-//                            } else if charges != max_charges {
-//                                obj_->_.item.charges = max_charges;
-//                            };
-                    unimplemented!();
-                }
-                _ => {}
-            }
+        // inventory
+
+        for i in 0..inventory_len {
+            trace!("loading inventory item {}/{}", i, inventory_len);
+            let item_count = rd.read_i32::<BigEndian>()?;
+            trace!("item count: {}", item_count);
+            do_read(rd, proto_db, f2, hex_tg)?;
         }
 
-        Ok(inventory_len)
+        let hex_pos = if hex_pos >= 0 {
+            Some(ElevatedPoint {
+                elevation,
+                point: hex_tg.from_linear(hex_pos),
+            })
+        } else {
+            None
+        };
+        Ok(Object {
+            hex_pos,
+            scr_shift,
+            scr_pos,
+            fid,
+            frame_idx: 0,
+            direction,
+            flags,
+            pid: Some(pid),
+        })
     }
 
-    let inventory_len = read_without_inventory(rd, proto_db, f2)?;
-
-    // inventory
-
-    assert!(inventory_len == 0);
-    // TODO
-
-    Ok(())
+    do_read(rd, proto_db, f2, hex_tg)
 }
 
 fn all_fids(fid: Fid) -> Vec<Fid> {
@@ -590,9 +612,117 @@ fn all_fids(fid: Fid) -> Vec<Fid> {
     r
 }
 
+struct Object {
+//    id: i32,
+    hex_pos: Option<ElevatedPoint>,
+    scr_pos: Point,
+    scr_shift: Point,
+    fid: Fid,
+    frame_idx: usize,
+    direction: Direction,
+    flags: BitFlags<Flag>,
+//    elevation: usize,
+//      Inventory inventory;
+//  int updated_flags;
+//  GameObject::ItemOrCritter _;
+    pid: Option<Pid>,
+//  int cid;
+//  int light_radius;
+//  int light_intensity;
+//  int outline;
+//  int script_id;
+//  GameObject *owner;
+//  int script_idx;
+}
+
+//fn render_obj(render: &mut Render, rect: &Rect, obj: &mut Object, frm_db: &FrmDb,
+//        hex_tg: &hex::TileGrid, light: u32) {
+//    let frms = frm_db.get(obj.fid);
+//    let frml = &frms.frame_lists[obj.direction];
+//    let frm = &frml.frames[obj.frame_idx];
+//
+//    let bounds = if let Some(ElevatedPoint { point: hex_pos, .. }) = obj.hex_pos {
+//        let scr_pos = hex_tg.to_screen(hex_pos);
+//        let frm_center = frml.center;
+//        let p = scr_pos + frm_center + obj.scr_shift + Point::new(16, 8);
+//        Rect {
+//            left: p.x - frm.width / 2,
+//            top: p.y - frm.height + 1,
+//            right: p.x + frm.width / 2,
+//            bottom: p.y + 1,
+//        }
+//    } else {
+//        Rect::with_size(obj.scr_pos.x, obj.scr_pos.y, frm.width, frm.height - 1)
+//    };
+//    obj.scr_pos = bounds.top_left();
+//
+//    if rect.intersect(&bounds).is_empty() {
+//        return;
+//    }
+//
+//    if obj.fid.kind() == EntityKind::Interface {
+//        render.draw(&frm.texture, bounds.left, bounds.right, 0x10000);
+//        return;
+//    }
+//
+//    match obj.fid.kind() {
+//        EntityKind::Scenery | EntityKind::Wall => {
+//            // TODO handle egg
+//            render.draw(&frm.texture, bounds.left, bounds.top, light);
+//        }
+//        _ => {
+//            // TODO handle transparency TRANS_*
+//
+//            render.draw(&frm.texture, bounds.left, bounds.top, light);
+//        }
+//    }
+//}
+
+impl Object {
+    fn render(&mut self, render: &mut Render, rect: &Rect, light: u32,
+            frm_db: &FrmDb, proto_db: &ProtoDb, hex_tg: &hex::TileGrid,
+            egg_hex_pos: Point, egg_fid: Fid) {
+        let (pos, centered) = if let Some(ElevatedPoint { point: hex_pos, .. }) = self.hex_pos {
+            (hex_tg.to_screen(hex_pos) + self.scr_shift + Point::new(16, 8), true)
+        } else {
+            (self.scr_pos, false)
+        };
+
+        let effect = match self.fid.kind() {
+            EntityKind::Interface => None,
+            EntityKind::Scenery | EntityKind::Wall if self.hex_pos.is_some() && self.pid.is_some() => {
+                let flags_ext = proto_db.proto(self.pid.unwrap()).unwrap().flags_ext;
+                let mask_pos = hex_tg.to_screen(egg_hex_pos) + Point::new(16, 8)/*+ self.scr_shift */;
+                Some(Effect::Masked { mask_fid: egg_fid, mask_pos })
+            }
+            _ => match () {
+                _ if self.flags.contains(Flag::TransEnergy) => Some(Translucency::Energy),
+                _ if self.flags.contains(Flag::TransGlass) => Some(Translucency::Glass),
+                _ if self.flags.contains(Flag::TransRed) => Some(Translucency::Red),
+                _ if self.flags.contains(Flag::TransSteam) => Some(Translucency::Steam),
+                _ if self.flags.contains(Flag::TransWall) => Some(Translucency::Wall),
+                _ => None,
+            }.map(Effect::Translucency)
+        };
+
+        let sprite = Sprite {
+            pos,
+            centered,
+            fid: self.fid,
+            frame_idx: self.frame_idx,
+            direction: self.direction,
+            light,
+            effect,
+        };
+        self.scr_pos = sprite.render(render, rect, frm_db).top_left();
+    }
+}
+
 fn main() {
-    let master_dat = "/Users/dlysai/Dropbox/f2/MASTER.DAT";
-    let critter_dat = "/Users/dlysai/Dropbox/f2/CRITTER.DAT";
+    env_logger::init();
+
+    let master_dat = "../../Dropbox/f2/MASTER.DAT";
+    let critter_dat = "../../Dropbox/f2/CRITTER.DAT";
     let mut fs = fs::FileSystem::new();
     fs.register_provider(Box::new(fs::dat::v2::Dat::new(master_dat).unwrap()));
     fs.register_provider(Box::new(fs::dat::v2::Dat::new(critter_dat).unwrap()));
@@ -628,96 +758,353 @@ fn main() {
             overlay)) as Box<Render>;
         let mut render = render.as_mut();
 
-        let kind = EntityKind::Critter;
-        for i in 1..proto_db.len(kind)+1 {
-            let pid = Pid::new(kind, i as u32);
-            println!("{:?}", proto_db.name(pid));
-            println!("{:?}", proto_db.description(pid));
-            if let Ok(proto) = proto_db.proto(pid) {
-//                let path = frm_db.name(proto.fid).unwrap();
-//                println!("{:?} {:?} {:?}", proto.fid, path, fs.metadata(&path).unwrap());
-//                let frm = frm_db.get_or_load(proto.fid, render);
-//                println!("{} {:#?}", i, frm);
-                println!("{:?}", proto.fid);
-                for fid in all_fids(proto.fid) {
-                    if frm_db.exists(fid) {
-                        println!("  {:?}", fid);
-                        println!("  {:?}", frm_db.name(fid));
-                    }
-                }
-
-            } else {
-                println!("{:?}", proto_db.proto(pid));
-            }
-    //        println!("{:#?}", proto_db.proto(pid));
-            println!();
-        }
-        return;
-
-        let tiles_lst = read_lst(&mut fs.reader("art/tiles/tiles.lst").unwrap()).unwrap();
-        let (map_tiles, player_pos) = load_map(&mut fs.reader("maps/artemple.map").unwrap(), &proto_db).unwrap();
-
-        let mut map_tiles_tex: HashMap<u16, TextureHandle> = HashMap::new();
-        for &(floor, roof) in &map_tiles[..] {
-            for &tile_id in &[floor, roof] {
-                match map_tiles_tex.entry(tile_id) {
-                    Entry::Vacant(v) => {
-                        let path = format!("art/tiles/{}", &tiles_lst[tile_id as usize].fields[0]);
-    //                    println!("loading {}", path);
-                        if let Ok(ref mut reader) = fs.reader(&path) {
-                            let tex = read_frm_(render, reader).unwrap();
-                            v.insert(tex[0].clone());
-                        } else {
-                            println!("Couldn't read: {} {}", tile_id, path);
-                        }
-                    }
-                    Entry::Occupied(_) => {}
-                }
-            }
-        }
-
-//        let hmjpmsaa_tex = read_frm_(render, &mut fs.reader("art/critters/HMJMPSAA.FRM").unwrap()).unwrap().remove(0);
-//        let tile_tex = read_frm_(render, &mut fs.reader("art/tiles/slime05.FRM").unwrap()).unwrap().remove(0);
-        let tile_tex = read_frm_(render, &mut fs.reader("art/tiles/shore08.FRM").unwrap()).unwrap().remove(0);
-        let barrel_tex = read_frm_(render, &mut fs.reader("art/scenery/barrel.FRM").unwrap()).unwrap().remove(0);
-//        render.draw_light_mapped(&tile_tex, 100, 100, &[0x10000, 0, 0, 0x10000, 0x10000, 0, 0x10000, 0, 0x10000, 0]);
-//        render.draw(&tile_tex, 100, 100, 0x10000);
-//        render.draw_masked(&shelf_tex, 100, 100, &egg_tex, 80, 80, 0x8000);
-//        render.draw(&shelf_tex, 200, 200, 0x5000);
-
-//        let mut start_x = 600;
-//        let mut start_y = -12;
-//        while start_y < 480 {
-//            let mut x = start_x;
-//            let mut y = start_y;
-//            while x > -80 {
-//                render.draw(&tile_tex, x, y, 0x10000);
-////                    render.draw_multi_light(&tile_tex, x, y, &[0x10000, 0, 0, 0x10000, 0x10000, 0, 0x10000, 0, 0x10000, 0]);
-//                x -= 48;
-//                y += 12;
+//        let kind = EntityKind::Critter;
+//        for i in 1..proto_db.len(kind)+1 {
+//            let pid = Pid::new(kind, i as u32);
+//            println!("{:?}", proto_db.name(pid));
+//            println!("{:?}", proto_db.description(pid));
+//            if let Ok(proto) = proto_db.proto(pid) {
+////                let path = frm_db.name(proto.fid).unwrap();
+////                println!("{:?} {:?} {:?}", proto.fid, path, fs.metadata(&path).unwrap());
+////                let frm = frm_db.get_or_load(proto.fid, render);
+////                println!("{} {:#?}", i, frm);
+//                println!("{:?}", proto.fid);
+//                for fid in all_fids(proto.fid) {
+//                    if frm_db.exists(fid) {
+//                        println!("  {:?}", fid);
+//                        println!("  {:?}", frm_db.name(fid));
+//                    }
+//                }
+//
+//            } else {
+//                println!("{:?}", proto_db.proto(pid));
 //            }
-//            start_x += 32;
-//            start_y += 24;
+//    //        println!("{:#?}", proto_db.proto(pid));
+//            println!();
 //        }
-
-//        render.draw_translucent_dark(&hmjpmsaa_tex, 200, 200, TRANS_WALL, 0x10000);
-//        render.draw_translucent(&hmjpmsaa_tex, 300, 300, TRANS_WALL, 0x5000);
-//        render.draw(&hmjpmsaa_tex, 350, 300, 0x10000);
-//        render.draw(&barrel_tex, 400, 300, 0x10000);
+//        return;
 
         let mut htg = hex::TileGrid::default();
         let mut stg = sqr::TileGrid::default();
-        let player_pos = htg.from_linear(player_pos);
-        let p = stg.from_screen(htg.to_screen(player_pos));
-        map::center(&mut htg, &mut stg, player_pos, 640, 380);
+        
+        /*let maps = vec![
+            "maps/arbridge.map",
+            "maps/arcaves.map",
+            "maps/ardead.map",
+            "maps/argarden.map",
+            "maps/artemple.map",
+            "maps/arvill2.map",
+            "maps/arvillag.map",
+            "maps/bhrnddst.map",
+            "maps/bhrndmtn.map",
+            "maps/broken1.gam",
+            "maps/broken1.map",
+            "maps/broken2.gam",
+            "maps/broken2.map",
+            "maps/cardesrt.gam",
+            "maps/cardesrt.map",
+            "maps/cave0.map",
+            "maps/cave06.gam",
+            "maps/cave1.map",
+            "maps/cave2.map",
+            "maps/cave3.map",
+            "maps/cave4.map",
+            "maps/cave5.map",
+            "maps/cave6.map",
+            "maps/cave7.map",
+            "maps/city1.map",
+            "maps/city2.map",
+            "maps/city3.map",
+            "maps/city4.map",
+            "maps/city5.map",
+            "maps/city6.map",
+            "maps/city7.map",
+            "maps/city8.map",
+            "maps/coast1.map",
+            "maps/coast10.map",
+            "maps/coast11.map",
+            "maps/coast12.map",
+            "maps/coast2.map",
+            "maps/coast3.map",
+            "maps/coast4.map",
+            "maps/coast5.map",
+            "maps/coast6.map",
+            "maps/coast7.map",
+            "maps/coast8.map",
+            "maps/coast9.map",
+            "maps/cowbomb.gam",
+            "maps/cowbomb.map",
+            "maps/denbus1.cfg",
+            "maps/denbus1.gam",
+            "maps/denbus1.map",
+            "maps/denbus2.gam",
+            "maps/denbus2.map",
+            "maps/denres1.gam",
+            "maps/denres1.map",
+            "maps/depolv1.gam",
+            "maps/depolv1.map",
+            "maps/depolva.gam",
+            "maps/depolva.map",
+            "maps/depolvb.gam",
+            "maps/depolvb.map",
+            "maps/desert1.map",
+            "maps/desert2.map",
+            "maps/desert3.map",
+            "maps/desert4.map",
+            "maps/desert5.map",
+            "maps/desert6.map",
+            "maps/desert7.map",
+            "maps/desert8.map",
+            "maps/desert9.map",
+            "maps/desrt10.map",
+            "maps/desrt11.map",
+            "maps/desrt12.map",
+            "maps/desrt13.map",
+            "maps/dnslvrun.map",
+            "maps/encdet.map",
+            "maps/encdock.map",
+            "maps/encfite.gam",
+            "maps/encfite.map",
+            "maps/encgd.map",
+            "maps/encpres.gam",
+            "maps/encpres.map",
+            "maps/encrctr.gam",
+            "maps/encrctr.map",
+            "maps/enctrp.gam",
+            "maps/enctrp.map",
+            "maps/gammovie.gam",
+            "maps/gammovie.map",
+            "maps/geckjunk.gam",
+            "maps/geckjunk.map",
+            "maps/geckpwpl.gam",
+            "maps/geckpwpl.map",
+            "maps/gecksetl.cfg",
+            "maps/gecksetl.gam",
+            "maps/gecksetl.map",
+            "maps/gecktunl.gam",
+            "maps/gecktunl.map",
+            "maps/gstcav1.gam",
+            "maps/gstcav1.map",
+            "maps/gstcav2.gam",
+            "maps/gstcav2.map",
+            "maps/gstfarm.gam",
+            "maps/gstfarm.map",
+            "maps/klacanyn.gam",
+            "maps/klacanyn.map",
+            "maps/kladwtwn.cfg",
+            "maps/kladwtwn.gam",
+            "maps/kladwtwn.map",
+            "maps/klagraz.gam",
+            "maps/klagraz.map",
+            "maps/klamall.gam",
+            "maps/klamall.map",
+            "maps/klaratcv.map",
+            "maps/klatoxcv.gam",
+            "maps/klatoxcv.map",
+            "maps/klatrap.map",
+            "maps/mbase12.cfg",
+            "maps/mbase12.map",
+            "maps/mbase34.cfg",
+            "maps/mbase34.gam",
+            "maps/mbase34.map",
+            "maps/mbclose.gam",
+            "maps/mbclose.map",
+            "maps/modbrah.gam",
+            "maps/modbrah.map",
+            "maps/modgard.gam",
+            "maps/modgard.map",
+            "maps/modinn.gam",
+            "maps/modinn.map",
+            "maps/modmain.gam",
+            "maps/modmain.map",
+            "maps/modshit.gam",
+            "maps/modshit.map",
+            "maps/modwell.gam",
+            "maps/modwell.map",
+            "maps/mountn1.map",
+            "maps/mountn2.map",
+            "maps/mountn3.map",
+            "maps/mountn4.map",
+            "maps/mountn5.map",
+            "maps/mountn6.map",
+            "maps/navarro.cfg",
+            "maps/navarro.gam",
+            "maps/navarro.map",
+            "maps/ncr1.gam",
+            "maps/ncr1.map",
+            "maps/ncr2.cfg",
+            "maps/ncr2.gam",
+            "maps/ncr2.map",
+            "maps/ncr3.gam",
+            "maps/ncr3.map",
+            "maps/ncr4.gam",
+            "maps/ncr4.map",
+            "maps/ncrent.gam",
+            "maps/ncrent.map",
+            "maps/newr1.cfg",
+            "maps/newr1.gam",
+            "maps/newr1.map",
+            "maps/newr1a.map",
+            "maps/newr2.gam",
+            "maps/newr2.map",
+            "maps/newr2a.map",
+            "maps/newr3.gam",
+            "maps/newr3.map",
+            "maps/newr4.gam",
+            "maps/newr4.map",
+            "maps/newrba.gam",
+            "maps/newrba.map",
+            "maps/newrcs.gam",
+            "maps/newrcs.map",
+            "maps/newrgo.gam",
+            "maps/newrgo.map",
+            "maps/newrst.gam",
+            "maps/newrst.map",
+            "maps/newrvb.map",
+            "maps/raiders1.gam",
+            "maps/raiders1.map",
+            "maps/raiders2.cfg",
+            "maps/raiders2.gam",
+            "maps/raiders2.map",
+            "maps/reddown.gam",
+            "maps/reddown.map",
+            "maps/reddtun.cfg",
+            "maps/reddtun.map",
+            "maps/redment.gam",
+            "maps/redment.map",
+            "maps/redmtun.map",
+            "maps/redwame.cfg",
+            "maps/redwame.gam",
+            "maps/redwame.map",
+            "maps/redwan1.cfg",
+            "maps/redwan1.map",
+            "maps/rndbess.gam",
+            "maps/rndbess.map",
+            "maps/rndbhead.gam",
+            "maps/rndbhead.map",
+            "maps/rndbridg.gam",
+            "maps/rndbridg.map",
+            "maps/rndcafe.gam",
+            "maps/rndcafe.map",
+            "maps/rndexcow.gam",
+            "maps/rndexcow.map",
+            "maps/rndforvr.gam",
+            "maps/rndforvr.map",
+            "maps/rndholy1.gam",
+            "maps/rndholy1.map",
+            "maps/rndholy2.gam",
+            "maps/rndholy2.map",
+            "maps/rndparih.gam",
+            "maps/rndparih.map",
+            "maps/rndshutl.gam",
+            "maps/rndshutl.map",
+            "maps/rndtinwd.gam",
+            "maps/rndtinwd.map",
+            "maps/rndtoxic.gam",
+            "maps/rndtoxic.map",
+            "maps/rnduvilg.gam",
+            "maps/rnduvilg.map",
+            "maps/rndwhale.gam",
+            "maps/rndwhale.map",
+            "maps/sfchina.cfg",
+            "maps/sfchina.gam",
+            "maps/sfchina.map",
+            "maps/sfchina2.cfg",
+            "maps/sfchina2.map",
+            "maps/sfdock.map",
+            "maps/sfelronb.gam",
+            "maps/sfelronb.map",
+            "maps/sfshutl1.map",
+            "maps/sfshutl2.map",
+            "maps/sftanker.gam",
+            "maps/sftanker.map",
+            "maps/v13_orig.map",
+            "maps/v13ent.gam",
+            "maps/v13ent.map",
+            "maps/v15_orig.map",
+            "maps/v15ent.gam",
+            "maps/v15ent.map",
+            "maps/v15sent.gam",
+            "maps/v15sent.map",
+            "maps/vault13.cfg",
+            "maps/vault13.gam",
+            "maps/vault13.map",
+            "maps/vault15.gam",
+            "maps/vault15.map",
+            "maps/vctycocl.gam",
+            "maps/vctycocl.map",
+            "maps/vctyctyd.gam",
+            "maps/vctyctyd.map",
+            "maps/vctydwtn.gam",
+            "maps/vctydwtn.map",
+            "maps/vctyvlt.gam",
+            "maps/vctyvlt.map",
+        ];*/
+
+        let maps = vec!["maps/ncr2.map"];
+
+        let mut map = None;
+
+        for f in &maps {
+            if !f.ends_with(".map") {
+                continue;
+            }
+            ic!(f);
+            let mut m = load_map(&mut fs.reader(f).unwrap(), &proto_db, &htg).unwrap();
+
+            for elev in &m.sqr_tiles {
+                if let Some(ref elev) = elev {
+                    for &(floor, roof) in elev {
+                        frm_db.get_or_load(Fid::new(EntityKind::SqrTile, 0, 0, 0, floor).unwrap(), render);
+                        frm_db.get_or_load(Fid::new(EntityKind::SqrTile, 0, 0, 0, roof).unwrap(), render);
+                    }
+                }
+            }
+
+            for obj in &m.objs {
+                frm_db.get_or_load(obj.fid, render).unwrap();
+            }
+
+            map = Some(m);
+        }
+
+//        let obj_fid = Fid::from_packed(0x013f003f).unwrap();
+//        println!("{:?}", frm_db.name(obj_fid));
+//        return;
+//        frm_db.get_or_load(obj_fid, render).unwrap();
+
+        let mut map = map.unwrap();
+
+        let mut player_pos = map.entrance;
+//        let player_pos = htg.from_linear(0x4450);
+        ic!(player_pos);
+        let p = stg.from_screen(htg.to_screen(player_pos.point));
+        map::center(&mut htg, &mut stg, player_pos.point, 640, 380);
+//        println!("{:#?} {:#?}", htg, stg);
+//        println!("{:?}", htg.to_screen(htg.from_linear(0x2da4)));
+//        return;
 //        stg.set_pos(p);
 //        stg.set_screen_pos((245, 160));
 //        stg.set_pos((40, 45));
 
-        render_floor(render, &stg, Rect::with_size(0, 0, 640, 380),
-            |num| map_tiles_tex.get(&map_tiles[num as usize].0));
-        render_roof(render, &stg, Rect::with_size(0, 0, 640, 380),
-            |num| map_tiles_tex.get(&map_tiles[num as usize].1));
+        let dude_fid = Fid::from_packed(0x0100003e).unwrap();
+//        let dude_fid = Fid::EGG;
+        frm_db.get_or_load(dude_fid, render).unwrap();
+        let mut dude_obj = Object {
+            hex_pos: Some(player_pos),
+            scr_shift: Point::new(0, 0),
+            scr_pos: Point::new(0, 0),
+            fid: dude_fid,
+            frame_idx: 0,
+            direction: Direction::NE,
+            flags: BitFlags::empty(),
+            pid: None,
+        };
+
+
+        let visible_rect = Rect::with_size(0, 0, 640, 380);
+
+
 
 //        let start_y = stg.from_screen((0, 0)).y;
 //        let start_x = stg.from_screen((639, 0)).x;
@@ -744,9 +1131,38 @@ fn main() {
 
 //        return;
 
+        frm_db.get_or_load(Fid::EGG, render).unwrap();
+
         'running: loop {
             for event in event_pump.poll_iter() {
                 match event {
+                    Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
+                        player_pos.point = htg.go(player_pos.point, Direction::E, 1);
+                        map::center(&mut htg, &mut stg, player_pos.point, 640, 380);
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
+                        player_pos.point = htg.go(player_pos.point, Direction::W, 1);
+                        map::center(&mut htg, &mut stg, player_pos.point, 640, 380);
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
+                        player_pos.point = if player_pos.point.x % 2 == 1 {
+                            htg.go(player_pos.point, Direction::NE, 1)
+                        } else {
+                            htg.go(player_pos.point, Direction::NW, 1)
+                        };
+                        map::center(&mut htg, &mut stg, player_pos.point, 640, 380);
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
+                        player_pos.point = if player_pos.point.y % 2 == 1 {
+                            htg.go(player_pos.point, Direction::SE, 1)
+                        } else {
+                            htg.go(player_pos.point, Direction::SW, 1)
+                        };
+                        map::center(&mut htg, &mut stg, player_pos.point, 640, 380);
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::A), .. } => {
+
+                    }
                     Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                         break 'running
                     },
@@ -754,9 +1170,29 @@ fn main() {
                 }
             }
 
+            render_floor(render, &stg, &visible_rect,
+                |num| Some(frm_db.get(Fid::new(EntityKind::SqrTile, 0, 0, 0, map.sqr_tiles[map.entrance.elevation].as_ref().unwrap()[num as usize].0).unwrap()).frame_lists[Direction::NE].frames[0].texture.clone())
+            );
+            for obj in &mut map.objs {
+                let elevation = map.entrance.elevation;
+                if obj.hex_pos.map(|p| p.elevation == elevation).unwrap_or(true) {
+                    obj.render(render, &visible_rect, 0x10000, &frm_db, &proto_db, &htg,
+                        player_pos.point, Fid::EGG);
+                }
+            }
+
+            dude_obj.hex_pos = Some(player_pos);
+            dude_obj.render(render, &visible_rect, 0x10000, &frm_db, &proto_db, &htg,
+                player_pos.point, Fid::EGG);
+
+//            render_roof(render, &stg, &visible_rect,
+//                |num| Some(frm_db.get(Fid::new(EntityKind::SqrTile, 0, 0, 0, map.sqr_tiles[map.entrance.elevation].as_ref().unwrap()[num as usize].1).unwrap()).frame_lists[Direction::NE].frames[0].texture.clone())
+//            );
+
             let now = Instant::now();
             render.update(now);
             render.present();
+            render.cleanup();
 
             ::std::thread::sleep(::std::time::Duration::new(0, 1_000_000_000u32 / 60));
         }
@@ -772,7 +1208,7 @@ fn main() {
 //    {
 //        use std::fs::File;
 //        let mut expected = Vec::with_capacity(256*256);
-//        File::open("/Users/dlysai/devp/vault13/misc/reveng/render/misc/expected_darken_lighten_lut.raw").unwrap()
+//        File::open("../../devp/vault13/misc/reveng/render/misc/expected_darken_lighten_lut.raw").unwrap()
 //            .read_to_end(&mut expected)
 //            .unwrap();
 //
@@ -813,7 +1249,7 @@ fn main() {
 //    {
 //        use std::fs::File;
 //        let mut expected = Vec::with_capacity(256*256);
-//        File::open("/Users/dlysai/devp/vault13/misc/reveng/render/misc/expected_rgb15_add_lut.raw").unwrap()
+//        File::open("../../devp/vault13/misc/reveng/render/misc/expected_rgb15_add_lut.raw").unwrap()
 //            .read_to_end(&mut expected)
 //            .unwrap();
 //
@@ -837,11 +1273,11 @@ fn main() {
 
 //    println!("{:?}", Rgb15::with_colors(31, 31, 31).darken(127).colors());
 
-//    let tile_tex = read_frm(&mut File::open("/Users/dlysai/devp/vault13/misc/reveng/render/misc/BRICK30.FRM").unwrap()).unwrap().remove(0);
+//    let tile_tex = read_frm(&mut File::open("../../devp/vault13/misc/reveng/render/misc/BRICK30.FRM").unwrap()).unwrap().remove(0);
 //    write_tex_png("/tmp/v13_tex.png", &tex, 0, &pal);
 
-//    let shelf_tex = read_frm(&mut File::open("/Users/dlysai/devp/vault13/misc/reveng/render/misc/BEDMILT1.FRM").unwrap()).unwrap().remove(0);
-//    let egg_tex = read_frm(&mut File::open("/Users/dlysai/devp/vault13/misc/reveng/render/misc/EGG.FRM").unwrap()).unwrap().remove(0);
+//    let shelf_tex = read_frm(&mut File::open("../../devp/vault13/misc/reveng/render/misc/BEDMILT1.FRM").unwrap()).unwrap().remove(0);
+//    let egg_frm = read_frm(&mut File::open("../../devp/vault13/misc/reveng/render/misc/EGG.FRM").unwrap()).unwrap().remove(0);
 //    write_tex_png("/tmp/egg.png", &egg_tex, &pal);
 
 //    let mut r = Render::new(640, 480, Box::new(pal));
@@ -849,7 +1285,7 @@ fn main() {
 //    r.draw_masked(&shelf_tex, 100, 100, &egg_tex, 80, 80, 0x8000);
 
 //    write_light_map_png("/tmp/actual_lm.png", &r.light_map);
-//    let expected_light_map = read_light_map("/Users/dlysai/devp/vault13/misc/reveng/render/misc/expected_light_map.bin").unwrap();
+//    let expected_light_map = read_light_map("../../devp/vault13/misc/reveng/render/misc/expected_light_map.bin").unwrap();
 //    write_light_map_png("/tmp/expected_lm.png", &expected_light_map);
 
 //    write_tex_png("/tmp/v13_tex.png", &r.back_buf, &r.palette);
