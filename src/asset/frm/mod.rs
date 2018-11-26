@@ -165,6 +165,8 @@ pub enum CritterAnim {
     FallBackBloodSf         = 61, // RO
     FallFrontBloodSf        = 62, // RP
 
+    Unknown63               = 63, // Fid(0x013f003f), Pid(0x01000004) seen on broken2.map at pos 18648.
+
     // called shot interface picture
     CalledShotPic           = 64, // NA
 }
