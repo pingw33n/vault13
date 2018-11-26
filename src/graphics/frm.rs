@@ -11,6 +11,12 @@ pub struct FrameSet {
     pub frame_lists: EnumMap<Direction, FrameList>,
 }
 
+impl FrameSet {
+    pub fn first(&self) -> &Frame {
+        &self.frame_lists[Direction::NE].frames[0]
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct FrameList {
     pub center: Point,
