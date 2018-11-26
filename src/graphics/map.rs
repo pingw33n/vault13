@@ -5,19 +5,19 @@ use graphics::render::TextureHandle;
 
 const ROOF_HEIGHT: i32 = 96;
 
-pub fn render_floor<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: Rect,
-        num_to_tex: impl FnMut(i32) -> Option<&'a TextureHandle>) {
+pub fn render_floor<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect,
+        num_to_tex: impl FnMut(i32) -> Option<TextureHandle>) {
     render_square_tiles(render, stg, rect, 0, num_to_tex);
 }
 
-pub fn render_roof<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: Rect,
-        num_to_tex: impl FnMut(i32) -> Option<&'a TextureHandle>) {
+pub fn render_roof<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect,
+        num_to_tex: impl FnMut(i32) -> Option<TextureHandle>) {
     render_square_tiles(render, stg, rect, ROOF_HEIGHT, num_to_tex);
 }
 
-fn render_square_tiles<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: Rect,
+fn render_square_tiles<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect,
         y_offset: i32,
-        mut num_to_tex: impl FnMut(i32) -> Option<&'a TextureHandle>) {
+        mut num_to_tex: impl FnMut(i32) -> Option<TextureHandle>) {
     let screen_y = rect.top + y_offset;
     let y = stg.from_screen((rect.left, screen_y)).y;
     let x = stg.from_screen((rect.right - 1, screen_y)).x;
@@ -35,7 +35,7 @@ fn render_square_tiles<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: Rect,
             let num = stg.to_linear((x, y)).unwrap();
             if let Some(tex) = num_to_tex(num) {
                 let scr_pt = stg.to_screen((x, y));
-                render.draw(tex, scr_pt.x, scr_pt.y - y_offset, 0x10000);
+                render.draw(&tex, scr_pt.x, scr_pt.y - y_offset, 0x10000);
             }
         }
     }
