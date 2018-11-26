@@ -36,10 +36,11 @@ impl Point {
         self.y += p.y;
     }
 
-//
-//    pub fn add_xy(self, x: i32, y: i32) -> Self {
-//        Self::new(self.x + x, self.y + y)
-//    }
+    pub fn sub_assign(&mut self, p: impl Into<Self>) {
+        let p = p.into();
+        self.x -= p.x;
+        self.y -= p.y;
+    }
 
     pub fn tuple(self) -> (i32, i32) {
         (self.x, self.y)
@@ -66,11 +67,28 @@ impl ops::AddAssign for Point {
     }
 }
 
+impl ops::Neg for Point {
+    type Output = Point;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: -self.y,
+        }
+    }
+}
+
 impl ops::Sub for Point {
     type Output = Self;
 
     fn sub(self, o: Self) -> Self {
         Self::new(self.x - o.x, self.y - o.y)
+    }
+}
+
+impl ops::SubAssign for Point {
+    fn sub_assign(&mut self, o: Self) {
+        Point::sub_assign(self, o)
     }
 }
 
