@@ -152,13 +152,17 @@ impl Rect {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.left < self.right &&
-            self.top < self.bottom
+        self.left >= self.right &&
+            self.top >= self.bottom
     }
 
     pub fn contains(&self, x: i32, y: i32) -> bool {
         x >= self.left && x < self.right &&
             y >= self.top && y < self.bottom
+    }
+
+    pub fn top_left(&self) -> Point {
+        Point::new(self.left, self.top)
     }
 }
 
