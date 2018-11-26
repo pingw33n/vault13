@@ -9,6 +9,7 @@ use graphics::color::{Color8, Palette, PaletteOverlay};
 use graphics::lightmap::LightMap;
 use graphics::Rect;
 use sdl2::pixels::PixelFormatEnum;
+use std::cmp;
 
 struct Texture {
     width: i32,
@@ -70,7 +71,7 @@ impl SoftwareRender {
             palette_overlay,
             canvas,
             canvas_texture,
-            clip_rect: Rect::full(),
+            clip_rect: Rect::with_size(0, 0, w as i32, h as i32),
         }
     }
 
@@ -206,9 +207,11 @@ impl Render for SoftwareRender {
         Self::do_draw(&mut self.back_buf, x, y, tex, &self.clip_rect,
             |dst, dst_x, dst_y, _, _, src| {
                 let src = pal.darken(src, light);
-                let i = (dst_y - mask_y) * mask.width + dst_x - mask_x;
-                let mask_v = if i >= 0 && i < mask.len() as i32 {
-                    mask.data[i as usize]
+                let in_mask_x = dst_x - mask_x;
+                let in_mask_y = dst_y - mask_y;
+                let mask_v = if mask_rect.contains(dst_x, dst_y) {
+                    let i = (dst_y - mask_y) * mask.width + dst_x - mask_x;
+                    cmp::min(mask.data[i as usize], 128)
                 } else {
                     0
                 };
