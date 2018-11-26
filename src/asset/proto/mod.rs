@@ -169,6 +169,30 @@ impl Variant {
             Misc => ExactEntityKind::Misc,
         }
     }
+
+    pub fn item(&self) -> Option<&Item> {
+        if let Variant::Item(ref v) = self { Some(v) } else { None }
+    }
+
+    pub fn critter(&self) -> Option<&Critter> {
+        if let Variant::Critter(ref v) = self { Some(v) } else { None }
+    }
+
+    pub fn scenery(&self) -> Option<&Scenery> {
+        if let Variant::Scenery(ref v) = self { Some(v) } else { None }
+    }
+
+    pub fn wall(&self) -> Option<&Wall> {
+        if let Variant::Wall(ref v) = self { Some(v) } else { None }
+    }
+
+    pub fn sqr_tile(&self) -> Option<&SqrTile> {
+        if let Variant::SqrTile(ref v) = self { Some(v) } else { None }
+    }
+
+    pub fn is_misc(&self) -> bool {
+        if let Variant::Misc = self { true } else { false }
+    }
 }
 
 #[derive(Debug)]
