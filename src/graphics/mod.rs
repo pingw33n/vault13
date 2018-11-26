@@ -82,6 +82,21 @@ impl From<(i32, i32)> for Point {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ElevatedPoint {
+    pub elevation: usize,
+    pub point: Point,
+}
+
+impl Default for ElevatedPoint {
+    fn default() -> Self {
+        Self {
+            elevation: 0,
+            point: Default::default(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Rect {
     pub left: i32,
