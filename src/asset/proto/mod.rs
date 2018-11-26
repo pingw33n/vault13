@@ -304,6 +304,7 @@ pub struct Weapon {
     // proto.msg:300
     pub caliber: i32,
     pub ammo_pid: Option<Pid>,
+    /// Magazine capacity.
     pub max_ammo: i32,
     pub sound_id: u8,
 }
@@ -322,7 +323,7 @@ pub struct Ammo {
 pub struct MiscItem {
     pub charge_pid: Option<Pid>,
     pub charge_kind: u32,
-    pub max_charge_count: i32,
+    pub max_charges: i32,
 }
 
 #[derive(Debug)]

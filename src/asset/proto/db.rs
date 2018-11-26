@@ -393,11 +393,11 @@ impl ProtoDb {
     fn read_misc_item(rd: &mut impl Read) -> io::Result<MiscItem> {
         let charge_pid = Pid::read_opt(rd)?;
         let charge_kind = rd.read_u32::<BigEndian>()?;
-        let max_charge_count = rd.read_i32::<BigEndian>()?;
+        let max_charges = cmp::max(rd.read_i32::<BigEndian>()?, 0);
         Ok(MiscItem {
             charge_pid,
             charge_kind,
-            max_charge_count,
+            max_charges,
         })
     }
 
