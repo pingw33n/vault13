@@ -4,7 +4,7 @@ use std::ops;
 pub mod color;
 pub mod frm;
 pub mod geometry;
-pub mod lightmap;
+pub mod lighting;
 pub mod map;
 pub mod render;
 

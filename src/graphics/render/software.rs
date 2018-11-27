@@ -6,7 +6,7 @@ use std::cell::RefCell;
 
 use super::*;
 use graphics::color::{Color8, Palette, PaletteOverlay};
-use graphics::lightmap::LightMap;
+use graphics::lighting::light_map::LightMap;
 use graphics::Rect;
 use sdl2::pixels::PixelFormatEnum;
 use std::cmp;
