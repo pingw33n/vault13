@@ -1,6 +1,6 @@
 use std::cmp;
 
-use graphics::Point;
+use graphics::{Point, Rect};
 
 #[derive(Clone, Debug)]
 pub struct TileGrid {
@@ -81,6 +81,31 @@ impl TileGrid {
         let screen_x = self.screen_pos.x + 48 * x + 32 * y;
         let screen_y = self.screen_pos.y - 12 * x + 24 * y;
         Point::new(screen_x, screen_y)
+    }
+
+    /// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
+    /// Clips the resulting rectangle if `clip` is `true`.
+    pub fn from_screen_rect(&self, rect: &Rect, clip: bool) -> Rect {
+        let right = rect.right - 1;
+        let bottom = rect.bottom - 1;
+
+        let x = self.from_screen((rect.left, bottom)).x;
+        let y = self.from_screen((rect.left, rect.top)).y;
+        let top_left = if clip {
+            self.clip((x, y))
+        } else {
+            Point::new(x, y)
+        };
+
+        let x = self.from_screen((right, rect.top)).x;
+        let y = self.from_screen((right, bottom)).y;
+        let bottom_right_incl = if clip {
+            self.clip((x, y))
+        } else {
+            Point::new(x, y)
+        };
+
+        Rect::with_points(top_left, bottom_right_incl + Point::new(1, 1))
     }
 
     /// Rectangular to linear coordinates.

@@ -18,20 +18,12 @@ pub fn render_roof<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect,
 fn render_square_tiles<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect,
         y_offset: i32,
         mut num_to_tex: impl FnMut(i32) -> Option<TextureHandle>) {
-    let screen_y = rect.top + y_offset;
-    let y = stg.from_screen((rect.left, screen_y)).y;
-    let x = stg.from_screen((rect.right - 1, screen_y)).x;
-    let start = stg.clip((x, y));
-
-    let screen_y = rect.bottom - 1 + y_offset;
-    let x = stg.from_screen((rect.left, screen_y)).x;
-    let y = stg.from_screen((rect.right - 1, screen_y)).y;
-    let end = stg.clip((x, y));
+    let sqr_rect = stg.from_screen_rect(rect, true);
 
     // TODO apply per-hex lighting.
 
-    for y in start.y..=end.y {
-        for x in (end.x..=start.x).rev() {
+    for y in sqr_rect.top..sqr_rect.bottom {
+        for x in (sqr_rect.left..=sqr_rect.right).rev() {
             let num = stg.to_linear((x, y)).unwrap();
             if let Some(tex) = num_to_tex(num) {
                 let scr_pt = stg.to_screen((x, y));
