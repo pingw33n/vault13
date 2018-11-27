@@ -2,7 +2,7 @@ use std::cmp;
 
 use graphics::Point;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct TileGrid {
     // Position in screen coordinates.
     // Tile at `pos` will be mapped to screen at screen_pos.
@@ -21,8 +21,8 @@ pub struct TileGrid {
 }
 
 impl TileGrid {
-    pub fn len(&self) -> i32 {
-        self.width * self.height
+    pub fn len(&self) -> usize {
+        (self.width * self.height) as usize
     }
 
     pub fn screen_pos(&self) -> Point {
