@@ -50,6 +50,14 @@ impl TileGrid {
         self.set_pos(lin);
     }
 
+    pub fn width(&self) -> i32 {
+        self.width
+    }
+
+    pub fn height(&self) -> i32 {
+        self.height
+    }
+
     // square_xy()
     pub fn from_screen(&self, p: impl Into<Point>) -> Point {
         let p = p.into();

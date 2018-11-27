@@ -74,16 +74,20 @@ impl TileGrid {
         self.screen_pos = pos.into();
     }
 
-//    pub fn set_screen_pos_xy(&mut self, x: i32, y: i32) {
-//        self.set_screen_pos((x, y))
-//    }
-
     pub fn pos(&self) -> Point {
         self.pos
     }
 
     pub fn set_pos(&mut self, pos: impl Into<Point>) {
         self.pos = pos.into();
+    }
+
+    pub fn width(&self) -> i32 {
+        self.width
+    }
+
+    pub fn height(&self) -> i32 {
+        self.height
     }
 
     pub fn is_on_edge(&self, p: impl Into<Point>) -> bool {
@@ -530,18 +534,6 @@ mod test {
         assert_eq!(t.is_in_front_of((101, 100), (100, 100)), true);
         assert_eq!(t.is_in_front_of((100, 101), (100, 100)), true);
         assert_eq!(t.is_in_front_of((100, 99), (100, 100)), false);
-//
-//        for x1 in 0..200 {
-//            for y1 in 0..200 {
-//                for x2 in 0..200 {
-//                    for y2 in 0..200 {
-//                        let p1 = (x1, y1);
-//                        let p2 = (x2, y2);
-//                        assert_eq!(t.is_to_right_of(p1, p2), t.is_to_right_of_(p1, p2));
-//                    }
-//                }
-//            }
-//        }
     }
 
     #[test]
