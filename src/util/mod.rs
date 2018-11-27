@@ -80,31 +80,16 @@ impl<T: io::Write> io::Write for Limited<T> {
 }
 
 pub fn vec_with_default<T: Default>(len: usize) -> Vec<T> {
+    vec_with_func(len, |_| T::default())
+}
+
+pub fn vec_with_func<T>(len: usize, f: impl Fn(usize) -> T) -> Vec<T> {
     let mut r = Vec::with_capacity(len);
-    for _ in 0..len {
-        r.push(T::default());
+    for i in 0..len {
+        r.push(f(i));
     }
     r
 }
-
-//pub fn ensure_trailing(s: &str, chars: &str) -> String {
-//    assert!(!chars.is_empty());
-//    let mut ends_with_any = false;
-//    for c in chars.chars() {
-//        if s.ends_with(c) {
-//            ends_with_any = true;
-//            break;
-//        }
-//    }
-//    if ends_with_any {
-//        s.to_owned()
-//    } else {
-//        let mut r = String::with_capacity(s.len() + 1);
-//        r.push_str(s);
-//        r.push(chars.chars().next().unwrap());
-//        r
-//    }
-//}
 
 pub fn enum_iter<T: Enum<()> + Copy, R: RangeBounds<T>>(r: R) -> EnumIter<T> {
     use std::ops::Bound;
