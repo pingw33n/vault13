@@ -1,5 +1,5 @@
+#![allow(dead_code)]
 #![allow(proc_macro_derive_resolution_fallback)]
-#![allow(unused)]
 #![deny(non_snake_case)]
 
 extern crate bstring;
@@ -11,7 +11,6 @@ extern crate env_logger;
 #[macro_use] extern crate enum_primitive_derive;
 extern crate flate2;
 #[macro_use] extern crate icecream;
-#[macro_use] extern crate if_chain;
 #[macro_use] extern crate log;
 extern crate num_traits;
 extern crate png;

@@ -9,10 +9,9 @@ use std::fmt;
 use std::io::{self, Error, ErrorKind, prelude::*};
 
 use asset::EntityKind;
-use fs::FileSystem;
 use graphics::frm::{Frame, FrameList, FrameSet};
 use graphics::geometry::Direction;
-use graphics::render::{Render, TextureHandle};
+use graphics::render::Render;
 use graphics::Point;
 use util::EnumExt;
 
@@ -209,7 +208,7 @@ pub fn read_frm(rd: &mut impl Read, render: &mut Render) -> io::Result<FrameSet>
         frame_offsets[dir] = rd.read_u32::<BigEndian>()?;
     }
 
-    let data_len = rd.read_u32::<BigEndian>()?;
+    let _data_len = rd.read_u32::<BigEndian>()?;
 
     let mut loaded_offsets: EnumMap<Direction, Option<u32>> = EnumMap::new();
     let mut frame_lists: EnumMap<Direction, Option<FrameList>> = EnumMap::new();
@@ -217,7 +216,7 @@ pub fn read_frm(rd: &mut impl Read, render: &mut Render) -> io::Result<FrameSet>
         let offset = frame_offsets[dir];
         let already_loaded_dir = loaded_offsets
             .iter()
-            .filter_map(|(d, o)| o.filter(|&o| o == offset).map(|o| d))
+            .filter_map(|(d, o)| o.filter(|&o| o == offset).map(|_| d))
             .next();
         if let Some(already_loaded_dir) = already_loaded_dir {
             frame_lists[dir] = frame_lists[already_loaded_dir].clone();

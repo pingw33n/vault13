@@ -2,8 +2,6 @@ pub mod hex;
 pub mod map;
 pub mod sqr;
 
-use graphics::Point;
-
 #[derive(Clone, Copy, Debug, Enum, PartialEq, PartialOrd, Primitive)]
 pub enum Direction {
     NE  = 0,

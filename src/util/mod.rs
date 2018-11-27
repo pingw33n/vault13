@@ -79,13 +79,13 @@ impl<T: io::Write> io::Write for Limited<T> {
     }
 }
 
-//pub fn make_none_filled_vec<T>(len: usize) -> Vec<Option<T>> {
-//    let mut r = Vec::with_capacity(len);
-//    for _ in 0..len {
-//        r.push(None);
-//    }
-//    r
-//}
+pub fn vec_with_default<T: Default>(len: usize) -> Vec<T> {
+    let mut r = Vec::with_capacity(len);
+    for _ in 0..len {
+        r.push(T::default());
+    }
+    r
+}
 
 //pub fn ensure_trailing(s: &str, chars: &str) -> String {
 //    assert!(!chars.is_empty());
@@ -110,7 +110,7 @@ pub fn enum_iter<T: Enum<()> + Copy, R: RangeBounds<T>>(r: R) -> EnumIter<T> {
     use std::ops::Bound;
     let i = match r.start_bound() {
         Bound::Included(b) => b.to_usize(),
-        Bound::Excluded(b) => unreachable!(),
+        Bound::Excluded(_) => unreachable!(),
         Bound::Unbounded => 0,
     };
     let end = match r.end_bound() {

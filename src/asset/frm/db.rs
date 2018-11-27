@@ -7,7 +7,6 @@ use std::rc::Rc;
 use asset::{EntityKind, LstEntry, read_lst, WeaponKind};
 use fs::FileSystem;
 use graphics::frm::FrameSet;
-use graphics::render::TextureHandle;
 use super::*;
 use util::EnumExt;
 

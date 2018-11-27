@@ -298,11 +298,8 @@ impl TileGrid {
     pub fn distance(&self, p1: impl Into<Point>, p2: impl Into<Point>) -> i32 {
         let mut p1 = p1.into();
         let p2 = p2.into();
-        let sp1 = self.to_screen(p1);
         let mut distance = 0;
         while p1 != p2 {
-            let sp2 = self.to_screen(p2);
-            let d = sp1 - sp2;
             let dir = self.direction(p1, p2);
             p1 = self.go(p1, dir, 1);
             distance += 1;

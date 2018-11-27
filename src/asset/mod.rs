@@ -2,7 +2,7 @@ pub mod frm;
 pub mod message;
 pub mod proto;
 
-use std::io::{self, Error, ErrorKind, prelude::*};
+use std::io::{self, prelude::*};
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum EntityKind {

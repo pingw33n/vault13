@@ -4,16 +4,15 @@ use enum_map::EnumMap;
 use num_traits::FromPrimitive;
 use std::cell::{Ref, RefCell};
 use std::cmp;
-use std::collections::hash_map::{Entry, HashMap};
+use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
 use std::str;
 
 use super::*;
 use asset::frm::*;
-use asset::message::{self, Messages};
+use asset::message::Messages;
 use fs::FileSystem;
-use util::enum_iter;
 
 pub struct ProtoDb {
     fs: Rc<FileSystem>,

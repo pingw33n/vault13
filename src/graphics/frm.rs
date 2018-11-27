@@ -63,7 +63,7 @@ pub struct Sprite {
 }
 
 impl Sprite {
-    pub fn render(&self, render: &mut Render, rect: &Rect, frm_db: &FrmDb) -> Rect {
+    pub fn render(&self, render: &mut Render, _rect: &Rect, frm_db: &FrmDb) -> Rect {
         let frms = frm_db.get(self.fid);
         let frml = &frms.frame_lists[self.direction];
         let frm = &frml.frames[self.frame_idx];

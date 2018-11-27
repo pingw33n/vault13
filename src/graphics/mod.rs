@@ -1,8 +1,5 @@
-use slotmap::{DefaultKey, SlotMap};
-use std::cell::RefCell;
 use std::cmp;
 use std::ops;
-use std::rc::Rc;
 
 pub mod color;
 pub mod frm;

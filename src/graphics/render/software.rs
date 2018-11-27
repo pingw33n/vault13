@@ -207,8 +207,6 @@ impl Render for SoftwareRender {
         Self::do_draw(&mut self.back_buf, x, y, tex, &self.clip_rect,
             |dst, dst_x, dst_y, _, _, src| {
                 let src = pal.darken(src, light);
-                let in_mask_x = dst_x - mask_x;
-                let in_mask_y = dst_y - mask_y;
                 let mask_v = if mask_rect.contains(dst_x, dst_y) {
                     let i = (dst_y - mask_y) * mask.width + dst_x - mask_x;
                     cmp::min(mask.data[i as usize], 128)

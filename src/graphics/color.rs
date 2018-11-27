@@ -297,9 +297,6 @@ mod test_rgb {
 
     #[test]
     fn darken() {
-        let d = vec![
-            ([5, 10, 29], )
-        ];
         let c = rgb15(5, 10, 29);
         assert_eq!(c.darken(0), rgb15(0, 0, 0));
         assert_eq!(c.darken(64), rgb15(2, 5, 14));
@@ -308,9 +305,6 @@ mod test_rgb {
 
     #[test]
     fn lighten() {
-        let d = vec![
-            ([5, 10, 29], )
-        ];
         let c = rgb15(5, 10, 29);
         assert_eq!(c.lighten(0), c);
         assert_eq!(c.lighten(64), rgb15(18, 20, 30));
@@ -478,7 +472,7 @@ impl PaletteOverlay {
             }
         }) {
             Ok(i) => Some(self.ranges[i].get(color_idx)),
-            Err(i) => None,
+            Err(_) => None,
         }
     }
 

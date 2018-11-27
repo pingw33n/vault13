@@ -82,7 +82,7 @@ impl Pid {
     }
 
     pub fn from_packed(v: u32) -> Option<Self> {
-        let obj_kind = EntityKind::from_u32(v >> 24)?;
+        EntityKind::from_u32(v >> 24)?;
         let pid = Pid(v);
         if pid.id() == 0 {
             None
