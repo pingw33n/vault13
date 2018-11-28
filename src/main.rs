@@ -22,6 +22,9 @@ mod fs;
 mod graphics;
 mod util;
 
+mod notepad;
+
 fn main() {
     env_logger::init();
+    notepad::main();
 }
