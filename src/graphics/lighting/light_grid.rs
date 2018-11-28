@@ -8,24 +8,40 @@ use util::{EnumExt, vec_with_func};
 const MAX_EMITTER_RADIUS: u32 = 8;
 /// Number of points inside the light cone of MAX_EMITTER_RADIUS.
 const LIGHT_CONE_LEN: usize = 36;
-const DEFAULT_LIGHT_INTENSITY: u32 = 655;
+const DEFAULT_LIGHT_INTENSITY: i32 = 655;
 const MAX_INTENSITY: u32 = 0x10000;
 
+#[derive(Clone, Copy, Debug)]
+pub struct LightTestResult {
+    blocked: bool,
+    updatable: bool,
+}
+
+impl Default for LightTestResult {
+    fn default() -> Self {
+        Self {
+            blocked: false,
+            updatable: true,
+        }
+    }
+}
+
 pub struct LightGrid {
-    tile_grid: TileGrid,
+    width: i32,
     light_cones: LightCones,
-    grid: Box<[Box<[u32]>]>,
+    grid: Box<[Box<[i32]>]>,
     block: LightBlock,
 }
 
 impl LightGrid {
-    pub fn new(tile_grid: TileGrid, elevations: usize) -> Self {
-        let light_cones = LightCones::new(MAX_EMITTER_RADIUS, &tile_grid);
+    pub fn new(tile_grid: &TileGrid, elevations: usize) -> Self {
+        assert!(elevations > 0);
+        let light_cones = LightCones::new(MAX_EMITTER_RADIUS, tile_grid);
         let grid = vec_with_func(elevations,
             |_| vec![DEFAULT_LIGHT_INTENSITY; tile_grid.len()].into_boxed_slice()).into_boxed_slice();
 
         Self {
-            tile_grid,
+            width: tile_grid.width(),
             light_cones,
             grid,
             block: LightBlock::new(),
@@ -40,54 +56,53 @@ impl LightGrid {
         }
     }
 
-    pub fn modify(&mut self, p: impl Into<ElevatedPoint>, radius: u32, amount: i32,
-                  f: impl Fn(Point) -> (bool, bool)) {
+    pub fn update(&mut self, p: impl Into<ElevatedPoint>, radius: u32, delta: i32,
+                  tester: impl Fn(usize, Point) -> LightTestResult) {
         assert!(radius <= MAX_EMITTER_RADIUS);
-        assert!(amount >= -(MAX_INTENSITY as i32));
-        assert!(amount <= MAX_INTENSITY as i32);
 
         let p = p.into();
         assert!(p.elevation < self.grid.len());
-        assert!(self.tile_grid.is_in_bounds(p.point));
+        assert!(p.point.x >= 0 && p.point.x < self.width);
+        assert!(p.point.y >= 0 && p.point.y < self.grid[0].len() as i32 / self.width);
 
-        Self::modify_point(&mut self.grid, p.elevation,
-            self.tile_grid.to_linear(p.point).unwrap() as u32, amount);
+        Self::update_at(&mut self.grid, self.width, p.elevation, p.point, delta);
 
-        let amount_sign = amount.signum();
-        let falloff = (amount.abs() - 655) / (radius as i32 + 1);
+        let delta_sign = delta.signum();
+        let delta_abs = delta.abs();
+        let falloff = (delta_abs - 655) / (radius as i32 + 1);
 
         let light_cones = &self.light_cones.cones(p.point.x % 2 != 0);
         for i in 0..self.light_cones.len() {
             if radius < self.light_cones.radiuses()[i] {
                 continue;
             }
+            let amount = delta_sign *
+                (delta_abs - falloff * self.light_cones.radiuses()[i] as i32);
             for dir in Direction::iter() {
-                let light_cone_point = light_cones[dir][i];
-                let blocked = if let Some(light_cone_point_lin) =
-                        self.tile_grid.to_linear(light_cone_point) {
-                    let blocked = self.block.get(i, dir);
-                    if !blocked  {
-                        let (blocked, apply) = f(light_cone_point);
-                        if apply {
-                            Self::modify_point(&mut self.grid, p.elevation,
-                                light_cone_point_lin as u32,
-                                amount_sign * falloff * self.light_cones.radiuses[i] as i32);
-                        }
-                        blocked
-                    } else {
-                        blocked
+                let light_cone_point = p.point + light_cones[dir][i];
+                let blocked = self.block.get(i, dir);
+                let blocked = if !blocked  {
+                    let LightTestResult { blocked, updatable } = tester(i, light_cone_point);
+                    if updatable {
+                        Self::update_at(&mut self.grid, self.width, p.elevation,
+                            light_cone_point, amount);
                     }
+                    blocked
                 } else {
-                    true
+                    blocked
                 };
                 self.block.set(i, dir, blocked);
             }
         }
     }
 
-    fn modify_point(grid: &mut Box<[Box<[u32]>]>, elevation: usize, i: u32, amount: i32) {
-        let i = i as usize;
-        grid[elevation][i] = (grid[elevation][i] as i32 + amount) as u32;
+    pub fn grid(&self) -> &[Box<[i32]>] {
+        &self.grid
+    }
+
+    fn update_at(grid: &mut Box<[Box<[i32]>]>, width: i32, elevation: usize, p: Point, delta: i32) {
+        let i = (width * p.y + p.x) as usize;
+        grid[elevation][i] += delta;
     }
 }
 
@@ -320,7 +335,7 @@ impl LightBlock {
                 let v11 = nc[6] && c[33];
                 v11 | v10
             }
-            _ => unreachable!(),
+            _ => panic!("invalid index: {}", i),
         }
     }
 
@@ -382,6 +397,62 @@ mod test {
                         "odd={} {:?} {:?}", odd, dir, e);
                 }
             }
+        }
+    }
+
+    mod light_grid {
+        use byteorder::{ByteOrder, LittleEndian};
+        use flate2::bufread::GzDecoder;
+        use std::io::Read;
+        use super::*;
+
+        #[test]
+        fn reference() {
+            let mut expected = Vec::new();
+            GzDecoder::new(&include_bytes!("light_grid_expected.bin.gz")[..])
+                .read_to_end(&mut expected).unwrap();
+            let mut expected: Vec<_> = expected.chunks(4).map(LittleEndian::read_i32).collect();
+            for c in expected.chunks_mut(200) {
+                c.reverse();
+            }
+            let expected: Vec<_> = expected.chunks(200 * 200).map(|v| Vec::from(v)).collect();
+
+            let mut actual = LightGrid::new(&TileGrid::default(), 1);
+            for (linp, radius, amount) in vec![
+                (0x3898, 8, 0x10000),
+                (0x3d49, 8, 0x10000),
+                (0x41fa, 8, 0x10000),
+                (0x4453, 5, 0x10000),
+                (0x4e84, 4, 0x10000),
+                (0x54f4, 8, 0x10000),
+                (0x5b33, 8, 0x10000),
+                (0x5c02, 8, 0x10000),
+                (0x5d93, 8, 0x10000),
+                (0x60b1, 8, 0x10000),
+                (0x617b, 8, 0x10000),
+                (0x6499, 8, 0x10000),
+                (0x64a1, 8, 0x10000),
+            ] {
+                let point = TileGrid::default().from_linear(linp);
+                actual.update(ElevatedPoint { elevation: 0, point }, radius, amount,
+                    |_, _| LightTestResult::default());
+            }
+
+            assert_eq!(&actual.grid()[0][..], &expected[0][..]);
+        }
+
+        #[test]
+        fn flip() {
+            let mut lg = LightGrid::new(&TileGrid::default(), 2);
+
+            let expected = Vec::from(lg.grid().clone());
+
+            lg.update(ElevatedPoint { elevation: 0, point: Point::new(31, 41) }, 8, 1234567,
+                |_, _| LightTestResult::default());
+            lg.update(ElevatedPoint { elevation: 0, point: Point::new(31, 41) }, 8, -1234567,
+                |_, _| LightTestResult::default());
+
+            assert_eq!(lg.grid(), &expected[..]);
         }
     }
 }
