@@ -111,16 +111,15 @@ impl LightMap {
 
 #[cfg(test)]
 mod test {
+    use byteorder::{ByteOrder, LittleEndian};
     use super:: *;
 
     #[test]
     fn test() {
-        use byteorder::{ByteOrder, LittleEndian};
-
-        let mut expected = Vec::new();
-        for l in include_bytes!("expected_light_map.bin").chunks(4) {
-            expected.push(LittleEndian::read_i32(l));
-        }
+        let expected: Vec<_> = include_bytes!("light_map_expected.bin")
+            .chunks(4)
+            .map(LittleEndian::read_i32)
+            .collect();
 
         let mut actual = LightMap::new();
         actual.build(&[0x10000, 0, 0, 0x10000, 0x10000, 0, 0x10000, 0, 0x10000, 0]);
