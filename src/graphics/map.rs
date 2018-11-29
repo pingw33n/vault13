@@ -1,33 +1,41 @@
 use graphics::geometry::{hex, sqr};
+use graphics::lighting::light_map::{VERTEX_COUNT, VERTEX_HEXES};
 use graphics::{Point, Rect};
-use graphics::render::Render;
-use graphics::render::TextureHandle;
+use graphics::render::{Render, TextureHandle};
 
 const ROOF_HEIGHT: i32 = 96;
 
 pub fn render_floor<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect,
-        num_to_tex: impl FnMut(i32) -> Option<TextureHandle>) {
-    render_square_tiles(render, stg, rect, 0, num_to_tex);
+        num_to_tex: impl FnMut(i32) -> Option<TextureHandle>,
+        get_light: impl Fn(Point) -> u32) {
+    render_square_tiles(render, stg, rect, 0, num_to_tex, get_light);
 }
 
 pub fn render_roof<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect,
         num_to_tex: impl FnMut(i32) -> Option<TextureHandle>) {
-    render_square_tiles(render, stg, rect, ROOF_HEIGHT, num_to_tex);
+    render_square_tiles(render, stg, rect, ROOF_HEIGHT, num_to_tex, |_| 0x10000);
 }
 
-fn render_square_tiles<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect,
+fn render_square_tiles(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect,
         y_offset: i32,
-        mut num_to_tex: impl FnMut(i32) -> Option<TextureHandle>) {
+        mut num_to_tex: impl FnMut(i32) -> Option<TextureHandle>,
+        get_light: impl Fn(Point) -> u32) {
     let sqr_rect = stg.from_screen_rect(rect, true);
 
-    // TODO apply per-hex lighting.
-
+    let mut vertex_lights = [0; VERTEX_COUNT];
     for y in sqr_rect.top..sqr_rect.bottom {
-        for x in (sqr_rect.left..=sqr_rect.right).rev() {
+        for x in (sqr_rect.left..sqr_rect.right).rev() {
             let num = stg.to_linear_inv((x, y)).unwrap();
             if let Some(tex) = num_to_tex(num) {
-                let scr_pt = stg.to_screen((x, y));
-                render.draw(&tex, scr_pt.x, scr_pt.y - y_offset, 0x10000);
+                let scr_pt = stg.to_screen((x, y)) - Point::new(0, y_offset);
+
+                let hex_pos = Point::new(x * 2, y * 2);
+                for i in 0..VERTEX_COUNT {
+                    let l = get_light(hex_pos + VERTEX_HEXES[x as usize % 2][i]);
+                    vertex_lights[i] = l;
+                }
+
+                render.draw_multi_light(&tex, scr_pt.x, scr_pt.y, &vertex_lights[..]);
             }
         }
     }
