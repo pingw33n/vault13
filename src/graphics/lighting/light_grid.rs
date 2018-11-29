@@ -11,17 +11,29 @@ const LIGHT_CONE_LEN: usize = 36;
 const DEFAULT_LIGHT_INTENSITY: i32 = 655;
 const MAX_INTENSITY: u32 = 0x10000;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct LightTest {
+    /// Index of the point inside the light cone.
+    pub i: usize,
+
+    /// Light cone direction.
+    pub direction: Direction,
+
+    /// Hex coords of the point inside the light cone.
+    pub point: ElevatedPoint,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LightTestResult {
-    blocked: bool,
-    updatable: bool,
+    pub block: bool,
+    pub update: bool,
 }
 
 impl Default for LightTestResult {
     fn default() -> Self {
         Self {
-            blocked: false,
-            updatable: true,
+            block: false,
+            update: true,
         }
     }
 }
@@ -57,13 +69,17 @@ impl LightGrid {
     }
 
     pub fn update(&mut self, p: impl Into<ElevatedPoint>, radius: u32, delta: i32,
-                  tester: impl Fn(usize, Point) -> LightTestResult) {
-        assert!(radius <= MAX_EMITTER_RADIUS);
+                  mut tester: impl FnMut(LightTest) -> LightTestResult) {
+        assert!(radius <= MAX_EMITTER_RADIUS, "{}", radius);
 
         let p = p.into();
         assert!(p.elevation < self.grid.len());
         assert!(p.point.x >= 0 && p.point.x < self.width);
         assert!(p.point.y >= 0 && p.point.y < self.grid[0].len() as i32 / self.width);
+
+        if delta == 0 {
+            return;
+        }
 
         Self::update_at(&mut self.grid, self.width, p.elevation, p.point, delta);
 
@@ -82,12 +98,16 @@ impl LightGrid {
                 let light_cone_point = p.point + light_cones[dir][i];
                 let blocked = self.block.get(i, dir);
                 let blocked = if !blocked  {
-                    let LightTestResult { blocked, updatable } = tester(i, light_cone_point);
-                    if updatable {
+                    let LightTestResult { block, update } = tester(LightTest {
+                        i,
+                        direction: dir,
+                        point: ElevatedPoint { elevation: p.elevation, point: light_cone_point },
+                    });
+                    if update {
                         Self::update_at(&mut self.grid, self.width, p.elevation,
                             light_cone_point, amount);
                     }
-                    blocked
+                    block
                 } else {
                     blocked
                 };
@@ -405,17 +425,11 @@ mod test {
         use flate2::bufread::GzDecoder;
         use std::io::Read;
         use super::*;
+        use std::collections::HashMap;
 
         #[test]
-        fn reference() {
-            let mut expected = Vec::new();
-            GzDecoder::new(&include_bytes!("light_grid_expected.bin.gz")[..])
-                .read_to_end(&mut expected).unwrap();
-            let mut expected: Vec<_> = expected.chunks(4).map(LittleEndian::read_i32).collect();
-            for c in expected.chunks_mut(200) {
-                c.reverse();
-            }
-            let expected: Vec<_> = expected.chunks(200 * 200).map(|v| Vec::from(v)).collect();
+        fn reference_no_light_test() {
+            let expected = read_light_grid_dump(&include_bytes!("light_grid_expected.bin.gz")[..]);
 
             let mut actual = LightGrid::new(&TileGrid::default(), 1);
             for (linp, radius, amount) in vec![
@@ -433,12 +447,47 @@ mod test {
                 (0x6499, 8, 0x10000),
                 (0x64a1, 8, 0x10000),
             ] {
-                let point = TileGrid::default().from_linear(linp);
+                let point = TileGrid::default().from_linear_inv(linp);
                 actual.update(ElevatedPoint { elevation: 0, point }, radius, amount,
-                    |_, _| LightTestResult::default());
+                    |_| LightTestResult::default());
             }
 
             assert_eq!(&actual.grid()[0][..], &expected[0][..]);
+        }
+
+        #[test]
+        fn reference_with_light_test() {
+            let expected = read_light_grid_dump(&include_bytes!("light_grid_expected2.bin.gz")[..]);
+
+            // This data was generated from arcaves.map.
+            let input = include!("light_grid_input.in");
+            let light_test = include!("light_grid_light_test.in");
+
+            const ELEVATION: usize = 1;
+            let mut light_test_map = HashMap::new();
+            for ((i, direction, (x, y)), (block, update)) in light_test {
+                let lt = LightTest {
+                    i,
+                    direction,
+                    point: ElevatedPoint {
+                        elevation: ELEVATION,
+                        point: (x, y).into(),
+                    },
+                };
+                let r = LightTestResult {
+                    block,
+                    update,
+                };
+                light_test_map.insert(lt, r);
+            }
+
+            let mut actual = LightGrid::new(&TileGrid::default(), ELEVATION + 1);
+            for (point, radius, intensity) in input {
+                actual.update(Point::from(point).elevated(ELEVATION),
+                    radius, intensity as i32, |lt| light_test_map[&lt]);
+            }
+
+            assert_eq!(&actual.grid()[ELEVATION][..], &expected[0][..]);
         }
 
         #[test]
@@ -448,11 +497,24 @@ mod test {
             let expected = Vec::from(lg.grid().clone());
 
             lg.update(ElevatedPoint { elevation: 0, point: Point::new(31, 41) }, 8, 1234567,
-                |_, _| LightTestResult::default());
+                |_| LightTestResult::default());
             lg.update(ElevatedPoint { elevation: 0, point: Point::new(31, 41) }, 8, -1234567,
-                |_, _| LightTestResult::default());
+                |_| LightTestResult::default());
 
             assert_eq!(lg.grid(), &expected[..]);
+        }
+
+        fn read_light_grid_dump(bytes: &[u8]) -> Box<[Box<[i32]>]> {
+            let mut expected = Vec::new();
+            GzDecoder::new(bytes)
+                .read_to_end(&mut expected).unwrap();
+            let mut expected: Vec<_> = expected.chunks(4).map(LittleEndian::read_i32).collect();
+            for c in expected.chunks_mut(200) {
+                c.reverse();
+            }
+            let expected: Vec<_> = expected.chunks(200 * 200)
+                .map(|v| Vec::from(v).into_boxed_slice()).collect();
+            expected.into_boxed_slice()
         }
     }
 }
