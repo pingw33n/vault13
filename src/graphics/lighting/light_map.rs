@@ -1,5 +1,23 @@
 use std::cmp;
 
+use graphics::Point;
+
+pub const VERTEX_COUNT: usize = 10;
+pub const VERTEX_HEXES: [[Point; VERTEX_COUNT]; 2] = [
+    [
+        Point { x: 0, y: -1}, Point { x: 1, y: -1 },
+        Point { x: -1, y: -1}, Point { x: 0, y: 0}, Point { x: 1, y: 0},
+        Point { x: -1, y: 0}, Point { x: 0, y: 1}, Point { x: 1, y: 1},
+        Point { x: -1, y: 1}, Point { x: 0, y: 2},
+    ],
+    [
+        Point { x: 0, y: -1 }, Point { x: 1, y: 0 },
+        Point { x: -1, y: 0 }, Point { x: 0, y: 0 }, Point { x: 1, y: 1 },
+        Point { x: -1, y: 1 }, Point { x: 0, y: 1 }, Point { x: 1, y: 2 },
+        Point { x: -1, y: 2 }, Point { x: 0, y: 2 },
+    ],
+];
+
 pub struct LightMap {
     data: Box<[u32]>,
 }
@@ -27,7 +45,7 @@ impl LightMap {
         static UP_TRI_FILL: FillInfo = [2, 2, 6, 8, 10, 14, 16, 18, 20, 24, 26, 28, 32];
         static DOWN_TRI_FILL: FillInfo = [32, 32, 30, 26, 24, 22, 18, 16, 14, 12, 8, 6, 4];
 
-        static TRI_VERTEX_INDEXES: [[usize; 3]; 10] = [
+        static TRI_VERTEX_INDEXES: [[usize; 3]; VERTEX_COUNT] = [
             [0, 3, 2],
             [0, 1, 3],
             [1, 4, 3],
@@ -40,7 +58,7 @@ impl LightMap {
             [6, 7, 9],
         ];
 
-        assert_eq!(lights.len(), 10);
+        assert_eq!(lights.len(), VERTEX_COUNT);
 
         fn fill_tri(light_map: &mut [u32], lights: &[u32],
                     tri_idx: usize, fill_info: &FillInfo, leftmost_vertex_idx: usize) {
