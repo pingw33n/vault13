@@ -8,7 +8,7 @@ pub mod lighting;
 pub mod map;
 pub mod render;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Point {
     pub x: i32,
     pub y: i32,
@@ -41,6 +41,13 @@ impl Point {
 
     pub fn tuple(self) -> (i32, i32) {
         (self.x, self.y)
+    }
+
+    pub fn elevated(self, elevation: usize) -> ElevatedPoint {
+        ElevatedPoint {
+            elevation,
+            point: self,
+        }
     }
 }
 
@@ -101,7 +108,7 @@ impl From<(i32, i32)> for Point {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ElevatedPoint {
     pub elevation: usize,
     pub point: Point,

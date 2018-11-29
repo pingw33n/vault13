@@ -4,7 +4,7 @@ pub mod sqr;
 
 use util::EnumExt;
 
-#[derive(Clone, Copy, Debug, Enum, PartialEq, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 pub enum Direction {
     NE  = 0,
     E   = 1,
