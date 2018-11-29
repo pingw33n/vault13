@@ -61,8 +61,8 @@ impl MapGrid {
         self.sqr.set_screen_pos(sqr_screen_pos);
 
         trace!("MapGrid::centered: hex::pos={:?}, {:?} hex::screen_pos={:?} sqr::pos={:?}, {:?} sqr::screen_pos={:?}",
-            hex_pos.tuple(), self.hex.to_linear(hex_pos), hex_screen_pos.tuple(),
-            sqr_pos.tuple(), self.sqr.to_linear(sqr_pos), sqr_screen_pos.tuple());
+            hex_pos.tuple(), self.hex.to_linear_inv(hex_pos), hex_screen_pos.tuple(),
+            sqr_pos.tuple(), self.sqr.to_linear_inv(sqr_pos), sqr_screen_pos.tuple());
     }
 
     pub fn center2(&mut self, hex_pos: impl Into<Point>) {
@@ -91,21 +91,21 @@ mod test {
     fn center() {
         let mut m = MapGrid::new(640, 380);
 
-        let pos = m.hex().from_linear(0x4e85);
+        let pos = m.hex().from_linear_inv(0x4e85);
         m.center(pos);
         assert_eq!(m.hex().pos(), Point::new(0x62, 0x64));
         assert_eq!(m.hex().screen_pos(), Point::new(0x130, 0xb6));
         assert_eq!(m.sqr().pos(), Point::new(0x31, 0x32));
         assert_eq!(m.sqr().screen_pos(), Point::new(0x120, 0xb4));
 
-        let pos = m.hex().from_linear(0x4e86);
+        let pos = m.hex().from_linear_inv(0x4e86);
         m.center(pos);
         assert_eq!(m.hex().pos(), Point::new(0x60, 0x64));
         assert_eq!(m.hex().screen_pos(), Point::new(0x110, 0xb6));
         assert_eq!(m.sqr().pos(), Point::new(0x30, 0x32));
         assert_eq!(m.sqr().screen_pos(), Point::new(0x100, 0xb4));
 
-        let pos = m.hex().from_linear(0x623a);
+        let pos = m.hex().from_linear_inv(0x623a);
         m.center(pos);
         assert_eq!(m.hex().pos(), Point::new(0x34, 0x7d));
         assert_eq!(m.hex().screen_pos(), Point::new(0x110, 0xb6));

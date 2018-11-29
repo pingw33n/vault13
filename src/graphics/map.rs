@@ -24,7 +24,7 @@ fn render_square_tiles<'a>(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect
 
     for y in sqr_rect.top..sqr_rect.bottom {
         for x in (sqr_rect.left..=sqr_rect.right).rev() {
-            let num = stg.to_linear((x, y)).unwrap();
+            let num = stg.to_linear_inv((x, y)).unwrap();
             if let Some(tex) = num_to_tex(num) {
                 let scr_pt = stg.to_screen((x, y));
                 render.draw(&tex, scr_pt.x, scr_pt.y - y_offset, 0x10000);

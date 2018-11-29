@@ -46,7 +46,7 @@ impl TileGrid {
     }
 
     pub fn set_pos_lin(&mut self, num: i32) {
-        let lin = self.from_linear(num);
+        let lin = self.from_linear_inv(num);
         self.set_pos(lin);
     }
 
@@ -116,8 +116,10 @@ impl TileGrid {
         Rect::with_points(top_left, bottom_right_incl + Point::new(1, 1))
     }
 
-    /// Rectangular to linear coordinates.
-    pub fn to_linear(&self, p: impl Into<Point>) -> Option<i32> {
+    /// Rectangular to linear coordinates with `x` axis inverted.
+    /// This method should be used when converting linears for use in the original assets
+    /// (maps, scripts etc).
+    pub fn to_linear_inv(&self, p: impl Into<Point>) -> Option<i32> {
         let p = p.into();
         if self.is_in_bounds(p) {
             let x = self.width - 1 - p.x;
@@ -127,8 +129,10 @@ impl TileGrid {
         }
     }
 
-    /// Linear to rectangular coordinates.
-    pub fn from_linear(&self, num: i32) -> Point {
+    /// Linear to rectangular coordinates with `x` axis inverted.
+    /// This method should be used when converting linears for use in the original assets
+    /// (maps, scripts etc).
+    pub fn from_linear_inv(&self, num: i32) -> Point {
         let x = self.width - 1 - num % self.width;
         let y = num / self.width;
         Point::new(x, y)
@@ -196,7 +200,7 @@ mod test {
             pos: Point::new(0x31, 0x32),
             .. Default::default()
         };
-        assert_eq!(t.to_screen(t.from_linear(0x1091)), Point::new(0x1b0, -120));
+        assert_eq!(t.to_screen(t.from_linear_inv(0x1091)), Point::new(0x1b0, -120));
     }
 
     #[test]

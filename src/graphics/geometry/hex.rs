@@ -375,8 +375,29 @@ impl TileGrid {
         }
     }
 
+    /// Linear to rectangular coordinates.
+    /// Note this is different from original since the `x` axis is not inverted,
+    /// see `from_linear_inv()` for the inverted variant.
+    pub fn from_linear(&self, num: i32) -> Point {
+        Point::new(num % self.width, num / self.width)
+    }
+
     /// Rectangular to linear coordinates.
+    /// Note this is different from original since the `x` axis is not inverted,
+    /// see `to_linear_inv()` for the inverted variant.
     pub fn to_linear(&self, p: impl Into<Point>) -> Option<i32> {
+        let p = p.into();
+        if self.is_in_bounds(p) {
+            Some(self.width * p.y + p.x)
+        } else {
+            None
+        }
+    }
+
+    /// Rectangular to linear coordinates with `x` axis inverted.
+    /// This method should be used when converting linears for use in the original assets
+    /// (maps, scripts etc).
+    pub fn to_linear_inv(&self, p: impl Into<Point>) -> Option<i32> {
         let p = p.into();
         if self.is_in_bounds(p) {
             let x = self.width - 1 - p.x;
@@ -386,8 +407,10 @@ impl TileGrid {
         }
     }
 
-    /// Linear to rectangular coordinates.
-    pub fn from_linear(&self, num: i32) -> Point {
+    /// Linear to rectangular coordinates with `x` axis inverted.
+    /// This method should be used when converting linears for use in the original assets
+    /// (maps, scripts etc).
+    pub fn from_linear_inv(&self, num: i32) -> Point {
         let x = self.width - 1 - num % self.width;
         let y = num / self.width;
         Point::new(x, y)
@@ -448,9 +471,9 @@ mod test {
             pos: Point::new(98, 100),
             .. Default::default()
         };
-        assert_eq!(t.from_screen((-320, -240)), t.from_linear(12702));
-        assert_eq!(t.from_screen((-320, 620)), t.from_linear(23538));
-        assert_eq!(t.from_screen((256, -242)), t.from_linear(14484));
+        assert_eq!(t.from_screen((-320, -240)), t.from_linear_inv(12702));
+        assert_eq!(t.from_screen((-320, 620)), t.from_linear_inv(23538));
+        assert_eq!(t.from_screen((256, -242)), t.from_linear_inv(14484));
     }
 
     #[test]
@@ -478,10 +501,10 @@ mod test {
             .. Default::default()
         };
 
-        assert_eq!(t.to_screen(t.from_linear(12702)), Point::new(-336, -250));
+        assert_eq!(t.to_screen(t.from_linear_inv(12702)), Point::new(-336, -250));
 
         t.set_pos((96, 100));
-        assert_eq!(t.to_screen(t.from_linear(20704)), Point::new(304, 230));
+        assert_eq!(t.to_screen(t.from_linear_inv(20704)), Point::new(304, 230));
     }
 
     #[test]
@@ -511,7 +534,7 @@ mod test {
             }
         }
 
-        assert_eq!(t.direction(t.from_linear(21101), t.from_linear(18488)), Direction::NE);
+        assert_eq!(t.direction(t.from_linear_inv(21101), t.from_linear_inv(18488)), Direction::NE);
     }
 
     #[test]
@@ -519,17 +542,17 @@ mod test {
         let t = TileGrid::default();
         assert_eq!(t.distance((1234, -5678), (1234, -5678)), 0);
 
-        assert_eq!(t.distance(t.from_linear(0x4838), t.from_linear(0x526d)), 19);
-        assert_eq!(t.distance(t.from_linear(0x526d), t.from_linear(0x4838)), 19);
+        assert_eq!(t.distance(t.from_linear_inv(0x4838), t.from_linear_inv(0x526d)), 19);
+        assert_eq!(t.distance(t.from_linear_inv(0x526d), t.from_linear_inv(0x4838)), 19);
 
-        assert_eq!(t.distance(t.from_linear(0x7023), t.from_linear(0x5031)), 52);
-        assert_eq!(t.distance(t.from_linear(0x5031), t.from_linear(0x7023)), 52);
+        assert_eq!(t.distance(t.from_linear_inv(0x7023), t.from_linear_inv(0x5031)), 52);
+        assert_eq!(t.distance(t.from_linear_inv(0x5031), t.from_linear_inv(0x7023)), 52);
     }
 
     #[test]
     fn is_in_front_of() {
         let t = TileGrid::default();
-        assert_eq!(t.is_in_front_of(t.from_linear(0x4450), t.from_linear(0x3e10)), true);
+        assert_eq!(t.is_in_front_of(t.from_linear_inv(0x4450), t.from_linear_inv(0x3e10)), true);
         assert_eq!(t.is_in_front_of((100, 100), (100, 100)), true);
         assert_eq!(t.is_in_front_of((101, 100), (100, 100)), true);
         assert_eq!(t.is_in_front_of((100, 101), (100, 100)), true);
