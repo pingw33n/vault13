@@ -6,7 +6,7 @@ use std::cell::RefCell;
 
 use super::*;
 use graphics::color::{Color8, Palette, PaletteOverlay};
-use graphics::lighting::light_map::LightMap;
+use graphics::lighting::light_map::{self, LightMap};
 use graphics::Rect;
 use sdl2::pixels::PixelFormatEnum;
 use std::cmp;
@@ -178,6 +178,18 @@ impl Render for SoftwareRender {
     }
 
     fn draw_multi_light(&mut self, tex: &TextureHandle, x: i32, y: i32, lights: &[u32]) {
+        let mut uniform = true;
+        for i in 1..light_map::VERTEX_COUNT {
+            if lights[i] != lights[i - 1] {
+                uniform = false;
+                break;
+            }
+        }
+        if uniform {
+            self.draw(tex, x, y, lights[0]);
+            return;
+        }
+
         self.light_map.build(lights);
 
         let pal = &self.palette;
