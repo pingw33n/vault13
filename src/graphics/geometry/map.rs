@@ -12,12 +12,14 @@ impl MapGrid {
     pub fn new(screen_width: i32, screen_height: i32) -> Self {
         assert!(screen_width > 0);
         assert!(screen_height > 0);
-        Self {
+        let mut r = Self {
             hex: hex::TileGrid::default(),
             sqr: sqr::TileGrid::default(),
             screen_width,
             screen_height,
-        }
+        };
+        r.sync_sqr();
+        r
     }
 
     pub fn hex(&self) -> &hex::TileGrid {
