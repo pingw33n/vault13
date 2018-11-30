@@ -118,69 +118,6 @@ impl TileGrid {
         p
     }
 
-    pub fn from_screen_(&self, screen_x: i32, screen_y: i32) -> Option<i32> {
-        let abs_screen_y = screen_y - self.screen_pos.y;
-        // 12 is vertical hex advance
-        let mut tile_y = if screen_y - self.screen_pos.y >= 0 {
-            abs_screen_y / 12
-        } else {
-            (abs_screen_y + 1) / 12 - 1           // ceil
-        };
-        // 16 is horizontal hex advance
-        let screen_x_in_tile_hrow = screen_x - self.screen_pos.x - 16 * tile_y;
-
-        let screen_y_in_tile = abs_screen_y - 12 * tile_y;
-
-        let tile_hx = if screen_x_in_tile_hrow >= 0 {
-            screen_x_in_tile_hrow / 64
-        } else {
-            (screen_x_in_tile_hrow + 1) / 64 - 1  // ceil
-        };
-
-        tile_y += tile_hx;
-        let mut screen_x_in_tile = screen_x_in_tile_hrow - tile_hx * 64;
-        let mut tile_x = 2 * tile_hx;
-        if screen_x_in_tile >= 32 {
-            screen_x_in_tile -= 32;
-            tile_x += 1;
-        }
-        tile_x += self.pos.x;
-        tile_y += self.pos.y;
-
-        match tile_hit_test((screen_x_in_tile, screen_y_in_tile)) {
-            TileHit::TopRight => {
-                tile_x += 1;
-                if tile_x % 2 == 1 {
-                    tile_y -= 1;
-                }
-            }
-            TileHit::TopLeft => {
-                tile_y -= 1;
-            }
-            TileHit::BottomLeft => {
-                tile_x -= 1;
-                if tile_x % 2 == 0 {
-                    tile_y += 1;
-                }
-            }
-            TileHit::BottomRight => {
-                tile_y += 1;
-            }
-            TileHit::Inside => {}
-        }
-
-         println!("tile_x={} tile_y={}", tile_x, tile_y);
-
-        let w = self.width;
-        let h = self.height;
-        tile_x = w - 1 - tile_x;
-        if tile_x >= 0 && tile_x < w && tile_y >= 0 && tile_y < h {
-            Some(w * tile_y + tile_x)
-        } else {
-            None
-        }
-    }
-
     // tile_num()
     /// Returns tile coordinates.
     pub fn from_screen(&self, p: impl Into<Point>) -> Point {
