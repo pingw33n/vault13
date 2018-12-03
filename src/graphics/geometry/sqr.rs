@@ -94,26 +94,7 @@ impl TileGrid {
     /// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
     /// Clips the resulting rectangle if `clip` is `true`.
     pub fn from_screen_rect(&self, rect: &Rect, clip: bool) -> Rect {
-        let right = rect.right - 1;
-        let bottom = rect.bottom - 1;
-
-        let x = self.from_screen((rect.left, bottom)).x;
-        let y = self.from_screen((rect.left, rect.top)).y;
-        let top_left = if clip {
-            self.clip((x, y))
-        } else {
-            Point::new(x, y)
-        };
-
-        let x = self.from_screen((right, rect.top)).x;
-        let y = self.from_screen((right, bottom)).y;
-        let bottom_right_incl = if clip {
-            self.clip((x, y))
-        } else {
-            Point::new(x, y)
-        };
-
-        Rect::with_points(top_left, bottom_right_incl + Point::new(1, 1))
+        super::from_screen_rect(rect, clip, |p| self.from_screen(p), |p| self.clip(p))
     }
 
     /// Rectangular to linear coordinates with `x` axis inverted.

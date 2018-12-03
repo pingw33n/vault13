@@ -3,7 +3,7 @@ use std::cmp;
 use std::f64::consts::PI;
 
 use super::Direction;
-use graphics::Point;
+use graphics::{Point, Rect};
 
 const TILE_WIDTH: i32 = 32;
 const TILE_HEIGHT: i32 = 16;
@@ -176,6 +176,12 @@ impl TileGrid {
         }
 
         Point::new(tile_x, tile_y)
+    }
+
+    /// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
+    /// Clips the resulting rectangle if `clip` is `true`.
+    pub fn from_screen_rect(&self, rect: &Rect, clip: bool) -> Rect {
+        super::from_screen_rect(rect, clip, |p| self.from_screen(p), |p| self.clip(p))
     }
 
     // tile_coord()
@@ -357,6 +363,14 @@ impl TileGrid {
     pub fn is_in_bounds(&self, p: impl Into<Point>) -> bool {
         let p = p.into();
         p.x >= 0 && p.x < self.width && p.y >= 0 && p.y < self.height
+    }
+
+    pub fn clip(&self, p: impl Into<Point>) -> Point {
+        let p = p.into();
+        Point {
+            x: cmp::min(cmp::max(p.x, 0), self.width - 1),
+            y: cmp::min(cmp::max(p.y, 0), self.height - 1),
+        }
     }
 }
 
