@@ -408,11 +408,11 @@ pub enum FlagExt {
     Unk2000000                      = 0x2000000,
     Unk4000000                      = 0x4000000,
     //    ItemHidden = 0x8000000,
-    LightEastOrWestOrItemHidden     = 0x8000000,
-    LightNorthCorner                = 0x10000000,
-    LightSouthCorner                = 0x20000000,
-    LightEastCorner                 = 0x40000000,
-    LightWestCorner                 = 0x80000000,
+    WallEastOrWest                 = 0x8000000,
+    WallNorthCorner                = 0x10000000,
+    WallSouthCorner                = 0x20000000,
+    WallEastCorner                 = 0x40000000,
+    WallWestCorner                 = 0x80000000,
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
