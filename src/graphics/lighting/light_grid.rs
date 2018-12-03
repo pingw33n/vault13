@@ -47,10 +47,10 @@ pub struct LightGrid {
 }
 
 impl LightGrid {
-    pub fn new(tile_grid: &TileGrid, elevations: usize) -> Self {
-        assert!(elevations > 0);
+    pub fn new(tile_grid: &TileGrid, elevation_count: usize) -> Self {
+        assert!(elevation_count > 0);
         let light_cones = LightCones::new(MAX_EMITTER_RADIUS, tile_grid);
-        let grid = vec_with_func(elevations,
+        let grid = vec_with_func(elevation_count,
             |_| vec![DEFAULT_LIGHT_INTENSITY; tile_grid.len()].into_boxed_slice()).into_boxed_slice();
 
         Self {
