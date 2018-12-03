@@ -114,6 +114,37 @@ pub struct ElevatedPoint {
     pub point: Point,
 }
 
+impl ElevatedPoint {
+    pub fn new(elevation: usize, point: impl Into<Point>) -> Self {
+        Self {
+            elevation,
+            point: point.into(),
+        }
+    }
+
+    pub fn with_point(self, point: impl Into<Point>) -> Self {
+        Self::new(self.elevation, point)
+    }
+}
+
+impl<'a> From<&'a ElevatedPoint> for ElevatedPoint {
+    fn from(v: &'a ElevatedPoint) -> Self {
+        *v
+    }
+}
+
+impl From<(usize, Point)> for ElevatedPoint {
+    fn from(v: (usize, Point)) -> Self {
+        Self::new(v.0, v.1)
+    }
+}
+
+impl From<(usize, (i32, i32))> for ElevatedPoint {
+    fn from(v: (usize, (i32, i32))) -> Self {
+        Self::new(v.0, Point::from(v.1))
+    }
+}
+
 impl Default for ElevatedPoint {
     fn default() -> Self {
         Self {
@@ -204,6 +235,14 @@ impl Rect {
 
     pub fn top_left(&self) -> Point {
         Point::new(self.left, self.top)
+    }
+
+    pub fn width(&self) -> i32 {
+        self.right - self.left
+    }
+
+    pub fn height(&self) -> i32 {
+        self.bottom - self.top
     }
 }
 
