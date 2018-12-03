@@ -1,3 +1,5 @@
+pub mod two_dim_array;
+
 use enum_map::Enum;
 use std::cmp;
 use std::io;
