@@ -19,6 +19,7 @@ extern crate slotmap;
 
 mod asset;
 mod fs;
+mod game;
 mod graphics;
 mod util;
 

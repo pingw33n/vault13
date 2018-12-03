@@ -1,6 +1,8 @@
 use graphics::Point;
 use super::{hex, sqr};
 
+pub const ELEVATION_COUNT: usize = 3;
+
 pub struct MapGrid {
     hex: hex::TileGrid,
     sqr: sqr::TileGrid,
