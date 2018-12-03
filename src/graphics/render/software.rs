@@ -75,6 +75,14 @@ impl SoftwareRender {
         }
     }
 
+    pub fn canvas(&self) -> &Canvas<Window> {
+        &self.canvas
+    }
+
+    pub fn canvas_mut(&mut self) -> &mut Canvas<Window> {
+        &mut self.canvas
+    }
+
     fn do_draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32,
             grayscale_func: impl Fn(Rgb15) -> u8) {
         let pal = &self.palette;
