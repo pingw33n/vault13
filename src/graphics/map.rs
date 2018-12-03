@@ -31,7 +31,7 @@ fn render_square_tiles(render: &mut Render, stg: &sqr::TileGrid, rect: &Rect,
 
                 let hex_pos = Point::new(x * 2, y * 2);
                 for i in 0..VERTEX_COUNT {
-                    let l = get_light(hex_pos + VERTEX_HEXES[x as usize % 2][i]);
+                    let l = get_light(hex_pos + VERTEX_HEXES[i]);
                     vertex_lights[i] = l;
                 }
 

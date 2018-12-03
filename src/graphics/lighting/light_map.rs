@@ -3,19 +3,11 @@ use std::cmp;
 use graphics::Point;
 
 pub const VERTEX_COUNT: usize = 10;
-pub const VERTEX_HEXES: [[Point; VERTEX_COUNT]; 2] = [
-    [
-        Point { x: 0, y: -1}, Point { x: 1, y: -1 },
-        Point { x: -1, y: -1}, Point { x: 0, y: 0}, Point { x: 1, y: 0},
-        Point { x: -1, y: 0}, Point { x: 0, y: 1}, Point { x: 1, y: 1},
-        Point { x: -1, y: 1}, Point { x: 0, y: 2},
-    ],
-    [
-        Point { x: 0, y: -1 }, Point { x: 1, y: 0 },
-        Point { x: -1, y: 0 }, Point { x: 0, y: 0 }, Point { x: 1, y: 1 },
-        Point { x: -1, y: 1 }, Point { x: 0, y: 1 }, Point { x: 1, y: 2 },
-        Point { x: -1, y: 2 }, Point { x: 0, y: 2 },
-    ],
+pub const VERTEX_HEXES: [Point; VERTEX_COUNT] = [
+    Point { x: 0, y: -1}, Point { x: 1, y: -1 },
+    Point { x: -1, y: -1}, Point { x: 0, y: 0}, Point { x: 1, y: 0},
+    Point { x: -1, y: 0}, Point { x: 0, y: 1}, Point { x: 1, y: 1},
+    Point { x: -1, y: 1}, Point { x: 0, y: 2},
 ];
 
 pub struct LightMap {
