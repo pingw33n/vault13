@@ -163,7 +163,7 @@ fn critter_anim_codes(weapon_kind: WeaponKind, anim: CritterAnim) -> Option<(cha
         CalledShotPic => ('n', 'a'),
         _ if anim >= FallBackSf => ('r', anim.code(FallBackSf, b'a')),
         _ if anim >= FallBack => ('b', anim.code(FallBack, b'a')),
-        _ if anim >= ThrowAnim => match weapon_kind {
+        ThrowAnim => match weapon_kind {
             Knife | Spear => (weapon_kind.anim_code(), 'm'),
             _ => (Unarmed.anim_code(), 's')
         }
@@ -192,11 +192,14 @@ mod test {
                 ((0, 0), Some("aa")),
                 ((7, 0), Some("ja")),
                 ((7, 38), Some("jc")),
+                ((6, 19), Some("at")),
             ] {
-            let act = critter_anim_codes(WeaponKind::from_usize(wk).unwrap(),
-                    CritterAnim::from_usize(anim).unwrap())
+            let wke = WeaponKind::from_usize(wk).unwrap();
+            let anime = CritterAnim::from_usize(anim).unwrap();
+            let act = critter_anim_codes(wke, anime)
                 .map(|(c1, c2)| format!("{}{}", c1, c2));
-            assert_eq!(act, exp.map(|s| s.to_owned()));
+            assert_eq!(act, exp.map(|s| s.to_owned()),
+                "WeaponKind::{:?} ({}), CritterAnim::{:?} ({})", wke, wk, anime, anim);
         }
     }
 }
