@@ -33,32 +33,32 @@ impl FrmDb {
     /// Returns .frm or .frN file name without path.
     pub fn name(&self, fid: Fid) -> Option<String> {
         let fid = self.normalize_fid(fid);
-        let base_name = &self.lst[fid.kind()].get(fid.id0() as usize)?.fields[0];
+        let base_name = &self.lst[fid.kind()].get(fid.id() as usize)?.fields[0];
 
-        Some(match fid.kind() {
-            EntityKind::Critter => {
-                let wk = WeaponKind::from_u8(fid.id1())?;
-                let anim = CritterAnim::from_u8(fid.id2())?;
+        Some(match fid {
+            Fid::Critter(fid) => {
+                let wk = fid.weapon();
+                let anim = fid.anim();
                 let (c1, c2) = critter_anim_codes(wk, anim)?;
-                if fid.id3() > 0 {
-                    format!("{}{}{}.fr{}", base_name, c1, c2, (b'0' + fid.id3() - 1) as char)
+                if let Some(direction) = fid.direction() {
+                    format!("{}{}{}.fr{}", base_name, c1, c2, (b'0' + direction as u8) as char)
                 } else {
                     format!("{}{}{}.frm", base_name, c1, c2)
                 }
             }
-            EntityKind::Head => {
-                static ID2_TO_CODE1: &'static [u8] = b"gggnnnbbbgnb";
-                static ID2_TO_CODE2: &'static [u8] = b"vfngfbnfvppp";
+            Fid::Head(fid) => {
+                static ANIM_TO_CODE1: &'static [u8] = b"gggnnnbbbgnb";
+                static ANIM_TO_CODE2: &'static [u8] = b"vfngfbnfvppp";
 
-                let id2 = fid.id2() as usize;
-                if id2 >= ID2_TO_CODE1.len() {
+                let anim = fid.anim() as usize;
+                if anim >= ANIM_TO_CODE1.len() {
                     return None;
                 }
 
-                let c1 = ID2_TO_CODE1[id2] as char;
-                let c2 = ID2_TO_CODE2[id2] as char;
+                let c1 = ANIM_TO_CODE1[anim] as char;
+                let c2 = ANIM_TO_CODE2[anim] as char;
                 if c2 == 'f' {
-                    format!("{}{}{}.frm", c1, c2, fid.id1())
+                    format!("{}{}{}.frm", c1, c2, (b'0' + fid.sub_anim()) as char)
                 } else {
                     format!("{}{}.frm", c1, c2)
                 }
@@ -89,29 +89,30 @@ impl FrmDb {
 
     // art_alias_fid()
     fn normalize_fid(&self, fid: Fid) -> Fid {
-        if fid.kind() != EntityKind::Critter {
-            return fid;
-        }
+        if let Fid::Critter(critter_fid) = fid {
+            // TODO replace unwraps with logging
 
-        // TODO replace unwraps with logging
-
-        use self::CritterAnim::*;
-        match CritterAnim::from_u8(fid.id2()).unwrap() {
-            | Electrify
-            | BurnedToNothing
-            | ElectrifiedToNothing
-            | ElectrifySf
-            | BurnedToNothingSf
-            | ElectrifiedToNothingSf
-            | FireDance
-            | CalledShotPic
-            => {
-                let alias = self.lst[fid.kind()].get(fid.id0() as usize).unwrap()
-                    .fields.get(1).unwrap();
-                let alias = alias.parse().unwrap();
-                fid.with_id0(alias).unwrap()
+            use self::CritterAnim::*;
+            match critter_fid.anim() {
+                | Electrify
+                | BurnedToNothing
+                | ElectrifiedToNothing
+                | ElectrifySf
+                | BurnedToNothingSf
+                | ElectrifiedToNothingSf
+                | FireDance
+                | CalledShotPic
+                => {
+                    let alias = self.lst[EntityKind::Critter].get(critter_fid.id() as usize).unwrap()
+                        .fields.get(1).unwrap();
+                    // TODO parse this once during Self::new().
+                    let alias = alias.parse().unwrap();
+                    critter_fid.with_id(alias).unwrap().into()
+                }
+                _ => fid,
             }
-            _ => fid,
+        } else {
+            fid
         }
     }
 
