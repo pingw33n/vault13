@@ -9,6 +9,19 @@ const TILE_WIDTH: i32 = 32;
 const TILE_HEIGHT: i32 = 16;
 const TILE_INNER_HEIGHT: i32 = 8;
 
+/// Offset in screen coordinates between to adjacent hexes when going in `direction`.
+pub fn screen_offset(direction: Direction) -> Point {
+    const H: i32 = TILE_INNER_HEIGHT + (TILE_HEIGHT - TILE_INNER_HEIGHT) / 2;
+    match direction {
+        Direction::NE   => (TILE_HEIGHT, -H),
+        Direction::E    => (TILE_WIDTH, 0),
+        Direction::SE   => (TILE_HEIGHT, H),
+        Direction::SW   => (-TILE_HEIGHT, H),
+        Direction::W    => (-TILE_WIDTH, 0),
+        Direction::NW   => (-TILE_HEIGHT, -H),
+    }.into()
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TileHit {
     Inside,
