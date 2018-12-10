@@ -1,8 +1,9 @@
 use asset::frm::FrmDb;
 use asset::proto::ProtoDb;
 use game::object::{self, Object, Objects};
-use graphics::ElevatedPoint;
+use graphics::{ElevatedPoint, Point};
 use graphics::geometry::map::MapGrid;
+use graphics::geometry::Direction;
 use graphics::lighting::light_grid::LightGrid;
 use util::two_dim_array::Array2d;
 use graphics::geometry::map::ELEVATION_COUNT;
@@ -39,6 +40,14 @@ impl World {
         r
     }
 
+    pub fn proto_db(&self) -> &ProtoDb {
+        &self.proto_db
+    }
+
+    pub fn frm_db(&self) -> &FrmDb {
+        &self.frm_db
+    }
+
     pub fn map_grid(&self) -> &MapGrid {
         &self.map_grid
     }
@@ -49,6 +58,10 @@ impl World {
 
     pub fn objects(&self) -> &Objects {
         &self.objects
+    }
+
+    pub fn objects_mut(&mut self) -> &mut Objects {
+        &mut self.objects
     }
 
     pub fn light_grid(&self) -> &LightGrid {
@@ -69,6 +82,15 @@ impl World {
         self.objects.set_pos(h, pos);
 
         Self::update_light_grid(&self.objects, &mut self.light_grid, h, 1);
+    }
+
+    pub fn make_object_standing(&mut self, h: &object::Handle) {
+        self.objects.make_standing(h, &self.frm_db);
+    }
+
+    pub fn path_for_object(&self, obj: &object::Handle, to: impl Into<Point>)
+            -> Option<Vec<Direction>> {
+        self.objects.path_for_object(obj, to, &self.proto_db)
     }
 
     pub fn rebuild_light_grid(&mut self) {

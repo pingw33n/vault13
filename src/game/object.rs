@@ -1,21 +1,21 @@
-use asset::{EntityKind, Flag, FlagExt};
-use asset::frm::{Fid, FrmDb};
-use asset::proto::{Pid, ProtoDb};
-use graphics::{ElevatedPoint, Point, Rect};
-use graphics::frm::{Effect, Frame, Sprite, Translucency};
-use graphics::geometry::Direction;
-use graphics::geometry::hex::TileGrid;
-use graphics::lighting::light_grid::{LightTest, LightTestResult};
-use graphics::render::Render;
-use util;
-use util::two_dim_array::Array2d;
-
 use enumflags::BitFlags;
 use slotmap::{DefaultKey, SecondaryMap, SlotMap};
 use std::cell::{Ref, RefCell};
 use std::cmp;
 use std::mem;
 use std::rc::Rc;
+
+use asset::{EntityKind, Flag, FlagExt, WeaponKind};
+use asset::frm::{CritterAnim, Fid, FrmDb};
+use asset::proto::{self, CritterKillKind, Pid, ProtoDb};
+use graphics::{ElevatedPoint, Point, Rect};
+use graphics::frm::{Effect, Frame, Sprite, Translucency};
+use graphics::geometry::Direction;
+use graphics::geometry::hex::{PathFinder, TileGrid, TileState};
+use graphics::lighting::light_grid::{LightTest, LightTestResult};
+use graphics::render::Render;
+use util::{self, EnumExt};
+use util::two_dim_array::Array2d;
 
 #[derive(Clone, Debug)]
 pub struct Inventory {
@@ -59,7 +59,7 @@ pub struct Object {
     pub flags: BitFlags<Flag>,
     pub pos: Option<ElevatedPoint>,
     pub screen_pos: Point,
-    pub screen_shift: Point,
+    screen_shift: Point,
     pub fid: Fid,
     pub frame_idx: usize,
     pub direction: Direction,
@@ -77,6 +77,34 @@ pub struct Object {
 }
 
 impl Object {
+    pub fn new(
+            flags: BitFlags<Flag>,
+            pos: Option<ElevatedPoint>,
+            screen_pos: Point,
+            screen_shift: Point,
+            fid: Fid,
+            direction: Direction,
+            light_emitter: LightEmitter,
+            pid: Option<Pid>,
+            inventory: Inventory) -> Self {
+        Self {
+            handle: None,
+            pos,
+            screen_pos,
+            screen_shift,
+            fid,
+            frame_idx: 0,
+            direction,
+            flags,
+            pid,
+            inventory,
+            light_emitter,
+        }
+    }
+    pub fn screen_shift(&self) -> Point {
+        self.screen_shift
+    }
+
     pub fn render(&mut self, render: &mut Render, rect: &Rect, light: u32,
             frm_db: &FrmDb, proto_db: &ProtoDb, tile_grid: &TileGrid,
             egg: Option<&Egg>) {
@@ -179,6 +207,7 @@ impl Object {
 }
 
 pub struct Objects {
+    tile_grid: TileGrid,
     proto_db: Rc<ProtoDb>,
     frm_db: Rc<FrmDb>,
     handles: SlotMap<DefaultKey, ()>,
@@ -186,6 +215,7 @@ pub struct Objects {
     by_pos: Box<[Array2d<Vec<Handle>>]>,
     detached: Vec<Handle>,
     empty_object_handle_vec: Vec<Handle>,
+    path_finder: RefCell<PathFinder>,
 }
 
 impl Objects {
@@ -199,7 +229,7 @@ impl Objects {
         obj.handle = Some(h.clone());
         self.objects.insert(k, RefCell::new(obj));
 
-        self.attach(&h, pos);
+        self.attach(&h, pos, true);
 
         h
     }
@@ -349,10 +379,16 @@ impl Objects {
         shift.x.cmp(&other_shift.x)
     }
 
-    fn attach(&mut self, h: &Handle, pos: Option<ElevatedPoint>) {
+    fn attach(&mut self, h: &Handle, pos: Option<ElevatedPoint>, reset_screen_shift: bool) {
         if let Some(pos) = pos {
             let pos = pos.into();
-            self.get(&h).borrow_mut().pos = Some(pos);
+            {
+                let mut obj = self.get(&h).borrow_mut();
+                obj.pos = Some(pos);
+                if reset_screen_shift {
+                    obj.screen_shift = Point::new(0, 0);
+                }
+            }
 
             let i = {
                 let list = self.at(pos);
@@ -371,7 +407,7 @@ impl Objects {
         }
     }
 
-    fn detach(&mut self, h: &Handle){
+    fn detach(&mut self, h: &Handle) -> Option<ElevatedPoint> {
         let old_pos = mem::replace(&mut self.get(h).borrow_mut().pos, None);
         let list = if let Some(old_pos) = old_pos {
             self.at_mut(old_pos)
@@ -380,22 +416,27 @@ impl Objects {
         };
         // TODO maybe use binary_search for detaching.
         list.retain(|hh| hh != h);
+        old_pos
     }
 }
 
 impl Objects {
-    pub fn new(tile_grid: &TileGrid, elevation_count: usize, proto_db: Rc<ProtoDb>,
+    pub fn new(tile_grid: TileGrid, elevation_count: usize, proto_db: Rc<ProtoDb>,
             frm_db: Rc<FrmDb>) -> Self {
+        let path_finder = RefCell::new(PathFinder::new(tile_grid.clone(), 5000));
+        let by_pos = util::vec_with_func(elevation_count,
+            |_| Array2d::with_default(tile_grid.width() as usize, tile_grid.height() as usize))
+            .into_boxed_slice();
         Self {
+            tile_grid,
             proto_db,
             frm_db,
             handles: SlotMap::new(),
             objects: SecondaryMap::new(),
-            by_pos: util::vec_with_func(elevation_count,
-                |_| Array2d::with_default(tile_grid.width() as usize, tile_grid.height() as usize))
-                .into_boxed_slice(),
+            by_pos,
             detached: Vec::new(),
             empty_object_handle_vec: Vec::new(),
+            path_finder,
         }
     }
 
@@ -406,6 +447,145 @@ impl Objects {
 
     pub fn set_pos(&mut self, h: &Handle, pos: impl Into<ElevatedPoint>) {
         self.detach(h);
-        self.attach(h, Some(pos.into()));
+        self.attach(h, Some(pos.into()), true);
+    }
+
+    pub fn add_screen_shift(&mut self, h: &Handle, shift: impl Into<Point>) -> Point {
+        let pos = self.detach(h);
+        let new_shift = {
+            let mut obj = self.get(h).borrow_mut();
+            obj.screen_shift += shift.into();
+            obj.screen_shift
+        };
+        self.attach(h, pos, false);
+        new_shift
+    }
+
+    // dude_stand()
+    pub fn make_standing(&mut self, h: &Handle, frm_db: &FrmDb) {
+        let shift = {
+            let mut obj = self.get(h).borrow_mut();
+            let mut shift = Point::new(0, 0);
+            let fid = if let Fid::Critter(critter_fid) = obj.fid {
+                if critter_fid.weapon() != WeaponKind::Unarmed {
+                    let fid = critter_fid
+                        .with_direction(Some(obj.direction))
+                        .with_anim(CritterAnim::TakeOut)
+                        .into();
+                    let frame_set = frm_db.get(fid);
+                    for frame in &frame_set.frame_lists[obj.direction].frames {
+                        shift += frame.shift;
+                    }
+
+                    let fid = critter_fid
+                        .with_direction(Some(obj.direction))
+                        .with_anim(CritterAnim::Stand)
+                        .with_weapon(WeaponKind::Unarmed)
+                        .into();
+                    shift += frm_db.get(fid).frame_lists[obj.direction].center;
+                }
+                let anim = if critter_fid.anim() == CritterAnim::FireDance {
+                    CritterAnim::FireDance
+                } else {
+                    CritterAnim::Stand
+                };
+                critter_fid
+                    .with_direction(Some(obj.direction))
+                    .with_anim(anim)
+                    .into()
+            } else {
+                obj.fid
+            };
+            obj.fid = fid;
+            obj.frame_idx = 0;
+            shift
+        };
+        self.add_screen_shift(h, shift);
+    }
+
+    // obj_blocking_at()
+    pub fn blocker_at(&self, p: impl Into<ElevatedPoint>, mut filter: impl FnMut(&Object) -> bool)
+            -> Option<&RefCell<Object>> {
+        let p = p.into();
+        let mut check = |h| {
+            let obj = self.get(h);
+            let o = obj.borrow();
+            match o.fid.kind() {
+                | EntityKind::Critter
+                | EntityKind::Scenery
+                | EntityKind::Wall
+                => {},
+                _ => return None,
+            }
+            if o.flags.contains(Flag::TurnedOff) || o.flags.contains(Flag::NoBlock) {
+                return None;
+            }
+            if !filter(&*o) {
+                return None;
+            }
+            Some(obj)
+        };
+        for objh in self.at(p.into()) {
+            let r = check(objh);
+            if r.is_some() {
+                return r;
+            }
+        }
+        for dir in Direction::iter() {
+            if let Some(near) = self.tile_grid.go(p.point, dir, 1) {
+                for objh in self.at(near.elevated(p.elevation)) {
+                    if self.get(objh).borrow().flags.contains(Flag::MultiHex) {
+                        let r = check(objh);
+                        if r.is_some() {
+                            return r;
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
+    pub fn blocker_for_object_at(&self, obj: &Handle, p: impl Into<ElevatedPoint>)
+            -> Option<&RefCell<Object>> {
+        self.blocker_at(p, |o| o.handle.as_ref() != Some(obj))
+    }
+
+    pub fn path_for_object(&self, obj: &Handle, to: impl Into<Point>, proto_db: &ProtoDb)
+            -> Option<Vec<Direction>> {
+        let o = self.get(obj).borrow();
+        let from = o.pos?;
+        self.path_finder.borrow_mut().find(from.point, to,
+            |p| {
+                let p = ElevatedPoint::new(from.elevation, p);
+                if self.blocker_for_object_at(obj, p).is_some() {
+                    TileState::Blocked
+                } else if let Some(pid) = o.pid {
+                    let radioacive_goo = self.at(p)
+                        .iter()
+                        .any(|h| self.get(h).borrow().pid
+                            .map(|pid| pid.is_radioactive_goo())
+                            .unwrap_or(false));
+                    let cost = if radioacive_goo {
+                        let gecko = if let proto::Variant::Critter(ref c) = proto_db.proto(pid).unwrap().proto {
+                            c.kill_kind == CritterKillKind::Gecko
+                        } else {
+                            false
+                        };
+                        if gecko {
+                            100
+                        } else {
+                            400
+                        }
+                    } else {
+                        0
+                    };
+
+                    TileState::Passable(cost)
+                } else {
+                    TileState::Passable(0)
+                }
+            })
     }
 }
