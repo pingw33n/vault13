@@ -59,7 +59,10 @@ impl Move {
 impl Sequence for Move {
     fn update(&mut self, time: Instant, world: &mut World) -> Result {
         match self.state {
-            State::Started => self.init_step(world),
+            State::Started => {
+                self.init_step(world);
+                world.objects_mut().reset_screen_shift(&self.obj);
+            },
             State::Running(last_time) => {
                 if time - last_time < self.frame_len {
                     return Result::Running;
@@ -68,7 +71,7 @@ impl Sequence for Move {
             State::Done => return Result::Done,
         }
 
-        let new_obj_pos = {
+        let new_obj_pos_and_shift = {
             let (shift, pos) = {
                 let mut obj = world.objects().get(&self.obj).borrow_mut();
 
@@ -88,25 +91,30 @@ impl Sequence for Move {
 
             let dir = self.path[self.path_pos];
             let next_hex_offset = hex::screen_offset(dir);
-            if next_hex_offset.x.abs() > 0
+            if next_hex_offset.x != 0
                     && shift.x.abs() >= next_hex_offset.x.abs()
-                    || next_hex_offset.y.abs() > 0
+                    || next_hex_offset.y != 0
                     && shift.y.abs() >= next_hex_offset.y.abs() {
-                world.objects_mut().add_screen_shift(&self.obj, -next_hex_offset);
+                let shift = {
+                    let obj = world.objects().get(&self.obj).borrow();
+                    obj.screen_shift() - next_hex_offset
+                };
                 let pos = pos.unwrap();
                 let pos_point = world.map_grid().hex().go(pos.point, dir, 1).unwrap();
-                Some(ElevatedPoint::new(pos.elevation, pos_point))
+                Some((ElevatedPoint::new(pos.elevation, pos_point), shift))
             } else {
                 None
             }
         };
-        if let Some(pos) = new_obj_pos {
+        if let Some((pos, shift)) = new_obj_pos_and_shift {
             world.set_object_pos(&self.obj, pos);
+
             self.path_pos += 1;
             if self.path_pos >= self.path.len() {
                 self.state = State::Done;
                 return Result::Done;
             }
+            world.objects_mut().add_screen_shift(&self.obj, shift);
             self.init_step(world);
         }
         let new_last_time = if let State::Running(last_time) = self.state {

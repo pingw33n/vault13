@@ -461,6 +461,11 @@ impl Objects {
         new_shift
     }
 
+    pub fn reset_screen_shift(&mut self, h: &Handle) {
+        let pos = self.detach(h);
+        self.attach(h, pos, true);
+    }
+
     // dude_stand()
     pub fn make_standing(&mut self, h: &Handle, frm_db: &FrmDb) {
         let shift = {
