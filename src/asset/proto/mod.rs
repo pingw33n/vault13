@@ -75,6 +75,8 @@ impl Pid {
     pub const SHIV: Pid = Pid(0x17F);
     pub const EXIT_AREA_FIRST: Pid = Pid(0x5000010);
     pub const EXIT_AREA_LAST: Pid = Pid(0x5000017);
+    pub const RADIOACTIVE_GOO_FIRST: Pid = Pid(0x20003D9);
+    pub const RADIOACTIVE_GOO_LAST: Pid = Pid(0x20003DC);
 
     pub fn new(kind: EntityKind, idx: u32) -> Self {
         assert!(idx > 0 && idx <= 0xffffff);
@@ -119,6 +121,10 @@ impl Pid {
 
     pub fn is_exit_area(self) -> bool {
         self >= Self::EXIT_AREA_FIRST && self <= Self::EXIT_AREA_LAST
+    }
+
+    pub fn is_radioactive_goo(self) -> bool {
+        self >= Self::RADIOACTIVE_GOO_FIRST && self <= Self::RADIOACTIVE_GOO_LAST
     }
 }
 
