@@ -30,8 +30,8 @@ use asset::palette::read_palette;
 use asset::proto::*;
 use graphics::color::PaletteOverlay;
 use graphics::geometry::map::{ELEVATION_COUNT, MapGrid};
-use graphics::render::software::SoftwareRender;
-use graphics::render::Render;
+use graphics::render::software::*;
+use graphics::render::*;
 use asset::map::*;
 use asset::frm::*;
 use game::object::*;
@@ -90,8 +90,8 @@ fn main() {
         .build()
         .unwrap();
 
-    let ref mut render = SoftwareRender::new(canvas, Box::new(pal.clone()), PaletteOverlay::standard());
-    let texture_factory = render.new_texture_factory();
+    let ref mut renderer = SoftwareRenderer::new(canvas, Box::new(pal.clone()), PaletteOverlay::standard());
+    let texture_factory = renderer.new_texture_factory();
 
     let map_grid = MapGrid::new(640, 380);
 
@@ -174,7 +174,7 @@ fn main() {
                 Event::MouseMotion { x, y, .. } => {
                     let hex_pos = world.map_grid().hex().from_screen((x, y));
                     let sqr_pos = world.map_grid().sqr().from_screen((x, y));
-                    render.canvas_mut().window_mut().set_title(&format!(
+                    renderer.canvas_mut().window_mut().set_title(&format!(
                         "hex pos: {}, {} ({}), sqr pos: {}, {} ({})",
                         hex_pos.x, hex_pos.y, world.map_grid().hex().to_linear_inv(hex_pos).unwrap_or(-1),
                         sqr_pos.x, sqr_pos.y, world.map_grid().sqr().to_linear_inv(sqr_pos).unwrap_or(-1))).unwrap();
@@ -239,13 +239,13 @@ fn main() {
                 Event::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {
                     if ambient_light > 1000 {
                         ambient_light -= 1000;
-                        render.canvas_mut().window_mut().set_title(&format!("ambient_light: {:x}", ambient_light)).unwrap();
+                        renderer.canvas_mut().window_mut().set_title(&format!("ambient_light: {:x}", ambient_light)).unwrap();
                     }
                 }
                 Event::KeyDown { keycode: Some(Keycode::RightBracket), .. } => {
                     if ambient_light <= 0x10000 - 1000 {
                         ambient_light += 1000;
-                        render.canvas_mut().window_mut().set_title(&format!("ambient_light: {:x}", ambient_light)).unwrap();
+                        renderer.canvas_mut().window_mut().set_title(&format!("ambient_light: {:x}", ambient_light)).unwrap();
                     }
                 }
                 Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
@@ -255,7 +255,7 @@ fn main() {
             }
         }
 
-        render_floor(render, world.map_grid().sqr(), &visible_rect,
+        render_floor(renderer, world.map_grid().sqr(), &visible_rect,
             |num| {
                 let fid = Fid::new_generic(EntityKind::SqrTile, map.sqr_tiles[elevation].as_ref().unwrap()[num as usize].0).unwrap();
                 Some(frm_db.get(fid).frame_lists[Direction::NE].frames[0].texture.clone())
@@ -271,7 +271,7 @@ fn main() {
             fid: Fid::EGG,
         };
         let egg = Some(&egg);
-        world.objects().render(render, elevation, &visible_rect, world.map_grid().hex(), egg,
+        world.objects().render(renderer, elevation, &visible_rect, world.map_grid().hex(), egg,
             |pos| if let Some(pos) = pos {
                 cmp::max(world.light_grid().get_clipped(pos), ambient_light)
             } else {
@@ -289,10 +289,10 @@ fn main() {
 
         sequencer.update(now, &mut world);
 
-        render.update(now);
+        renderer.update(now);
 
-        render.present();
-        render.cleanup();
+        renderer.present();
+        renderer.cleanup();
 
         thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }

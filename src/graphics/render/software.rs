@@ -97,7 +97,7 @@ impl Textures {
     }
 }
 
-pub struct SoftwareRender {
+pub struct SoftwareRenderer {
     textures: Textures,
     light_map: LightMap,
     back_buf: Texture,
@@ -108,7 +108,7 @@ pub struct SoftwareRender {
     clip_rect: Rect,
 }
 
-impl SoftwareRender {
+impl SoftwareRenderer {
     pub fn new(canvas: Canvas<Window>, palette: Box<Palette>, palette_overlay: PaletteOverlay) -> Self {
         let (w, h) = canvas.window().size();
         println!("{} {} ", w, h);
@@ -183,7 +183,7 @@ impl SoftwareRender {
     }
 }
 
-impl Render for SoftwareRender {
+impl Renderer for SoftwareRenderer {
     fn new_texture_factory(&self) -> TextureFactory {
         TextureFactory(TextureFactoryInner::Software(self.textures.clone()))
     }

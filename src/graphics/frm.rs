@@ -4,7 +4,7 @@ use asset::frm::{Fid, FrmDb};
 use graphics::color::*;
 use graphics::geometry::Direction;
 use graphics::{Point, Rect};
-use graphics::render::{TextureHandle, Render};
+use graphics::render::{Renderer, TextureHandle};
 
 #[derive(Clone, Debug)]
 pub struct FrameSet {
@@ -63,7 +63,7 @@ pub struct Sprite {
 }
 
 impl Sprite {
-    pub fn render(&self, render: &mut Render, _rect: &Rect, frm_db: &FrmDb) -> Rect {
+    pub fn render(&self, renderer: &mut Renderer, _rect: &Rect, frm_db: &FrmDb) -> Rect {
         let frms = frm_db.get(self.fid);
         let frml = &frms.frame_lists[self.direction];
         let frm = &frml.frames[self.frame_idx];
@@ -84,7 +84,7 @@ impl Sprite {
             Rect::with_size(self.pos.x, self.pos.y, frm.width, frm.height - 1)
         };
 
-        // TODO set render clip rect
+        // TODO set renderer clip rect
 
         match self.effect {
             Some(Effect::Translucency(trans)) => {
@@ -95,7 +95,7 @@ impl Sprite {
                     Translucency::Steam => TRANS_STEAM,
                     Translucency::Wall => TRANS_WALL,
                 };
-                render.draw_translucent_dark(&frm.texture, bounds.left, bounds.top, color,
+                renderer.draw_translucent_dark(&frm.texture, bounds.left, bounds.top, color,
                     self.light);
             }
             Some(Effect::Masked { mask_pos, mask_fid }) => {
@@ -103,11 +103,11 @@ impl Sprite {
                 let mask_frml = &mask_frms.frame_lists[Direction::NE];
                 let mask_frm = &mask_frml.frames[0];
                 let mask_bounds = compute_bounds(mask_pos, mask_frml.center, &mask_frm);
-                render.draw_masked(&frm.texture, bounds.left, bounds.top,
+                renderer.draw_masked(&frm.texture, bounds.left, bounds.top,
                     &mask_frm.texture, mask_bounds.left, mask_bounds.top,
                     self.light);
             }
-            None => render.draw(&frm.texture, bounds.left, bounds.top, self.light),
+            None => renderer.draw(&frm.texture, bounds.left, bounds.top, self.light),
         }
 
         bounds

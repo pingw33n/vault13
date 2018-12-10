@@ -45,7 +45,7 @@ impl TextureFactory {
     }
 }
 
-pub trait Render {
+pub trait Renderer {
     fn new_texture_factory(&self) -> TextureFactory;
 
     fn cleanup(&mut self);

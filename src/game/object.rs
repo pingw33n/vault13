@@ -13,7 +13,7 @@ use graphics::frm::{Effect, Frame, Sprite, Translucency};
 use graphics::geometry::Direction;
 use graphics::geometry::hex::{PathFinder, TileGrid, TileState};
 use graphics::lighting::light_grid::{LightTest, LightTestResult};
-use graphics::render::Render;
+use graphics::render::Renderer;
 use util::{self, EnumExt};
 use util::two_dim_array::Array2d;
 
@@ -105,7 +105,7 @@ impl Object {
         self.screen_shift
     }
 
-    pub fn render(&mut self, render: &mut Render, rect: &Rect, light: u32,
+    pub fn render(&mut self, renderer: &mut Renderer, rect: &Rect, light: u32,
             frm_db: &FrmDb, proto_db: &ProtoDb, tile_grid: &TileGrid,
             egg: Option<&Egg>) {
         if self.flags.contains(Flag::TurnedOff) {
@@ -128,7 +128,7 @@ impl Object {
             light,
             effect,
         };
-        self.screen_pos = sprite.render(render, rect, frm_db).top_left();
+        self.screen_pos = sprite.render(renderer, rect, frm_db).top_left();
     }
 
     fn get_effect(&self, proto_db: &ProtoDb, tile_grid: &TileGrid, egg: Option<&Egg>)
@@ -303,15 +303,15 @@ impl Objects {
         }
     }
 
-    pub fn render(&self, render: &mut Render, elevation: usize, screen_rect: &Rect,
+    pub fn render(&self, renderer: &mut Renderer, elevation: usize, screen_rect: &Rect,
             tile_grid: &TileGrid, egg: Option<&Egg>,
             get_light: impl Fn(Option<ElevatedPoint>) -> u32) {
         let ref get_light = get_light;
-        self.render0(render, elevation, screen_rect, tile_grid, egg, get_light, true);
-        self.render0(render, elevation, screen_rect, tile_grid, egg, get_light, false);
+        self.render0(renderer, elevation, screen_rect, tile_grid, egg, get_light, true);
+        self.render0(renderer, elevation, screen_rect, tile_grid, egg, get_light, false);
     }
 
-    fn render0(&self, render: &mut Render, elevation: usize,
+    fn render0(&self, renderer: &mut Renderer, elevation: usize,
             screen_rect: &Rect, tile_grid: &TileGrid, egg: Option<&Egg>,
             get_light: impl Fn(Option<ElevatedPoint>) -> u32,
             flat: bool) {
@@ -336,7 +336,7 @@ impl Objects {
                     }
                     let light = get_light(obj.pos);
                     assert!(light <= 0x10000);
-                    obj.render(render, &screen_rect, light, &self.frm_db, &self.proto_db, tile_grid,
+                    obj.render(renderer, &screen_rect, light, &self.frm_db, &self.proto_db, tile_grid,
                         egg);
                 }
             }
