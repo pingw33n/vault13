@@ -113,24 +113,21 @@ impl TileGrid {
             p.y == self.height - 1
     }
 
-    // tile_num_in_direction_()
-    pub fn go(&self, p: impl Into<Point>, direction: Direction, distance: u32,
-            check_bounds: bool) -> Point {
-        // Advance per each direction for even/odd hex.
-        static ADVANCE_MAP: [[(i32, i32); Direction::LEN]; 2] = [
-            [(1, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (0, -1)],
-            [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (0, -1)],
-        ];
-        let mut p = p.into();
-        for _ in 0..distance {
-            let advance = ADVANCE_MAP[p.x as usize % 2][direction as usize].into();
-            let next = p + advance;
-            if check_bounds && !self.is_in_bounds(next) {
-                break;
-            }
-            p = next;
+    pub fn go(&self, p: impl Into<Point>, direction: Direction, distance: u32) -> Option<Point> {
+        let p = self.go0(p, direction, distance, false);
+        if self.is_in_bounds(p) {
+            Some(p)
+        } else {
+            None
         }
-        p
+    }
+
+    pub fn go_unbounded(&self, p: impl Into<Point>, direction: Direction, distance: u32) -> Point {
+        self.go0(p, direction, distance, false)
+    }
+
+    pub fn go_clipped(&self, p: impl Into<Point>, direction: Direction, distance: u32) -> Point {
+        self.go0(p, direction, distance, true)
     }
 
     // tile_num()
@@ -264,7 +261,7 @@ impl TileGrid {
         let mut distance = 0;
         while p1 != p2 {
             let dir = self.direction(p1, p2);
-            p1 = self.go(p1, dir, 1, false);
+            p1 = self.go_unbounded(p1, dir, 1);
             distance += 1;
         }
         distance
@@ -387,6 +384,25 @@ impl TileGrid {
             y: cmp::min(cmp::max(p.y, 0), self.height - 1),
         }
     }
+
+    // tile_num_in_direction_()
+    fn go0(&self, p: impl Into<Point>, direction: Direction, distance: u32, clip: bool) -> Point {
+        // Advance per each direction for even/odd hex.
+        static ADVANCE_MAP: [[(i32, i32); Direction::LEN]; 2] = [
+            [(1, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (0, -1)],
+            [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (0, -1)],
+        ];
+        let mut p = p.into();
+        for _ in 0..distance {
+            let advance = ADVANCE_MAP[p.x as usize % 2][direction as usize].into();
+            let next = p + advance;
+            if clip && !self.is_in_bounds(next) {
+                break;
+            }
+            p = next;
+        }
+        p
+    }
 }
 
 impl Default for TileGrid {
@@ -503,8 +519,13 @@ impl PathFinder {
             self.close(pos);
 
             for direction in Direction::iter() {
-                let next = self.tile_grid.go(pos, direction, 1, false);
-                if !self.tile_grid.is_in_bounds(next) || self.is_closed(next) {
+                let next = self.tile_grid.go(pos, direction, 1);
+                let next = if let Some(next) = next {
+                    next
+                } else {
+                    continue;
+                };
+                if self.is_closed(next) {
                     continue;
                 }
 
@@ -638,10 +659,11 @@ mod test {
     #[test]
     fn go() {
         let t = TileGrid::default();
-        assert_eq!(t.go((0, 0), Direction::W, 1, false), Point::new(-1, -1));
-        assert_eq!(t.go((0, 0), Direction::W, 1, true), Point::new(0, 0));
-        assert_eq!(t.go((22, 11), Direction::E, 0, false), Point::new(22, 11));
-        assert_eq!(t.go((22, 11), Direction::E, 1, false), Point::new(23, 11));
+        assert_eq!(t.go_unbounded((0, 0), Direction::W, 1), Point::new(-1, -1));
+        assert_eq!(t.go((0, 0), Direction::W, 1), None);
+        assert_eq!(t.go_clipped((0, 0), Direction::W, 1), Point::new(0, 0));
+        assert_eq!(t.go_unbounded((22, 11), Direction::E, 0), Point::new(22, 11));
+        assert_eq!(t.go_unbounded((22, 11), Direction::E, 1), Point::new(23, 11));
     }
 
     #[test]
@@ -651,7 +673,7 @@ mod test {
         for &dir in Direction::values() {
             for dist in 1..=10 {
                 let from = (100, 100);
-                let to = t.go(from, dir, dist, false);
+                let to = t.go_unbounded(from, dir, dist);
                 assert_eq!(t.direction(from, to), dir);
             }
         }

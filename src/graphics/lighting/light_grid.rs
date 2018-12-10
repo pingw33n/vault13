@@ -174,9 +174,9 @@ impl LightCones {
         let origin = Point::new(odd as i32, 0);
         let next_dir = direction.rotate_cw();
         for start_dist in 0..radius {
-            let start = tile_grid.go(origin, next_dir, start_dist, false);
+            let start = tile_grid.go_unbounded(origin, next_dir, start_dist);
             for dist in 1..=(radius - start_dist) {
-                let point = tile_grid.go(start, direction, dist, false);
+                let point = tile_grid.go_unbounded(start, direction, dist);
                 r.push(point - origin);
                 radius_out(start_dist + dist);
             }
