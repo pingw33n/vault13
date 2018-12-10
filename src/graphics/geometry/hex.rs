@@ -454,7 +454,11 @@ impl PathFinder {
         }
     }
 
+    /// If `smooth` is not `None` it will add extra cost to changing of direction. The `smooth`
+    /// itself specifies initial direction. This effectively attempts to decrease the number of
+    /// turns in the path making smoother at the price of choosing sub-optimal route.
     pub fn find(&mut self, from: impl Into<Point>, to: impl Into<Point>,
+            smooth: Option<Direction>,
             mut f: impl FnMut(Point) -> TileState) -> Option<Vec<Direction>> {
         let from = from.into();
         let to = to.into();
@@ -471,13 +475,13 @@ impl PathFinder {
         self.steps.push(Step {
             pos: from,
             came_from: 0,
-            direction: Direction::NE,
+            direction: smooth.unwrap_or(Direction::NE),
             cost: 0,
             estimate: 0,
         });
 
         loop {
-            let (idx, pos, cost) = {
+            let (idx, pos, cost, direction) = {
                 let (idx, step) = if let Some((idx, step)) = self.steps.iter()
                     .enumerate()
                     .filter(|(_, s)| !self.is_closed(s.pos))
@@ -518,13 +522,13 @@ impl PathFinder {
                     return Some(path);
                 }
 
-                (idx, step.pos, step.cost)
+                (idx, step.pos, step.cost, step.direction)
             };
 
             self.close(pos);
 
-            for direction in Direction::iter() {
-                let next = self.tile_grid.go(pos, direction, 1);
+            for next_direction in Direction::iter() {
+                let next = self.tile_grid.go(pos, next_direction, 1);
                 let next = if let Some(next) = next {
                     next
                 } else {
@@ -539,10 +543,12 @@ impl PathFinder {
                     TileState::Passable(cost) => cost,
                 } + cost;
 
-                // TODO in non-combat, original penalizes directions that are different from the
-                // current step, why? And for the first step it seems to prefer NE?
-                // if ( 0 != is_not_in_combat && open_direction != direction )
-                //                v26->cost += 10;
+                // Add penalty to changing of direction.
+                let next_cost = if smooth.is_some() && next_direction != direction {
+                    next_cost + 10
+                } else {
+                    next_cost
+                };
 
                 if let Some(neighbor_idx) = self.steps.iter().position(|s| s.pos == next) {
                     let mut step = &mut self.steps[neighbor_idx];
@@ -558,7 +564,7 @@ impl PathFinder {
                     self.steps.push(Step {
                         pos: next,
                         came_from: idx,
-                        direction,
+                        direction: next_direction,
                         cost: next_cost,
                         estimate,
                     })
@@ -778,8 +784,30 @@ mod test {
             ((0, 0), (199, 199), AllBlocked, None),
         ];
         for (from, to, f, expected) in d {
-            assert_eq!(t.find(from, to, &*f.f()), expected);
+            assert_eq!(t.find(from, to, None, &*f.f()), expected);
         }
+    }
 
+    #[test]
+    fn path_finder_smooth() {
+        let mut t = PathFinder::new(TileGrid::default(), 5000);
+        use self::Direction::*;
+        assert_eq!(t.find((2, 0), (0, 3), None, |_| TileState::Passable(0)),
+            Some(vec![SE, SW, SE, SW]));
+        assert_eq!(t.find((2, 0), (0, 3), Some(SE), |_| TileState::Passable(0)),
+            Some(vec![SE, SW, SW, SE]));
+    }
+
+    #[test]
+    fn path_finder_max_depth() {
+        let mut t = PathFinder::new(TileGrid::default(), 10);
+        assert_eq!(t.find((2, 0), (0, 0), None,
+            |p| if p == Point::new(1, 0) || p == Point::new(0, 1) {
+                TileState::Blocked
+            } else {
+                TileState::Passable(0)
+            }),
+            None);
+        assert_eq!(t.steps.len(), 10);
     }
 }

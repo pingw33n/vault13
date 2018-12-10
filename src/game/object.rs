@@ -552,11 +552,16 @@ impl Objects {
         self.blocker_at(p, |o| o.handle.as_ref() != Some(obj))
     }
 
-    pub fn path_for_object(&self, obj: &Handle, to: impl Into<Point>, proto_db: &ProtoDb)
+    pub fn path_for_object(&self, obj: &Handle, to: impl Into<Point>, smooth: bool, proto_db: &ProtoDb)
             -> Option<Vec<Direction>> {
         let o = self.get(obj).borrow();
         let from = o.pos?;
-        self.path_finder.borrow_mut().find(from.point, to,
+        let smooth = if smooth {
+            Some(o.direction)
+        } else {
+            None
+        };
+        self.path_finder.borrow_mut().find(from.point, to, smooth,
             |p| {
                 let p = ElevatedPoint::new(from.elevation, p);
                 if self.blocker_for_object_at(obj, p).is_some() {

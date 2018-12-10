@@ -88,9 +88,9 @@ impl World {
         self.objects.make_standing(h, &self.frm_db);
     }
 
-    pub fn path_for_object(&self, obj: &object::Handle, to: impl Into<Point>)
+    pub fn path_for_object(&self, obj: &object::Handle, to: impl Into<Point>, smooth: bool)
             -> Option<Vec<Direction>> {
-        self.objects.path_for_object(obj, to, &self.proto_db)
+        self.objects.path_for_object(obj, to, smooth, &self.proto_db)
     }
 
     pub fn rebuild_light_grid(&mut self) {

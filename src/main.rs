@@ -186,7 +186,7 @@ fn main() {
                             CritterAnim::Walk
                         };
                         let to = world.map_grid().hex().from_screen((x, y));
-                        if let Some(path) = world.path_for_object(&dude_objh, to) {
+                        if let Some(path) = world.path_for_object(&dude_objh, to, true) {
                             sequencer.start(
                                 Always::new(
                                     Move::new(dude_objh.clone(), anim, path),
