@@ -1,9 +1,11 @@
+use bit_vec::BitVec;
 use num_traits::FromPrimitive;
 use std::cmp;
 use std::f64::consts::PI;
 
 use super::Direction;
 use graphics::{Point, Rect};
+use util::EnumExt;
 
 const TILE_WIDTH: i32 = 32;
 const TILE_HEIGHT: i32 = 16;
@@ -398,6 +400,162 @@ impl Default for TileGrid {
     }
 }
 
+#[derive(Debug)]
+struct Step {
+    pos: Point,
+    came_from: usize,
+    direction: Direction,
+    cost: u32,
+    estimate: u32,
+}
+
+impl Step {
+    fn total_cost(&self) -> u32 {
+        self.cost + self.estimate
+    }
+}
+
+pub struct PathFinder {
+    tile_grid: TileGrid,
+    steps: Vec<Step>,
+    closed: BitVec,
+}
+
+pub enum TileState {
+    Blocked,
+    Passable(u32),
+}
+
+impl PathFinder {
+    pub fn new(tile_grid: TileGrid) -> Self {
+        let tile_grid_len = tile_grid.len();
+        Self {
+            tile_grid,
+            steps: Vec::new(),
+            closed: BitVec::from_elem(tile_grid_len, false),
+        }
+    }
+
+    pub fn find(&mut self, from: impl Into<Point>, to: impl Into<Point>,
+            mut f: impl FnMut(Point) -> TileState) -> Option<Vec<Direction>> {
+        let from = from.into();
+        let to = to.into();
+        if from == to {
+            return Some(Vec::new());
+        }
+
+        self.steps.clear();
+        self.closed.clear();
+
+        self.steps.push(Step {
+            pos: from,
+            came_from: 0,
+            direction: Direction::NE,
+            cost: 0,
+            estimate: 0,
+        });
+
+        loop {
+            let (idx, pos, cost) = {
+                let (idx, step) = if let Some((idx, step)) = self.steps.iter()
+                    .enumerate()
+                    .filter(|(_, s)| !self.is_closed(s.pos))
+                    .min_by(|(_, a), (_, b)| a.total_cost().cmp(&b.total_cost()))
+                {
+                    (idx, step)
+                } else {
+                    break;
+                };
+                if step.pos == to {
+                    // Found.
+
+                    let len = {
+                        let mut len = 0;
+                        let mut i = idx;
+                        while i != 0 {
+                            i = self.steps[i].came_from;
+                            len += 1;
+                        }
+                        len
+                    };
+
+                    let mut path = vec![Direction::NE; len];
+                    if len > 0 {
+                        let mut i = idx;
+                        let mut k = len - 1;
+                        loop {
+                            let step = &self.steps[i];
+                            path[k] = step.direction;
+                            i = step.came_from;
+                            if i == 0 {
+                                break;
+                            }
+                            k -= 1;
+                        }
+                    }
+
+                    return Some(path);
+                }
+
+                (idx, step.pos, step.cost)
+            };
+
+            self.close(pos);
+
+            for direction in Direction::iter() {
+                let next = self.tile_grid.go(pos, direction, 1, false);
+                if !self.tile_grid.is_in_bounds(next) || self.is_closed(next) {
+                    continue;
+                }
+
+                let next_cost = match f(next) {
+                    TileState::Blocked => continue,
+                    TileState::Passable(cost) => cost,
+                } + cost;
+
+                // TODO in non-combat, original penalizes directions that are different from the
+                // current step, why? And for the first step it seems to prefer NE?
+                // if ( 0 != is_not_in_combat && open_direction != direction )
+                //                v26->cost += 10;
+
+                if let Some(neighbor_idx) = self.steps.iter().position(|s| s.pos == next) {
+                    let mut step = &mut self.steps[neighbor_idx];
+                    if next_cost < step.cost {
+                        step.cost = next_cost;
+                        step.came_from = idx;
+                    }
+                } else {
+                    let estimate = self.estimate(next, to);
+                    self.steps.push(Step {
+                        pos: next,
+                        came_from: idx,
+                        direction,
+                        cost: next_cost,
+                        estimate,
+                    })
+                }
+            }
+        }
+        None
+    }
+
+    fn close(&mut self, pos: Point) {
+        self.closed.set(self.tile_grid.to_linear(pos).unwrap() as usize, true);
+    }
+
+    fn is_closed(&self, pos: Point) -> bool {
+        self.closed.get(self.tile_grid.to_linear(pos).unwrap() as usize).unwrap()
+    }
+
+    fn estimate(&self, from: Point, to: Point) -> u32 {
+        let from = self.tile_grid.to_screen(from);
+        let to = self.tile_grid.to_screen(to);
+        let diff = (to - from).abs();
+        let min = cmp::min(diff.x, diff.y);
+        (diff.x + diff.y - min / 2) as u32
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -535,5 +693,63 @@ mod test {
         assert_eq!(t.is_to_right_of((101, 100), (100, 100)), false);
         assert_eq!(t.is_to_right_of((101, 99), (100, 100)), false);
         assert_eq!(t.is_to_right_of((101, 101), (100, 100)), false);
+    }
+
+    enum TileStateFunc {
+        NoBlock,
+        AllBlocked,
+        Blocked(Vec<(i32, i32)>),
+        Penalty(Vec<(i32, i32, u32)>),
+    }
+
+    impl TileStateFunc {
+        fn f(self) -> Box<Fn(Point) -> TileState> {
+            match self {
+                TileStateFunc::NoBlock => Box::new(|_| TileState::Passable(0)),
+                TileStateFunc::AllBlocked => Box::new(|_| TileState::Blocked),
+                TileStateFunc::Blocked(v) => Box::new(move |p| {
+                    if v.iter().any(|p2| Point::from(*p2) == p) {
+                        TileState::Blocked
+                    } else {
+                        TileState::Passable(0)
+                    }
+                }),
+                TileStateFunc::Penalty(v) => Box::new(move |p| {
+                    if let Some((_, _, c)) = v.iter()
+                            .filter(|(x, y, _)| Point::new(*x, *y) == p).next() {
+                        TileState::Passable(*c)
+                    } else {
+                        TileState::Passable(0)
+                    }
+                }),
+            }
+        }
+    }
+
+    #[test]
+    fn path_finder() {
+        let mut t = PathFinder::new(TileGrid::default());
+        use self::Direction::*;
+        use self::TileStateFunc::*;
+        let d = vec![
+            ((0, 0), (0, 0), NoBlock, Some(vec![])),
+            ((0, 0), (1, 0), NoBlock, Some(vec![E])),
+            ((0, 0), (2, 0), NoBlock, Some(vec![E, NE])),
+            ((0, 0), (1, 1), NoBlock, Some(vec![E, SE])),
+            ((1, 1), (0, 0), NoBlock, Some(vec![W, NW])),
+            ((0, 1), (3, 1), NoBlock, Some(vec![E, E, NE])),
+            ((0, 1), (3, 0), NoBlock, Some(vec![E, NE, NE])),
+
+            ((0, 0), (1, 1), Blocked(vec![(1, 0)]), Some(vec![SE, E])),
+            ((0, 0), (1, 1), Penalty(vec![(1, 0, 100)]), Some(vec![SE, E])),
+            ((1, 1), (0, 0), Blocked(vec![(0, 1)]), Some(vec![NW, W])),
+
+            ((0, 0), (1, 1), Blocked(vec![(0, 1), (1, 0)]), None),
+            ((0, 0), (199, 199), AllBlocked, None),
+        ];
+        for (from, to, f, expected) in d {
+            assert_eq!(t.find(from, to, &*f.f()), expected);
+        }
+
     }
 }

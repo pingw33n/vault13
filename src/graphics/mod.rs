@@ -39,6 +39,13 @@ impl Point {
         self.y -= p.y;
     }
 
+    pub fn abs(self) -> Self {
+        Self {
+            x: self.x.abs(),
+            y: self.y.abs(),
+        }
+    }
+
     pub fn tuple(self) -> (i32, i32) {
         (self.x, self.y)
     }

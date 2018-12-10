@@ -2,6 +2,7 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 #![deny(non_snake_case)]
 
+extern crate bit_vec;
 extern crate bstring;
 extern crate byteorder;
 extern crate enumflags;

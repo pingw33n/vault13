@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["pingw33n <d@emphased.net>"]
 
 [dependencies]
+bit-vec = "0.5"
 bstring = "0.1"
 byteorder = "1.2"
 enumflags = "0.4"
