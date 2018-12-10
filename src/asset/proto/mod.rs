@@ -350,7 +350,7 @@ pub struct Critter {
     pub body_kind: u32,
     pub experience: i32,
     //proto.msg:1450
-    pub kill_kind: u32,
+    pub kill_kind: CritterKillKind,
     pub damage_kind: DamageKind,
     pub head_fid: Option<Fid>,
     pub ai_packet: u32,
@@ -371,6 +371,29 @@ pub enum CritterFlag {
     SpecialDeath    = 0x00001000, // Has special death animation.
     RangedMelee     = 0x00002000, // Melee attack is possible at a distance.
     NoKnock         = 0x00004000, // Can't knock down.
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Primitive)]
+pub enum CritterKillKind {
+  Man = 0x0,
+  Woman = 0x1,
+  Children = 0x2,
+  SuperMutant = 0x3,
+  Ghoul = 0x4,
+  Brahmin = 0x5,
+  Radscorpion = 0x6,
+  Rat = 0x7,
+  Floater = 0x8,
+  Centaur = 0x9,
+  Robot = 0xA,
+  Dog = 0xB,
+  Manti = 0xC,
+  DeathClaw = 0xD,
+  Plant = 0xE,
+  Gecko = 0xF,
+  Alien = 0x10,
+  GiantAnt = 0x11,
+  BigBadBoss = 0x12,
 }
 
 #[derive(Debug)]

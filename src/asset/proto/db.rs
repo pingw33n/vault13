@@ -431,8 +431,8 @@ impl ProtoDb {
         }
         let body_kind = rd.read_u32::<BigEndian>()?;
         let experience = rd.read_i32::<BigEndian>()?;
-        let kill_kind = rd.read_u32::<BigEndian>()?;
-        let damage_kind = read_enum(rd, "invalid damage kind of critter proto")?;
+        let kill_kind = read_enum(rd, "invalid kill kind in critter proto")?;
+        let damage_kind = read_enum(rd, "invalid damage kind in critter proto")?;
 
         Ok(Critter {
             flags,
