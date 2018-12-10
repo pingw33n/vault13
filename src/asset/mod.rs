@@ -1,5 +1,6 @@
 pub mod frm;
 pub mod message;
+pub mod palette;
 pub mod proto;
 
 use std::io::{self, prelude::*};
