@@ -69,10 +69,12 @@ impl FrmDb {
 
     //  art_exists()
     pub fn exists(&self, fid: Fid) -> bool {
+        let fid = self.normalize_fid(fid);
         self.read(fid).is_ok()
     }
 
     pub fn get_or_load(&self, fid: Fid, render: &mut Render) -> io::Result<Ref<FrameSet>> {
+        let fid = self.normalize_fid(fid);
         {
             let mut frms = self.frms.borrow_mut();
             if !frms.contains_key(&fid) {
@@ -84,16 +86,19 @@ impl FrmDb {
     }
 
     pub fn get(&self, fid: Fid) -> Ref<FrameSet> {
+        let fid = self.normalize_fid(fid);
         Ref::map(self.frms.borrow(), |v| &v[&fid])
     }
 
     // art_alias_fid()
+    // art_id()
     fn normalize_fid(&self, fid: Fid) -> Fid {
         if let Fid::Critter(critter_fid) = fid {
-            // TODO replace unwraps with logging
-
             use self::CritterAnim::*;
-            match critter_fid.anim() {
+
+            let anim = critter_fid.anim();
+
+            let fid = match anim {
                 | Electrify
                 | BurnedToNothing
                 | ElectrifiedToNothing
@@ -103,6 +108,7 @@ impl FrmDb {
                 | FireDance
                 | CalledShotPic
                 => {
+                    // TODO replace unwraps with logging
                     let alias = self.lst[EntityKind::Critter].get(critter_fid.id() as usize).unwrap()
                         .fields.get(1).unwrap();
                     // TODO parse this once during Self::new().
@@ -110,6 +116,14 @@ impl FrmDb {
                     critter_fid.with_id(alias).unwrap().into()
                 }
                 _ => fid,
+            };
+            if anim < FallBack
+                    || anim > FallFrontBlood
+                    || anim == FireDance
+                    || !self.exists_no_normalize(fid) {
+                critter_fid.with_direction(None).into()
+            } else {
+                fid
             }
         } else {
             fid
@@ -117,18 +131,10 @@ impl FrmDb {
     }
 
     fn read(&self, fid: Fid) -> io::Result<Box<BufRead + Send>> {
-        let name = self.name(fid)
+        let name = self.name_no_normalize(fid)
             .ok_or_else(|| Error::new(ErrorKind::NotFound,
                 format!("no name exists for FID: {:?}", fid)))?;
-        let path = Self::full_path(fid.kind(), &name, self.language.as_ref());
-        let path = if self.fs.exists(&path) ||
-                // Let the fs.reader() fail with NotFound.
-                self.language.is_none() {
-            path
-        } else {
-            Self::full_path(fid.kind(), &name, None)
-        };
-        self.fs.reader(&path)
+        self.read_by_name(fid.kind(), &name)
     }
 
     fn read_lst_files(fs: &FileSystem) -> io::Result<EnumMap<EntityKind, Vec<LstEntry>>> {
@@ -145,6 +151,61 @@ impl FrmDb {
             format!("art/{}/{}/{}", kind.dir(), language, path)
         } else {
             format!("art/{}/{}", kind.dir(), path)
+        }
+    }
+
+    fn name_no_normalize(&self, fid: Fid) -> Option<String> {
+        let base_name = &self.lst[fid.kind()].get(fid.id() as usize)?.fields[0];
+
+        Some(match fid {
+            Fid::Critter(fid) => {
+                let wk = fid.weapon();
+                let anim = fid.anim();
+                let (c1, c2) = critter_anim_codes(wk, anim)?;
+                if let Some(direction) = fid.direction() {
+                    format!("{}{}{}.fr{}", base_name, c1, c2, (b'0' + direction as u8) as char)
+                } else {
+                    format!("{}{}{}.frm", base_name, c1, c2)
+                }
+            }
+            Fid::Head(fid) => {
+                static ANIM_TO_CODE1: &'static [u8] = b"gggnnnbbbgnb";
+                static ANIM_TO_CODE2: &'static [u8] = b"vfngfbnfvppp";
+
+                let anim = fid.anim() as usize;
+                if anim >= ANIM_TO_CODE1.len() {
+                    return None;
+                }
+
+                let c1 = ANIM_TO_CODE1[anim] as char;
+                let c2 = ANIM_TO_CODE2[anim] as char;
+                if c2 == 'f' {
+                    format!("{}{}{}.frm", c1, c2, (b'0' + fid.sub_anim()) as char)
+                } else {
+                    format!("{}{}.frm", c1, c2)
+                }
+            }
+            _ => base_name.to_string(),
+        })
+    }
+
+    fn read_by_name(&self, kind: EntityKind, name: &str) -> io::Result<Box<BufRead + Send>> {
+        let path = Self::full_path(kind, &name, self.language.as_ref());
+        let path = if self.fs.exists(&path) ||
+                // Let the fs.reader() fail with NotFound.
+                self.language.is_none() {
+            path
+        } else {
+            Self::full_path(kind, &name, None)
+        };
+        self.fs.reader(&path)
+    }
+
+    fn exists_no_normalize(&self, fid: Fid) -> bool {
+        if let Some(name) = self.name_no_normalize(fid) {
+            self.read_by_name(fid.kind(), &name).is_ok()
+        } else {
+            false
         }
     }
 }
