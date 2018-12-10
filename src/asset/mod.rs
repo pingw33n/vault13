@@ -1,7 +1,9 @@
 pub mod frm;
+pub mod map;
 pub mod message;
 pub mod palette;
 pub mod proto;
+pub mod script;
 
 use std::io::{self, prelude::*};
 
