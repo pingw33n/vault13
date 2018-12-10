@@ -435,6 +435,7 @@ pub struct PathFinder {
     tile_grid: TileGrid,
     steps: Vec<Step>,
     closed: BitVec,
+    max_depth: usize,
 }
 
 pub enum TileState {
@@ -443,12 +444,13 @@ pub enum TileState {
 }
 
 impl PathFinder {
-    pub fn new(tile_grid: TileGrid) -> Self {
+    pub fn new(tile_grid: TileGrid, max_depth: usize) -> Self {
         let tile_grid_len = tile_grid.len();
         Self {
             tile_grid,
             steps: Vec::new(),
             closed: BitVec::from_elem(tile_grid_len, false),
+            max_depth,
         }
     }
 
@@ -458,6 +460,9 @@ impl PathFinder {
         let to = to.into();
         if from == to {
             return Some(Vec::new());
+        }
+        if let TileState::Blocked = f(to) {
+            return None;
         }
 
         self.steps.clear();
@@ -546,6 +551,9 @@ impl PathFinder {
                         step.came_from = idx;
                     }
                 } else {
+                    if self.steps.len() >= self.max_depth {
+                        return None;
+                    }
                     let estimate = self.estimate(next, to);
                     self.steps.push(Step {
                         pos: next,
@@ -750,7 +758,7 @@ mod test {
 
     #[test]
     fn path_finder() {
-        let mut t = PathFinder::new(TileGrid::default());
+        let mut t = PathFinder::new(TileGrid::default(), 5000);
         use self::Direction::*;
         use self::TileStateFunc::*;
         let d = vec![
