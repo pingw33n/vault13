@@ -556,11 +556,6 @@ impl Objects {
             -> Option<Vec<Direction>> {
         let o = self.get(obj).borrow();
         let from = o.pos?;
-        let smooth = if smooth {
-            Some(o.direction)
-        } else {
-            None
-        };
         self.path_finder.borrow_mut().find(from.point, to, smooth,
             |p| {
                 let p = ElevatedPoint::new(from.elevation, p);

@@ -454,11 +454,11 @@ impl PathFinder {
         }
     }
 
-    /// If `smooth` is not `None` it will add extra cost to changing of direction. The `smooth`
-    /// itself specifies initial direction. This effectively attempts to decrease the number of
-    /// turns in the path making smoother at the price of choosing sub-optimal route.
+    /// If `smooth` is `true` it will add extra cost to changing of direction. This effectively
+    /// attempts to decrease the number of turns in the path making smoother at the price of
+    /// choosing sub-optimal route.
     pub fn find(&mut self, from: impl Into<Point>, to: impl Into<Point>,
-            smooth: Option<Direction>,
+            smooth: bool,
             mut f: impl FnMut(Point) -> TileState) -> Option<Vec<Direction>> {
         let from = from.into();
         let to = to.into();
@@ -472,13 +472,14 @@ impl PathFinder {
         self.steps.clear();
         self.closed.clear();
 
-        self.steps.push(Step {
+        let step = Step {
             pos: from,
             came_from: 0,
-            direction: smooth.unwrap_or(Direction::NE),
+            direction: Direction::NE,
             cost: 0,
-            estimate: 0,
-        });
+            estimate: self.estimate(from, to),
+        };
+        self.steps.push(step);
 
         loop {
             let (idx, pos, cost, direction) = {
@@ -541,10 +542,10 @@ impl PathFinder {
                 let next_cost = match f(next) {
                     TileState::Blocked => continue,
                     TileState::Passable(cost) => cost,
-                } + cost;
+                } + cost + 50;
 
                 // Add penalty to changing of direction.
-                let next_cost = if smooth.is_some() && next_direction != direction {
+                let next_cost = if smooth && next_direction != direction {
                     next_cost + 10
                 } else {
                     next_cost
@@ -552,7 +553,9 @@ impl PathFinder {
 
                 if let Some(neighbor_idx) = self.steps.iter().position(|s| s.pos == next) {
                     let mut step = &mut self.steps[neighbor_idx];
+                    // This is differen from original which doesn't check for better route variants.
                     if next_cost < step.cost {
+                        step.direction = next_direction;
                         step.cost = next_cost;
                         step.came_from = idx;
                     }
@@ -775,6 +778,7 @@ mod test {
             ((1, 1), (0, 0), NoBlock, Some(vec![W, NW])),
             ((0, 1), (3, 1), NoBlock, Some(vec![E, E, NE])),
             ((0, 1), (3, 0), NoBlock, Some(vec![E, NE, NE])),
+            ((1, 1), (1, 4), NoBlock, Some(vec![SE, SE, SE])),
 
             ((0, 0), (1, 1), Blocked(vec![(1, 0)]), Some(vec![SE, E])),
             ((0, 0), (1, 1), Penalty(vec![(1, 0, 100)]), Some(vec![SE, E])),
@@ -784,7 +788,7 @@ mod test {
             ((0, 0), (199, 199), AllBlocked, None),
         ];
         for (from, to, f, expected) in d {
-            assert_eq!(t.find(from, to, None, &*f.f()), expected);
+            assert_eq!(t.find(from, to, false, &*f.f()), expected);
         }
     }
 
@@ -792,16 +796,16 @@ mod test {
     fn path_finder_smooth() {
         let mut t = PathFinder::new(TileGrid::default(), 5000);
         use self::Direction::*;
-        assert_eq!(t.find((2, 0), (0, 3), None, |_| TileState::Passable(0)),
+        assert_eq!(t.find((2, 0), (0, 3), false, |_| TileState::Passable(0)),
             Some(vec![SE, SW, SE, SW]));
-        assert_eq!(t.find((2, 0), (0, 3), Some(SE), |_| TileState::Passable(0)),
-            Some(vec![SE, SW, SW, SE]));
+        assert_eq!(t.find((2, 0), (0, 3), true, |_| TileState::Passable(0)),
+            Some(vec![SE, SE, SW, SW]));
     }
 
     #[test]
     fn path_finder_max_depth() {
         let mut t = PathFinder::new(TileGrid::default(), 10);
-        assert_eq!(t.find((2, 0), (0, 0), None,
+        assert_eq!(t.find((2, 0), (0, 0), false,
             |p| if p == Point::new(1, 0) || p == Point::new(0, 1) {
                 TileState::Blocked
             } else {
