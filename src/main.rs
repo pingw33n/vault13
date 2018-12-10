@@ -91,6 +91,7 @@ fn main() {
         .unwrap();
 
     let ref mut render = SoftwareRender::new(canvas, Box::new(pal.clone()), PaletteOverlay::standard());
+    let texture_factory = render.new_texture_factory();
 
     let map_grid = MapGrid::new(640, 380);
 
@@ -102,14 +103,14 @@ fn main() {
         proto_db: &proto_db,
         frm_db: &frm_db,
         tile_grid: map_grid.hex(),
-        render,
+        texture_factory: &texture_factory,
     }.read().unwrap();
 
     for elev in &map.sqr_tiles {
         if let Some(ref elev) = elev {
             for &(floor, roof) in elev {
-                frm_db.get_or_load(Fid::new_generic(EntityKind::SqrTile, floor).unwrap(), render).unwrap();
-                frm_db.get_or_load(Fid::new_generic(EntityKind::SqrTile, roof).unwrap(), render).unwrap();
+                frm_db.get_or_load(Fid::new_generic(EntityKind::SqrTile, floor).unwrap(), &texture_factory).unwrap();
+                frm_db.get_or_load(Fid::new_generic(EntityKind::SqrTile, roof).unwrap(), &texture_factory).unwrap();
             }
         }
     }
@@ -139,7 +140,7 @@ fn main() {
 
     let dude_fid = Fid::from_packed(0x101600A).unwrap();
     for fid in all_fids(dude_fid) {
-        let _ = frm_db.get_or_load(fid, render);
+        let _ = frm_db.get_or_load(fid, &texture_factory);
     }
     let dude_objh = world.insert_object(Object::new(
         BitFlags::empty(),
@@ -156,7 +157,7 @@ fn main() {
         Inventory::new(),
     ));
     world.make_object_standing(&dude_objh);
-    frm_db.get_or_load(Fid::EGG, render).unwrap();
+    frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
 
     world.map_grid_mut().center2(map.entrance.point);
 

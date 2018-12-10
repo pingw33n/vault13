@@ -73,12 +73,13 @@ impl FrmDb {
         self.read(fid).is_ok()
     }
 
-    pub fn get_or_load(&self, fid: Fid, render: &mut Render) -> io::Result<Ref<FrameSet>> {
+    pub fn get_or_load(&self, fid: Fid, texture_factory: &TextureFactory)
+            -> io::Result<Ref<FrameSet>> {
         let fid = self.normalize_fid(fid);
         {
             let mut frms = self.frms.borrow_mut();
             if !frms.contains_key(&fid) {
-                let frm = read_frm(&mut self.read(fid)?, render)?;
+                let frm = read_frm(&mut self.read(fid)?, texture_factory)?;
                 frms.insert(fid, frm);
             }
         }

@@ -13,7 +13,7 @@ use graphics::{ElevatedPoint, Point};
 use graphics::geometry::Direction;
 use graphics::geometry::hex::TileGrid;
 use graphics::geometry::map::ELEVATION_COUNT;
-use graphics::render::Render;
+use graphics::render::TextureFactory;
 use util::EnumExt;
 
 pub struct Map {
@@ -28,7 +28,7 @@ pub struct MapReader<'a, R: 'a> {
     pub proto_db: &'a ProtoDb,
     pub frm_db: &'a FrmDb,
     pub tile_grid: &'a TileGrid,
-    pub render: &'a mut Render,
+    pub texture_factory: &'a TextureFactory,
 }
 
 impl<'a, R: 'a + Read> MapReader<'a, R> {
@@ -193,7 +193,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let fid = Fid::read(self.reader)?;
         trace!("{:?}", fid);
 
-        self.frm_db.get_or_load(fid, self.render)?;
+        self.frm_db.get_or_load(fid, self.texture_factory)?;
 
         let flags = self.reader.read_u32::<BigEndian>()?;
         let flags = BitFlags::from_bits(flags)

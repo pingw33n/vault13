@@ -29,8 +29,25 @@ impl Drop for TextureHandleInner {
     }
 }
 
+#[derive(Clone)]
+pub struct TextureFactory(TextureFactoryInner);
+
+#[derive(Clone)]
+enum TextureFactoryInner {
+    Software(software::Textures),
+}
+
+impl TextureFactory {
+    pub fn new_texture(&self, width: i32, height: i32, data: Box<[u8]>) -> TextureHandle {
+        match self.0 {
+            TextureFactoryInner::Software(ref i) => i.new_texture(width, height, data),
+        }
+    }
+}
+
 pub trait Render {
-    fn new_texture(&mut self, width: i32, height: i32, data: Box<[u8]>) -> TextureHandle;
+    fn new_texture_factory(&self) -> TextureFactory;
+
     fn cleanup(&mut self);
     fn present(&mut self);
     fn update(&mut self, time: Instant);

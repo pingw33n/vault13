@@ -11,7 +11,7 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 use asset::{EntityKind, WeaponKind};
 use graphics::frm::{Frame, FrameList, FrameSet};
 use graphics::geometry::Direction;
-use graphics::render::Render;
+use graphics::render::TextureFactory;
 use graphics::Point;
 use util::EnumExt;
 
@@ -525,7 +525,7 @@ impl CritterAnim {
     }
 }
 
-pub fn read_frm(rd: &mut impl Read, render: &mut Render) -> io::Result<FrameSet> {
+pub fn read_frm(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Result<FrameSet> {
     let _version = rd.read_u32::<BigEndian>()?;
 
     let fps = rd.read_u16::<BigEndian>()?;
@@ -584,7 +584,7 @@ pub fn read_frm(rd: &mut impl Read, render: &mut Render) -> io::Result<FrameSet>
             let mut pixels = vec![0; len].into_boxed_slice();
             rd.read_exact(&mut pixels)?;
 
-            let texture = render.new_texture(width, height, pixels);
+            let texture = texture_factory.new_texture(width, height, pixels);
 
             frames.push(Frame {
                 shift,

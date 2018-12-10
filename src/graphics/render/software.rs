@@ -1,15 +1,15 @@
+use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::{Canvas, Texture as SdlTexture};
 use sdl2::video::Window;
 use slotmap::{DefaultKey, SecondaryMap, SlotMap};
+use std::cmp;
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 
 use super::*;
 use graphics::color::{Color8, Palette, PaletteOverlay};
 use graphics::lighting::light_map::{self, LightMap};
 use graphics::Rect;
-use sdl2::pixels::PixelFormatEnum;
-use std::cmp;
 
 struct Texture {
     width: i32,
@@ -40,10 +40,65 @@ impl Texture {
     }
 }
 
+struct TexturesInner {
+    handles: SlotMap<DefaultKey, ()>,
+    textures: SecondaryMap<DefaultKey, Texture>,
+    drop_list: Rc<RefCell<Vec<DefaultKey>>>,
+}
+
+impl TexturesInner {
+    fn new() -> Self {
+        Self {
+            handles: SlotMap::new(),
+            textures: SecondaryMap::new(),
+            drop_list: Rc::new(RefCell::new(Vec::new())),
+        }
+    }
+
+    fn new_texture(&mut self, width: i32, height: i32, data: Box<[u8]>) -> TextureHandle {
+        let key = self.handles.insert(());
+        self.textures.insert(key, Texture::new(width, height, data));
+        TextureHandle(Rc::new(TextureHandleInner {
+            key,
+            drop_list: self.drop_list.clone(),
+        }))
+    }
+
+    fn cleanup(&mut self) {
+        let mut l = self.drop_list.borrow_mut();
+        for key in l.drain(..) {
+            self.handles.remove(key);
+            self.textures.remove(key);
+        }
+    }
+}
+
+#[derive(Clone)]
+pub(in super) struct Textures(Rc<RefCell<TexturesInner>>);
+
+impl Textures {
+    fn new() -> Self {
+        Textures(Rc::new(RefCell::new(TexturesInner::new())))
+    }
+
+    fn cleanup(&self) {
+        self.0.borrow_mut().cleanup();
+    }
+}
+
+impl Textures {
+    pub fn new_texture(&self, width: i32, height: i32, data: Box<[u8]>) -> TextureHandle {
+        self.0.borrow_mut().new_texture(width, height, data)
+    }
+
+    fn get(&self, h: &TextureHandle) -> Ref<Texture> {
+        let t = self.0.borrow();
+        Ref::map(t, |t| &t.textures[h.0.key])
+    }
+}
+
 pub struct SoftwareRender {
-    textures: SlotMap<DefaultKey, ()>,
-    textures_sm: SecondaryMap<DefaultKey, Texture>,
-    texture_drop_list: Rc<RefCell<Vec<DefaultKey>>>,
+    textures: Textures,
     light_map: LightMap,
     back_buf: Texture,
     palette: Box<Palette>,
@@ -62,9 +117,7 @@ impl SoftwareRender {
             .create_texture_streaming(PixelFormatEnum::RGB24, w, h)
             .unwrap();
         Self {
-            textures: SlotMap::new(),
-            textures_sm: SecondaryMap::new(),
-            texture_drop_list: Rc::new(RefCell::new(Vec::new())),
+            textures: Textures::new(),
             light_map: LightMap::new(),
             back_buf: Texture::new_empty(w as i32, h as i32, 0),
             palette,
@@ -86,12 +139,12 @@ impl SoftwareRender {
     fn do_draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32,
             grayscale_func: impl Fn(Rgb15) -> u8) {
         let pal = &self.palette;
-        let tex = &self.textures_sm[tex.0.key];
+        let tex = self.textures.get(tex);
         let light = (light >> 9) as u8;
 
         let color = pal.color_idx(color);
 
-        Self::do_draw(&mut self.back_buf, x, y, tex, &self.clip_rect,
+        Self::do_draw(&mut self.back_buf, x, y, &tex, &self.clip_rect,
             |dst, _, _, _, _, src| {
                 let alpha = grayscale_func(pal.rgb15(src)) / 4;
                 let color = pal.alpha_blend(color, *dst, alpha);
@@ -131,21 +184,12 @@ impl SoftwareRender {
 }
 
 impl Render for SoftwareRender {
-    fn new_texture(&mut self, width: i32, height: i32, data: Box<[u8]>) -> TextureHandle {
-        let key = self.textures.insert(());
-        self.textures_sm.insert(key, Texture::new(width, height, data));
-        TextureHandle(Rc::new(TextureHandleInner {
-            key,
-            drop_list: self.texture_drop_list.clone(),
-        }))
+    fn new_texture_factory(&self) -> TextureFactory {
+        TextureFactory(TextureFactoryInner::Software(self.textures.clone()))
     }
 
     fn cleanup(&mut self) {
-        let mut l = self.texture_drop_list.borrow_mut();
-        for key in l.drain(..) {
-            self.textures.remove(key);
-            self.textures_sm.remove(key);
-        }
+        self.textures.cleanup();
     }
 
     fn present(&mut self) {
@@ -175,10 +219,10 @@ impl Render for SoftwareRender {
 
     fn draw(&mut self, tex: &TextureHandle, x: i32, y: i32, light: u32) {
         let pal = &self.palette;
-        let tex = &self.textures_sm[tex.0.key];
+        let tex = self.textures.get(tex);
         let light = (light >> 9) as u8;
 
-        Self::do_draw(&mut self.back_buf, x, y, tex, &self.clip_rect,
+        Self::do_draw(&mut self.back_buf, x, y, &tex, &self.clip_rect,
             |dst, _, _, _, _, src| {
                 *dst = pal.darken(src, light);
             }
@@ -203,9 +247,9 @@ impl Render for SoftwareRender {
         let pal = &self.palette;
         let light_map = &self.light_map;
 
-        let tex = &self.textures_sm[tex.0.key];
+        let tex = self.textures.get(tex);
 
-        Self::do_draw(&mut self.back_buf, x, y, tex, &self.clip_rect,
+        Self::do_draw(&mut self.back_buf, x, y, &tex, &self.clip_rect,
             |dst, _, _, src_x, src_y, src| {
                 let light = light_map.get(src_x, src_y + 2 /* as in original */);
                 *dst = pal.darken(src, (light >> 9) as u8);
@@ -216,15 +260,15 @@ impl Render for SoftwareRender {
     fn draw_masked(&mut self, tex: &TextureHandle, x: i32, y: i32,
                    mask: &TextureHandle, mask_x: i32, mask_y: i32,
                    light: u32) {
-        let tex = &self.textures_sm[tex.0.key];
-        let mask = &self.textures_sm[mask.0.key];
+        let tex = self.textures.get(tex);
+        let mask = self.textures.get(mask);
 
         let mask_rect = &Rect::with_size(mask_x, mask_y, mask.width, mask.height);
         let light = (light >> 9) as u8;
 
         let pal = &self.palette;
 
-        Self::do_draw(&mut self.back_buf, x, y, tex, &self.clip_rect,
+        Self::do_draw(&mut self.back_buf, x, y, &tex, &self.clip_rect,
             |dst, dst_x, dst_y, _, _, src| {
                 let src = pal.darken(src, light);
                 let mask_v = if mask_rect.contains(dst_x, dst_y) {
