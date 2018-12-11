@@ -58,6 +58,7 @@ use std::time::Instant;
 use std::time::Duration;
 use std::thread;
 use util::EnumExt;
+use graphics::frm::OutlineStyle;
 
 fn main() {
     env_logger::init();
@@ -155,9 +156,33 @@ fn main() {
         },
         None,
         Inventory::new(),
+        None,
+
     ));
     world.make_object_standing(&dude_objh);
     frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
+
+
+    frm_db.get_or_load(Fid::MOUSE_HEX2, &texture_factory).unwrap();
+    let mouse_objh = world.insert_object(Object::new(
+        BitFlags::from_bits(0xA000041C).unwrap(),
+        Some(map.entrance),
+        Point::new(0, 0),
+        Point::new(0, 0),
+        Fid::MOUSE_HEX2,
+        Direction::NW,
+        LightEmitter {
+            intensity: 0,
+            radius: 0,
+        },
+        None,
+        Inventory::new(),
+        Some(game::object::Outline {
+            style: OutlineStyle::Red,
+            translucent: true,
+            disabled: false,
+        }),
+    ));
 
     world.map_grid_mut().center2(map.entrance.point);
 
@@ -178,6 +203,8 @@ fn main() {
                         "hex pos: {}, {} ({}), sqr pos: {}, {} ({})",
                         hex_pos.x, hex_pos.y, world.map_grid().hex().to_linear_inv(hex_pos).unwrap_or(-1),
                         sqr_pos.x, sqr_pos.y, world.map_grid().sqr().to_linear_inv(sqr_pos).unwrap_or(-1))).unwrap();
+
+                    world.set_object_pos(&mouse_objh, ElevatedPoint::new(elevation, hex_pos));
                 }
                 Event::MouseButtonUp { x, y, mouse_btn, .. } => {
                     if !sequencer.is_running() {
@@ -279,11 +306,13 @@ fn main() {
             });
 
 
-//            render_roof(render, &stg, &visible_rect,
-//                |num| Some(frm_db.get(Fid::new(EntityKind::SqrTile, 0, 0, 0, map.sqr_tiles[elevation].as_ref().unwrap()[num as usize].1).unwrap()).frame_lists[Direction::NE].frames[0].texture.clone())
+//            render_roof(renderer, &world.map_grid().sqr(), &visible_rect,
+//                |num| Some(frm_db.get(Fid::new_generic(EntityKind::SqrTile, map.sqr_tiles[elevation].as_ref().unwrap()[num as usize].1).unwrap()).frame_lists[Direction::NE].frames[0].texture.clone())
 //            );
 
-        // TODO render outlines and text.
+        world.objects().render_outlines(renderer, elevation, &visible_rect, world.map_grid().hex());
+
+        // TODO render text.
 
         let now = Instant::now();
 
