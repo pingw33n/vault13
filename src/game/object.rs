@@ -105,7 +105,7 @@ impl Object {
         self.screen_shift
     }
 
-    pub fn render(&mut self, renderer: &mut Renderer, rect: &Rect, light: u32,
+    pub fn render(&mut self, renderer: &mut Renderer, light: u32,
             frm_db: &FrmDb, proto_db: &ProtoDb, tile_grid: &TileGrid,
             egg: Option<&Egg>) {
         if self.flags.contains(Flag::TurnedOff) {
@@ -128,7 +128,7 @@ impl Object {
             light,
             effect,
         };
-        self.screen_pos = sprite.render(renderer, rect, frm_db).top_left();
+        self.screen_pos = sprite.render(renderer, frm_db).top_left();
     }
 
     fn get_effect(&self, proto_db: &ProtoDb, tile_grid: &TileGrid, egg: Option<&Egg>)
@@ -336,8 +336,7 @@ impl Objects {
                     }
                     let light = get_light(obj.pos);
                     assert!(light <= 0x10000);
-                    obj.render(renderer, &screen_rect, light, &self.frm_db, &self.proto_db, tile_grid,
-                        egg);
+                    obj.render(renderer, light, &self.frm_db, &self.proto_db, tile_grid, egg);
                 }
             }
         }

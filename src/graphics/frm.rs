@@ -63,7 +63,7 @@ pub struct Sprite {
 }
 
 impl Sprite {
-    pub fn render(&self, renderer: &mut Renderer, _rect: &Rect, frm_db: &FrmDb) -> Rect {
+    pub fn render(&self, renderer: &mut Renderer, frm_db: &FrmDb) -> Rect {
         let frms = frm_db.get(self.fid);
         let frml = &frms.frame_lists[self.direction];
         let frm = &frml.frames[self.frame_idx];
@@ -83,8 +83,6 @@ impl Sprite {
         } else {
             Rect::with_size(self.pos.x, self.pos.y, frm.width, frm.height - 1)
         };
-
-        // TODO set renderer clip rect
 
         match self.effect {
             Some(Effect::Translucency(trans)) => {
