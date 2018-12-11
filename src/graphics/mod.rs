@@ -244,6 +244,10 @@ impl Rect {
         Point::new(self.left, self.top)
     }
 
+    pub fn bottom_right(&self) -> Point {
+        Point::new(self.bottom, self.right)
+    }
+
     pub fn width(&self) -> i32 {
         self.right - self.left
     }
