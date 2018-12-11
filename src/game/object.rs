@@ -394,7 +394,7 @@ impl Objects {
                 let obj = self.get(&h).borrow();
                 match list.binary_search_by(|h| {
                     let o = self.get(h).borrow();
-                    self.cmp_objs(&obj, &o)
+                    self.cmp_objs(&o, &obj)
                 }) {
                     Ok(i) => i,
                     Err(i) => i,
