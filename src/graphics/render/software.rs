@@ -111,7 +111,6 @@ pub struct SoftwareRenderer {
 impl SoftwareRenderer {
     pub fn new(canvas: Canvas<Window>, palette: Box<Palette>, palette_overlay: PaletteOverlay) -> Self {
         let (w, h) = canvas.window().size();
-        println!("{} {} ", w, h);
         let canvas_texture = canvas
             .texture_creator()
             .create_texture_streaming(PixelFormatEnum::RGB24, w, h)
@@ -136,6 +135,12 @@ impl SoftwareRenderer {
         &mut self.canvas
     }
 
+    fn make_translucent(src: u8, dst: u8, trans_color_idx: u8, palette: &Palette,
+            grayscale_func: impl Fn(Rgb15) -> u8) -> u8 {
+        let alpha = grayscale_func(palette.rgb15(src)) / 4;
+        palette.alpha_blend(trans_color_idx, dst, alpha)
+    }
+
     fn do_draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32,
             grayscale_func: impl Fn(Rgb15) -> u8) {
         let pal = &self.palette;
@@ -146,11 +151,23 @@ impl SoftwareRenderer {
 
         Self::do_draw(&mut self.back_buf, x, y, &tex, &self.clip_rect,
             |dst, _, _, _, _, src| {
-                let alpha = grayscale_func(pal.rgb15(src)) / 4;
-                let color = pal.alpha_blend(color, *dst, alpha);
+                let color = Self::make_translucent(src, *dst, color, pal,
+                    |rgb15| grayscale_func(rgb15));
                 *dst = pal.darken(color, light);
             }
         );
+    }
+
+    fn compute_draw_rect(dst: &Texture, dst_x: i32, dst_y: i32,
+                         src_width: i32, src_height: i32,
+                         clip_rect: &Rect) -> (Rect, i32, i32) {
+        let rect = Rect::with_size(dst_x, dst_y, src_width, src_height)
+            .intersect(&Rect::with_size(0, 0, dst.width, dst.height))
+            .intersect(&clip_rect);
+        let src_rect = rect.translate(-dst_x, -dst_y);
+        let dst_x = rect.left;
+        let dst_y = rect.top;
+        (src_rect, dst_x, dst_y)
     }
 
     fn do_draw(
@@ -159,12 +176,8 @@ impl SoftwareRenderer {
             src: &Texture,
             clip_rect: &Rect,
             f: impl Fn(&mut u8, i32, i32, i32, i32, u8)) {
-        let rect = Rect::with_size(dst_x, dst_y, src.width, src.height)
-            .intersect(&Rect::with_size(0, 0, dst.width, dst.height))
-            .intersect(&clip_rect);
-        let src_rect = rect.translate(-dst_x, -dst_y);
-        let dst_x = rect.left;
-        let mut dst_y = rect.top;
+        let (src_rect, dst_x, mut dst_y) =
+            Self::compute_draw_rect(dst, dst_x, dst_y, src.width, src.height, clip_rect);
 
         for src_y in src_rect.top..src_rect.bottom {
             let src = &src.data[(src_y * src.width) as usize..];
@@ -294,5 +307,125 @@ impl Renderer for SoftwareRenderer {
 
     fn draw_translucent_dark(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32) {
         self.do_draw_translucent(tex, x, y, color, light, Rgb15::grayscale_dark)
+    }
+
+    fn draw_outline(&mut self, tex: &TextureHandle, x: i32, y: i32, outline: Outline) {
+        let src = self.textures.get(tex);
+        let (mut src_rect, dst_x, dst_y) =
+            Self::compute_draw_rect(&self.back_buf, x, y,
+                src.width + 2, src.height + 2,
+                &self.clip_rect);
+        src_rect.right -= 2;
+        src_rect.bottom -= 2;
+        let dst_width = self.back_buf.width;
+
+        let (color_start, color_end_incl, trans_color_idx) = match outline {
+            Outline::Color(rgb15) => {
+                let start = self.palette.color_idx(rgb15);
+                (start, start, None)
+            },
+            Outline::ColorCycle { start, len } => {
+                assert!(start + len > start);
+                (start, start + len - 1, None)
+            },
+            Outline::Translucent { color, trans_color } => {
+                let start = self.palette.color_idx(color);
+                let trans_color_idx = self.palette.color_idx(trans_color);
+                (start, start, Some(trans_color_idx))
+            }
+        };
+
+        let vert_period = cmp::max(src.height / (color_end_incl as i32 - color_start as i32 + 1), 1);
+
+        // Scan horizontally.
+        let mut dst_y_i = dst_y + 1;
+        let mut color_idx = color_start;
+        for src_y in 0..src_rect.bottom {
+            if src_y % vert_period == 0 {
+                if color_idx < color_end_incl {
+                    color_idx += 1;
+                } else {
+                    color_idx = color_start;
+                }
+            }
+            if src_y >= src_rect.top {
+                let mut outside = true;
+                let src = &src.data[(src_y * src.width) as usize..];
+                let dst = &mut self.back_buf.data[(dst_y_i * dst_width) as usize..];
+                let mut dst_x_i = dst_x;
+                for src_x in 0..=src_rect.right {
+                    let src_color_idx = if src_x < src_rect.right {
+                        src[src_x as usize]
+                    } else {
+                        0
+                    };
+                    let dst_x = if src_color_idx != 0 && outside {
+                        outside = false;
+                        Some(dst_x_i as usize)
+                    } else if src_color_idx == 0 && !outside {
+                        outside = true;
+                        Some(dst_x_i as usize + 1)
+                    } else {
+                        None
+                    };
+                    if src_x >= src_rect.left {
+                        if let Some(dst_x) = dst_x {
+                            dst[dst_x] = if let Some(trans_color_idx) = trans_color_idx {
+                                Self::make_translucent(dst[dst_x], color_idx, trans_color_idx,
+                                    &self.palette, Rgb15::grayscale)
+                            } else {
+                                color_idx
+                            };
+                        }
+                    }
+                    dst_x_i += 1;
+                }
+                dst_y_i += 1;
+            }
+        }
+
+        // Scan vertically.
+        let mut dst_x_i = dst_x + 1;
+        for src_x in src_rect.left..src_rect.right {
+            let mut dst_y_i = dst_y;
+            let mut color_idx = color_start;
+            let mut outside = true;
+            for src_y in 0..=src_rect.bottom {
+                if src_y % vert_period == 0 {
+                    if color_idx < color_end_incl {
+                        color_idx += 1;
+                    } else {
+                        color_idx = color_start;
+                    }
+                }
+                let src = if src_y < src_rect.bottom {
+                    src.data[(src_y * src.width + src_x) as usize]
+                } else {
+                    0
+                };
+                let dst_y = if src != 0 && outside {
+                    outside = false;
+                    Some(dst_y_i)
+                } else if src == 0 && !outside {
+                    outside = true;
+                    Some(dst_y_i + 1)
+                } else {
+                    None
+                };
+                if src_y >= src_rect.top {
+                    if let Some(dst_y) = dst_y {
+                        let dst = &mut self.back_buf.data[(dst_y * dst_width + dst_x_i) as usize];
+                        *dst = if let Some(trans_color_idx) = trans_color_idx {
+                            Self::make_translucent(*dst, color_idx, trans_color_idx,
+                                &self.palette, Rgb15::grayscale)
+                        } else {
+                            color_idx
+                        };
+                    }
+                    dst_y_i += 1;
+                }
+            }
+            dst_x_i += 1;
+        }
     }
 }

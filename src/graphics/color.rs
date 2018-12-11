@@ -3,6 +3,8 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
+use graphics::render::Outline;
+
 macro_rules! rgb {
     ($r:expr, $g:expr, $b:expr) => {
         Rgb { r: $r, g: $g, b: $b, _p: PhantomData }
@@ -15,16 +17,22 @@ pub const TRANS_STEAM   : Rgb15 = rgb!(31, 31, 31);
 pub const TRANS_ENERGY  : Rgb15 = rgb!(31, 31, 1);
 pub const TRANS_RED     : Rgb15 = rgb!(31, 0, 1);
 
-const SLIME: [Rgb18; 4] = [
+pub const GREEN_GLOW_OUTLINE : Outline = Outline::ColorCycle {
+    start: SLIME_PALETTE_START, len: SLIME_LEN as u8 };
+pub const RED_GLOW_OUTLINE : Outline = Outline::ColorCycle {
+    start: FAST_FIRE_PALETTE_START, len: FAST_FIRE_LEN as u8 };
+
+const SLIME: [Rgb18; SLIME_LEN] = [
     rgb!(0, 27, 0),
     rgb!(2, 28, 1),
     rgb!(6, 30, 3),
     rgb!(10, 32, 6),
 ];
+const SLIME_LEN: usize = 4;
 const SLIME_PERIOD_MILLIS: u64 = 200;
 const SLIME_PALETTE_START: u8 = 229;
 
-const SHORE: [Rgb18; 6] = [
+const SHORE: [Rgb18; SHORE_LEN] = [
     rgb!(20, 15, 10),
     rgb!(18, 14, 10),
     rgb!(16, 13, 9),
@@ -32,36 +40,40 @@ const SHORE: [Rgb18; 6] = [
     rgb!(13, 11, 8),
     rgb!(12, 10, 8),
 ];
+const SHORE_LEN: usize = 6;
 const SHORE_PERIOD_MILLIS: u64 = 200;
 const SHORE_PALETTE_START: u8 = 248;
 
-const SLOW_FIRE: [Rgb18; 5] = [
+const SLOW_FIRE: [Rgb18; SLOW_FIRE_LEN] = [
     rgb!(63, 0, 0),
     rgb!(53, 0, 0),
     rgb!(36, 10, 2),
     rgb!(63, 29, 0),
     rgb!(63, 14, 0),
 ];
+const SLOW_FIRE_LEN: usize = 5;
 const SLOW_FIRE_PERIOD_MILLIS: u64 = 200;
 const SLOW_FIRE_PALETTE_START: u8 = 238;
 
-const FAST_FIRE: [Rgb18; 5] = [
+const FAST_FIRE: [Rgb18; FAST_FIRE_LEN] = [
     rgb!(17, 0, 0),
     rgb!(30, 0, 0),
     rgb!(44, 0, 0),
     rgb!(30, 0, 0),
     rgb!(17, 0, 0),
 ];
+const FAST_FIRE_LEN: usize = 5;
 const FAST_FIRE_PERIOD_MILLIS: u64 = 142;
 const FAST_FIRE_PALETTE_START: u8 = 243;
 
-const COMPUTER_SCREEN: [Rgb18; 5] = [
+const COMPUTER_SCREEN: [Rgb18; COMPUTER_SCREEN_LEN] = [
     rgb!(26, 26, 27),
     rgb!(24, 25, 31),
     rgb!(21, 26, 35),
     rgb!(0, 36, 40),
     rgb!(26, 46, 63),
 ];
+const COMPUTER_SCREEN_LEN: usize = 5;
 const COMPUTER_SCREEN_PERIOD_MILLIS: u64 = 100;
 const COMPUTER_SCREEN_PALETTE_START: u8 = 233;
 

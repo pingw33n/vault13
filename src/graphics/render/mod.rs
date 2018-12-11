@@ -45,6 +45,18 @@ impl TextureFactory {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Outline {
+    Color(Rgb15),
+
+    /// Cycles colors vertically in [start..start + len) range of color indices.
+    /// The whole range is mapped to the whole texture height.
+    ColorCycle { start: u8, len: u8 },
+
+    /// Outline with translucency effect of `trans_color`.
+    Translucent { color: Rgb15, trans_color: Rgb15 },
+}
+
 pub trait Renderer {
     fn new_texture_factory(&self) -> TextureFactory;
 
@@ -59,4 +71,5 @@ pub trait Renderer {
                    light: u32);
     fn draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
     fn draw_translucent_dark(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
+    fn draw_outline(&mut self, tex: &TextureHandle, x: i32, y: i32, outline: Outline);
 }
