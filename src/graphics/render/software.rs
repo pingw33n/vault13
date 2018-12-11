@@ -371,7 +371,7 @@ impl Renderer for SoftwareRenderer {
                     if src_x >= src_rect.left {
                         if let Some(dst_x) = dst_x {
                             dst[dst_x] = if let Some(trans_color_idx) = trans_color_idx {
-                                Self::make_translucent(dst[dst_x], color_idx, trans_color_idx,
+                                Self::make_translucent(color_idx, dst[dst_x], trans_color_idx,
                                     &self.palette, Rgb15::grayscale)
                             } else {
                                 color_idx
@@ -416,7 +416,7 @@ impl Renderer for SoftwareRenderer {
                     if let Some(dst_y) = dst_y {
                         let dst = &mut self.back_buf.data[(dst_y * dst_width + dst_x_i) as usize];
                         *dst = if let Some(trans_color_idx) = trans_color_idx {
-                            Self::make_translucent(*dst, color_idx, trans_color_idx,
+                            Self::make_translucent(color_idx, *dst, trans_color_idx,
                                 &self.palette, Rgb15::grayscale)
                         } else {
                             color_idx
