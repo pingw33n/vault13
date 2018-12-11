@@ -10,11 +10,25 @@ use asset::proto::{ItemVariant, Pid, ProtoDb};
 use asset::script::ScriptKind;
 use game::object::*;
 use graphics::{ElevatedPoint, Point};
+use graphics::frm::OutlineStyle;
 use graphics::geometry::Direction;
 use graphics::geometry::hex::TileGrid;
 use graphics::geometry::map::ELEVATION_COUNT;
 use graphics::render::TextureFactory;
 use util::EnumExt;
+
+#[derive(Clone, Copy, Debug, Enum, EnumFlags, Eq, PartialEq)]
+#[repr(u32)]
+pub enum OutlineFlag {
+    GlowingRed      = 0x1,
+    Red             = 0x2,
+    Gray            = 0x4,
+    GlowingGreen    = 0x8,
+    Yellow          = 0x10,
+    Brown           = 0x20,
+    Disabled        = 0x80,
+    Translucent     = 0x40000000,
+}
 
 pub struct Map {
     pub entrance: ElevatedPoint,
@@ -208,7 +222,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             radius: self.reader.read_i32::<BigEndian>()? as u32,
             intensity: self.reader.read_i32::<BigEndian>()? as u32,
         };
-        let _outline_color = self.reader.read_u32::<BigEndian>()?;
+        let outline = self.read_outline()?;
+        trace!("outline: {:?}", outline);
         let _sid = self.reader.read_u32::<BigEndian>()?;
         let _script_idx = self.reader.read_u32::<BigEndian>()?;
 
@@ -358,7 +373,47 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             light_emitter,
             Some(pid),
             inventory,
+            outline,
         ))
+    }
+
+    fn read_outline(&mut self) -> io::Result<Option<Outline>> {
+        let flags_u32 = self.reader.read_u32::<BigEndian>()?;
+        let ref mut flags: BitFlags<OutlineFlag> = BitFlags::from_bits(flags_u32)
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                format!("unknown object outline flags: {:x}", flags_u32)))?;
+
+        fn take_bit(flags: &mut BitFlags<OutlineFlag>, flag: OutlineFlag) -> bool {
+            let r = flags.contains(flag);
+            flags.remove(flag);
+            r
+        }
+
+        let translucent = take_bit(flags, OutlineFlag::Translucent);
+        let disabled = take_bit(flags, OutlineFlag::Translucent);
+
+        let style =
+            if take_bit(flags, OutlineFlag::GlowingRed) { OutlineStyle::GlowingRed }
+            else if take_bit(flags, OutlineFlag::Red) { OutlineStyle::Red }
+            else if take_bit(flags, OutlineFlag::Gray) { OutlineStyle::Gray }
+            else if take_bit(flags, OutlineFlag::GlowingGreen) { OutlineStyle::GlowingGreen }
+            else if take_bit(flags, OutlineFlag::Yellow) { OutlineStyle::Yellow }
+            else if take_bit(flags, OutlineFlag::Brown) { OutlineStyle::Brown }
+            else { return Ok(None) };
+        if !flags.is_empty() {
+            warn!("mutually exclusive outline flags present: 0x{:x}", flags_u32);
+            return Ok(Some(Outline {
+                style: OutlineStyle::Purple,
+                translucent: false,
+                disabled: false,
+            }));
+        }
+
+        Ok(Some(Outline {
+            style,
+            translucent,
+            disabled,
+        }))
     }
 }
 

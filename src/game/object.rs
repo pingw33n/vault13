@@ -9,13 +9,20 @@ use asset::{EntityKind, Flag, FlagExt, WeaponKind};
 use asset::frm::{CritterAnim, Fid, FrmDb};
 use asset::proto::{self, CritterKillKind, Pid, ProtoDb};
 use graphics::{ElevatedPoint, Point, Rect};
-use graphics::frm::{Effect, Frame, Sprite, Translucency};
+use graphics::frm::{Effect, Frame, OutlineStyle, Sprite, Translucency};
 use graphics::geometry::Direction;
 use graphics::geometry::hex::{PathFinder, TileGrid, TileState};
 use graphics::lighting::light_grid::{LightTest, LightTestResult};
 use graphics::render::Renderer;
 use util::{self, EnumExt};
 use util::two_dim_array::Array2d;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Outline {
+    pub style: OutlineStyle,
+    pub translucent: bool,
+    pub disabled: bool,
+}
 
 #[derive(Clone, Debug)]
 pub struct Inventory {
@@ -70,7 +77,7 @@ pub struct Object {
 ////  GameObject::ItemOrCritter _;
 //    int cid;
 
-//  int outline;
+    pub outline: Option<Outline>,
 //  int script_id;
 //  GameObject *owner;
 //  int script_idx;
@@ -86,7 +93,8 @@ impl Object {
             direction: Direction,
             light_emitter: LightEmitter,
             pid: Option<Pid>,
-            inventory: Inventory) -> Self {
+            inventory: Inventory,
+            outline: Option<Outline>) -> Self {
         Self {
             handle: None,
             pos,
@@ -99,6 +107,7 @@ impl Object {
             pid,
             inventory,
             light_emitter,
+            outline,
         }
     }
     pub fn screen_shift(&self) -> Point {
@@ -111,11 +120,6 @@ impl Object {
         if self.flags.contains(Flag::TurnedOff) {
             return;
         }
-        let (pos, centered) = if let Some(ElevatedPoint { point: hex_pos, .. }) = self.pos {
-            (tile_grid.to_screen(hex_pos) + self.screen_shift + Point::new(16, 8), true)
-        } else {
-            (self.screen_pos, false)
-        };
 
         let light = if self.fid.kind() == EntityKind::Interface {
             0x10000
@@ -124,8 +128,35 @@ impl Object {
         };
 
         let effect = self.get_effect(proto_db, tile_grid, egg);
+        let sprite = self.create_sprite(light, effect, tile_grid);
 
-        let sprite = Sprite {
+        self.screen_pos = sprite.render(renderer, frm_db).top_left();
+    }
+
+    pub fn render_outline(&self, renderer: &mut Renderer, frm_db: &FrmDb, tile_grid: &TileGrid) {
+        if self.flags.contains(Flag::TurnedOff) {
+            return;
+        }
+        if let Some(outline) = self.outline {
+            if outline.disabled {
+                return;
+            }
+            let effect = Effect::Outline {
+                style: outline.style,
+                translucent: outline.translucent,
+            };
+            let sprite = self.create_sprite(0x10000, Some(effect), tile_grid);
+            sprite.render(renderer, frm_db);
+        }
+    }
+
+    fn create_sprite(&self, light: u32, effect: Option<Effect>, tile_grid: &TileGrid) -> Sprite {
+        let (pos, centered) = if let Some(ElevatedPoint { point: hex_pos, .. }) = self.pos {
+            (tile_grid.to_screen(hex_pos) + self.screen_shift + Point::new(16, 8), true)
+        } else {
+            (self.screen_pos, false)
+        };
+        Sprite {
             pos,
             centered,
             fid: self.fid,
@@ -133,8 +164,7 @@ impl Object {
             direction: self.direction,
             light,
             effect,
-        };
-        self.screen_pos = sprite.render(renderer, frm_db).top_left();
+        }
     }
 
     fn get_effect(&self, proto_db: &ProtoDb, tile_grid: &TileGrid, egg: Option<&Egg>)
@@ -317,16 +347,37 @@ impl Objects {
         self.render0(renderer, elevation, screen_rect, tile_grid, egg, get_light, false);
     }
 
-    fn render0(&self, renderer: &mut Renderer, elevation: usize,
-            screen_rect: &Rect, tile_grid: &TileGrid, egg: Option<&Egg>,
-            get_light: impl Fn(Option<ElevatedPoint>) -> u32,
-            flat: bool) {
-        let hex_rect = tile_grid.from_screen_rect(&Rect {
+    pub fn render_outlines(&self, renderer: &mut Renderer, elevation: usize, screen_rect: &Rect,
+            tile_grid: &TileGrid) {
+        let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
+        for y in hex_rect.top..hex_rect.bottom {
+            for x in (hex_rect.left..hex_rect.right).rev() {
+                let pos = ElevatedPoint {
+                    elevation,
+                    point: Point::new(x, y),
+                };
+                for objh in self.at(pos) {
+                    let mut obj = self.get(objh).borrow_mut();
+                    obj.render_outline(renderer, &self.frm_db, tile_grid);
+                }
+            }
+        }
+    }
+
+    fn get_render_hex_rect(screen_rect: &Rect, tile_grid: &TileGrid) -> Rect {
+        tile_grid.from_screen_rect(&Rect {
             left: -320,
             top: -190,
             right: screen_rect.width() + 320,
             bottom: screen_rect.height() + 190
-        }, false);
+        }, false)
+    }
+
+    fn render0(&self, renderer: &mut Renderer, elevation: usize,
+            screen_rect: &Rect, tile_grid: &TileGrid, egg: Option<&Egg>,
+            get_light: impl Fn(Option<ElevatedPoint>) -> u32,
+            flat: bool) {
+        let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
         for y in hex_rect.top..hex_rect.bottom {
             for x in (hex_rect.left..hex_rect.right).rev() {
                 let pos = ElevatedPoint {
