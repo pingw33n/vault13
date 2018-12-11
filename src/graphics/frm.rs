@@ -1,5 +1,4 @@
 use enum_map::EnumMap;
-use std::cell::Ref;
 
 use asset::frm::{Fid, FrmDb};
 use graphics::color::*;
