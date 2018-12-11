@@ -47,14 +47,12 @@ impl TextureFactory {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Outline {
-    Color(Rgb15),
+    /// If `trans_color` is not `None`, outline will have translucency effect of that color.
+    Fixed { color: Rgb15, trans_color: Option<Rgb15> },
 
     /// Cycles colors vertically in [start..start + len) range of color indices.
     /// The whole range is mapped to the whole texture height.
-    ColorCycle { start: u8, len: u8 },
-
-    /// Outline with translucency effect of `trans_color`.
-    Translucent { color: Rgb15, trans_color: Rgb15 },
+    Cycled { start: u8, len: u8 },
 }
 
 pub trait Renderer {

@@ -320,19 +320,15 @@ impl Renderer for SoftwareRenderer {
         let dst_width = self.back_buf.width;
 
         let (color_start, color_end_incl, trans_color_idx) = match outline {
-            Outline::Color(rgb15) => {
-                let start = self.palette.color_idx(rgb15);
-                (start, start, None)
+            Outline::Fixed { color, trans_color } => {
+                let start = self.palette.color_idx(color);
+                let trans_color_idx = trans_color.map(|c| self.palette.color_idx(c));
+                (start, start, trans_color_idx)
             },
-            Outline::ColorCycle { start, len } => {
+            Outline::Cycled { start, len } => {
                 assert!(start + len > start);
                 (start, start + len - 1, None)
             },
-            Outline::Translucent { color, trans_color } => {
-                let start = self.palette.color_idx(color);
-                let trans_color_idx = self.palette.color_idx(trans_color);
-                (start, start, Some(trans_color_idx))
-            }
         };
 
         let vert_period = cmp::max(src.height / (color_end_incl as i32 - color_start as i32 + 1), 1);

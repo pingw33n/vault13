@@ -17,9 +17,9 @@ pub const TRANS_STEAM   : Rgb15 = rgb!(31, 31, 31);
 pub const TRANS_ENERGY  : Rgb15 = rgb!(31, 31, 1);
 pub const TRANS_RED     : Rgb15 = rgb!(31, 0, 1);
 
-pub const GREEN_GLOW_OUTLINE : Outline = Outline::ColorCycle {
+pub const GLOWING_RED_OUTLINE : Outline = Outline::Cycled {
     start: SLIME_PALETTE_START, len: SLIME_LEN as u8 };
-pub const RED_GLOW_OUTLINE : Outline = Outline::ColorCycle {
+pub const GLOWING_GREEN_OUTLINE : Outline = Outline::Cycled {
     start: FAST_FIRE_PALETTE_START, len: FAST_FIRE_LEN as u8 };
 
 const SLIME: [Rgb18; SLIME_LEN] = [
