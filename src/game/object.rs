@@ -117,6 +117,12 @@ impl Object {
             (self.screen_pos, false)
         };
 
+        let light = if self.fid.kind() == EntityKind::Interface {
+            0x10000
+        } else {
+            light
+        };
+
         let effect = self.get_effect(proto_db, tile_grid, egg);
 
         let sprite = Sprite {
