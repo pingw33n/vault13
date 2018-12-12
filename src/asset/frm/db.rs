@@ -150,9 +150,9 @@ impl FrmDb {
                 let c1 = ANIM_TO_CODE1[anim] as char;
                 let c2 = ANIM_TO_CODE2[anim] as char;
                 if c2 == 'f' {
-                    format!("{}{}{}.frm", c1, c2, (b'0' + fid.sub_anim()) as char)
+                    format!("{}{}{}{}.frm", base_name, c1, c2, (b'0' + fid.sub_anim()) as char)
                 } else {
-                    format!("{}{}.frm", c1, c2)
+                    format!("{}{}{}.frm", base_name, c1, c2)
                 }
             }
             _ => base_name.to_string(),
