@@ -17,6 +17,12 @@ pub trait Sequence {
     fn update(&mut self, time: Instant, world: &mut World) -> Result;
 }
 
+impl<T: Sequence + ?Sized> Sequence for Box<T> {
+    fn update(&mut self, time: Instant, world: &mut World) -> Result {
+        (**self).update(time, world)
+    }
+}
+
 pub struct Sequencer {
     sequences: Vec<Box<Sequence>>,
 }
@@ -32,8 +38,8 @@ impl Sequencer {
         !self.sequences.is_empty()
     }
 
-    pub fn start(&mut self, sequence: Box<Sequence>) {
-        self.sequences.push(sequence);
+    pub fn start(&mut self, sequence: impl 'static + Sequence) {
+        self.sequences.push(Box::new(sequence));
     }
 
     pub fn update(&mut self, time: Instant, world: &mut World) {

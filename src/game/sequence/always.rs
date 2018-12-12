@@ -10,23 +10,23 @@ enum State {
     AlwaysSeq,
 }
 
-pub struct Always {
+pub struct Always<U, V> {
     state: State,
-    seq: Box<Sequence>,
-    always_seq: Box<Sequence>,
+    seq: U,
+    always_seq: V,
 }
 
-impl Always {
-    pub fn new(seq: Box<Sequence>, always_seq: Box<Sequence>) -> Box<Self> {
-        Box::new(Self {
+impl<U: Sequence, V: Sequence> Always<U, V> {
+    pub fn new(seq: U, always_seq: V) -> Self {
+        Self {
             state: State::Seq,
             seq,
             always_seq,
-        })
+        }
     }
 }
 
-impl Sequence for Always {
+impl<U: Sequence, V: Sequence> Sequence for Always<U, V> {
     fn update(&mut self, time: Instant, world: &mut World) -> Result {
         match self.state {
             State::Seq => {

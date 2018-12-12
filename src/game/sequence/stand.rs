@@ -6,10 +6,10 @@ pub struct Stand {
 }
 
 impl Stand {
-    pub fn new(obj: Handle) -> Box<Sequence> {
-        Box::new(Self {
+    pub fn new(obj: Handle) -> Self {
+        Self {
             obj,
-        })
+        }
     }
 }
 

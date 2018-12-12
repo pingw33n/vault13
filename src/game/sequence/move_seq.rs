@@ -25,20 +25,20 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new(obj: Handle, anim: CritterAnim, path: Vec<Direction>) -> Box<Sequence> {
+    pub fn new(obj: Handle, anim: CritterAnim, path: Vec<Direction>) -> Self {
         let state = if path.is_empty() {
             State::Done
         } else {
             State::Started
         };
-        Box::new(Self {
+        Self {
             obj,
             anim,
             frame_len: Duration::from_millis(1000 / 10),
             path,
             state,
             path_pos: 0,
-        })
+        }
     }
 
     fn init_step(&mut self, world: &mut World) {
