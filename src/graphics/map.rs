@@ -13,7 +13,8 @@ pub fn render_floor<'a>(renderer: &mut Renderer, stg: &sqr::TileGrid, rect: &Rec
 
 pub fn render_roof<'a>(renderer: &mut Renderer, stg: &sqr::TileGrid, rect: &Rect,
         num_to_tex: impl FnMut(i32) -> Option<TextureHandle>) {
-    render_square_tiles(renderer, stg, rect, ROOF_HEIGHT, num_to_tex, |_| 0x10000);
+    let rect = Rect::with_size(rect.left, rect.top + ROOF_HEIGHT, rect.width(), rect.height());
+    render_square_tiles(renderer, stg, &rect, ROOF_HEIGHT, num_to_tex, |_| 0x10000);
 }
 
 fn render_square_tiles(renderer: &mut Renderer, stg: &sqr::TileGrid, rect: &Rect,
