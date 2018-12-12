@@ -59,6 +59,7 @@ use std::time::Duration;
 use std::thread;
 use util::EnumExt;
 use graphics::frm::OutlineStyle;
+use graphics::map::render_roof;
 
 fn main() {
     env_logger::init();
@@ -188,8 +189,11 @@ fn main() {
 
     let visible_rect = Rect::with_size(0, 0, 640, 380);
     let scroll_inc = 10;
+    let mut roof_visible = true;
 
     let mut sequencer = Sequencer::new();
+
+    frm_db.get_or_load(Fid::MAIN_HUD, &texture_factory).unwrap();
 
     'running: loop {
         let dude_pos = world.objects().get(&dude_objh).borrow().pos.unwrap();
@@ -235,11 +239,11 @@ fn main() {
                 Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
                     world.map_grid_mut().scroll((0, scroll_inc));
                 }
-                Event::KeyDown { keycode: Some(Keycode::X), .. } => {
+                Event::KeyDown { keycode: Some(Keycode::Comma), .. } => {
                     let mut obj = world.objects().get(&dude_objh).borrow_mut();
                     obj.direction = obj.direction.rotate_ccw();
                 }
-                Event::KeyDown { keycode: Some(Keycode::C), .. } => {
+                Event::KeyDown { keycode: Some(Keycode::Period), .. } => {
                     let mut obj = world.objects().get(&dude_objh).borrow_mut();
                     obj.direction = obj.direction.rotate_cw();
                 }
@@ -264,16 +268,15 @@ fn main() {
                     }
                 }
                 Event::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {
-                    if ambient_light > 1000 {
-                        ambient_light -= 1000;
-                        renderer.canvas_mut().window_mut().set_title(&format!("ambient_light: {:x}", ambient_light)).unwrap();
-                    }
+                    ambient_light = cmp::max(ambient_light as i32 - 1000, 0) as u32;
+                    renderer.canvas_mut().window_mut().set_title(&format!("ambient_light: {:x}", ambient_light)).unwrap();
                 }
                 Event::KeyDown { keycode: Some(Keycode::RightBracket), .. } => {
-                    if ambient_light <= 0x10000 - 1000 {
-                        ambient_light += 1000;
-                        renderer.canvas_mut().window_mut().set_title(&format!("ambient_light: {:x}", ambient_light)).unwrap();
-                    }
+                    ambient_light = cmp::min(ambient_light + 1000, 0x10000);
+                    renderer.canvas_mut().window_mut().set_title(&format!("ambient_light: {:x}", ambient_light)).unwrap();
+                }
+                Event::KeyDown { keycode: Some(Keycode::R), .. } => {
+                    roof_visible = !roof_visible;
                 }
                 Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'running
@@ -305,14 +308,17 @@ fn main() {
                 ambient_light
             });
 
-
-//            render_roof(renderer, &world.map_grid().sqr(), &visible_rect,
-//                |num| Some(frm_db.get(Fid::new_generic(EntityKind::SqrTile, map.sqr_tiles[elevation].as_ref().unwrap()[num as usize].1).unwrap()).frame_lists[Direction::NE].frames[0].texture.clone())
-//            );
+        if roof_visible {
+            render_roof(renderer, &world.map_grid().sqr(), &visible_rect,
+                |num| Some(frm_db.get(Fid::new_generic(EntityKind::SqrTile,
+                    map.sqr_tiles[elevation].as_ref().unwrap()[num as usize].1).unwrap()).first().texture.clone()));
+        }
 
         world.objects().render_outlines(renderer, elevation, &visible_rect, world.map_grid().hex());
 
         // TODO render text.
+
+        renderer.draw(&frm_db.get(Fid::MAIN_HUD).first().texture, 0, visible_rect.bottom, 0x10000);
 
         let now = Instant::now();
 
