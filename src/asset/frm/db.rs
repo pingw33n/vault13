@@ -60,6 +60,19 @@ impl FrmDb {
         Ref::map(self.frms.borrow(), |v| &v[&fid])
     }
 
+    /// Looks for `base_name` and returns its ID if found.
+    /// Note the `base_name` format depends on the `kind`. For example for `Critter` it's
+    /// just a part of the `.fr_` filename like `hapowr`, and for `Interface` it's a full
+    /// filename like `combat.frm`.
+    pub fn find_id(&self, kind: EntityKind, base_name: &str) -> Option<u16> {
+        for (i, e) in self.lst[kind].iter().enumerate() {
+            if e.fields[0].eq_ignore_ascii_case(base_name) {
+                return Some(i as u16);
+            }
+        }
+        None
+    }
+
     // art_alias_fid()
     // art_id()
     fn normalize_fid(&self, fid: Fid) -> Fid {
