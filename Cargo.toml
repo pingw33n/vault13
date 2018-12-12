@@ -1,7 +1,8 @@
 [package]
 name = "vault13"
 version = "0.1.0"
-authors = ["pingw33n <d@emphased.net>"]
+authors = ["Dmytro Lysai <d@emphased.net>"]
+license = "GPL-3.0"
 
 [dependencies]
 bit-vec = "0.5"
