@@ -33,38 +33,7 @@ impl FrmDb {
     /// Returns .frm or .frN file name without path.
     pub fn name(&self, fid: Fid) -> Option<String> {
         let fid = self.normalize_fid(fid);
-        let base_name = &self.lst[fid.kind()].get(fid.id() as usize)?.fields[0];
-
-        Some(match fid {
-            Fid::Critter(fid) => {
-                let wk = fid.weapon();
-                let anim = fid.anim();
-                let (c1, c2) = critter_anim_codes(wk, anim)?;
-                if let Some(direction) = fid.direction() {
-                    format!("{}{}{}.fr{}", base_name, c1, c2, (b'0' + direction as u8) as char)
-                } else {
-                    format!("{}{}{}.frm", base_name, c1, c2)
-                }
-            }
-            Fid::Head(fid) => {
-                static ANIM_TO_CODE1: &'static [u8] = b"gggnnnbbbgnb";
-                static ANIM_TO_CODE2: &'static [u8] = b"vfngfbnfvppp";
-
-                let anim = fid.anim() as usize;
-                if anim >= ANIM_TO_CODE1.len() {
-                    return None;
-                }
-
-                let c1 = ANIM_TO_CODE1[anim] as char;
-                let c2 = ANIM_TO_CODE2[anim] as char;
-                if c2 == 'f' {
-                    format!("{}{}{}.frm", c1, c2, (b'0' + fid.sub_anim()) as char)
-                } else {
-                    format!("{}{}.frm", c1, c2)
-                }
-            }
-            _ => base_name.to_string(),
-        })
+        self.name_no_normalize(fid)
     }
 
     //  art_exists()
