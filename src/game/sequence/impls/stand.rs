@@ -1,5 +1,5 @@
 use game::object::Handle;
-use super::*;
+use super::super::*;
 
 pub struct Stand {
     obj: Handle,

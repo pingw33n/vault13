@@ -47,8 +47,6 @@ use game::sequence::{Sequence, Sequencer};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
-use game::sequence::move_seq::Move;
-use game::sequence::stand::Stand;
 use graphics::map::render_floor;
 use std::cmp;
 use graphics::ElevatedPoint;
@@ -59,6 +57,8 @@ use std::thread;
 use util::EnumExt;
 use graphics::frm::OutlineStyle;
 use graphics::map::render_roof;
+use game::sequence::impls::move_seq::Move;
+use game::sequence::impls::stand::Stand;
 
 fn main() {
     env_logger::init();

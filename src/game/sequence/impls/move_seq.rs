@@ -6,7 +6,7 @@ use game::world::World;
 use graphics::ElevatedPoint;
 use graphics::geometry::Direction;
 use graphics::geometry::hex;
-use super::*;
+use super::super::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum State {

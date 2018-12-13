@@ -1,5 +1,4 @@
-pub mod move_seq;
-pub mod stand;
+pub mod impls;
 pub mod then;
 
 use std::time::Instant;
