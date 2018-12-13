@@ -1,6 +1,6 @@
-pub mod always;
 pub mod move_seq;
 pub mod stand;
+pub mod then;
 
 use std::time::Instant;
 
@@ -36,6 +36,12 @@ pub enum Result {
 
 pub trait Sequence {
     fn update(&mut self, time: Instant, world: &mut World) -> Result;
+
+    fn then<T: Sequence>(self, seq: T) -> then::Then<Self, T>
+        where Self: Sized
+    {
+        then::Then::new(self, seq)
+    }
 }
 
 impl<T: Sequence + ?Sized> Sequence for Box<T> {

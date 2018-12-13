@@ -43,11 +43,10 @@ use game::object::Inventory;
 use graphics::Rect;
 use game::world::World;
 use util::two_dim_array::Array2d;
-use game::sequence::Sequencer;
+use game::sequence::{Sequence, Sequencer};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
-use game::sequence::always::Always;
 use game::sequence::move_seq::Move;
 use game::sequence::stand::Stand;
 use graphics::map::render_floor;
@@ -220,10 +219,8 @@ fn main() {
                         let to = world.map_grid().hex().from_screen((x, y));
                         if let Some(path) = world.path_for_object(&dude_objh, to, true) {
                             sequencer.start(
-                                Always::new(
-                                    Move::new(dude_objh.clone(), anim, path),
-                                    Stand::new(dude_objh.clone())
-                                ));
+                                Move::new(dude_objh.clone(), anim, path)
+                                    .then(Stand::new(dude_objh.clone())));
                         }
                     }
                 }
