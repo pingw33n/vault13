@@ -16,6 +16,6 @@ impl Stand {
 impl Sequence for Stand {
     fn update(&mut self, _time: Instant, world: &mut World) -> Result {
         world.make_object_standing(&self.obj);
-        Result::Done
+        Result::Done(Done::AdvanceLater)
     }
 }

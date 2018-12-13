@@ -6,7 +6,7 @@ use game::world::World;
 use graphics::ElevatedPoint;
 use graphics::geometry::Direction;
 use graphics::geometry::hex;
-use super::{Result, Sequence};
+use super::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum State {
@@ -65,10 +65,10 @@ impl Sequence for Move {
             },
             State::Running(last_time) => {
                 if time - last_time < self.frame_len {
-                    return Result::Running;
+                    return Result::Running(Running::NotLagging);
                 }
             }
-            State::Done => return Result::Done,
+            State::Done => return Result::Done(Done::AdvanceLater),
         }
 
         let new_obj_pos_and_shift = {
@@ -112,7 +112,7 @@ impl Sequence for Move {
             self.path_pos += 1;
             if self.path_pos >= self.path.len() {
                 self.state = State::Done;
-                return Result::Done;
+                return Result::Done(Done::AdvanceLater);
             }
             world.objects_mut().add_screen_shift(&self.obj, shift);
             self.init_step(world);
@@ -124,10 +124,10 @@ impl Sequence for Move {
         };
         self.state = State::Running(new_last_time);
 
-        if time - new_last_time < self.frame_len {
-            Result::Running
+        Result::Running(if time - new_last_time < self.frame_len {
+            Running::NotLagging
         } else {
-            Result::Lagging
-        }
+            Running::Lagging
+        })
     }
 }

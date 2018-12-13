@@ -28,17 +28,23 @@ impl<U: Sequence, V: Sequence> Always<U, V> {
 
 impl<U: Sequence, V: Sequence> Sequence for Always<U, V> {
     fn update(&mut self, time: Instant, world: &mut World) -> Result {
-        match self.state {
-            State::Seq => {
-                let r = self.seq.update(time, world);
-                if r == Result::Done {
-                    self.state = State::AlwaysSeq;
-                    Result::Running
-                } else {
-                    r
+        loop {
+            break match self.state {
+                State::Seq => {
+                    let r = self.seq.update(time, world);
+                    match r {
+                        Result::Done(d) => {
+                            self.state = State::AlwaysSeq;
+                            if d == Done::AdvanceNow {
+                                continue;
+                            }
+                            Result::Running(Running::NotLagging)
+                        }
+                        _ => r,
+                    }
                 }
+                State::AlwaysSeq => self.always_seq.update(time, world),
             }
-            State::AlwaysSeq => self.always_seq.update(time, world),
         }
     }
 }

@@ -6,11 +6,32 @@ use std::time::Instant;
 
 use game::world::World;
 
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+pub enum Running {
+    /// The sequence is not lagging. The caller must not call `update()` again.
+    NotLagging,
+
+    /// The sequence is lagging. The caller must repeatedly call `update()` until it returns
+    /// `Result::Running(Running::NotLagging)` status or `Result::Done(_)`.
+    Lagging,
+}
+
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+pub enum Done {
+    /// If applicable the caller must advance to the next sequence immediately.
+    AdvanceNow,
+
+    /// If applicable the caller must defer advancing to the next iteration or tick.
+    AdvanceLater,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Result {
-    Running,
-    Lagging,
-    Done,
+    /// Sequence is still running after the `update()` call.
+    Running(Running),
+
+    /// Sequence is finished.
+    Done(Done),
 }
 
 pub trait Sequence {
@@ -42,6 +63,10 @@ impl Sequencer {
         self.sequences.push(Box::new(sequence));
     }
 
+    pub fn stop_all(&mut self) {
+        self.sequences.clear();
+    }
+
     pub fn update(&mut self, time: Instant, world: &mut World) {
         let mut i = 0;
         while i < self.sequences.len() {
@@ -66,10 +91,10 @@ enum NoLagResult {
 
 fn update_while_lagging(mut seq: impl AsMut<Sequence>, time: Instant, world: &mut World) -> NoLagResult {
     loop {
-        match seq.as_mut().update(time, world) {
-            Result::Running => break NoLagResult::Running,
-            Result::Lagging => {},
-            Result::Done => break NoLagResult::Done,
-        }
+        break match seq.as_mut().update(time, world) {
+            Result::Running(Running::Lagging) => continue,
+            Result::Running(Running::NotLagging) => NoLagResult::Running,
+            Result::Done(_) => NoLagResult::Done,
+        };
     }
 }
