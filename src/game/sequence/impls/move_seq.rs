@@ -57,6 +57,7 @@ impl Move {
 }
 
 impl Sequence for Move {
+    // object_move()
     fn update(&mut self, time: Instant, world: &mut World) -> Result {
         match self.state {
             State::Started => {
