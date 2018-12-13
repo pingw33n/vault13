@@ -1,4 +1,6 @@
 pub mod impls;
+pub mod cancellable;
+pub mod chain;
 pub mod then;
 
 use std::time::Instant;
@@ -40,6 +42,12 @@ pub trait Sequence {
         where Self: Sized
     {
         then::Then::new(self, seq)
+    }
+
+    fn cancellable(self) -> (cancellable::Cancellable<Self>, cancellable::Cancel)
+        where Self: Sized
+    {
+        cancellable::Cancellable::new(self)
     }
 }
 

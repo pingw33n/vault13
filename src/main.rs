@@ -57,6 +57,8 @@ use std::thread;
 use util::EnumExt;
 use graphics::frm::OutlineStyle;
 use graphics::map::render_roof;
+use game::sequence::chain::Chain;
+use game::sequence::cancellable::Cancel;
 use game::sequence::impls::move_seq::Move;
 use game::sequence::impls::stand::Stand;
 
@@ -188,11 +190,15 @@ fn main() {
 
     let visible_rect = Rect::with_size(0, 0, 640, 380);
     let scroll_inc = 10;
-    let mut roof_visible = true;
+    let mut roof_visible = false;
 
     let mut sequencer = Sequencer::new();
 
     frm_db.get_or_load(Fid::MAIN_HUD, &texture_factory).unwrap();
+
+    let (seq, dude_seq) = Chain::endless();
+    sequencer.start(seq);
+    let mut dude_seq_cancel: Option<Cancel> = None;
 
     'running: loop {
         let dude_pos = world.objects().get(&dude_objh).borrow().pos.unwrap();
@@ -210,17 +216,21 @@ fn main() {
                     world.set_object_pos(&mouse_objh, ElevatedPoint::new(elevation, hex_pos));
                 }
                 Event::MouseButtonUp { x, y, mouse_btn, .. } => {
-                    if !sequencer.is_running() {
+                    if let Some(signal) = dude_seq_cancel.take() {
+                        signal.cancel();
+                    }
+
+                    let to = world.map_grid().hex().from_screen((x, y));
+                    if let Some(path) = world.path_for_object(&dude_objh, to, true) {
                         let anim = if mouse_btn == MouseButton::Left {
                             CritterAnim::Running
                         } else {
                             CritterAnim::Walk
                         };
-                        let to = world.map_grid().hex().from_screen((x, y));
-                        if let Some(path) = world.path_for_object(&dude_objh, to, true) {
-                            sequencer.start(
-                                Move::new(dude_objh.clone(), anim, path)
-                                    .then(Stand::new(dude_objh.clone())));
+                        if !path.is_empty() {
+                            let (seq, signal) = Move::new(dude_objh.clone(), anim, path).cancellable();
+                            dude_seq_cancel = Some(signal);
+                            dude_seq.push(seq.then(Stand::new(dude_objh.clone())));
                         }
                     }
                 }
