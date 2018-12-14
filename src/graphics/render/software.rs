@@ -301,6 +301,21 @@ impl Renderer for SoftwareRenderer {
         );
     }
 
+    fn draw_masked_color(&mut self, src: Rgb15, dst: Option<Rgb15>, x: i32, y: i32,
+            mask: &TextureHandle) {
+        let mask = self.textures.get(mask);
+        let pal = &self.palette;
+        let src_color_idx = pal.color_idx(src);
+        let dst_color_idx = dst.map(|c| pal.color_idx(c));
+
+        Self::do_draw(&mut self.back_buf, x, y, &mask, &self.clip_rect,
+            |dst, _, _, _, _, src| {
+                let alpha = cmp::min(src, 7);
+                *dst = pal.alpha_blend(src_color_idx, dst_color_idx.unwrap_or(*dst), alpha);
+            }
+        );
+    }
+
     fn draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32) {
         self.do_draw_translucent(tex, x, y, color, light, Rgb15::grayscale)
     }

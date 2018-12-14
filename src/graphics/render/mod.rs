@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use graphics::color::Rgb15;
 
+pub mod font;
 pub mod software;
 
 #[derive(Clone)]
@@ -64,9 +65,21 @@ pub trait Renderer {
 
     fn draw(&mut self, tex: &TextureHandle, x: i32, y: i32, light: u32);
     fn draw_multi_light(&mut self, tex: &TextureHandle, x: i32, y: i32, lights: &[u32]);
-    fn draw_masked(&mut self, tex: &TextureHandle, x: i32, y: i32,
+
+    /// Draws the specified `texture` masked using the specified `mask`.
+    /// `mask` values are in range [0..128]. 0 is fully opaque, 128 is fully transparent.
+    fn draw_masked(&mut self, texture: &TextureHandle, x: i32, y: i32,
                    mask: &TextureHandle, mask_x: i32, mask_y: i32,
                    light: u32);
+
+    /// Alpha blends from `src` color to `dst` color with alpha mask specified by the `mask.
+    /// If `dst` is `None` the current color of pixels in back buffer is used.
+    /// `color`. `mask` values are in range [0..7]. Note the meaning here is inverted compared to
+    /// `draw_masked()`: 0 is fully transparent `src` (and fully opaque `dst`),
+    /// 7 is fully opaque `src` (and fully transparent `dst`).
+    fn draw_masked_color(&mut self, src: Rgb15, dst: Option<Rgb15>, x: i32, y: i32,
+                         mask: &TextureHandle);
+
     fn draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
     fn draw_translucent_dark(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
     fn draw_outline(&mut self, tex: &TextureHandle, x: i32, y: i32, outline: Outline);
