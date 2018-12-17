@@ -1,5 +1,5 @@
 use bit_vec::BitVec;
-use num_traits::FromPrimitive;
+use num_traits::{clamp, FromPrimitive};
 use std::cmp;
 use std::f64::consts::PI;
 
@@ -380,8 +380,8 @@ impl TileGrid {
     pub fn clip(&self, p: impl Into<Point>) -> Point {
         let p = p.into();
         Point {
-            x: cmp::min(cmp::max(p.x, 0), self.width - 1),
-            y: cmp::min(cmp::max(p.y, 0), self.height - 1),
+            x: clamp(p.x, 0, self.width - 1),
+            y: clamp(p.y, 0, self.height - 1),
         }
     }
 

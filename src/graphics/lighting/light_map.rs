@@ -1,4 +1,4 @@
-use std::cmp;
+use num_traits::clamp;
 
 use graphics::Point;
 
@@ -65,7 +65,7 @@ impl LightMap {
                 for x in LightMap::TRI_WIDTH / 2 - half_len..LightMap::TRI_WIDTH / 2 + half_len {
                     // Computed light value can be out of [0..0x10000] bounds.
                     // Original engine does nothing to handle this.
-                    let clipped_light = cmp::min(cmp::max(light, 0), 0x10000) as u32;
+                    let clipped_light = clamp(light, 0, 0x10000) as u32;
                     light_map[(y * LightMap::WIDTH + x) as usize] = clipped_light;
                     light += x_inc;
                 }
@@ -138,7 +138,7 @@ mod test {
             for x in 0..LightMap::WIDTH {
                 let i = (y * LightMap::HEIGHT + x) as usize;
                 let expected = expected[i];
-                let expected = cmp::min(cmp::max(expected, 0), 0x10000) as u32;
+                let expected = clamp(expected, 0, 0x10000) as u32;
                 assert_eq!(actual.data[i], expected, "{} {}", x, y);
             }
         }

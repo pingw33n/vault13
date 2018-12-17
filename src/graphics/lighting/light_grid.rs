@@ -1,5 +1,5 @@
 use enum_map::EnumMap;
-use std::cmp;
+use num_traits::clamp;
 
 use graphics::geometry::Direction;
 use graphics::geometry::hex::TileGrid;
@@ -127,7 +127,7 @@ impl LightGrid {
     }
 
     pub fn get_clipped(&self, p: impl Into<ElevatedPoint>) -> u32 {
-        cmp::max(cmp::min(self.get(p), 0x10000), 0) as u32
+        clamp(self.get(p), 0, 0x10000) as u32
     }
 
     fn update_at(grid: &mut Box<[Box<[i32]>]>, width: i32, elevation: usize, p: Point, delta: i32) {
