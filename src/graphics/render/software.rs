@@ -312,7 +312,7 @@ impl Renderer for SoftwareRenderer {
     fn draw_outline(&mut self, tex: &TextureHandle, x: i32, y: i32, outline: Outline) {
         let src = self.textures.get(tex);
         let (mut src_rect, dst_x, dst_y) =
-            Self::compute_draw_rect(&self.back_buf, x, y,
+            Self::compute_draw_rect(&self.back_buf, x - 1, y - 1,
                 src.width + 2, src.height + 2,
                 &self.clip_rect);
         src_rect.right -= 2;

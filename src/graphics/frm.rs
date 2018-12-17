@@ -138,7 +138,7 @@ impl Sprite {
                         trans_color: None,
                     },
                 };
-                renderer.draw_outline(&frm.texture, bounds.left - 1, bounds.top - 1, outline);
+                renderer.draw_outline(&frm.texture, bounds.left, bounds.top, outline);
             }
             None => renderer.draw(&frm.texture, bounds.left, bounds.top, self.light),
         }
