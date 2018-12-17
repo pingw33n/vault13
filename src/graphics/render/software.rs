@@ -11,6 +11,33 @@ use graphics::color::{Color8, Palette, PaletteOverlay};
 use graphics::lighting::light_map::{self, LightMap};
 use graphics::Rect;
 
+pub struct Backend {
+    canvas: Canvas<Window>,
+    palette: Box<Palette>,
+    palette_overlay: PaletteOverlay,
+    textures: Textures,
+}
+
+impl Backend {
+    pub fn new(canvas: Canvas<Window>, palette: Box<Palette>,
+            palette_overlay: PaletteOverlay) -> Self {
+        Self {
+            canvas,
+            palette,
+            palette_overlay,
+            textures: Textures::new(),
+        }
+    }
+
+    pub fn new_texture_factory(&self) -> TextureFactory {
+        TextureFactory(TextureFactoryInner::Software(self.textures.clone()))
+    }
+
+    pub fn into_renderer(self) -> Box<Renderer> {
+        Box::new(SoftwareRenderer::new(self))
+    }
+}
+
 struct Texture {
     width: i32,
     height: i32,
@@ -97,42 +124,34 @@ impl Textures {
     }
 }
 
-pub struct SoftwareRenderer {
+struct SoftwareRenderer {
+    canvas: Canvas<Window>,
+    palette: Box<Palette>,
+    palette_overlay: PaletteOverlay,
     textures: Textures,
     light_map: LightMap,
     back_buf: Texture,
-    palette: Box<Palette>,
-    palette_overlay: PaletteOverlay,
-    canvas: Canvas<Window>,
     canvas_texture: SdlTexture,
     clip_rect: Rect,
 }
 
 impl SoftwareRenderer {
-    pub fn new(canvas: Canvas<Window>, palette: Box<Palette>, palette_overlay: PaletteOverlay) -> Self {
-        let (w, h) = canvas.window().size();
-        let canvas_texture = canvas
+    fn new(backend: Backend) -> Self {
+        let (w, h) = backend.canvas.window().size();
+        let canvas_texture = backend.canvas
             .texture_creator()
             .create_texture_streaming(PixelFormatEnum::RGB24, w, h)
             .unwrap();
         Self {
-            textures: Textures::new(),
+            canvas: backend.canvas,
+            palette: backend.palette,
+            palette_overlay: backend.palette_overlay,
+            textures: backend.textures,
             light_map: LightMap::new(),
             back_buf: Texture::new_empty(w as i32, h as i32, 0),
-            palette,
-            palette_overlay,
-            canvas,
             canvas_texture,
             clip_rect: Rect::with_size(0, 0, w as i32, h as i32),
         }
-    }
-
-    pub fn canvas(&self) -> &Canvas<Window> {
-        &self.canvas
-    }
-
-    pub fn canvas_mut(&mut self) -> &mut Canvas<Window> {
-        &mut self.canvas
     }
 
     fn make_translucent(src: u8, dst: u8, trans_color_idx: u8, palette: &Palette,
@@ -197,10 +216,6 @@ impl SoftwareRenderer {
 }
 
 impl Renderer for SoftwareRenderer {
-    fn new_texture_factory(&self) -> TextureFactory {
-        TextureFactory(TextureFactoryInner::Software(self.textures.clone()))
-    }
-
     fn cleanup(&mut self) {
         self.textures.cleanup();
     }

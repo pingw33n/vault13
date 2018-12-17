@@ -1,3 +1,5 @@
+pub mod software;
+
 use slotmap::DefaultKey;
 use std::cell::RefCell;
 use std::fmt;
@@ -5,9 +7,6 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use graphics::color::Rgb15;
-
-pub mod font;
-pub mod software;
 
 #[derive(Clone)]
 pub struct TextureHandle(Rc<TextureHandleInner>);
@@ -57,8 +56,6 @@ pub enum Outline {
 }
 
 pub trait Renderer {
-    fn new_texture_factory(&self) -> TextureFactory;
-
     fn cleanup(&mut self);
     fn present(&mut self);
     fn update(&mut self, time: Instant);

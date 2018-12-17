@@ -31,7 +31,6 @@ use asset::proto::*;
 use graphics::color::PaletteOverlay;
 use graphics::geometry::map::{ELEVATION_COUNT, MapGrid};
 use graphics::render::software::*;
-use graphics::render::*;
 use asset::map::*;
 use asset::frm::*;
 use game::object::*;
@@ -93,8 +92,11 @@ fn main() {
         .build()
         .unwrap();
 
-    let ref mut renderer = SoftwareRenderer::new(canvas, Box::new(pal.clone()), PaletteOverlay::standard());
-    let texture_factory = renderer.new_texture_factory();
+    let gfx_backend = Backend::new(canvas, Box::new(pal.clone()), PaletteOverlay::standard());
+    let texture_factory = gfx_backend.new_texture_factory();
+
+    let mut renderer = gfx_backend.into_renderer();
+    let renderer = renderer.as_mut();
 
     let map_grid = MapGrid::new(640, 380);
 
@@ -200,20 +202,16 @@ fn main() {
     sequencer.start(seq);
     let mut dude_seq_cancel: Option<Cancel> = None;
 
+    let mut mouse_hex_pos;
+
     'running: loop {
         let dude_pos = world.objects().get(&dude_objh).borrow().pos.unwrap();
         let elevation = dude_pos.elevation;
         for event in event_pump.poll_iter() {
             match event {
                 Event::MouseMotion { x, y, .. } => {
-                    let hex_pos = world.map_grid().hex().from_screen((x, y));
-                    let sqr_pos = world.map_grid().sqr().from_screen((x, y));
-                    renderer.canvas_mut().window_mut().set_title(&format!(
-                        "hex pos: {}, {} ({}), sqr pos: {}, {} ({})",
-                        hex_pos.x, hex_pos.y, world.map_grid().hex().to_linear_inv(hex_pos).unwrap_or(-1),
-                        sqr_pos.x, sqr_pos.y, world.map_grid().sqr().to_linear_inv(sqr_pos).unwrap_or(-1))).unwrap();
-
-                    world.set_object_pos(&mouse_objh, ElevatedPoint::new(elevation, hex_pos));
+                    mouse_hex_pos = world.map_grid().hex().from_screen((x, y));
+                    world.set_object_pos(&mouse_objh, ElevatedPoint::new(elevation, mouse_hex_pos));
                 }
                 Event::MouseButtonUp { x, y, mouse_btn, .. } => {
                     if let Some(signal) = dude_seq_cancel.take() {
@@ -276,11 +274,9 @@ fn main() {
                 }
                 Event::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {
                     ambient_light = cmp::max(ambient_light as i32 - 1000, 0) as u32;
-                    renderer.canvas_mut().window_mut().set_title(&format!("ambient_light: {:x}", ambient_light)).unwrap();
                 }
                 Event::KeyDown { keycode: Some(Keycode::RightBracket), .. } => {
                     ambient_light = cmp::min(ambient_light + 1000, 0x10000);
-                    renderer.canvas_mut().window_mut().set_title(&format!("ambient_light: {:x}", ambient_light)).unwrap();
                 }
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => {
                     roof_visible = !roof_visible;
