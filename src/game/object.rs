@@ -437,7 +437,6 @@ impl Objects {
 
     fn attach(&mut self, h: &Handle, pos: Option<ElevatedPoint>, reset_screen_shift: bool) {
         if let Some(pos) = pos {
-            let pos = pos.into();
             {
                 let mut obj = self.get(&h).borrow_mut();
                 obj.pos = Some(pos);
@@ -453,7 +452,15 @@ impl Objects {
                     let o = self.get(h).borrow();
                     self.cmp_objs(&o, &obj)
                 }) {
-                    Ok(i) => i,
+                    Ok(mut i) =>  {
+                        // Append to the current group of equal objects.
+                        while i < list.len()
+                            && self.cmp_objs(&obj, &self.get(&list[i]).borrow()) == cmp::Ordering::Equal
+                        {
+                            i += 1;
+                        }
+                        i
+                    }
                     Err(i) => i,
                 }
             };
