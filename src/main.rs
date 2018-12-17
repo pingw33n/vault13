@@ -361,7 +361,11 @@ fn main() {
                 ambient_light,
             );
             renderer.draw_text(msg.as_bytes(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),
-                &Default::default());
+                &DrawOptions {
+                    dst_color: Some(BLACK),
+                    outline: Some(graphics::render::Outline::Fixed { color: BLACK, trans_color: None }),
+                    .. Default::default()
+                });
         }
 
         let now = Instant::now();
