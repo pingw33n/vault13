@@ -64,7 +64,7 @@ pub struct Object {
     pub handle: Option<Handle>,
 //    pub id: u32,
     pub flags: BitFlags<Flag>,
-    pub pos: Option<ElevatedPoint>,
+    pos: Option<ElevatedPoint>,
     pub screen_pos: Point,
     screen_shift: Point,
     pub fid: Fid,
@@ -110,6 +110,11 @@ impl Object {
             outline,
         }
     }
+
+    pub fn pos(&self) -> Option<ElevatedPoint> {
+        self.pos
+    }
+
     pub fn screen_shift(&self) -> Point {
         self.screen_shift
     }

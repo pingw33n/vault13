@@ -103,7 +103,7 @@ impl World {
     fn update_light_grid(objects: &Objects, light_grid: &mut LightGrid, h: &object::Handle,
             factor: i32) {
         let obj = objects.get(&h).borrow();
-        if let Some(pos) = obj.pos {
+        if let Some(pos) = obj.pos() {
             light_grid.update(pos,
                 obj.light_emitter.radius,
                 factor * obj.light_emitter.intensity as i32,

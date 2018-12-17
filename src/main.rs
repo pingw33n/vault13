@@ -213,7 +213,7 @@ fn main() {
     let mut draw_debug = true;
 
     'running: loop {
-        let dude_pos = world.objects().get(&dude_objh).borrow().pos.unwrap();
+        let dude_pos = world.objects().get(&dude_objh).borrow().pos().unwrap();
         let elevation = dude_pos.elevation;
         for event in event_pump.poll_iter() {
             match event {
@@ -264,23 +264,33 @@ fn main() {
                     obj.direction = obj.direction.rotate_cw();
                 }
                 Event::KeyDown { keycode: Some(Keycode::A), .. } => {
-                    let mut obj = world.objects().get(&dude_objh).borrow_mut();
-                    let mut new_elevation = obj.pos.unwrap().elevation + 1;
-                    while new_elevation < map.sqr_tiles.len() && map.sqr_tiles[new_elevation].is_none() {
-                        new_elevation += 1;
-                    }
-                    if new_elevation < map.sqr_tiles.len() && map.sqr_tiles[new_elevation].is_some() {
-                        obj.pos.as_mut().unwrap().elevation = new_elevation;
+                    let new_pos = {
+                        let mut obj = world.objects().get(&dude_objh).borrow_mut();
+                        let mut new_pos = obj.pos().unwrap();
+                        new_pos.elevation += 1;
+                        while new_pos.elevation < map.sqr_tiles.len() && map.sqr_tiles[new_pos.elevation].is_none() {
+                            new_pos.elevation += 1;
+                        }
+                        new_pos
+                    };
+                    if new_pos.elevation < map.sqr_tiles.len() && map.sqr_tiles[new_pos.elevation].is_some() {
+                        world.objects_mut().set_pos(&dude_objh, new_pos);
                     }
                 }
                 Event::KeyDown { keycode: Some(Keycode::Z), .. } => {
-                    let mut obj = world.objects().get(&dude_objh).borrow_mut();
-                    let mut new_elevation = obj.pos.unwrap().elevation as isize - 1;
-                    while new_elevation >= 0 && map.sqr_tiles[new_elevation as usize].is_none() {
-                        new_elevation -= 1;
-                    }
-                    if new_elevation >= 0 && map.sqr_tiles[new_elevation as usize].is_some() {
-                        obj.pos.as_mut().unwrap().elevation = new_elevation as usize;
+                    let new_pos = {
+                        let mut obj = world.objects().get(&dude_objh).borrow_mut();
+                        let mut new_pos = obj.pos().unwrap();
+                        if new_pos.elevation > 0 {
+                            new_pos.elevation -= 1;
+                            while new_pos.elevation > 0 && map.sqr_tiles[new_pos.elevation].is_none() {
+                                new_pos.elevation -= 1;
+                            }
+                        }
+                        new_pos
+                    };
+                    if map.sqr_tiles[new_pos.elevation].is_some() {
+                        world.objects_mut().set_pos(&dude_objh, new_pos);
                     }
                 }
                 Event::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {
@@ -314,7 +324,7 @@ fn main() {
         );
 
         let egg = Egg {
-            pos: world.objects().get(&dude_objh).borrow().pos.unwrap().point,
+            pos: world.objects().get(&dude_objh).borrow().pos().unwrap().point,
             fid: Fid::EGG,
         };
         let egg = Some(&egg);
@@ -349,7 +359,7 @@ fn main() {
         }
 
         if draw_debug {
-            let dude_pos = world.objects().get(&dude_objh).borrow().pos.unwrap().point;
+            let dude_pos = world.objects().get(&dude_objh).borrow().pos().unwrap().point;
             let ref msg = format!(
                 "mouse hex: {}, {} ({})\n\
                  mouse sqr: {}, {} ({})\n\

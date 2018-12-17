@@ -86,7 +86,7 @@ impl Sequence for Move {
                     }
                 }
 
-                (frames[obj.frame_idx].shift, obj.pos)
+                (frames[obj.frame_idx].shift, obj.pos())
             };
             let shift = world.objects_mut().add_screen_shift(&self.obj, shift);
 
