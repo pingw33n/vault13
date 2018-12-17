@@ -4,7 +4,11 @@ use std::io::{BufRead, BufReader, Result};
 
 use super::{Metadata, Provider};
 
-pub struct StdFileSystem {
+pub fn new_provider<P: AsRef<Path>>(path: P) -> Result<Box<Provider>> {
+    Ok(Box::new(StdFileSystem::new(path)))
+}
+
+struct StdFileSystem {
     root: PathBuf,
 }
 
