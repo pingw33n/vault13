@@ -255,6 +255,25 @@ pub struct Objects {
 }
 
 impl Objects {
+    pub fn new(tile_grid: TileGrid, elevation_count: usize, proto_db: Rc<ProtoDb>,
+            frm_db: Rc<FrmDb>) -> Self {
+        let path_finder = RefCell::new(PathFinder::new(tile_grid.clone(), 5000));
+        let by_pos = util::vec_with_func(elevation_count,
+            |_| Array2d::with_default(tile_grid.width() as usize, tile_grid.height() as usize))
+            .into_boxed_slice();
+        Self {
+            tile_grid,
+            proto_db,
+            frm_db,
+            handles: SlotMap::new(),
+            objects: SecondaryMap::new(),
+            by_pos,
+            detached: Vec::new(),
+            empty_object_handle_vec: Vec::new(),
+            path_finder,
+        }
+    }
+
     pub fn insert(&mut self, mut obj: Object) -> Handle {
         assert!(obj.handle.is_none());
 
@@ -361,145 +380,6 @@ impl Objects {
                     obj.render_outline(renderer, &self.frm_db, tile_grid);
                 }
             }
-        }
-    }
-
-    fn get_render_hex_rect(screen_rect: &Rect, tile_grid: &TileGrid) -> Rect {
-        tile_grid.from_screen_rect(&Rect {
-            left: -320,
-            top: -190,
-            right: screen_rect.width() + 320,
-            bottom: screen_rect.height() + 190
-        }, false)
-    }
-
-    fn render0(&self, renderer: &mut Renderer, elevation: usize,
-            screen_rect: &Rect, tile_grid: &TileGrid, egg: Option<&Egg>,
-            get_light: impl Fn(Option<ElevatedPoint>) -> u32,
-            flat: bool) {
-        let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
-        for y in hex_rect.top..hex_rect.bottom {
-            for x in (hex_rect.left..hex_rect.right).rev() {
-                let pos = ElevatedPoint {
-                    elevation,
-                    point: Point::new(x, y),
-                };
-                for objh in self.at(pos) {
-                    let mut obj = self.get(objh).borrow_mut();
-                    if flat && !obj.flags.contains(Flag::Flat) {
-                        break;
-                    } else if !flat && obj.flags.contains(Flag::Flat) {
-                        continue;
-                    }
-                    let light = get_light(obj.pos);
-                    assert!(light <= 0x10000);
-                    obj.render(renderer, light, &self.frm_db, &self.proto_db, tile_grid, egg);
-                }
-            }
-        }
-    }
-
-    fn at_mut(&mut self, pos: ElevatedPoint) -> &mut Vec<Handle> {
-        self.by_pos[pos.elevation]
-            .get_mut(pos.point.x as usize, pos.point.y as usize)
-            .unwrap()
-    }
-
-    fn cmp_objs(&self, o1: &Object, o2: &Object) -> cmp::Ordering {
-        assert_eq!(o1.pos.unwrap().elevation, o2.pos.unwrap().elevation);
-
-        // By flatness, flat first.
-        let flat = o1.flags.contains(Flag::Flat);
-        let other_flat = o2.flags.contains(Flag::Flat);
-        if flat != other_flat {
-            return if flat {
-                cmp::Ordering::Less
-            } else {
-                cmp::Ordering::Greater
-            };
-        }
-
-
-        let shift = o1.screen_shift + o1.frame(&self.frm_db).shift;
-        let other_shift = o2.screen_shift + o2.frame(&self.frm_db).shift;
-
-        // By shift_y, less first.
-        if shift.y < other_shift.y {
-            return cmp::Ordering::Less;
-        }
-        if shift.y > other_shift.y {
-            return cmp::Ordering::Greater;
-        }
-
-        // By shift_x, less first.
-        shift.x.cmp(&other_shift.x)
-    }
-
-    fn attach(&mut self, h: &Handle, pos: Option<ElevatedPoint>, reset_screen_shift: bool) {
-        if let Some(pos) = pos {
-            {
-                let mut obj = self.get(&h).borrow_mut();
-                obj.pos = Some(pos);
-                if reset_screen_shift {
-                    obj.screen_shift = Point::new(0, 0);
-                }
-            }
-
-            let i = {
-                let list = self.at(pos);
-                let obj = self.get(&h).borrow();
-                match list.binary_search_by(|h| {
-                    let o = self.get(h).borrow();
-                    self.cmp_objs(&o, &obj)
-                }) {
-                    Ok(mut i) =>  {
-                        // Append to the current group of equal objects.
-                        while i < list.len()
-                            && self.cmp_objs(&obj, &self.get(&list[i]).borrow()) == cmp::Ordering::Equal
-                        {
-                            i += 1;
-                        }
-                        i
-                    }
-                    Err(i) => i,
-                }
-            };
-            self.at_mut(pos).insert(i, h.clone());
-        } else {
-            self.detached.push(h.clone());
-        }
-    }
-
-    fn detach(&mut self, h: &Handle) -> Option<ElevatedPoint> {
-        let old_pos = mem::replace(&mut self.get(h).borrow_mut().pos, None);
-        let list = if let Some(old_pos) = old_pos {
-            self.at_mut(old_pos)
-        } else {
-            &mut self.detached
-        };
-        // TODO maybe use binary_search for detaching.
-        list.retain(|hh| hh != h);
-        old_pos
-    }
-}
-
-impl Objects {
-    pub fn new(tile_grid: TileGrid, elevation_count: usize, proto_db: Rc<ProtoDb>,
-            frm_db: Rc<FrmDb>) -> Self {
-        let path_finder = RefCell::new(PathFinder::new(tile_grid.clone(), 5000));
-        let by_pos = util::vec_with_func(elevation_count,
-            |_| Array2d::with_default(tile_grid.width() as usize, tile_grid.height() as usize))
-            .into_boxed_slice();
-        Self {
-            tile_grid,
-            proto_db,
-            frm_db,
-            handles: SlotMap::new(),
-            objects: SecondaryMap::new(),
-            by_pos,
-            detached: Vec::new(),
-            empty_object_handle_vec: Vec::new(),
-            path_finder,
         }
     }
 
@@ -655,5 +535,123 @@ impl Objects {
                     TileState::Passable(0)
                 }
             })
+    }
+
+    fn get_render_hex_rect(screen_rect: &Rect, tile_grid: &TileGrid) -> Rect {
+        tile_grid.from_screen_rect(&Rect {
+            left: -320,
+            top: -190,
+            right: screen_rect.width() + 320,
+            bottom: screen_rect.height() + 190
+        }, false)
+    }
+
+    fn render0(&self, renderer: &mut Renderer, elevation: usize,
+            screen_rect: &Rect, tile_grid: &TileGrid, egg: Option<&Egg>,
+            get_light: impl Fn(Option<ElevatedPoint>) -> u32,
+            flat: bool) {
+        let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
+        for y in hex_rect.top..hex_rect.bottom {
+            for x in (hex_rect.left..hex_rect.right).rev() {
+                let pos = ElevatedPoint {
+                    elevation,
+                    point: Point::new(x, y),
+                };
+                for objh in self.at(pos) {
+                    let mut obj = self.get(objh).borrow_mut();
+                    if flat && !obj.flags.contains(Flag::Flat) {
+                        break;
+                    } else if !flat && obj.flags.contains(Flag::Flat) {
+                        continue;
+                    }
+                    let light = get_light(obj.pos);
+                    assert!(light <= 0x10000);
+                    obj.render(renderer, light, &self.frm_db, &self.proto_db, tile_grid, egg);
+                }
+            }
+        }
+    }
+
+    fn at_mut(&mut self, pos: ElevatedPoint) -> &mut Vec<Handle> {
+        self.by_pos[pos.elevation]
+            .get_mut(pos.point.x as usize, pos.point.y as usize)
+            .unwrap()
+    }
+
+    fn cmp_objs(&self, o1: &Object, o2: &Object) -> cmp::Ordering {
+        assert_eq!(o1.pos.unwrap().elevation, o2.pos.unwrap().elevation);
+
+        // By flatness, flat first.
+        let flat = o1.flags.contains(Flag::Flat);
+        let other_flat = o2.flags.contains(Flag::Flat);
+        if flat != other_flat {
+            return if flat {
+                cmp::Ordering::Less
+            } else {
+                cmp::Ordering::Greater
+            };
+        }
+
+
+        let shift = o1.screen_shift + o1.frame(&self.frm_db).shift;
+        let other_shift = o2.screen_shift + o2.frame(&self.frm_db).shift;
+
+        // By shift_y, less first.
+        if shift.y < other_shift.y {
+            return cmp::Ordering::Less;
+        }
+        if shift.y > other_shift.y {
+            return cmp::Ordering::Greater;
+        }
+
+        // By shift_x, less first.
+        shift.x.cmp(&other_shift.x)
+    }
+
+    fn attach(&mut self, h: &Handle, pos: Option<ElevatedPoint>, reset_screen_shift: bool) {
+        if let Some(pos) = pos {
+            {
+                let mut obj = self.get(&h).borrow_mut();
+                obj.pos = Some(pos);
+                if reset_screen_shift {
+                    obj.screen_shift = Point::new(0, 0);
+                }
+            }
+
+            let i = {
+                let list = self.at(pos);
+                let obj = self.get(&h).borrow();
+                match list.binary_search_by(|h| {
+                    let o = self.get(h).borrow();
+                    self.cmp_objs(&o, &obj)
+                }) {
+                    Ok(mut i) =>  {
+                        // Append to the current group of equal objects.
+                        while i < list.len()
+                            && self.cmp_objs(&obj, &self.get(&list[i]).borrow()) == cmp::Ordering::Equal
+                        {
+                            i += 1;
+                        }
+                        i
+                    }
+                    Err(i) => i,
+                }
+            };
+            self.at_mut(pos).insert(i, h.clone());
+        } else {
+            self.detached.push(h.clone());
+        }
+    }
+
+    fn detach(&mut self, h: &Handle) -> Option<ElevatedPoint> {
+        let old_pos = mem::replace(&mut self.get(h).borrow_mut().pos, None);
+        let list = if let Some(old_pos) = old_pos {
+            self.at_mut(old_pos)
+        } else {
+            &mut self.detached
+        };
+        // TODO maybe use binary_search for detaching.
+        list.retain(|hh| hh != h);
+        old_pos
     }
 }
