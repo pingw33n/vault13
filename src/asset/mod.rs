@@ -1,3 +1,4 @@
+pub mod font;
 pub mod frm;
 pub mod map;
 pub mod message;

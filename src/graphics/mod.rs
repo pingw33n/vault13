@@ -2,6 +2,7 @@ use std::cmp;
 use std::ops;
 
 pub mod color;
+pub mod font;
 pub mod frm;
 pub mod geometry;
 pub mod lighting;

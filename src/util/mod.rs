@@ -174,6 +174,10 @@ impl<T: Enum<()>> Iterator for EnumIter<T> {
     }
 }
 
+pub fn clamp<T: Ord>(v: T, min: T, max: T) -> T {
+    cmp::min(cmp::max(v, min), max)
+}
+
 #[cfg(test)]
 mod tests {
     mod limited {

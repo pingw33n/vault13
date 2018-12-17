@@ -8,6 +8,7 @@ use std::cell::{Ref, RefCell};
 
 use super::*;
 use graphics::color::{Color8, Palette, PaletteOverlay};
+use graphics::font::{self, FontKey, Fonts};
 use graphics::lighting::light_map::{self, LightMap};
 use graphics::Rect;
 
@@ -33,8 +34,8 @@ impl Backend {
         TextureFactory(TextureFactoryInner::Software(self.textures.clone()))
     }
 
-    pub fn into_renderer(self) -> Box<Renderer> {
-        Box::new(SoftwareRenderer::new(self))
+    pub fn into_renderer(self, fonts: Fonts) -> Box<Renderer> {
+        Box::new(SoftwareRenderer::new(self, fonts))
     }
 }
 
@@ -133,10 +134,12 @@ struct SoftwareRenderer {
     back_buf: Texture,
     canvas_texture: SdlTexture,
     clip_rect: Rect,
+    // None represents sentinel value so other drawing methods can be called from draw_text()
+    fonts: Option<Box<Fonts>>,
 }
 
 impl SoftwareRenderer {
-    fn new(backend: Backend) -> Self {
+    fn new(backend: Backend, fonts: Fonts) -> Self {
         let (w, h) = backend.canvas.window().size();
         let canvas_texture = backend.canvas
             .texture_creator()
@@ -151,6 +154,7 @@ impl SoftwareRenderer {
             back_buf: Texture::new_empty(w as i32, h as i32, 0),
             canvas_texture,
             clip_rect: Rect::with_size(0, 0, w as i32, h as i32),
+            fonts: Some(Box::new(fonts)),
         }
     }
 
@@ -453,5 +457,16 @@ impl Renderer for SoftwareRenderer {
             }
             dst_x_i += 1;
         }
+    }
+
+    fn draw_text(&mut self, text: &[u8], x: i32, y: i32, font: FontKey, color: Rgb15,
+            options: &font::DrawOptions) {
+        // Mark self.fonts with sentinel value.
+        let fonts = self.fonts.take().unwrap();
+        fonts.get(font)
+            .draw(self, text.into(), x, y, color, options);
+
+        // Put fonts back.
+        self.fonts = Some(fonts);
     }
 }

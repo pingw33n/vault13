@@ -60,6 +60,9 @@ use game::sequence::chain::Chain;
 use game::sequence::cancellable::Cancel;
 use game::sequence::impls::move_seq::Move;
 use game::sequence::impls::stand::Stand;
+use asset::font::load_fonts;
+use graphics::color::*;
+use graphics::font::*;
 
 fn main() {
     env_logger::init();
@@ -95,7 +98,9 @@ fn main() {
     let gfx_backend = Backend::new(canvas, Box::new(pal.clone()), PaletteOverlay::standard());
     let texture_factory = gfx_backend.new_texture_factory();
 
-    let mut renderer = gfx_backend.into_renderer();
+    let fonts = load_fonts(&fs, &texture_factory);
+
+    let mut renderer = gfx_backend.into_renderer(fonts);
     let renderer = renderer.as_mut();
 
     let map_grid = MapGrid::new(640, 380);
@@ -202,7 +207,10 @@ fn main() {
     sequencer.start(seq);
     let mut dude_seq_cancel: Option<Cancel> = None;
 
-    let mut mouse_hex_pos;
+    let mut mouse_hex_pos = Point::new(0, 0);
+    let mut mouse_sqr_pos = Point::new(0, 0);
+    let mut draw_path_blocked = false;
+    let mut draw_debug = true;
 
     'running: loop {
         let dude_pos = world.objects().get(&dude_objh).borrow().pos.unwrap();
@@ -211,7 +219,10 @@ fn main() {
             match event {
                 Event::MouseMotion { x, y, .. } => {
                     mouse_hex_pos = world.map_grid().hex().from_screen((x, y));
-                    world.set_object_pos(&mouse_objh, ElevatedPoint::new(elevation, mouse_hex_pos));
+                    mouse_sqr_pos = world.map_grid().sqr().from_screen((x, y));
+                    let new_pos = ElevatedPoint::new(elevation, mouse_hex_pos);
+                    world.set_object_pos(&mouse_objh, new_pos);
+                    draw_path_blocked = world.path_for_object(&dude_objh, mouse_hex_pos, true).is_none();
                 }
                 Event::MouseButtonUp { x, y, mouse_btn, .. } => {
                     if let Some(signal) = dude_seq_cancel.take() {
@@ -281,6 +292,9 @@ fn main() {
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => {
                     roof_visible = !roof_visible;
                 }
+                Event::KeyDown { keycode: Some(Keycode::Backquote), .. } => {
+                    draw_debug = !draw_debug;
+                }
                 Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'running
                 },
@@ -319,9 +333,36 @@ fn main() {
 
         world.objects().render_outlines(renderer, elevation, &visible_rect, world.map_grid().hex());
 
-        // TODO render text.
+        // TODO render floating text objects.
 
         renderer.draw(&frm_db.get(Fid::MAIN_HUD).first().texture, 0, visible_rect.bottom, 0x10000);
+
+        if draw_path_blocked {
+            let center = world.map_grid().hex().to_screen(mouse_hex_pos) + Point::new(16, 8);
+            renderer.draw_text(b"X", center.x, center.y, FontKey::antialiased(1),
+                RED, &DrawOptions {
+                    horz_align: HorzAlign::Center,
+                    vert_align: VertAlign::Middle,
+                    dst_color: Some(BLACK),
+                    outline: Some(graphics::render::Outline::Fixed { color: BLACK, trans_color: None }),
+                });
+        }
+
+        if draw_debug {
+            let dude_pos = world.objects().get(&dude_objh).borrow().pos.unwrap().point;
+            let ref msg = format!(
+                "mouse hex: {}, {} ({})\n\
+                 mouse sqr: {}, {} ({})\n\
+                 dude hex:: {}, {} ({})\n\
+                 ambient: 0x{:x}",
+                mouse_hex_pos.x, mouse_hex_pos.y, world.map_grid().hex().to_linear_inv(mouse_hex_pos).unwrap_or(-1),
+                mouse_sqr_pos.x, mouse_sqr_pos.y, world.map_grid().sqr().to_linear_inv(mouse_sqr_pos).unwrap_or(-1),
+                dude_pos.x, dude_pos.y, world.map_grid().hex().to_linear_inv(dude_pos).unwrap_or(-1),
+                ambient_light,
+            );
+            renderer.draw_text(msg.as_bytes(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),
+                &Default::default());
+        }
 
         let now = Instant::now();
 

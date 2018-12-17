@@ -7,6 +7,7 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use graphics::color::Rgb15;
+use graphics::font::{self, FontKey};
 
 #[derive(Clone)]
 pub struct TextureHandle(Rc<TextureHandleInner>);
@@ -80,4 +81,6 @@ pub trait Renderer {
     fn draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
     fn draw_translucent_dark(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
     fn draw_outline(&mut self, tex: &TextureHandle, x: i32, y: i32, outline: Outline);
+    fn draw_text(&mut self, text: &[u8], x: i32, y: i32, font: FontKey, color: Rgb15,
+        options: &font::DrawOptions);
 }

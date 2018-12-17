@@ -35,7 +35,9 @@ Controls that work in demo:
 
 * Mouse - left button to run, right button to walk.
 * Arrows - scroll map.
-* `<` and `>` - rotate the play character.
+* `<` and `>` - rotate the player character.
 * `[` and `]` - decrease/increase ambient light.
+* `r` - toggle roof drawing.
+* `` ` `` - toggle debug info display.
 
 ![Screenshot](https://github.com/pingw33n/vault13/blob/master/screenshot.png)
