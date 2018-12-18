@@ -11,8 +11,9 @@ extern crate env_logger;
 #[macro_use] extern crate enum_map;
 #[macro_use] extern crate enum_primitive_derive;
 extern crate flate2;
+#[allow(unused_imports)]
 #[macro_use] extern crate icecream;
-#[macro_use] extern crate log;
+extern crate log;
 #[macro_use] extern crate measure_time;
 extern crate num_traits;
 extern crate png;

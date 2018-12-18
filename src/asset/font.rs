@@ -106,11 +106,6 @@ fn read_fon(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Result<
     })
 }
 
-fn load_aaf(id: u32, fs: &FileSystem, texture_factory: &TextureFactory) -> io::Result<Font> {
-    let mut rd = fs.reader(&format!("font{}.aaf", id))?;
-    read_aaf(&mut rd, texture_factory)
-}
-
 pub fn load_fonts(fs: &FileSystem, texture_factory: &TextureFactory) -> Fonts {
     let mut fonts = Fonts::new();
 
