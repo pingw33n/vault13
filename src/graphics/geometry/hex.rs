@@ -486,7 +486,10 @@ impl PathFinder {
         self.steps.push(step);
         self.open_last();
 
-        loop {
+        let mut max_open_steps_len = 0;
+
+        'outer: loop {
+            max_open_steps_len = cmp::max(self.open_steps.len(), max_open_steps_len);
             if self.open_steps.is_empty() {
                 break;
             }
@@ -521,6 +524,9 @@ impl PathFinder {
                             k -= 1;
                         }
                     }
+
+                    debug!("PathFinder::find(): steps.len()={} max_open_steps_len={}",
+                        self.steps.len(), max_open_steps_len);
 
                     return Some(path);
                 }
@@ -576,7 +582,7 @@ impl PathFinder {
                     self.open(step_idx);
                 } else {
                     if self.steps.len() >= self.max_depth {
-                        return None;
+                        break 'outer;
                     }
                     let estimate = self.estimate(next, to);
                     self.steps.push(Step {
@@ -590,6 +596,8 @@ impl PathFinder {
                 }
             }
         }
+        debug!("PathFinder::find(): steps.len()={} max_open_steps_len={}",
+            self.steps.len(), max_open_steps_len);
         None
     }
 
