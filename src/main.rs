@@ -366,9 +366,12 @@ fn main() {
                  mouse sqr: {}, {} ({})\n\
                  dude hex:: {}, {} ({})\n\
                  ambient: 0x{:x}",
-                mouse_hex_pos.x, mouse_hex_pos.y, world.map_grid().hex().to_linear_inv(mouse_hex_pos).unwrap_or(-1),
-                mouse_sqr_pos.x, mouse_sqr_pos.y, world.map_grid().sqr().to_linear_inv(mouse_sqr_pos).unwrap_or(-1),
-                dude_pos.x, dude_pos.y, world.map_grid().hex().to_linear_inv(dude_pos).unwrap_or(-1),
+                mouse_hex_pos.x, mouse_hex_pos.y,
+                world.map_grid().hex().to_linear_inv(mouse_hex_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
+                mouse_sqr_pos.x, mouse_sqr_pos.y,
+                world.map_grid().sqr().to_linear_inv(mouse_sqr_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
+                dude_pos.x, dude_pos.y,
+                world.map_grid().hex().to_linear_inv(dude_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 ambient_light,
             );
             renderer.draw_text(msg.as_bytes(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),
