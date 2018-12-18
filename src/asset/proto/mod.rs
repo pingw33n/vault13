@@ -78,19 +78,23 @@ impl Pid {
     pub const RADIOACTIVE_GOO_FIRST: Pid = Pid(0x20003D9);
     pub const RADIOACTIVE_GOO_LAST: Pid = Pid(0x20003DC);
 
-    pub fn new(kind: EntityKind, idx: u32) -> Self {
-        assert!(idx > 0 && idx <= 0xffffff);
-        Pid((kind as u32) << 24 | idx)
+    pub fn new(kind: EntityKind, id: Option<u32>) -> Self {
+        let bits = if let Some(id) = id {
+            assert!(id <= 0xffffff);
+            id + 1
+        } else {
+            0
+        };
+        Pid((kind as u32) << 24 | bits)
     }
 
     pub fn from_packed(v: u32) -> Option<Self> {
         EntityKind::from_u32(v >> 24)?;
-        let pid = Pid(v);
-        if pid.id() == 0 {
-            None
-        } else {
-            Some(pid)
-        }
+        Some(Pid(v))
+    }
+
+    pub fn pack(self) -> u32 {
+        self.0
     }
 
     pub fn read(rd: &mut impl Read) -> io::Result<Self> {
@@ -115,8 +119,17 @@ impl Pid {
         EntityKind::from_u32(self.0 >> 24).unwrap()
     }
 
-    pub fn id(self) -> u32 {
-        self.0 & 0xffffff
+    /// Returns ID that is unique among entities of the same `EntityKind`.
+    /// A special `None` ID is possible.
+    /// Note that the result it's zero based, so packed PID has ID of 0, and
+    /// PID 0x01000000 has ID of `None`.
+    pub fn id(self) -> Option<u32> {
+        let r = self.0 & 0xffffff;
+        if r == 0 {
+            None
+        } else {
+            Some(r - 1)
+        }
     }
 
     pub fn is_exit_area(self) -> bool {
@@ -471,4 +484,24 @@ pub struct SqrTile {
 // Subset that has prototypes.
 pub fn proto_entity_kinds() -> EnumIter<EntityKind> {
     enum_iter(..=EntityKind::Misc)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn pid_id() {
+        let pid = Pid::new(EntityKind::Critter, Some(0));
+        assert_eq!(pid.id(), Some(0));
+        assert_eq!(pid.pack(), 0x01_000001);
+
+        let pid = Pid::new(EntityKind::Skilldex, Some(1));
+        assert_eq!(pid.id(), Some(1));
+        assert_eq!(pid.pack(), 0x0a_000002);
+
+        let pid = Pid::new(EntityKind::Critter, None);
+        assert_eq!(pid.id(), None);
+        assert_eq!(pid.pack(), 0x01_000000);
+    }
 }

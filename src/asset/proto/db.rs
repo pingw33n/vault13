@@ -544,8 +544,8 @@ impl Lst {
     }
 
     pub fn get(&self, pid: Pid) -> Option<&str> {
-        if pid.id() > 0 {
-            self.lst[pid.kind()].get(pid.id() as usize - 1).map(|e| e.fields[0].as_ref())
+        if let Some(id) = pid.id() {
+            self.lst[pid.kind()].get(id as usize).map(|e| e.fields[0].as_ref())
         } else {
             None
         }
