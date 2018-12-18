@@ -3,11 +3,11 @@ use std::ops;
 
 pub mod color;
 pub mod font;
-pub mod frm;
 pub mod geometry;
 pub mod lighting;
 pub mod map;
 pub mod render;
+pub mod sprite;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Point {

@@ -10,11 +10,11 @@ use asset::proto::{ItemVariant, Pid, ProtoDb};
 use asset::script::ScriptKind;
 use game::object::*;
 use graphics::{ElevatedPoint, Point};
-use graphics::frm::OutlineStyle;
 use graphics::geometry::Direction;
 use graphics::geometry::hex::TileGrid;
 use graphics::geometry::map::ELEVATION_COUNT;
 use graphics::render::TextureFactory;
+use graphics::sprite::OutlineStyle;
 use util::EnumExt;
 
 #[derive(Clone, Copy, Debug, Enum, EnumFlags, Eq, PartialEq)]

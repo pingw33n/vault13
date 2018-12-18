@@ -9,11 +9,11 @@ use asset::{EntityKind, Flag, FlagExt, WeaponKind};
 use asset::frm::{CritterAnim, Fid, FrmDb};
 use asset::proto::{self, CritterKillKind, Pid, ProtoDb};
 use graphics::{ElevatedPoint, Point, Rect};
-use graphics::frm::{Effect, Frame, OutlineStyle, Sprite, Translucency};
 use graphics::geometry::Direction;
 use graphics::geometry::hex::{PathFinder, TileGrid, TileState};
 use graphics::lighting::light_grid::{LightTest, LightTestResult};
 use graphics::render::Canvas;
+use graphics::sprite::{Effect, Frame, OutlineStyle, Sprite, Translucency};
 use util::{self, EnumExt};
 use util::two_dim_array::Array2d;
 

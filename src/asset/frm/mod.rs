@@ -9,10 +9,10 @@ use std::fmt;
 use std::io::{self, Error, ErrorKind, prelude::*};
 
 use asset::{EntityKind, WeaponKind};
-use graphics::frm::{Frame, FrameList, FrameSet};
+use graphics::Point;
 use graphics::geometry::Direction;
 use graphics::render::TextureFactory;
-use graphics::Point;
+use graphics::sprite::{Frame, FrameList, FrameSet};
 use util::EnumExt;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Ord, PartialOrd)]
