@@ -16,14 +16,6 @@ pub enum Direction {
 }
 
 impl Direction {
-    pub const LEN: usize = 6;
-
-    pub fn values() -> &'static [Direction] {
-        static VALUES: [Direction; Direction::LEN] =
-            [Direction::NE, Direction::E, Direction::SE, Direction::SW, Direction::W, Direction::NW];
-        &VALUES[..]
-    }
-
     pub fn rotate_cw(self) -> Self {
         Self::from_ordinal((self.ordinal() + 1) % Self::len())
     }

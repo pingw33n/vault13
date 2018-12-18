@@ -75,7 +75,7 @@ impl ExactEntityKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Eq, Enum, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum SceneryKind {
     Door = 0x0,
     Stairs = 0x1,
@@ -83,10 +83,6 @@ pub enum SceneryKind {
     LadderDown = 0x3,
     LadderUp = 0x4,
     Misc = 0x5,
-}
-
-impl SceneryKind {
-    pub const LEN: usize = 6;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Primitive)]
@@ -98,10 +94,6 @@ pub enum ItemKind {
     Ammo = 0x4,
     Misc = 0x5,
     Key = 0x6,
-}
-
-impl ItemKind {
-    pub const LEN: usize = 7;
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]

@@ -20,6 +20,8 @@ extern crate png;
 extern crate sdl2;
 extern crate slotmap;
 
+#[macro_use] mod macros;
+
 mod asset;
 mod fs;
 mod game;

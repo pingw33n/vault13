@@ -388,7 +388,7 @@ impl TileGrid {
     // tile_num_in_direction_()
     fn go0(&self, p: impl Into<Point>, direction: Direction, distance: u32, clip: bool) -> Point {
         // Advance per each direction for even/odd hex.
-        static ADVANCE_MAP: [[(i32, i32); Direction::LEN]; 2] = [
+        static ADVANCE_MAP: [[(i32, i32); enum_len!(Direction)]; 2] = [
             [(1, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (0, -1)],
             [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (0, -1)],
         ];
@@ -726,7 +726,7 @@ mod test {
     fn direction() {
         let t = TileGrid::default();
 
-        for &dir in Direction::values() {
+        for dir in Direction::iter() {
             for dist in 1..=10 {
                 let from = (100, 100);
                 let to = t.go_unbounded(from, dir, dist);
