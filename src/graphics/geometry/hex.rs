@@ -434,6 +434,7 @@ impl Step {
 pub struct PathFinder {
     tile_grid: TileGrid,
     steps: Vec<Step>,
+    open_steps: Vec<usize>,
     closed: BitVec,
     max_depth: usize,
 }
@@ -449,6 +450,7 @@ impl PathFinder {
         Self {
             tile_grid,
             steps: Vec::new(),
+            open_steps: Vec::new(),
             closed: BitVec::from_elem(tile_grid_len, false),
             max_depth,
         }
@@ -460,6 +462,7 @@ impl PathFinder {
     pub fn find(&mut self, from: impl Into<Point>, to: impl Into<Point>,
             smooth: bool,
             mut f: impl FnMut(Point) -> TileState) -> Option<Vec<Direction>> {
+        debug_time!("PathFinder::find()");
         let from = from.into();
         let to = to.into();
         if from == to {
@@ -470,6 +473,7 @@ impl PathFinder {
         }
 
         self.steps.clear();
+        self.open_steps.clear();
         self.closed.clear();
 
         let step = Step {
@@ -480,18 +484,16 @@ impl PathFinder {
             estimate: self.estimate(from, to),
         };
         self.steps.push(step);
+        self.open_last();
 
         loop {
+            if self.open_steps.is_empty() {
+                break;
+            }
             let (idx, pos, cost, direction) = {
-                let (idx, step) = if let Some((idx, step)) = self.steps.iter()
-                    .enumerate()
-                    .filter(|(_, s)| !self.is_closed(s.pos))
-                    .min_by(|(_, a), (_, b)| a.total_cost().cmp(&b.total_cost()))
-                {
-                    (idx, step)
-                } else {
-                    break;
-                };
+                let last = self.open_steps.len() - 1;
+                let idx = self.open_steps.remove(last);
+                let step = &self.steps[idx];
                 if step.pos == to {
                     // Found.
 
@@ -550,15 +552,28 @@ impl PathFinder {
                 } else {
                     next_cost
                 };
-
-                if let Some(neighbor_idx) = self.steps.iter().position(|s| s.pos == next) {
-                    let mut step = &mut self.steps[neighbor_idx];
-                    // This is differen from original which doesn't check for better route variants.
-                    if next_cost < step.cost {
-                        step.direction = next_direction;
-                        step.cost = next_cost;
-                        step.came_from = idx;
+                let existing_step = {
+                    self.open_steps.iter()
+                        .enumerate()
+                        .filter_map(|(open_idx, &step_idx)| if self.steps[step_idx].pos == next {
+                            Some((open_idx, step_idx))
+                        } else {
+                            None
+                        })
+                        .next()
+                };
+                if let Some((open_idx, step_idx)) = existing_step {
+                    {
+                        let mut step = &mut self.steps[step_idx];
+                        // This is different from original which doesn't check for better route variants.
+                        if next_cost < step.cost {
+                            step.direction = next_direction;
+                            step.cost = next_cost;
+                            step.came_from = idx;
+                        }
                     }
+                    self.open_steps.remove(open_idx);
+                    self.open(step_idx);
                 } else {
                     if self.steps.len() >= self.max_depth {
                         return None;
@@ -570,11 +585,27 @@ impl PathFinder {
                         direction: next_direction,
                         cost: next_cost,
                         estimate,
-                    })
+                    });
+                    self.open_last();
                 }
             }
         }
         None
+    }
+
+    fn open(&mut self, idx: usize) {
+        let cost = self.steps[idx].total_cost();
+        let insert_idx = match self.open_steps
+                .binary_search_by(|&i| cost.cmp(&self.steps[i].total_cost())) {
+            Ok(i) => i,
+            Err(i) => i,
+        };
+        self.open_steps.insert(insert_idx, idx);
+    }
+
+    fn open_last(&mut self) {
+        let idx = self.steps.len() - 1;
+        self.open(idx);
     }
 
     fn close(&mut self, pos: Point) {

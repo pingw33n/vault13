@@ -13,6 +13,7 @@ extern crate env_logger;
 extern crate flate2;
 #[macro_use] extern crate icecream;
 #[macro_use] extern crate log;
+#[macro_use] extern crate measure_time;
 extern crate num_traits;
 extern crate png;
 extern crate sdl2;
