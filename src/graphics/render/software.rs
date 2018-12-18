@@ -1,6 +1,5 @@
 use sdl2::pixels::PixelFormatEnum;
-use sdl2::render::{Canvas, Texture as SdlTexture};
-use sdl2::video::Window;
+use sdl2::render::{Texture as SdlTexture, WindowCanvas};
 use slotmap::{DefaultKey, SecondaryMap, SlotMap};
 use std::cmp;
 use std::rc::Rc;
@@ -13,14 +12,14 @@ use graphics::lighting::light_map::{self, LightMap};
 use graphics::Rect;
 
 pub struct Backend {
-    canvas: Canvas<Window>,
+    canvas: WindowCanvas,
     palette: Box<Palette>,
     palette_overlay: PaletteOverlay,
     textures: Textures,
 }
 
 impl Backend {
-    pub fn new(canvas: Canvas<Window>, palette: Box<Palette>,
+    pub fn new(canvas: WindowCanvas, palette: Box<Palette>,
             palette_overlay: PaletteOverlay) -> Self {
         Self {
             canvas,
@@ -34,8 +33,8 @@ impl Backend {
         TextureFactory(TextureFactoryInner::Software(self.textures.clone()))
     }
 
-    pub fn into_renderer(self, fonts: Fonts) -> Box<Renderer> {
-        Box::new(SoftwareRenderer::new(self, fonts))
+    pub fn into_canvas(self, fonts: Fonts) -> Box<Canvas> {
+        Box::new(CanvasImpl::new(self, fonts))
     }
 }
 
@@ -125,8 +124,8 @@ impl Textures {
     }
 }
 
-struct SoftwareRenderer {
-    canvas: Canvas<Window>,
+struct CanvasImpl {
+    canvas: WindowCanvas,
     palette: Box<Palette>,
     palette_overlay: PaletteOverlay,
     textures: Textures,
@@ -138,7 +137,7 @@ struct SoftwareRenderer {
     fonts: Option<Box<Fonts>>,
 }
 
-impl SoftwareRenderer {
+impl CanvasImpl {
     fn new(backend: Backend, fonts: Fonts) -> Self {
         let (w, h) = backend.canvas.window().size();
         let canvas_texture = backend.canvas
@@ -219,7 +218,7 @@ impl SoftwareRenderer {
     }
 }
 
-impl Renderer for SoftwareRenderer {
+impl Canvas for CanvasImpl {
     fn cleanup(&mut self) {
         self.textures.cleanup();
     }

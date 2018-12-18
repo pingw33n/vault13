@@ -2,7 +2,7 @@ use bstring::bstr;
 use std::collections::HashMap;
 
 use graphics::color::Rgb15;
-use graphics::render::{Outline, Renderer, TextureHandle};
+use graphics::render::{Canvas, Outline, TextureHandle};
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
 pub enum HorzAlign {
@@ -88,7 +88,7 @@ impl Font {
         text.lines().count() as i32 * self.height
     }
 
-    pub fn draw(&self, renderer: &mut Renderer, text: &bstr, x: i32, y: i32, color: Rgb15,
+    pub fn draw(&self, canvas: &mut Canvas, text: &bstr, x: i32, y: i32, color: Rgb15,
             options: &DrawOptions) {
         let mut y = match options.vert_align {
             VertAlign::Top => y,
@@ -106,10 +106,10 @@ impl Font {
                 let glyph = &self.glyphs[c as usize];
                 let y = y + self.height - glyph.height;
 
-                renderer.draw_masked_color(color, options.dst_color, x, y, &glyph.texture);
+                canvas.draw_masked_color(color, options.dst_color, x, y, &glyph.texture);
 
                 if let Some(outline) = options.outline {
-                    renderer.draw_outline(&glyph.texture, x, y, outline);
+                    canvas.draw_outline(&glyph.texture, x, y, outline);
                 }
                 x += glyph.width + self.horz_spacing;
             }

@@ -13,7 +13,7 @@ use graphics::frm::{Effect, Frame, OutlineStyle, Sprite, Translucency};
 use graphics::geometry::Direction;
 use graphics::geometry::hex::{PathFinder, TileGrid, TileState};
 use graphics::lighting::light_grid::{LightTest, LightTestResult};
-use graphics::render::Renderer;
+use graphics::render::Canvas;
 use util::{self, EnumExt};
 use util::two_dim_array::Array2d;
 
@@ -119,7 +119,7 @@ impl Object {
         self.screen_shift
     }
 
-    pub fn render(&mut self, renderer: &mut Renderer, light: u32,
+    pub fn render(&mut self, canvas: &mut Canvas, light: u32,
             frm_db: &FrmDb, proto_db: &ProtoDb, tile_grid: &TileGrid,
             egg: Option<&Egg>) {
         if self.flags.contains(Flag::TurnedOff) {
@@ -135,10 +135,10 @@ impl Object {
         let effect = self.get_effect(proto_db, tile_grid, egg);
         let sprite = self.create_sprite(light, effect, tile_grid);
 
-        self.screen_pos = sprite.render(renderer, frm_db).top_left();
+        self.screen_pos = sprite.render(canvas, frm_db).top_left();
     }
 
-    pub fn render_outline(&self, renderer: &mut Renderer, frm_db: &FrmDb, tile_grid: &TileGrid) {
+    pub fn render_outline(&self, canvas: &mut Canvas, frm_db: &FrmDb, tile_grid: &TileGrid) {
         if self.flags.contains(Flag::TurnedOff) {
             return;
         }
@@ -151,7 +151,7 @@ impl Object {
                 translucent: outline.translucent,
             };
             let sprite = self.create_sprite(0x10000, Some(effect), tile_grid);
-            sprite.render(renderer, frm_db);
+            sprite.render(canvas, frm_db);
         }
     }
 
@@ -363,15 +363,15 @@ impl Objects {
         }
     }
 
-    pub fn render(&self, renderer: &mut Renderer, elevation: usize, screen_rect: &Rect,
+    pub fn render(&self, canvas: &mut Canvas, elevation: usize, screen_rect: &Rect,
             tile_grid: &TileGrid, egg: Option<&Egg>,
             get_light: impl Fn(Option<ElevatedPoint>) -> u32) {
         let ref get_light = get_light;
-        self.render0(renderer, elevation, screen_rect, tile_grid, egg, get_light, true);
-        self.render0(renderer, elevation, screen_rect, tile_grid, egg, get_light, false);
+        self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, true);
+        self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, false);
     }
 
-    pub fn render_outlines(&self, renderer: &mut Renderer, elevation: usize, screen_rect: &Rect,
+    pub fn render_outlines(&self, canvas: &mut Canvas, elevation: usize, screen_rect: &Rect,
             tile_grid: &TileGrid) {
         let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
         for y in hex_rect.top..hex_rect.bottom {
@@ -382,7 +382,7 @@ impl Objects {
                 };
                 for objh in self.at(pos) {
                     let mut obj = self.get(objh).borrow_mut();
-                    obj.render_outline(renderer, &self.frm_db, tile_grid);
+                    obj.render_outline(canvas, &self.frm_db, tile_grid);
                 }
             }
         }
@@ -551,7 +551,7 @@ impl Objects {
         }, false)
     }
 
-    fn render0(&self, renderer: &mut Renderer, elevation: usize,
+    fn render0(&self, canvas: &mut Canvas, elevation: usize,
             screen_rect: &Rect, tile_grid: &TileGrid, egg: Option<&Egg>,
             get_light: impl Fn(Option<ElevatedPoint>) -> u32,
             flat: bool) {
@@ -571,7 +571,7 @@ impl Objects {
                     }
                     let light = get_light(obj.pos);
                     assert!(light <= 0x10000);
-                    obj.render(renderer, light, &self.frm_db, &self.proto_db, tile_grid, egg);
+                    obj.render(canvas, light, &self.frm_db, &self.proto_db, tile_grid, egg);
                 }
             }
         }

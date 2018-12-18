@@ -101,8 +101,8 @@ fn main() {
 
     let fonts = load_fonts(&fs, &texture_factory);
 
-    let mut renderer = gfx_backend.into_renderer(fonts);
-    let renderer = renderer.as_mut();
+    let mut canvas = gfx_backend.into_canvas(fonts);
+    let canvas = canvas.as_mut();
 
     let map_grid = MapGrid::new(640, 380);
 
@@ -313,7 +313,7 @@ fn main() {
             }
         }
 
-        render_floor(renderer, world.map_grid().sqr(), &visible_rect,
+        render_floor(canvas, world.map_grid().sqr(), &visible_rect,
             |num| {
                 let fid = Fid::new_generic(EntityKind::SqrTile, map.sqr_tiles[elevation].as_ref().unwrap()[num as usize].0).unwrap();
                 Some(frm_db.get(fid).frame_lists[Direction::NE].frames[0].texture.clone())
@@ -329,7 +329,7 @@ fn main() {
             fid: Fid::EGG,
         };
         let egg = Some(&egg);
-        world.objects().render(renderer, elevation, &visible_rect, world.map_grid().hex(), egg,
+        world.objects().render(canvas, elevation, &visible_rect, world.map_grid().hex(), egg,
             |pos| if let Some(pos) = pos {
                 cmp::max(world.light_grid().get_clipped(pos), ambient_light)
             } else {
@@ -337,20 +337,20 @@ fn main() {
             });
 
         if roof_visible {
-            render_roof(renderer, &world.map_grid().sqr(), &visible_rect,
+            render_roof(canvas, &world.map_grid().sqr(), &visible_rect,
                 |num| Some(frm_db.get(Fid::new_generic(EntityKind::SqrTile,
                     map.sqr_tiles[elevation].as_ref().unwrap()[num as usize].1).unwrap()).first().texture.clone()));
         }
 
-        world.objects().render_outlines(renderer, elevation, &visible_rect, world.map_grid().hex());
+        world.objects().render_outlines(canvas, elevation, &visible_rect, world.map_grid().hex());
 
         // TODO render floating text objects.
 
-        renderer.draw(&frm_db.get(Fid::MAIN_HUD).first().texture, 0, visible_rect.bottom, 0x10000);
+        canvas.draw(&frm_db.get(Fid::MAIN_HUD).first().texture, 0, visible_rect.bottom, 0x10000);
 
         if draw_path_blocked {
             let center = world.map_grid().hex().to_screen(mouse_hex_pos) + Point::new(16, 8);
-            renderer.draw_text(b"X", center.x, center.y, FontKey::antialiased(1),
+            canvas.draw_text(b"X", center.x, center.y, FontKey::antialiased(1),
                 RED, &DrawOptions {
                     horz_align: HorzAlign::Center,
                     vert_align: VertAlign::Middle,
@@ -374,7 +374,7 @@ fn main() {
                 world.map_grid().hex().to_linear_inv(dude_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 ambient_light,
             );
-            renderer.draw_text(msg.as_bytes(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),
+            canvas.draw_text(msg.as_bytes(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),
                 &DrawOptions {
                     dst_color: Some(BLACK),
                     outline: Some(graphics::render::Outline::Fixed { color: BLACK, trans_color: None }),
@@ -386,10 +386,10 @@ fn main() {
 
         sequencer.update(now, &mut world);
 
-        renderer.update(now);
+        canvas.update(now);
 
-        renderer.present();
-        renderer.cleanup();
+        canvas.present();
+        canvas.cleanup();
 
         thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }

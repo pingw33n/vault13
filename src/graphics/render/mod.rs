@@ -56,7 +56,7 @@ pub enum Outline {
     Cycled { start: u8, len: u8 },
 }
 
-pub trait Renderer {
+pub trait Canvas {
     fn cleanup(&mut self);
     fn present(&mut self);
     fn update(&mut self, time: Instant);

@@ -1,23 +1,23 @@
 use graphics::geometry::{hex, sqr};
 use graphics::lighting::light_map::{VERTEX_COUNT, VERTEX_HEXES};
 use graphics::{Point, Rect};
-use graphics::render::{Renderer, TextureHandle};
+use graphics::render::{Canvas, TextureHandle};
 
 const ROOF_HEIGHT: i32 = 96;
 
-pub fn render_floor<'a>(renderer: &mut Renderer, stg: &sqr::TileGrid, rect: &Rect,
+pub fn render_floor<'a>(canvas: &mut Canvas, stg: &sqr::TileGrid, rect: &Rect,
         num_to_tex: impl FnMut(u32) -> Option<TextureHandle>,
         get_light: impl Fn(Point) -> u32) {
-    render_square_tiles(renderer, stg, rect, 0, num_to_tex, get_light);
+    render_square_tiles(canvas, stg, rect, 0, num_to_tex, get_light);
 }
 
-pub fn render_roof<'a>(renderer: &mut Renderer, stg: &sqr::TileGrid, rect: &Rect,
+pub fn render_roof<'a>(canvas: &mut Canvas, stg: &sqr::TileGrid, rect: &Rect,
         num_to_tex: impl FnMut(u32) -> Option<TextureHandle>) {
     let rect = Rect::with_size(rect.left, rect.top + ROOF_HEIGHT, rect.width(), rect.height());
-    render_square_tiles(renderer, stg, &rect, ROOF_HEIGHT, num_to_tex, |_| 0x10000);
+    render_square_tiles(canvas, stg, &rect, ROOF_HEIGHT, num_to_tex, |_| 0x10000);
 }
 
-fn render_square_tiles(renderer: &mut Renderer, stg: &sqr::TileGrid, rect: &Rect,
+fn render_square_tiles(canvas: &mut Canvas, stg: &sqr::TileGrid, rect: &Rect,
         y_offset: i32,
         mut num_to_tex: impl FnMut(u32) -> Option<TextureHandle>,
         get_light: impl Fn(Point) -> u32) {
@@ -36,7 +36,7 @@ fn render_square_tiles(renderer: &mut Renderer, stg: &sqr::TileGrid, rect: &Rect
                     vertex_lights[i] = l;
                 }
 
-                renderer.draw_multi_light(&tex, scr_pt.x, scr_pt.y, &vertex_lights[..]);
+                canvas.draw_multi_light(&tex, scr_pt.x, scr_pt.y, &vertex_lights[..]);
             }
         }
     }

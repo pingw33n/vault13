@@ -4,7 +4,7 @@ use asset::frm::{Fid, FrmDb};
 use graphics::color::*;
 use graphics::geometry::Direction;
 use graphics::{Point, Rect};
-use graphics::render::{Outline, Renderer, TextureHandle};
+use graphics::render::{Canvas, Outline, TextureHandle};
 
 #[derive(Clone, Debug)]
 pub struct FrameSet {
@@ -78,7 +78,7 @@ pub struct Sprite {
 }
 
 impl Sprite {
-    pub fn render(&self, renderer: &mut Renderer, frm_db: &FrmDb) -> Rect {
+    pub fn render(&self, canvas: &mut Canvas, frm_db: &FrmDb) -> Rect {
         let frms = frm_db.get(self.fid);
         let frml = &frms.frame_lists[self.direction];
         let frm = &frml.frames[self.frame_idx];
@@ -98,7 +98,7 @@ impl Sprite {
                     Translucency::Steam => TRANS_STEAM,
                     Translucency::Wall => TRANS_WALL,
                 };
-                renderer.draw_translucent_dark(&frm.texture, bounds.left, bounds.top, color,
+                canvas.draw_translucent_dark(&frm.texture, bounds.left, bounds.top, color,
                     self.light);
             }
             Some(Effect::Masked { mask_pos, mask_fid }) => {
@@ -106,7 +106,7 @@ impl Sprite {
                 let mask_frml = &mask_frms.frame_lists[Direction::NE];
                 let mask_frm = &mask_frml.frames[0];
                 let mask_bounds = Self::bounds_centered(mask_pos, mask_frml.center, &mask_frm);
-                renderer.draw_masked(&frm.texture, bounds.left, bounds.top,
+                canvas.draw_masked(&frm.texture, bounds.left, bounds.top,
                     &mask_frm.texture, mask_bounds.left, mask_bounds.top,
                     self.light);
             }
@@ -138,9 +138,9 @@ impl Sprite {
                         trans_color: None,
                     },
                 };
-                renderer.draw_outline(&frm.texture, bounds.left, bounds.top, outline);
+                canvas.draw_outline(&frm.texture, bounds.left, bounds.top, outline);
             }
-            None => renderer.draw(&frm.texture, bounds.left, bounds.top, self.light),
+            None => canvas.draw(&frm.texture, bounds.left, bounds.top, self.light),
         }
 
         bounds
