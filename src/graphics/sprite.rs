@@ -2,7 +2,7 @@ use enum_map::EnumMap;
 
 use asset::frm::{Fid, FrmDb};
 use graphics::color::*;
-use graphics::geometry::Direction;
+use graphics::geometry::hex::Direction;
 use graphics::{Point, Rect};
 use graphics::render::{Canvas, Outline, TextureHandle};
 

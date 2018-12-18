@@ -10,7 +10,7 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 
 use asset::{EntityKind, WeaponKind};
 use graphics::Point;
-use graphics::geometry::Direction;
+use graphics::geometry::hex::Direction;
 use graphics::render::TextureFactory;
 use graphics::sprite::{Frame, FrameList, FrameSet};
 use util::EnumExt;

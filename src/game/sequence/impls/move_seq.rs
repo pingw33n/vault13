@@ -4,8 +4,7 @@ use asset::frm::CritterAnim;
 use game::object::Handle;
 use game::world::World;
 use graphics::ElevatedPoint;
-use graphics::geometry::Direction;
-use graphics::geometry::hex;
+use graphics::geometry::hex::{self, Direction};
 use super::super::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

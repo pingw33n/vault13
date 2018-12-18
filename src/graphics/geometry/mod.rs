@@ -3,31 +3,6 @@ pub mod map;
 pub mod sqr;
 
 use graphics::{Point, Rect};
-use util::EnumExt;
-
-#[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
-pub enum Direction {
-    NE  = 0,
-    E   = 1,
-    SE  = 2,
-    SW  = 3,
-    W   = 4,
-    NW  = 5,
-}
-
-impl Direction {
-    pub fn rotate_cw(self) -> Self {
-        Self::from_ordinal((self.ordinal() + 1) % Self::len())
-    }
-
-    pub fn rotate_ccw(self) -> Self {
-        let mut o = self.ordinal() as isize - 1;
-        if o < 0 {
-            o += Self::len() as isize;
-        }
-        Self::from_ordinal(o as usize)
-    }
-}
 
 fn from_screen_rect(rect: &Rect, clip: bool, from_screen: impl Fn(Point) -> Point,
         clip_fn: impl Fn(Point) -> Point) -> Rect {

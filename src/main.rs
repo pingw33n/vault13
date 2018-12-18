@@ -40,7 +40,7 @@ use asset::frm::*;
 use game::object::*;
 use enumflags::BitFlags;
 use graphics::*;
-use graphics::geometry::Direction;
+use graphics::geometry::hex::Direction;
 use game::object::LightEmitter;
 use game::object::Inventory;
 use graphics::Rect;

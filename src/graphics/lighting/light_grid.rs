@@ -1,8 +1,7 @@
 use enum_map::EnumMap;
 use num_traits::clamp;
 
-use graphics::geometry::Direction;
-use graphics::geometry::hex::TileGrid;
+use graphics::geometry::hex::{Direction, TileGrid};
 use graphics::{ElevatedPoint, Point};
 use util::{EnumExt, vec_with_func};
 
