@@ -121,7 +121,7 @@ impl Pid {
 
     /// Returns ID that is unique among entities of the same `EntityKind`.
     /// A special `None` ID is possible.
-    /// Note that the result it's zero based, so packed PID has ID of 0, and
+    /// Note that the result it's zero based, so PID 0x01000001 has ID of 0, and
     /// PID 0x01000000 has ID of `None`.
     pub fn id(self) -> Option<u32> {
         let r = self.0 & 0xffffff;
