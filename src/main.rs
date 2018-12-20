@@ -14,6 +14,7 @@ extern crate flate2;
 #[allow(unused_imports)]
 #[macro_use] extern crate icecream;
 extern crate log;
+#[macro_use] extern crate matches;
 #[macro_use] extern crate measure_time;
 extern crate num_traits;
 extern crate png;
@@ -27,6 +28,7 @@ mod fs;
 mod game;
 mod graphics;
 mod util;
+mod vm;
 
 use std::rc::Rc;
 use asset::*;
@@ -73,9 +75,11 @@ fn main() {
 
     let master_dat = "../../Dropbox/f2/MASTER.DAT";
     let critter_dat = "../../Dropbox/f2/CRITTER.DAT";
+    let patch_dat = "../../Dropbox/f2/patch000.DAT";
     let map_name = "newr1.map";
 
     let mut fs = fs::FileSystem::new();
+    fs.register_provider(fs::dat::v2::new_provider(patch_dat).unwrap());
     fs.register_provider(fs::dat::v2::new_provider(master_dat).unwrap());
     fs.register_provider(fs::dat::v2::new_provider(critter_dat).unwrap());
     let fs = Rc::new(fs);
