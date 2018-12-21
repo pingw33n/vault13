@@ -78,7 +78,7 @@ pub fn export_var(ctx: Context) -> Result<()> {
     let name = name.into_string(&ctx.vm_state.names)?;
     if !ctx.ext.external_vars.contains_key(&name) {
         log_a1!(ctx.vm_state, &name);
-        ctx.ext.external_vars.insert(name, Value::Null);
+        ctx.ext.external_vars.insert(name, None);
         Ok(())
     } else {
         Err(Error::Misc(format!("external variable `{}` already exists", name).into()))
@@ -240,7 +240,7 @@ pub fn store_external(ctx: Context) -> Result<()> {
     let name = name.into_string(&ctx.vm_state.names)?;
     let v = ctx.ext.external_vars.get_mut(&name)
         .ok_or_else(|| Error::Misc(format!("external variable `{}` doesn't exist", name).into()))?;
-    *v = value;
+    *v = Some(value);
     log_a2!(ctx.vm_state, &name, v);
     Ok(())
 }

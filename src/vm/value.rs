@@ -6,7 +6,6 @@ use game::object::Handle;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
-    Null,
     Int(i32),
     Float(f32),
     String(StringValue),
@@ -101,7 +100,6 @@ impl Value {
 
     pub fn neg(&self) -> Result<Value> {
         Ok(match self {
-            Value::Null         => return Err(Error::BadValue(BadValue::Type)),
             Value::Int(v)      => Value::Int(-*v),
             Value::Float(v)    => Value::Float(-*v),
             Value::String(_)    => return Err(Error::BadValue(BadValue::Type)),
@@ -111,7 +109,6 @@ impl Value {
 
     pub fn not(&self) -> Result<Value> {
         Ok(Value::Int(match self {
-            Value::Null         => return Err(Error::BadValue(BadValue::Type)),
             Value::Int(v)      => *v == 0,
             Value::Float(v)    => *v == 0.0,
             Value::String(_)    => false,
@@ -137,7 +134,6 @@ impl Value {
 
     pub fn test(&self) -> bool {
         match self {
-            Value::Null => false,
             Value::Int(v) => *v != 0,
             Value::Float(v) => *v != 0.0,
             Value::String(_) => true,
@@ -217,16 +213,13 @@ impl<
 > {
     pub fn apply(self, strings: &StringMap) -> Result<T> {
         match self.left {
-            Value::Null => return Err(Error::BadValue(BadValue::Type)),
             Value::Int(l) => match self.right {
-                Value::Null => return Err(Error::BadValue(BadValue::Type)),
                 Value::Int(r) => (self.int_int)(l, r),
                 Value::Float(r) => (self.int_float)(l, r),
                 Value::String(r) => (self.int_string)(l, r.resolve(strings)?),
                 Value::Object(_) => return Err(Error::BadValue(BadValue::Type)),
             }
             Value::Float(l) => match self.right {
-                Value::Null => return Err(Error::BadValue(BadValue::Type)),
                 Value::Int(r) => (self.float_int)(l, r),
                 Value::Float(r) => (self.float_float)(l, r),
                 Value::String(r) => (self.float_string)(l, r.resolve(strings)?),
@@ -235,7 +228,6 @@ impl<
             Value::String(l) => {
                 let l = l.resolve(strings)?;
                 match self.right {
-                    Value::Null => return Err(Error::BadValue(BadValue::Type)),
                     Value::Int(r) => (self.string_int)(l, r),
                     Value::Float(r) => (self.string_float)(l, r),
                     Value::String(r) => (self.string_string)(l, r.resolve(strings)?),

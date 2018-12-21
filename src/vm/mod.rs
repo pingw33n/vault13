@@ -18,7 +18,7 @@ use self::stack::Stack;
 use self::value::Value;
 
 pub struct Context<'a> {
-    pub external_vars: &'a mut HashMap<Rc<String>, Value>,
+    pub external_vars: &'a mut HashMap<Rc<String>, Option<Value>>,
     pub global_vars: &'a mut Vec<i32>,
 }
 
