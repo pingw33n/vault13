@@ -1,4 +1,4 @@
-use super::{Error, Result};
+use super::{BadValue, Error, Result};
 use super::value::Value;
 
 #[derive(Debug)]
@@ -52,5 +52,13 @@ impl Stack {
         } else {
             Err(Error::StackUnderflow)
         }
+    }
+
+    pub fn get(&self, i: usize) -> Result<&Value> {
+        self.vec.get(i).ok_or(Error::BadValue(BadValue::Content))
+    }
+
+    pub fn get_mut(&mut self, i: usize) -> Result<&mut Value> {
+        self.vec.get_mut(i).ok_or(Error::BadValue(BadValue::Content))
     }
 }

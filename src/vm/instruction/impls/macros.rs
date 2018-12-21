@@ -60,6 +60,15 @@ macro_rules! log_a3r1 {
     }
 }
 
+macro_rules! log_a4r1 {
+    ($vm_state:expr, $arg1:expr, $arg2:expr, $arg3:expr, $arg4:expr, $res:expr) => {
+        debug!("[0x{:06x}] {:?} ({:?}, {:?}, {:?}, {:?}) -> ({:?})",
+            ($vm_state).opcode.unwrap().1,
+            ($vm_state).opcode.unwrap().0,
+            $arg1, $arg2, $arg3, $arg4, $res);
+    }
+}
+
 macro_rules! log_r1 {
     ($vm_state:expr, $res:expr) => {
         debug!("[0x{:06x}] {:?} -> ({:?})",

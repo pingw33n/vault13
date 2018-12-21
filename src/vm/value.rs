@@ -13,6 +13,12 @@ pub enum Value {
     Object(Handle),
 }
 
+impl Value {
+    pub fn boolean(v: bool) -> Self {
+        Value::Int(v as i32)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StringValue {
     Indirect(usize),
@@ -70,6 +76,22 @@ impl Value {
         self.into_string_value()?.resolve(strings)
     }
 
+    pub fn into_object(self) -> Result<Handle> {
+        if let Value::Object(v) = self {
+            Ok(v)
+        } else {
+            Err(Error::BadValue(BadValue::Type))
+        }
+    }
+
+    pub fn coerce_into_object(self) -> Result<Option<Handle>> {
+        if self == Value::Int(0) || self == Value::Float(0.0) {
+            Ok(None)
+        } else {
+            self.into_object().map(|h| Some(h))
+        }
+    }
+
     pub fn resolved(self, strings: &StringMap) -> Result<Value> {
         Ok(match self {
             Value::String(v) => Value::String(v.resolved(strings)?),
@@ -118,10 +140,7 @@ impl Value {
             Value::Null => false,
             Value::Int(v) => *v != 0,
             Value::Float(v) => *v != 0.0,
-            Value::String(v) => match v {
-                StringValue::Indirect(id) => *id != 0,
-                StringValue::Direct(_) => true,
-            }
+            Value::String(_) => true,
             Value::Object(_) => true,
         }
     }

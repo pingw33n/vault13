@@ -3,33 +3,18 @@ use std::cmp::Ordering;
 use super::*;
 
 fn cmp_test(ctx: Context, f: impl FnOnce(Option<Ordering>) -> bool) -> Result<()> {
-    let right = ctx.vm_state.data_stack.pop()?;
-    let left = ctx.vm_state.data_stack.pop()?;
-
-    let r = f(right.partial_cmp(&left, &ctx.vm_state.strings)?);
-    let r = Value::Int(r as i32);
-
-    ctx.vm_state.data_stack.push(r)?;
-    log_a2r1!(ctx.vm_state,
-        left.resolved(&ctx.vm_state.strings).unwrap(),
-        right.resolved(&ctx.vm_state.strings).unwrap(),
-        ctx.vm_state.data_stack.top().unwrap());
-
-    Ok(())
+    binary_op(ctx, |l, r, ctx| {
+        let r = f(l.partial_cmp(&r, &ctx.vm_state.strings)?);
+        Ok(Value::boolean(r))
+    })
 }
 
 pub fn add(ctx: Context) -> Result<()> {
-    let right = ctx.vm_state.data_stack.pop()?;
-    let left = ctx.vm_state.data_stack.pop()?;
-    let r = left.clone().add(right.clone(), &ctx.vm_state.strings)?;
+    binary_op(ctx, |l, r, ctx| l.add(r, &ctx.vm_state.strings))
+}
 
-    ctx.vm_state.data_stack.push(r)?;
-    log_a2r1!(ctx.vm_state,
-        left.resolved(&ctx.vm_state.strings).unwrap(),
-        right.resolved(&ctx.vm_state.strings).unwrap(),
-        ctx.vm_state.data_stack.top().unwrap());
-
-    Ok(())
+pub fn and(ctx: Context) -> Result<()> {
+    binary_op(ctx, |l, r, _| Ok(Value::boolean(l.test() && r.test())))
 }
 
 pub fn atod(ctx: Context) -> Result<()> {
@@ -73,6 +58,14 @@ pub fn dtoa(ctx: Context) -> Result<()> {
 
 pub fn equal(ctx: Context) -> Result<()> {
     cmp_test(ctx, |o| o == Some(Ordering::Equal))
+}
+
+pub fn fetch_global(ctx: Context) -> Result<()> {
+    let id = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let v = ctx.vm_state.global(id as usize)?.clone();
+    ctx.vm_state.data_stack.push(v)?;
+    log_a1r1!(ctx.vm_state, id, ctx.vm_state.data_stack.top().unwrap());
+    Ok(())
 }
 
 pub fn exit_prog(ctx: Context) -> Result<()> {
@@ -139,11 +132,7 @@ pub fn less_equal(ctx: Context) -> Result<()> {
 }
 
 pub fn negate(ctx: Context) -> Result<()> {
-    let v = ctx.vm_state.data_stack.pop()?;
-    let r = v.neg()?;
-    ctx.vm_state.data_stack.push(r)?;
-    log_a1r1!(ctx.vm_state, v, ctx.vm_state.data_stack.top().unwrap());
-    Ok(())
+    unary_op(ctx, |v, _| v.neg())
 }
 
 pub fn noop(ctx: Context) -> Result<()> {
@@ -152,15 +141,15 @@ pub fn noop(ctx: Context) -> Result<()> {
 }
 
 pub fn not(ctx: Context) -> Result<()> {
-    let v = ctx.vm_state.data_stack.pop()?;
-    let r = v.not()?;
-    ctx.vm_state.data_stack.push(r)?;
-    log_a1r1!(ctx.vm_state, v, ctx.vm_state.data_stack.top().unwrap());
-    Ok(())
+    unary_op(ctx, |v, _| v.not())
 }
 
 pub fn not_equal(ctx: Context) -> Result<()> {
     cmp_test(ctx, |o| o != Some(Ordering::Equal))
+}
+
+pub fn or(ctx: Context) -> Result<()> {
+    binary_op(ctx, |l, r, _| Ok(Value::boolean(l.test() || r.test())))
 }
 
 pub fn pop(ctx: Context) -> Result<()> {
@@ -219,9 +208,9 @@ pub fn push_base(ctx: Context) -> Result<()> {
 }
 
 pub fn set_global(ctx: Context) -> Result<()> {
-    let global_base = ctx.vm_state.data_stack.len() as isize;
-    ctx.vm_state.global_base = global_base;
-    log_r1!(ctx.vm_state, &global_base);
+    let global_base = ctx.vm_state.data_stack.len();
+    ctx.vm_state.global_base = Some(global_base);
+    log_r1!(ctx.vm_state, global_base);
     Ok(())
 }
 
@@ -237,6 +226,13 @@ pub fn set_global_var(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn store_global(ctx: Context) -> Result<()> {
+    let id = ctx.vm_state.data_stack.pop()?.into_int()? as usize;
+    let value = ctx.vm_state.data_stack.pop()?;
+    *ctx.vm_state.global_mut(id)? = value;
+    log_a2!(ctx.vm_state, id, ctx.vm_state.global(id).unwrap());
+    Ok(())
+}
 
 pub fn store_external(ctx: Context) -> Result<()> {
     let name = ctx.vm_state.data_stack.pop()?;
@@ -262,4 +258,16 @@ pub fn swapa(ctx: Context) -> Result<()> {
 
 pub fn unimplemented(_ctx: Context) -> Result<()> {
     Err(Error::UnimplementedOpcode)
+}
+
+pub fn while_(ctx: Context) -> Result<()> {
+    let done = ctx.vm_state.data_stack.pop()?;
+    if !done.test() {
+        let jump_pos = ctx.vm_state.data_stack.pop()?.into_int()?;
+        ctx.vm_state.jump(jump_pos)?;
+        log_a1r1!(ctx.vm_state, done, jump_pos);
+    } else {
+        log_a1!(ctx.vm_state, done);
+    }
+    Ok(())
 }

@@ -46,9 +46,9 @@ enum Metarule3 {
     MapTargetLoadArea   = 111,
 }
 
-pub fn set_light_level(ctx: Context) -> Result<()> {
-    let v = ctx.vm_state.data_stack.pop()?.into_int()?;
-    log_a1!(ctx.vm_state, v);
+pub fn destroy_object(ctx: Context) -> Result<()> {
+    let obj = ctx.vm_state.data_stack.pop()?.coerce_into_object()?;
+    log_a1!(ctx.vm_state, obj);
     log_stub!(ctx.vm_state);
     Ok(())
 }
@@ -58,7 +58,8 @@ pub fn metarule(ctx: Context) -> Result<()> {
     let id = ctx.vm_state.data_stack.pop()?.into_int()?;
 
     use self::Metarule::*;
-    let r = if let Some(mr) = Metarule::from_i32(id) {
+    let mr = Metarule::from_i32(id);
+    let r = if let Some(mr) = mr {
         match mr {
             SignalEndGame   => 0,
             TestFirstrun    => 1,
@@ -92,19 +93,25 @@ pub fn metarule(ctx: Context) -> Result<()> {
 
     ctx.vm_state.data_stack.push(Value::Int(r))?;
 
-    log_a2r1!(ctx.vm_state, id, value, ctx.vm_state.data_stack.top().unwrap());
+    if let Some(mr) = mr {
+        log_a2r1!(ctx.vm_state, mr, value, ctx.vm_state.data_stack.top().unwrap());
+    } else {
+        log_a2r1!(ctx.vm_state, id, value, ctx.vm_state.data_stack.top().unwrap());
+    }
     log_stub!(ctx.vm_state);
 
     Ok(())
 }
 
 pub fn metarule3(ctx: Context) -> Result<()> {
-    let v2 = ctx.vm_state.data_stack.pop()?.into_int()?;
-    let v1 = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let v3 = ctx.vm_state.data_stack.pop()?;
+    let v2 = ctx.vm_state.data_stack.pop()?;
+    let v1 = ctx.vm_state.data_stack.pop()?;
     let id = ctx.vm_state.data_stack.pop()?.into_int()?;
 
     use self::Metarule3::*;
-    let r = if let Some(mr) = Metarule3::from_i32(id) {
+    let mr = Metarule3::from_i32(id);
+    let r = if let Some(mr) = mr {
         match mr {
             ClrFixedTimedEvents => 0,
             MarkSubtile         => 0,
@@ -126,8 +133,52 @@ pub fn metarule3(ctx: Context) -> Result<()> {
 
     ctx.vm_state.data_stack.push(Value::Int(r))?;
 
-    log_a3r1!(ctx.vm_state, id, v1, v2, ctx.vm_state.data_stack.top().unwrap());
+    if let Some(mr) = mr {
+        log_a4r1!(ctx.vm_state, mr, v1, v2, v3, ctx.vm_state.data_stack.top().unwrap());
+    } else {
+        log_a4r1!(ctx.vm_state, id, v1, v2, v3, ctx.vm_state.data_stack.top().unwrap());
+    }
     log_stub!(ctx.vm_state);
+
+    Ok(())
+}
+
+pub fn set_light_level(ctx: Context) -> Result<()> {
+    let v = ctx.vm_state.data_stack.pop()?.into_int()?;
+    log_a1!(ctx.vm_state, v);
+    log_stub!(ctx.vm_state);
+    Ok(())
+}
+
+pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
+    let pid = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let elevation = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let tile_num = ctx.vm_state.data_stack.pop()?.into_int()?;
+
+    let r = false;
+    ctx.vm_state.data_stack.push(Value::boolean(r))?;
+
+    log_a3r1!(ctx.vm_state, tile_num, elevation, pid, ctx.vm_state.data_stack.top().unwrap());
+    log_stub!(ctx.vm_state);
+
+    Ok(())
+}
+
+pub fn tile_num_in_direction(ctx: Context) -> Result<()> {
+    let distance = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let direction = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let tile_num = ctx.vm_state.data_stack.pop()?.into_int()?;
+
+    // FIXME clean up this, better validate
+    use ::graphics::geometry::hex::{Direction, TileGrid};
+    let hex = TileGrid::default();
+    let p = hex.from_linear_inv(tile_num as u32);
+    let r = hex.go(p, Direction::from_i32(direction).unwrap(), distance as u32)
+        .map(|p| hex.to_linear_inv(p).unwrap() as i32)
+        .unwrap_or(-1);
+    ctx.vm_state.data_stack.push(Value::Int(r))?;
+
+    log_a3r1!(ctx.vm_state, tile_num, direction, distance, ctx.vm_state.data_stack.top().unwrap());
 
     Ok(())
 }

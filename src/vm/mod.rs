@@ -91,26 +91,17 @@ pub struct VmState {
     code: Box<[u8]>,
     code_pos: usize,
     opcode: Option<(Opcode, usize)>,
-    data_stack: Stack,
-    return_stack: Stack,
+    pub data_stack: Stack,
+    pub return_stack: Stack,
     // FIXME check if this an Option
     base: isize,
-    // FIXME check if this an Option
-    global_base: isize,
+    global_base: Option<usize>,
     names: StringMap,
     strings: StringMap,
-    procs: HashMap<Rc<String>, Procedure>,
+    pub procs: HashMap<Rc<String>, Procedure>,
 }
 
 impl VmState {
-    pub fn data_stack(&self) -> &Stack {
-        &self.data_stack
-    }
-
-    pub fn return_stack(&self) -> &Stack {
-        &self.return_stack
-    }
-
     fn new(config: &VmConfig,
         code: Box<[u8]>,
         names: StringMap,
@@ -124,7 +115,7 @@ impl VmState {
             data_stack: Stack::new(config.max_stack_len),
             return_stack: Stack::new(config.max_stack_len),
             base: -1,
-            global_base: -1,
+            global_base: None,
             names,
             strings,
             procs,
@@ -162,6 +153,21 @@ impl VmState {
         } else {
             Err(Error::BadValue(BadValue::Content))
         }
+    }
+
+    fn global_base(&self) -> Result<usize> {
+        self.global_base
+            .ok_or_else(|| Error::BadState("no global_base set".into()))
+    }
+
+    fn global(&self, id: usize) -> Result<&Value> {
+        let base = self.global_base()?;
+        self.data_stack.get(base + id as usize)
+    }
+
+    fn global_mut(&mut self, id: usize) -> Result<&mut Value> {
+        let base = self.global_base()?;
+        self.data_stack.get_mut(base + id as usize)
     }
 }
 
