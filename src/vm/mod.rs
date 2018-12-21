@@ -18,7 +18,7 @@ use self::stack::Stack;
 use self::value::Value;
 
 pub struct Context<'a> {
-    pub vars: &'a mut HashMap<Rc<String>, Value>,
+    pub external_vars: &'a mut HashMap<Rc<String>, Value>,
     pub global_vars: &'a mut Vec<i32>,
 }
 
@@ -103,6 +103,14 @@ pub struct VmState {
 }
 
 impl VmState {
+    pub fn data_stack(&self) -> &Stack {
+        &self.data_stack
+    }
+
+    pub fn return_stack(&self) -> &Stack {
+        &self.return_stack
+    }
+
     fn new(config: &VmConfig,
         code: Box<[u8]>,
         names: StringMap,
@@ -193,6 +201,10 @@ impl Vm {
             config,
             state,
         })
+    }
+
+    pub fn state(&self) -> &VmState {
+        &self.state
     }
 
     pub fn execute_proc(&mut self, name: &Rc<String>, ctx: &mut Context) -> Result<()> {

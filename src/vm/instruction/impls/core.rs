@@ -1,4 +1,36 @@
+use std::cmp::Ordering;
+
 use super::*;
+
+fn cmp_test(ctx: Context, f: impl FnOnce(Option<Ordering>) -> bool) -> Result<()> {
+    let right = ctx.vm_state.data_stack.pop()?;
+    let left = ctx.vm_state.data_stack.pop()?;
+
+    let r = f(right.partial_cmp(&left, &ctx.vm_state.strings)?);
+    let r = Value::Int(r as i32);
+
+    ctx.vm_state.data_stack.push(r)?;
+    log_a2r1!(ctx.vm_state,
+        left.resolved(&ctx.vm_state.strings).unwrap(),
+        right.resolved(&ctx.vm_state.strings).unwrap(),
+        ctx.vm_state.data_stack.top().unwrap());
+
+    Ok(())
+}
+
+pub fn add(ctx: Context) -> Result<()> {
+    let right = ctx.vm_state.data_stack.pop()?;
+    let left = ctx.vm_state.data_stack.pop()?;
+    let r = left.clone().add(right.clone(), &ctx.vm_state.strings)?;
+
+    ctx.vm_state.data_stack.push(r)?;
+    log_a2r1!(ctx.vm_state,
+        left.resolved(&ctx.vm_state.strings).unwrap(),
+        right.resolved(&ctx.vm_state.strings).unwrap(),
+        ctx.vm_state.data_stack.top().unwrap());
+
+    Ok(())
+}
 
 pub fn atod(ctx: Context) -> Result<()> {
     let v = ctx.vm_state.return_stack.pop()?;
@@ -25,11 +57,22 @@ pub fn const_string(ctx: Context) -> Result<()> {
     }
 }
 
+pub fn debug_msg(ctx: Context) -> Result<()> {
+    let s = ctx.vm_state.data_stack.pop()?.into_string(&ctx.vm_state.strings)?;
+    log_a1!(ctx.vm_state, s);
+    info!(target: "vault13::vm::debug", "{}", s);
+    Ok(())
+}
+
 pub fn dtoa(ctx: Context) -> Result<()> {
     let v = ctx.vm_state.data_stack.pop()?;
     ctx.vm_state.return_stack.push(v)?;
     log_r1!(ctx.vm_state, ctx.vm_state.return_stack.top().unwrap());
     Ok(())
+}
+
+pub fn equal(ctx: Context) -> Result<()> {
+    cmp_test(ctx, |o| o == Some(Ordering::Equal))
 }
 
 pub fn exit_prog(ctx: Context) -> Result<()> {
@@ -40,9 +83,9 @@ pub fn exit_prog(ctx: Context) -> Result<()> {
 pub fn export_var(ctx: Context) -> Result<()> {
     let name = ctx.vm_state.data_stack.pop()?;
     let name = name.into_string(&ctx.vm_state.names)?;
-    if !ctx.ext.vars.contains_key(&name) {
+    if !ctx.ext.external_vars.contains_key(&name) {
         log_a1!(ctx.vm_state, &name);
-        ctx.ext.vars.insert(name, Value::Null);
+        ctx.ext.external_vars.insert(name, Value::Null);
         Ok(())
     } else {
         Err(Error::Misc(format!("external variable `{}` already exists", name).into()))
@@ -54,12 +97,20 @@ pub fn global_var(ctx: Context) -> Result<()> {
     let v = Value::Int(if let Some(&v) = ctx.ext.global_vars.get(id as usize) {
         v
     } else {
-        warn!("GlobalVar: global var {} doesn't exist", id);
+        warn!("GlobalVar: attempted to get undefined global var {}", id);
         -1
     });
     ctx.vm_state.data_stack.push(v)?;
     log_a1r1!(ctx.vm_state, &id, ctx.vm_state.data_stack.top().unwrap());
     Ok(())
+}
+
+pub fn greater(ctx: Context) -> Result<()> {
+    cmp_test(ctx, |o| o == Some(Ordering::Greater))
+}
+
+pub fn greater_equal(ctx: Context) -> Result<()> {
+    cmp_test(ctx, |o| o == Some(Ordering::Greater) || o == Some(Ordering::Equal))
 }
 
 pub fn jmp(ctx: Context) -> Result<()> {
@@ -69,68 +120,29 @@ pub fn jmp(ctx: Context) -> Result<()> {
     Ok(())
 }
 
-pub fn less(ctx: Context) -> Result<()> {
-    let left = ctx.vm_state.data_stack.pop()?;
-    let right = ctx.vm_state.data_stack.pop()?;
-    let r = Value::Int(match &left {
-        Value::Null => return Err(Error::BadValue(BadValue::Type)),
-        Value::Int(left) => match &right {
-            Value::Null => return Err(Error::BadValue(BadValue::Type)),
-            Value::Int(right) => left < right,
-            Value::Float(right) => (*left as f32) < *right,
-            Value::String(right) => {
-                let left = left.to_string();
-                let right = right.clone().resolve(&ctx.vm_state.strings)?;
-                &left < &right
-            }
-            Value::Object(_) => return Err(Error::BadValue(BadValue::Type)),
-        }
-        Value::Float(left) => match &right {
-            Value::Null => return Err(Error::BadValue(BadValue::Type)),
-            Value::Int(right) => *left < (*right as f32),
-            Value::Float(right) => left < right,
-            Value::String(right) => {
-                let left = left.to_string();
-                let right = right.clone().resolve(&ctx.vm_state.strings)?;
-                &left < &right
-            }
-            Value::Object(_) => return Err(Error::BadValue(BadValue::Type)),
-        }
-        Value::String(left) => match &right {
-            Value::Null => return Err(Error::BadValue(BadValue::Type)),
-            Value::Int(right) => {
-                let left = left.clone().resolve(&ctx.vm_state.strings)?;
-                let right = right.to_string();
-                &*left < &right
-            },
-            Value::Float(right) => {
-                let left = left.clone().resolve(&ctx.vm_state.strings)?;
-                let right = right.to_string();
-                &*left < &right
-            },
-            Value::String(right) => {
-                let left = left.clone().resolve(&ctx.vm_state.strings)?;
-                let right = right.clone().resolve(&ctx.vm_state.strings)?;
-                left.to_lowercase() < right.to_lowercase()
-            }
-            Value::Object(_) => return Err(Error::BadValue(BadValue::Type)),
-        }
-        Value::Object(_) => return Err(Error::BadValue(BadValue::Type)),
-    } as i32);
-    ctx.vm_state.data_stack.push(r)?;
-    log_a2r1!(ctx.vm_state, left, right, ctx.vm_state.data_stack.top().unwrap());
+pub fn if_(ctx: Context) -> Result<()> {
+    let cond = ctx.vm_state.data_stack.pop()?;
+    let jump_pos = ctx.vm_state.data_stack.pop()?.into_int()?;
+    if cond.test() {
+        ctx.vm_state.jump(jump_pos)?;
+    }
+    log_a1r1!(ctx.vm_state, cond, jump_pos);
     Ok(())
+}
+
+pub fn less(ctx: Context) -> Result<()> {
+    cmp_test(ctx, |o| o == Some(Ordering::Less))
+}
+
+pub fn less_equal(ctx: Context) -> Result<()> {
+    cmp_test(ctx, |o| o == Some(Ordering::Less) || o == Some(Ordering::Equal))
 }
 
 pub fn negate(ctx: Context) -> Result<()> {
     let v = ctx.vm_state.data_stack.pop()?;
-    let r = match &v {
-        Value::Int(v) => Value::Int(-v),
-        Value::Float(v) => Value::Float(-v),
-        _ => return Err(Error::BadValue(BadValue::Type)),
-    };
+    let r = v.neg()?;
     ctx.vm_state.data_stack.push(r)?;
-    log_a1r1!(ctx.vm_state, &v, ctx.vm_state.data_stack.top().unwrap());
+    log_a1r1!(ctx.vm_state, v, ctx.vm_state.data_stack.top().unwrap());
     Ok(())
 }
 
@@ -139,9 +151,40 @@ pub fn noop(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn not(ctx: Context) -> Result<()> {
+    let v = ctx.vm_state.data_stack.pop()?;
+    let r = v.not()?;
+    ctx.vm_state.data_stack.push(r)?;
+    log_a1r1!(ctx.vm_state, v, ctx.vm_state.data_stack.top().unwrap());
+    Ok(())
+}
+
+pub fn not_equal(ctx: Context) -> Result<()> {
+    cmp_test(ctx, |o| o != Some(Ordering::Equal))
+}
+
+pub fn pop(ctx: Context) -> Result<()> {
+    let v = ctx.vm_state.data_stack.pop()?;
+    log_r1!(ctx.vm_state, v);
+    Ok(())
+}
+
 pub fn pop_base(ctx: Context) -> Result<()> {
     ctx.vm_state.base = ctx.vm_state.return_stack.pop()?.into_int()? as isize;
     log_r1!(ctx.vm_state, &ctx.vm_state.base);
+    Ok(())
+}
+
+pub fn pop_flags_exit(ctx: Context) -> Result<()> {
+    let pos = ctx.vm_state.data_stack.pop()?.into_int()?;
+    ctx.vm_state.jump(pos)?;
+    log_a1!(ctx.vm_state, pos);
+    Err(Error::Halted)
+}
+
+pub fn pop_flags_return(ctx: Context) -> Result<()> {
+    let flags = ctx.vm_state.return_stack.pop()?.into_int()?;
+    log_r1!(ctx.vm_state, flags);
     Ok(())
 }
 
@@ -182,11 +225,24 @@ pub fn set_global(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn set_global_var(ctx: Context) -> Result<()> {
+    let value = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let id = ctx.vm_state.data_stack.pop()?.into_int()?;
+    log_a2!(ctx.vm_state, id, value);
+    if let Some(v) = ctx.ext.global_vars.get_mut(id as usize) {
+        *v = value;
+    } else {
+        warn!("GlobalVar: attempted to set undefined global var {} = {}", id, value);
+    }
+    Ok(())
+}
+
+
 pub fn store_external(ctx: Context) -> Result<()> {
     let name = ctx.vm_state.data_stack.pop()?;
     let value = ctx.vm_state.data_stack.pop()?;
     let name = name.into_string(&ctx.vm_state.names)?;
-    let v = ctx.ext.vars.get_mut(&name)
+    let v = ctx.ext.external_vars.get_mut(&name)
         .ok_or_else(|| Error::Misc(format!("external variable `{}` doesn't exist", name).into()))?;
     *v = value;
     log_a2!(ctx.vm_state, &name, v);
