@@ -16,37 +16,7 @@ impl Value {
     pub fn boolean(v: bool) -> Self {
         Value::Int(v as i32)
     }
-}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum StringValue {
-    Indirect(usize),
-    Direct(Rc<String>),
-}
-
-impl StringValue {
-    pub fn resolve(self, strings: &StringMap) -> Result<Rc<String>> {
-        Ok(self.resolved(strings)?.into_direct().unwrap())
-
-    }
-    pub fn resolved(self, strings: &StringMap) -> Result<StringValue> {
-        Ok(match self {
-            StringValue::Indirect(id) => StringValue::Direct(
-                strings.get(id).ok_or(Error::BadValue(BadValue::Content))?.clone()),
-            StringValue::Direct(s) => StringValue::Direct(s),
-        })
-    }
-
-    pub fn into_direct(self) -> Option<Rc<String>> {
-        if let StringValue::Direct(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-}
-
-impl Value {
     pub fn into_int(self) -> Result<i32> {
         if let Value::Int(v) = self {
             Ok(v)
@@ -160,6 +130,34 @@ impl Value {
             string_float    : |left, right| concat(left, right.to_string()),
             string_string   : |left, right| concat(left, right),
         }.apply(strings)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StringValue {
+    Indirect(usize),
+    Direct(Rc<String>),
+}
+
+impl StringValue {
+    pub fn resolve(self, strings: &StringMap) -> Result<Rc<String>> {
+        Ok(self.resolved(strings)?.into_direct().unwrap())
+
+    }
+    pub fn resolved(self, strings: &StringMap) -> Result<StringValue> {
+        Ok(match self {
+            StringValue::Indirect(id) => StringValue::Direct(
+                strings.get(id).ok_or(Error::BadValue(BadValue::Content))?.clone()),
+            StringValue::Direct(s) => StringValue::Direct(s),
+        })
+    }
+
+    pub fn into_direct(self) -> Option<Rc<String>> {
+        if let StringValue::Direct(v) = self {
+            Some(v)
+        } else {
+            None
+        }
     }
 }
 
