@@ -55,8 +55,16 @@ pub struct Egg {
     pub fid: Fid,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Handle(DefaultKey);
+
+impl Handle {
+    #[cfg(test)]
+    pub fn null() -> Self {
+        use slotmap::Key;
+        Handle(DefaultKey::null())
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Object {
