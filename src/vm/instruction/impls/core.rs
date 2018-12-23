@@ -141,7 +141,7 @@ pub fn noop(ctx: Context) -> Result<()> {
 }
 
 pub fn not(ctx: Context) -> Result<()> {
-    unary_op(ctx, |v, _| v.not())
+    unary_op(ctx, |v, _| Ok(v.not()))
 }
 
 pub fn not_equal(ctx: Context) -> Result<()> {

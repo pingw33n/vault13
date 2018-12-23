@@ -1,13 +1,13 @@
 use std::borrow::Cow;
 use std::rc::Rc;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BadValue {
     Type,
     Content,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Error {
     BadInstruction,
     BadMetadata(Cow<'static, str>),
