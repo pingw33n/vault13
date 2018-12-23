@@ -13,10 +13,6 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn boolean(v: bool) -> Self {
-        Value::Int(v as i32)
-    }
-
     pub fn into_int(self) -> Result<i32> {
         if let Value::Int(v) = self {
             Ok(v)
@@ -130,6 +126,48 @@ impl Value {
             string_float    : |left, right| concat(left, right.to_string()),
             string_string   : |left, right| concat(left, right),
         }.apply(strings)
+    }
+}
+
+impl From<i32> for Value {
+    fn from(v: i32) -> Self {
+        Value::Int(v)
+    }
+}
+
+impl From<bool> for Value {
+    fn from(v: bool) -> Self {
+        Value::Int(v as i32)
+    }
+}
+
+impl From<f32> for Value {
+    fn from(v: f32) -> Self {
+        Value::Float(v)
+    }
+}
+
+impl From<Rc<String>> for Value {
+    fn from(v: Rc<String>) -> Self {
+        Value::String(StringValue::Direct(v))
+    }
+}
+
+impl From<String> for Value {
+    fn from(v: String) -> Self {
+        Value::String(StringValue::Direct(Rc::new(v)))
+    }
+}
+
+impl<'a> From<&'a str> for Value {
+    fn from(v: &'a str) -> Self {
+        Self::from(v.to_string())
+    }
+}
+
+impl From<Handle> for Value {
+    fn from(v: Handle) -> Self {
+        Value::Object(v)
     }
 }
 

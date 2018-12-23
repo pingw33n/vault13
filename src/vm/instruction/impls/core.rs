@@ -5,7 +5,7 @@ use super::*;
 fn cmp_test(ctx: Context, f: impl FnOnce(Option<Ordering>) -> bool) -> Result<()> {
     binary_op(ctx, |l, r, ctx| {
         let r = f(l.partial_cmp(&r, &ctx.vm_state.strings)?);
-        Ok(Value::boolean(r))
+        Ok(r.into())
     })
 }
 
@@ -14,7 +14,7 @@ pub fn add(ctx: Context) -> Result<()> {
 }
 
 pub fn and(ctx: Context) -> Result<()> {
-    binary_op(ctx, |l, r, _| Ok(Value::boolean(l.test() && r.test())))
+    binary_op(ctx, |l, r, _| Ok((l.test() && r.test()).into()))
 }
 
 pub fn atod(ctx: Context) -> Result<()> {
@@ -149,7 +149,7 @@ pub fn not_equal(ctx: Context) -> Result<()> {
 }
 
 pub fn or(ctx: Context) -> Result<()> {
-    binary_op(ctx, |l, r, _| Ok(Value::boolean(l.test() || r.test())))
+    binary_op(ctx, |l, r, _| Ok((l.test() || r.test()).into()))
 }
 
 pub fn pop(ctx: Context) -> Result<()> {

@@ -156,7 +156,7 @@ pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
     let tile_num = ctx.vm_state.data_stack.pop()?.into_int()?;
 
     let r = false;
-    ctx.vm_state.data_stack.push(Value::boolean(r))?;
+    ctx.vm_state.data_stack.push(r.into())?;
 
     log_a3r1!(ctx.vm_state, tile_num, elevation, pid, ctx.vm_state.data_stack.top().unwrap());
     log_stub!(ctx.vm_state);
