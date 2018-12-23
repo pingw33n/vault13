@@ -28,6 +28,7 @@ impl Stack {
     }
 
     pub fn push(&mut self, value: Value) -> Result<()> {
+        trace!("stack: pushing {:?}", value);
         if self.len() < self.max_len {
             self.vec.push(value);
             Ok(())
@@ -41,13 +42,17 @@ impl Stack {
             Err(Error::StackUnderflow)
         } else {
             let last = self.len() - 1;
-            Ok(self.vec.remove(last))
+            let r = self.vec.remove(last);
+            trace!("stack: popped {:?}", r);
+            Ok(r)
         }
     }
 
     pub fn truncate(&mut self, len: usize) -> Result<()> {
-        if len <= self.vec.len() {
+        let old_len = self.vec.len();
+        if len <= old_len {
             self.vec.truncate(len);
+            trace!("stack: truncated from {} to {}", old_len, len);
             Ok(())
         } else {
             Err(Error::StackUnderflow)
