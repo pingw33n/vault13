@@ -24,6 +24,22 @@ pub fn atod(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn bwand(ctx: Context) -> Result<()> {
+    binary_op(ctx, |l, r, _| l.bwand(r))
+}
+
+pub fn bwnot(ctx: Context) -> Result<()> {
+    unary_op(ctx, |v, _| v.bwnot())
+}
+
+pub fn bwor(ctx: Context) -> Result<()> {
+    binary_op(ctx, |l, r, _| l.bwor(r))
+}
+
+pub fn bwxor(ctx: Context) -> Result<()> {
+    binary_op(ctx, |l, r, _| l.bwxor(r))
+}
+
 pub fn const_int(ctx: Context) -> Result<()> {
     let v = ctx.vm_state.next_i32()?;
     ctx.vm_state.data_stack.push(Value::Int(v))?;
