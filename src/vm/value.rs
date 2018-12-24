@@ -76,6 +76,16 @@ impl Value {
         })
     }
 
+    pub fn coerce_into_int(self) -> Result<i32> {
+        Ok(match self {
+            Value::Int(v) => v,
+            Value::Float(v) => v as i32,
+            | Value::String(_)
+            | Value::Object(_)
+            => return Err(Error::BadValue(BadValue::Type)),
+        })
+    }
+
     pub fn coerce_into_string(self, strings: &StringMap) -> Result<Rc<String>> {
         Ok(match self {
             Value::Int(v) => Rc::new(v.to_string()),
@@ -167,6 +177,29 @@ impl Value {
             |l, r| Ok(format!("{}{}", l, r).into()),
             |_, _| Err(Error::BadValue(BadValue::Type)),
         )
+    }
+
+    pub fn bwand(self, other: Value) -> Result<Value> {
+        let left = self.coerce_into_int()?;
+        let right = other.coerce_into_int()?;
+        Ok((left & right).into())
+    }
+
+    pub fn bwnot(self) -> Result<Value> {
+        let v = self.coerce_into_int()?;
+        Ok((!v).into())
+    }
+
+    pub fn bwor(self, other: Value) -> Result<Value> {
+        let left = self.coerce_into_int()?;
+        let right = other.coerce_into_int()?;
+        Ok((left | right).into())
+    }
+
+    pub fn bwxor(self, other: Value) -> Result<Value> {
+        let left = self.coerce_into_int()?;
+        let right = other.coerce_into_int()?;
+        Ok((left ^ right).into())
     }
 
     fn coerce_into_same_kind_and<
@@ -306,18 +339,72 @@ mod test {
         }
     }
 
+    fn value_variants(string_id: usize) -> Vec<Value> {
+        vec![
+            Int(0),
+            Int(i32::max_value()),
+            Int(i32::min_value()),
+            Float(0.0),
+            Float(-0.0),
+            Float(::std::f32::MIN),
+            Float(::std::f32::MAX),
+            String(Indirect(string_id)),
+            String(Direct(Rc::new("".into()))),
+            String(Direct(Rc::new("test".into()))),
+            String(Direct(Rc::new("123".into()))),
+            String(Direct(Rc::new("-123".into()))),
+            String(Direct(Rc::new("0.0".into()))),
+            Object(None),
+            Object(Some(Handle::null())),
+        ]
+    }
+
+    fn fill_bad_type_binary_variants<T>(d: &mut Vec<(Value, Value, Result<T>)>, string_id: usize,
+            commutative: bool) {
+        let exclude: Vec<_> = d.iter()
+            .filter(|e| e.2.is_ok())
+            .flat_map(|e| {
+                let mut r = vec![(e.0.kind(), e.1.kind())];
+                if commutative {
+                    r.push((e.1.kind(), e.0.kind()));
+                }
+                r
+            })
+            .collect();
+        let vars = value_variants(string_id);
+        for left in &vars {
+            for right in &vars {
+                if exclude.iter().any(|e| e == &(left.kind(), right.kind())) {
+                    continue;
+                }
+                d.push((left.clone(), right.clone(), bad_type()));
+            }
+        }
+    }
+
+    fn fill_bad_type_unary_variants<T>(d: &mut Vec<(Value, Result<T>)>, string_id: usize) {
+        let exclude: Vec<_> = d.iter()
+            .filter(|e| e.1.is_ok())
+            .map(|e| e.0.kind())
+            .collect();
+        let vars = value_variants(string_id);
+        for v in &vars {
+            if exclude.iter().any(|e| e == &v.kind()) {
+                continue;
+            }
+            d.push((v.clone(), bad_type()));
+        }
+    }
+
     #[test]
     fn coerce_into_float() {
-        let d = vec![
+        let mut d = vec![
             (Int(0), Ok(0.0)),
             (Int(123), Ok(123.0)),
             (Float(0.0), Ok(0.0)),
             (Float(12.3), Ok(12.3)),
-            (String(Indirect(0)), bad_type()),
-            (String(Direct(Rc::new("".into()))), bad_type()),
-            (Object(None), bad_type()),
-            (Object(Some(Handle::null())), bad_type()),
         ];
+        fill_bad_type_unary_variants(&mut d, 0);
         for (inp, exp) in d {
             assert_eq!(inp.coerce_into_float(), exp);
         }
@@ -329,7 +416,7 @@ mod test {
             (12, "s1"),    // 0
         ];
         let ref strings = strings(S);
-        let d = vec![
+        let mut d = vec![
             (Int(0), Ok("0")),
             (Int(123), Ok("123")),
             (Float(0.0), Ok("0.00000")),
@@ -338,6 +425,7 @@ mod test {
             (String(Direct(Rc::new("ds1".into()))), Ok("ds1")),
             (String(Indirect(12345678)), Err(Error::BadValue(BadValue::Content))),
         ];
+        fill_bad_type_unary_variants(&mut d, 0);
         for (inp, exp) in d {
             assert_eq!(inp.coerce_into_string(strings), exp.map(|v| Rc::new(v.into())));
         }
@@ -345,20 +433,12 @@ mod test {
 
     #[test]
     fn coerce_into_object() {
-        let d = vec![
+        let mut d = vec![
             (Int(0), Ok(None)),
-            (Int(1), bad_type()),
-            (Int(-1), bad_type()),
-            (Float(0.0), bad_type()),
-            (Float(-0.0), bad_type()),
-            (String(Indirect(0)), bad_type()),
-            (String(Indirect(1)), bad_type()),
-            (String(Indirect(usize::max_value())), bad_type()),
-            (String(Direct(Rc::new("".into()))), bad_type()),
-            (String(Direct(Rc::new("123".into()))), bad_type()),
             (Object(None), Ok(None)),
             (Object(Some(Handle::null())), Ok(Some(Handle::null()))),
         ];
+        fill_bad_type_unary_variants(&mut d, 0);
         for (inp, exp) in d {
             assert_eq!(inp.coerce_into_object(), exp);
         }
@@ -366,7 +446,7 @@ mod test {
 
     #[test]
     fn neg() {
-        let d = vec![
+        let mut d = vec![
             (Int(0), Ok(Int(0))),
             (Int(1), Ok(Int(-1))),
             (Int(-1), Ok(Int(1))),
@@ -374,14 +454,9 @@ mod test {
             (Float(1.0), Ok(Float(-1.0))),
             (Float(-0.0), Ok(Float(0.0))),
             (Float(-1.0), Ok(Float(1.0))),
-            (String(Indirect(0)), bad_type()),
-            (String(Indirect(1)), bad_type()),
             (String(Indirect(usize::max_value())), bad_type()),
-            (String(Direct(Rc::new("".into()))), bad_type()),
-            (String(Direct(Rc::new("123".into()))), bad_type()),
-            (Object(None), bad_type()),
-            (Object(Some(Handle::null())), bad_type()),
         ];
+        fill_bad_type_unary_variants(&mut d, 0);
         for (inp, exp) in d {
             assert_eq!(inp.neg(), exp);
         }
@@ -512,15 +587,10 @@ mod test {
             (String(Indirect(S[0].0)), Float(12.123), Ok("s1_12.12300".into())),
             (Float(12.123), String(Indirect(S[0].0)), Ok("12.12300s1_".into())),
 
-            (Object(None), Object(None), bad_type()),
-            (Object(None), Int(0), bad_type()),
-            (Object(None), Float(0.0), bad_type()),
-            (Object(None), String(Indirect(S[0].0)), bad_type()),
-            (Object(None), String(Direct(Rc::new("".into()))), bad_type()),
-
-            (String(Indirect(12345678)), Int(0), Err(Error::BadValue(BadValue::Content))),
+            (String(Indirect(usize::max_value())), Int(0), Err(Error::BadValue(BadValue::Content))),
         ];
         generate_string_direct_cases(&mut d, &strings);
+        fill_bad_type_binary_variants(&mut d, S[0].0, true);
 
         for (left, right, exp) in d {
             assert_eq!(left.clone().add(right.clone(), &strings), exp,
@@ -529,6 +599,74 @@ mod test {
                     || exp.is_err() {
                 assert_eq!(right.clone().add(left.clone(), &strings), exp,
                     "{:?} {:?} {:?}", left, right, exp);
+            }
+        }
+    }
+
+    #[test]
+    fn bitwise_binary() {
+        let mut d = vec![
+            (Int(0b11100), Int(0b00111),
+                // bwand        bwor        bwxor       bwnot
+                Ok((0b00100,    0b11111,    0b11011,    -29))),
+            (Int(-256), Int(0xfff),
+                Ok((0xf00,      -1,         -3841,      0xff))),
+            (String(Indirect(12345678)), Int(0),
+                Err(Error::BadValue(BadValue::Type))),
+        ];
+        for i in 0..d.len() {
+            let (left, right, exp) = d[i].clone();
+            if let Int(v) = left {
+                d.push((Value::Float(v as f32), right, exp));
+            }
+        }
+        for i in 0..d.len() {
+            let (left, right, exp) = d[i].clone();
+            if let Int(v) = right {
+                d.push((left, Value::Float(v as f32), exp));
+            }
+        }
+        fill_bad_type_binary_variants(&mut d, 0, true);
+
+        for (left, right, exp) in d {
+            let bwand = exp.clone().map(|v| v.0.into());
+            assert_eq!(left.clone().bwand(right.clone()), bwand,
+                "{:?} {:?} {:?}", left, right, bwand);
+            assert_eq!(right.clone().bwand(left.clone()), bwand,
+                "{:?} {:?} {:?}", right, left, bwand);
+
+            let bwor = exp.clone().map(|v| v.1.into());
+            assert_eq!(left.clone().bwor(right.clone()), bwor,
+                "{:?} {:?} {:?}", left, right, bwor);
+            assert_eq!(right.clone().bwor(left.clone()), bwor,
+                "{:?} {:?} {:?}", right, left, bwor);
+
+            let bwxor = exp.clone().map(|v| v.2.into());
+            assert_eq!(left.clone().bwxor(right.clone()), bwxor,
+                "{:?} {:?} {:?}", left, right, bwxor);
+            assert_eq!(right.clone().bwxor(left.clone()), bwxor,
+                "{:?} {:?} {:?}", right, left, bwxor);
+        }
+
+        #[test]
+        fn bitwise_unary() {
+            let mut d = vec![
+                (Int(0b11100), Ok(-29)),
+                (Int(-256), Ok(0xff)),
+                (String(Indirect(12345678)), Err(Error::BadValue(BadValue::Type))),
+            ];
+            fill_bad_type_unary_variants(&mut d, 0);
+
+            for (v, exp) in d {
+                let exp = exp.clone().map(|v| v.into());
+                assert_eq!(v.clone().bwnot(), exp.clone(),
+                    "{:?} {:?}", v, exp);
+
+                if let Ok(exp) = exp {
+                    let new_exp = Ok(Value::Int(v.clone().coerce_into_int().unwrap()));
+                    assert_eq!(exp.clone().bwnot(), new_exp.clone(),
+                        "{:?} {:?}", exp, new_exp);
+                }
             }
         }
     }
