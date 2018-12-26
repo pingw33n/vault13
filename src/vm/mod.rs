@@ -102,13 +102,32 @@ pub struct VmState {
 }
 
 impl VmState {
-    fn new(config: &VmConfig,
-        code: Box<[u8]>,
-        names: StringMap,
-        strings: StringMap,
-        procs: HashMap<Rc<String>, Procedure>) -> Self
-    {
-        Self {
+    fn new(config: &VmConfig, code: Box<[u8]>) -> Result<Self> {
+        const PROC_TABLE_START: usize = 42;
+        const PROC_TABLE_HEADER_LEN: usize = 4;
+        const PROC_ENTRY_LEN: usize = 24;
+
+        if code.len() < PROC_ENTRY_LEN + PROC_TABLE_HEADER_LEN {
+            return Err(Error::BadMetadata("missing procedure table".into()));
+        }
+
+        let proc_count = BigEndian::read_i32(&code[PROC_TABLE_START..]) as usize;
+
+        let name_table_start = PROC_TABLE_START + PROC_TABLE_HEADER_LEN +
+            proc_count * PROC_ENTRY_LEN;
+        debug!("reading name table at 0x{:04x}", name_table_start);
+        let (names, name_table_len_bytes) =
+            Self::read_string_table(&code[name_table_start..])?;
+
+        let string_table_start = name_table_start + name_table_len_bytes;
+        debug!("reading string table at 0x{:04x}", string_table_start);
+        let (strings, _) =
+            Self::read_string_table(&code[string_table_start..])?;
+
+        debug!("reading procedure table at 0x{:04x}", PROC_TABLE_START);
+        let procs = Self::read_proc_table(&code[PROC_TABLE_START..], &names)?;
+
+        Ok(Self {
             code,
             code_pos: 0,
             opcode: None,
@@ -119,6 +138,39 @@ impl VmState {
             names,
             strings,
             procs,
+        })
+    }
+
+    fn run(&mut self, config: &VmConfig, ctx: &mut Context) -> Result<()> {
+        loop {
+            match self.step(config, ctx) {
+                Ok(_) => {},
+                Err(ref e) if matches!(e, Error::Halted) => break Ok(()),
+                Err(e) => break Err(e),
+            }
+        }
+    }
+
+    fn step(&mut self, config: &VmConfig, ctx: &mut Context) -> Result<()> {
+        trace!("code_pos: 0x{:04x}", self.code_pos);
+        let opcode_pos = self.code_pos;
+        let instr = self.next_instruction(config)?;
+        self.opcode = Some((instr.opcode(), opcode_pos));
+        instr.execute(instruction::Context {
+            vm_state: self,
+            ext: ctx,
+        })
+    }
+
+    fn next_instruction(&mut self, config: &VmConfig) -> Result<Instruction> {
+        let opcode = self.get_u16()?;
+        trace!("opcode: 0x{:04x}", opcode);
+        if let Some(&instr) = config.instructions.get(&opcode) {
+            trace!("opcode recognized: {:?}", instr.opcode());
+            self.code_pos += 2;
+            Ok(instr)
+        } else {
+            Err(Error::BadOpcode(opcode))
         }
     }
 
@@ -168,97 +220,6 @@ impl VmState {
     fn global_mut(&mut self, id: usize) -> Result<&mut Value> {
         let base = self.global_base()?;
         self.data_stack.get_mut(base + id as usize)
-    }
-}
-
-pub struct Vm {
-    config: Rc<VmConfig>,
-    state: VmState,
-}
-
-impl Vm {
-    pub fn new(config: Rc<VmConfig>, code: Box<[u8]>) -> Result<Self> {
-        const PROC_TABLE_START: usize = 42;
-        const PROC_TABLE_HEADER_LEN: usize = 4;
-        const PROC_ENTRY_LEN: usize = 24;
-
-        if code.len() < PROC_ENTRY_LEN + PROC_TABLE_HEADER_LEN {
-            return Err(Error::BadMetadata("missing procedure table".into()));
-        }
-
-        let proc_count = BigEndian::read_i32(&code[PROC_TABLE_START..]) as usize;
-
-        let name_table_start = PROC_TABLE_START + PROC_TABLE_HEADER_LEN +
-            proc_count * PROC_ENTRY_LEN;
-        debug!("reading name table at 0x{:04x}", name_table_start);
-        let (names, name_table_len_bytes) =
-            Self::read_string_table(&code[name_table_start..])?;
-
-        let string_table_start = name_table_start + name_table_len_bytes;
-        debug!("reading string table at 0x{:04x}", string_table_start);
-        let (strings, _) =
-            Self::read_string_table(&code[string_table_start..])?;
-
-        debug!("reading procedure table at 0x{:04x}", PROC_TABLE_START);
-        let procs = Self::read_proc_table(&code[PROC_TABLE_START..], &names)?;
-
-        let state = VmState::new(&config, code, names, strings, procs);
-        Ok(Self {
-            config,
-            state,
-        })
-    }
-
-    pub fn state(&self) -> &VmState {
-        &self.state
-    }
-
-    pub fn execute_proc(&mut self, name: &Rc<String>, ctx: &mut Context) -> Result<()> {
-        let proc_pos = self.state.procs.get(name)
-            .ok_or_else(|| Error::BadProcedure(name.clone()))?
-            .body_pos;
-
-        self.state.return_stack.push(Value::Int(self.state.code_pos as i32))?;
-        self.state.return_stack.push(Value::Int(20))?;
-        self.state.data_stack.push(Value::Int(0))?; // flags
-        self.state.data_stack.push(Value::Int(0))?; //unk17_
-        self.state.data_stack.push(Value::Int(0))?; //unk19_
-        self.state.code_pos = proc_pos;
-
-        self.run(ctx)
-    }
-
-    pub fn run(&mut self, ctx: &mut Context) -> Result<()> {
-        loop {
-            match self.step(ctx) {
-                Ok(_) => {},
-                Err(ref e) if matches!(e, Error::Halted) => break Ok(()),
-                Err(e) => break Err(e),
-            }
-        }
-    }
-
-    pub fn step(&mut self, ctx: &mut Context) -> Result<()> {
-        trace!("code_pos: 0x{:04x}", self.state.code_pos);
-        let opcode_pos = self.state.code_pos;
-        let instr = self.next_instruction()?;
-        self.state.opcode = Some((instr.opcode(), opcode_pos));
-        instr.execute(instruction::Context {
-            vm_state: &mut self.state,
-            ext: ctx,
-        })
-    }
-
-    fn next_instruction(&mut self) -> Result<Instruction> {
-        let opcode = self.state.get_u16()?;
-        trace!("opcode: 0x{:04x}", opcode);
-        if let Some(&instr) = self.config.instructions.get(&opcode) {
-            trace!("opcode recognized: {:?}", instr.opcode());
-            self.state.code_pos += 2;
-            Ok(instr)
-        } else {
-            Err(Error::BadOpcode(opcode))
-        }
     }
 
     fn read_string_table(buf: &[u8]) -> Result<(StringMap, usize)> {
@@ -349,4 +310,44 @@ impl Vm {
             _ => Error::BadMetadata(e.to_string().into()),
         })
     }
+}
+
+pub struct Vm {
+    config: VmConfig,
+    state: VmState,
+}
+
+impl Vm {
+    pub fn new(config: VmConfig, code: Box<[u8]>) -> Result<Self> {
+        let state = VmState::new(&config, code)?;
+        Ok(Self {
+            config,
+            state,
+        })
+    }
+
+    pub fn state(&self) -> &VmState {
+        &self.state
+    }
+
+    pub fn execute_proc(&mut self, name: &Rc<String>, ctx: &mut Context) -> Result<()> {
+        let proc_pos = self.state.procs.get(name)
+            .ok_or_else(|| Error::BadProcedure(name.clone()))?
+            .body_pos;
+
+        self.state.return_stack.push(Value::Int(self.state.code_pos as i32))?;
+        self.state.return_stack.push(Value::Int(20))?;
+        self.state.data_stack.push(Value::Int(0))?; // flags
+        self.state.data_stack.push(Value::Int(0))?; //unk17_
+        self.state.data_stack.push(Value::Int(0))?; //unk19_
+        self.state.code_pos = proc_pos;
+
+        self.run(ctx)
+    }
+
+    pub fn run(&mut self, ctx: &mut Context) -> Result<()> {
+        self.state.run(&self.config, ctx)
+    }
+
+
 }
