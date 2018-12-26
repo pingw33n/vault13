@@ -134,8 +134,14 @@ impl Program {
     fn read_string_table(buf: &[u8]) -> Result<(StringMap, usize)> {
         let mut rd = Cursor::new(buf);
         let mut read = || -> io::Result<(StringMap, usize)> {
-            let total_len_bytes = rd.read_u32::<BigEndian>()? as usize + 8;
             let mut r = StringMap::new();
+
+            let total_len_bytes = rd.read_u32::<BigEndian>()? as usize;
+            if total_len_bytes == 0xffff_ffff {
+                return Ok((r, 4));
+            }
+            let total_len_bytes = total_len_bytes + 8;
+
             loop {
                 let len = rd.read_u16::<BigEndian>()? as usize;
                 if len == 0xffff {
