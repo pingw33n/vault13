@@ -47,15 +47,15 @@ enum Metarule3 {
 }
 
 pub fn destroy_object(ctx: Context) -> Result<()> {
-    let obj = ctx.vm_state.data_stack.pop()?.coerce_into_object()?;
-    log_a1!(ctx.vm_state, obj);
-    log_stub!(ctx.vm_state);
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    log_a1!(ctx.prg, obj);
+    log_stub!(ctx.prg);
     Ok(())
 }
 
 pub fn metarule(ctx: Context) -> Result<()> {
-    let value = ctx.vm_state.data_stack.pop()?.into_int()?;
-    let id = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let value = ctx.prg.data_stack.pop()?.into_int()?;
+    let id = ctx.prg.data_stack.pop()?.into_int()?;
 
     use self::Metarule::*;
     let mr = Metarule::from_i32(id);
@@ -91,23 +91,23 @@ pub fn metarule(ctx: Context) -> Result<()> {
         0
     };
 
-    ctx.vm_state.data_stack.push(Value::Int(r))?;
+    ctx.prg.data_stack.push(Value::Int(r))?;
 
     if let Some(mr) = mr {
-        log_a2r1!(ctx.vm_state, mr, value, ctx.vm_state.data_stack.top().unwrap());
+        log_a2r1!(ctx.prg, mr, value, ctx.prg.data_stack.top().unwrap());
     } else {
-        log_a2r1!(ctx.vm_state, id, value, ctx.vm_state.data_stack.top().unwrap());
+        log_a2r1!(ctx.prg, id, value, ctx.prg.data_stack.top().unwrap());
     }
-    log_stub!(ctx.vm_state);
+    log_stub!(ctx.prg);
 
     Ok(())
 }
 
 pub fn metarule3(ctx: Context) -> Result<()> {
-    let v3 = ctx.vm_state.data_stack.pop()?;
-    let v2 = ctx.vm_state.data_stack.pop()?;
-    let v1 = ctx.vm_state.data_stack.pop()?;
-    let id = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let v3 = ctx.prg.data_stack.pop()?;
+    let v2 = ctx.prg.data_stack.pop()?;
+    let v1 = ctx.prg.data_stack.pop()?;
+    let id = ctx.prg.data_stack.pop()?.into_int()?;
 
     use self::Metarule3::*;
     let mr = Metarule3::from_i32(id);
@@ -131,43 +131,43 @@ pub fn metarule3(ctx: Context) -> Result<()> {
         0
     };
 
-    ctx.vm_state.data_stack.push(Value::Int(r))?;
+    ctx.prg.data_stack.push(Value::Int(r))?;
 
     if let Some(mr) = mr {
-        log_a4r1!(ctx.vm_state, mr, v1, v2, v3, ctx.vm_state.data_stack.top().unwrap());
+        log_a4r1!(ctx.prg, mr, v1, v2, v3, ctx.prg.data_stack.top().unwrap());
     } else {
-        log_a4r1!(ctx.vm_state, id, v1, v2, v3, ctx.vm_state.data_stack.top().unwrap());
+        log_a4r1!(ctx.prg, id, v1, v2, v3, ctx.prg.data_stack.top().unwrap());
     }
-    log_stub!(ctx.vm_state);
+    log_stub!(ctx.prg);
 
     Ok(())
 }
 
 pub fn set_light_level(ctx: Context) -> Result<()> {
-    let v = ctx.vm_state.data_stack.pop()?.into_int()?;
-    log_a1!(ctx.vm_state, v);
-    log_stub!(ctx.vm_state);
+    let v = ctx.prg.data_stack.pop()?.into_int()?;
+    log_a1!(ctx.prg, v);
+    log_stub!(ctx.prg);
     Ok(())
 }
 
 pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
-    let pid = ctx.vm_state.data_stack.pop()?.into_int()?;
-    let elevation = ctx.vm_state.data_stack.pop()?.into_int()?;
-    let tile_num = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let pid = ctx.prg.data_stack.pop()?.into_int()?;
+    let elevation = ctx.prg.data_stack.pop()?.into_int()?;
+    let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
 
     let r = false;
-    ctx.vm_state.data_stack.push(r.into())?;
+    ctx.prg.data_stack.push(r.into())?;
 
-    log_a3r1!(ctx.vm_state, tile_num, elevation, pid, ctx.vm_state.data_stack.top().unwrap());
-    log_stub!(ctx.vm_state);
+    log_a3r1!(ctx.prg, tile_num, elevation, pid, ctx.prg.data_stack.top().unwrap());
+    log_stub!(ctx.prg);
 
     Ok(())
 }
 
 pub fn tile_num_in_direction(ctx: Context) -> Result<()> {
-    let distance = ctx.vm_state.data_stack.pop()?.into_int()?;
-    let direction = ctx.vm_state.data_stack.pop()?.into_int()?;
-    let tile_num = ctx.vm_state.data_stack.pop()?.into_int()?;
+    let distance = ctx.prg.data_stack.pop()?.into_int()?;
+    let direction = ctx.prg.data_stack.pop()?.into_int()?;
+    let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
 
     // FIXME clean up this, better validate
     use ::graphics::geometry::hex::{Direction, TileGrid};
@@ -176,9 +176,9 @@ pub fn tile_num_in_direction(ctx: Context) -> Result<()> {
     let r = hex.go(p, Direction::from_i32(direction).unwrap(), distance as u32)
         .map(|p| hex.to_linear_inv(p).unwrap() as i32)
         .unwrap_or(-1);
-    ctx.vm_state.data_stack.push(Value::Int(r))?;
+    ctx.prg.data_stack.push(Value::Int(r))?;
 
-    log_a3r1!(ctx.vm_state, tile_num, direction, distance, ctx.vm_state.data_stack.top().unwrap());
+    log_a3r1!(ctx.prg, tile_num, direction, distance, ctx.prg.data_stack.top().unwrap());
 
     Ok(())
 }

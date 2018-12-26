@@ -178,7 +178,7 @@ impl Program {
         let instr = self.next_instruction()?;
         self.opcode = Some((instr.opcode(), opcode_pos));
         instr.execute(instruction::Context {
-            vm_state: self,
+            prg: self,
             ext: ctx,
         })
     }
