@@ -647,26 +647,32 @@ mod test {
             assert_eq!(right.clone().bwxor(left.clone()), bwxor,
                 "{:?} {:?} {:?}", right, left, bwxor);
         }
+    }
 
-        #[test]
-        fn bitwise_unary() {
-            let mut d = vec![
-                (Int(0b11100), Ok(-29)),
-                (Int(-256), Ok(0xff)),
-                (String(Indirect(12345678)), Err(Error::BadValue(BadValue::Type))),
-            ];
-            fill_bad_type_unary_variants(&mut d, 0);
+    #[test]
+    fn bitwise_unary() {
+        let mut d = vec![
+            (Int(0b11100), Ok(-29)),
+            (Int(-256), Ok(0xff)),
+            (String(Indirect(12345678)), Err(Error::BadValue(BadValue::Type))),
+        ];
+        for i in 0..d.len() {
+            let (v, exp) = d[i].clone();
+            if let Int(v) = v {
+                d.push((Value::Float(v as f32), exp));
+            }
+        }
+        fill_bad_type_unary_variants(&mut d, 0);
 
-            for (v, exp) in d {
-                let exp = exp.clone().map(|v| v.into());
-                assert_eq!(v.clone().bwnot(), exp.clone(),
-                    "{:?} {:?}", v, exp);
+        for (v, exp) in d {
+            let exp = exp.clone().map(|v| v.into());
+            assert_eq!(v.clone().bwnot(), exp.clone(),
+                "{:?} {:?}", v, exp);
 
-                if let Ok(exp) = exp {
-                    let new_exp = Ok(Value::Int(v.clone().coerce_into_int().unwrap()));
-                    assert_eq!(exp.clone().bwnot(), new_exp.clone(),
-                        "{:?} {:?}", exp, new_exp);
-                }
+            if let Ok(exp) = exp {
+                let new_exp = Ok(Value::Int(v.clone().coerce_into_int().unwrap()));
+                assert_eq!(exp.clone().bwnot(), new_exp.clone(),
+                    "{:?} {:?}", exp, new_exp);
             }
         }
     }
