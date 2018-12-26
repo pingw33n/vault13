@@ -5,6 +5,7 @@ mod value;
 
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use enumflags::BitFlags;
+use slotmap::{DefaultKey, SecondaryMap, SlotMap};
 use std::collections::HashMap;
 use std::io::{self, Cursor};
 use std::result::{Result as StdResult};
@@ -87,7 +88,8 @@ pub struct Procedure {
     arg_count: usize,
 }
 
-pub struct VmState {
+pub struct Program {
+    config: Rc<VmConfig>,
     code: Box<[u8]>,
     code_pos: usize,
     opcode: Option<(Opcode, usize)>,
@@ -101,8 +103,8 @@ pub struct VmState {
     pub procs: HashMap<Rc<String>, Procedure>,
 }
 
-impl VmState {
-    fn new(config: &VmConfig, code: Box<[u8]>) -> Result<Self> {
+impl Program {
+    fn new(config: Rc<VmConfig>, code: Box<[u8]>) -> Result<Self> {
         const PROC_TABLE_START: usize = 42;
         const PROC_TABLE_HEADER_LEN: usize = 4;
         const PROC_ENTRY_LEN: usize = 24;
@@ -127,12 +129,16 @@ impl VmState {
         debug!("reading procedure table at 0x{:04x}", PROC_TABLE_START);
         let procs = Self::read_proc_table(&code[PROC_TABLE_START..], &names)?;
 
+        let data_stack = Stack::new(config.max_stack_len);
+        let return_stack = Stack::new(config.max_stack_len);
+
         Ok(Self {
+            config,
             code,
             code_pos: 0,
             opcode: None,
-            data_stack: Stack::new(config.max_stack_len),
-            return_stack: Stack::new(config.max_stack_len),
+            data_stack,
+            return_stack,
             base: -1,
             global_base: None,
             names,
@@ -141,9 +147,9 @@ impl VmState {
         })
     }
 
-    fn run(&mut self, config: &VmConfig, ctx: &mut Context) -> Result<()> {
+    fn run(&mut self, ctx: &mut Context) -> Result<()> {
         loop {
-            match self.step(config, ctx) {
+            match self.step(ctx) {
                 Ok(_) => {},
                 Err(ref e) if matches!(e, Error::Halted) => break Ok(()),
                 Err(e) => break Err(e),
@@ -151,10 +157,25 @@ impl VmState {
         }
     }
 
-    fn step(&mut self, config: &VmConfig, ctx: &mut Context) -> Result<()> {
+    pub fn execute_proc(&mut self, name: &Rc<String>, ctx: &mut Context) -> Result<()> {
+        let proc_pos = self.procs.get(name)
+            .ok_or_else(|| Error::BadProcedure(name.clone()))?
+            .body_pos;
+
+        self.return_stack.push(Value::Int(self.code_pos as i32))?;
+        self.return_stack.push(Value::Int(20))?;
+        self.data_stack.push(Value::Int(0))?; // flags
+        self.data_stack.push(Value::Int(0))?; //unk17_
+        self.data_stack.push(Value::Int(0))?; //unk19_
+        self.code_pos = proc_pos;
+
+        self.run(ctx)
+    }
+
+    fn step(&mut self, ctx: &mut Context) -> Result<()> {
         trace!("code_pos: 0x{:04x}", self.code_pos);
         let opcode_pos = self.code_pos;
-        let instr = self.next_instruction(config)?;
+        let instr = self.next_instruction()?;
         self.opcode = Some((instr.opcode(), opcode_pos));
         instr.execute(instruction::Context {
             vm_state: self,
@@ -162,10 +183,10 @@ impl VmState {
         })
     }
 
-    fn next_instruction(&mut self, config: &VmConfig) -> Result<Instruction> {
+    fn next_instruction(&mut self) -> Result<Instruction> {
         let opcode = self.get_u16()?;
         trace!("opcode: 0x{:04x}", opcode);
-        if let Some(&instr) = config.instructions.get(&opcode) {
+        if let Some(&instr) = self.config.instructions.get(&opcode) {
             trace!("opcode recognized: {:?}", instr.opcode());
             self.code_pos += 2;
             Ok(instr)
@@ -312,42 +333,48 @@ impl VmState {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Handle(DefaultKey);
+
 pub struct Vm {
-    config: VmConfig,
-    state: VmState,
+    config: Rc<VmConfig>,
+    program_handles: SlotMap<DefaultKey, ()>,
+    programs: SecondaryMap<DefaultKey, Program>,
 }
 
 impl Vm {
-    pub fn new(config: VmConfig, code: Box<[u8]>) -> Result<Self> {
-        let state = VmState::new(&config, code)?;
-        Ok(Self {
+    pub fn new(config: Rc<VmConfig>) -> Self {
+        Self {
             config,
-            state,
-        })
+            program_handles: SlotMap::new(),
+            programs: SecondaryMap::new(),
+        }
     }
 
-    pub fn state(&self) -> &VmState {
-        &self.state
+    pub fn new_program(&mut self, code: Box<[u8]>) -> Result<Handle> {
+        let program = Program::new(self.config.clone(), code)?;
+        let k = self.program_handles.insert(());
+        self.programs.insert(k, program);
+        Ok(Handle(k))
     }
 
-    pub fn execute_proc(&mut self, name: &Rc<String>, ctx: &mut Context) -> Result<()> {
-        let proc_pos = self.state.procs.get(name)
-            .ok_or_else(|| Error::BadProcedure(name.clone()))?
-            .body_pos;
-
-        self.state.return_stack.push(Value::Int(self.state.code_pos as i32))?;
-        self.state.return_stack.push(Value::Int(20))?;
-        self.state.data_stack.push(Value::Int(0))?; // flags
-        self.state.data_stack.push(Value::Int(0))?; //unk17_
-        self.state.data_stack.push(Value::Int(0))?; //unk19_
-        self.state.code_pos = proc_pos;
-
-        self.run(ctx)
+    pub fn run(&mut self, program: &Handle, ctx: &mut Context) -> Result<()> {
+       self.program(program).run(ctx)
     }
 
-    pub fn run(&mut self, ctx: &mut Context) -> Result<()> {
-        self.state.run(&self.config, ctx)
+    pub fn execute_proc(&mut self, program: &Handle, name: &Rc<String>, ctx: &mut Context)
+            -> Result<()> {
+        self.program(program).execute_proc(name, ctx)
     }
 
+    fn program(&mut self, program: &Handle) -> &mut Program {
+         self.programs.get_mut(program.0)
+            .expect("invalid program handle")
+    }
+}
 
+impl Default for Vm {
+    fn default() -> Self {
+        Self::new(Default::default())
+    }
 }
