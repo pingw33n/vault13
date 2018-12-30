@@ -51,6 +51,10 @@ impl Move {
             .with_anim(self.anim)
             .into();
 
+        if self.state == State::Started {
+            obj.frame_idx = 0;
+        }
+
         self.frame_len = Duration::from_millis(1000 / world.frm_db().get(obj.fid).fps as u64);
     }
 }
