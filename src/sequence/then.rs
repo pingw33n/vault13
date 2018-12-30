@@ -6,10 +6,10 @@ pub struct Then<U, V> {
 }
 
 impl<U: Sequence, V: Sequence> Then<U, V> {
-    pub(in super::super) fn new(seq: U, always_seq: V) -> Self {
+    pub(in super::super) fn new(first: U, second: V) -> Self {
         Self {
-            first: Some(seq),
-            second: always_seq,
+            first: Some(first),
+            second,
         }
     }
 }
