@@ -1,4 +1,3 @@
-use game::sequence::Sequence;
 use super::*;
 
 pub struct Then<U, V> {
