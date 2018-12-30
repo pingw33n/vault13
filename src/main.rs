@@ -48,7 +48,7 @@ use game::object::Inventory;
 use graphics::Rect;
 use game::world::World;
 use util::two_dim_array::Array2d;
-use game::sequence::{Sequence, Sequencer};
+use game::sequence::{self, Sequence, Sequencer};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
@@ -391,7 +391,10 @@ fn main() {
 
         let now = Instant::now();
 
-        sequencer.update(now, &mut world);
+        sequencer.update(&mut sequence::Context {
+            time: now,
+            world: &mut world
+        });
 
         canvas.update(now);
 

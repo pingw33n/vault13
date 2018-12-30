@@ -1,9 +1,7 @@
 use std::cell::RefCell;
-use std::time::Instant;
 use std::rc::Rc;
 
 use game::sequence::Sequence;
-use game::world::World;
 use super::*;
 
 struct Inner {
@@ -92,10 +90,10 @@ impl Chain {
 }
 
 impl Sequence for Chain {
-    fn update(&mut self, time: Instant, world: &mut World) -> Result {
+    fn update(&mut self, ctx: &mut Context) -> Result {
         self.control.apply(&mut self.sequences);
         loop {
-            let r = match self.sequences.first_mut().map(|seq| seq.update(time, world)) {
+            let r = match self.sequences.first_mut().map(|seq| seq.update(ctx)) {
                 Some(r @ Result::Running(_)) => r,
                 Some(r @ Result::Done(_))
                 => {

@@ -1,7 +1,4 @@
-use std::time::Instant;
-
 use game::sequence::Sequence;
-use game::world::World;
 use super::*;
 
 pub struct Then<U, V> {
@@ -19,10 +16,10 @@ impl<U: Sequence, V: Sequence> Then<U, V> {
 }
 
 impl<U: Sequence, V: Sequence> Sequence for Then<U, V> {
-    fn update(&mut self, time: Instant, world: &mut World) -> Result {
+    fn update(&mut self, ctx: &mut Context) -> Result {
         loop {
             break if self.first.is_some() {
-                let r = self.first.as_mut().unwrap().update(time, world);
+                let r = self.first.as_mut().unwrap().update(ctx);
                 match r {
                     Result::Done(d) => {
                         self.first = None;
@@ -34,7 +31,7 @@ impl<U: Sequence, V: Sequence> Sequence for Then<U, V> {
                     _ => r,
                 }
             } else {
-                self.second.update(time, world)
+                self.second.update(ctx)
             };
         }
     }

@@ -57,14 +57,14 @@ impl Move {
 
 impl Sequence for Move {
     // object_move()
-    fn update(&mut self, time: Instant, world: &mut World) -> Result {
+    fn update(&mut self, ctx: &mut Context) -> Result {
         match self.state {
             State::Started => {
-                self.init_step(world);
-                world.objects_mut().reset_screen_shift(&self.obj);
+                self.init_step(ctx.world);
+                ctx.world.objects_mut().reset_screen_shift(&self.obj);
             },
             State::Running(last_time) => {
-                if time - last_time < self.frame_len {
+                if ctx.time - last_time < self.frame_len {
                     return Result::Running(Running::NotLagging);
                 }
             }
@@ -73,9 +73,9 @@ impl Sequence for Move {
 
         let new_obj_pos_and_shift = {
             let (shift, pos) = {
-                let mut obj = world.objects().get(&self.obj).borrow_mut();
+                let mut obj = ctx.world.objects().get(&self.obj).borrow_mut();
 
-                let frame_set = world.frm_db().get(obj.fid);
+                let frame_set = ctx.world.frm_db().get(obj.fid);
                 let frames = &frame_set.frame_lists[obj.direction].frames;
 
                 if self.state != State::Started {
@@ -87,7 +87,7 @@ impl Sequence for Move {
 
                 (frames[obj.frame_idx].shift, obj.pos())
             };
-            let shift = world.objects_mut().add_screen_shift(&self.obj, shift);
+            let shift = ctx.world.objects_mut().add_screen_shift(&self.obj, shift);
 
             let dir = self.path[self.path_pos];
             let next_hex_offset = hex::screen_offset(dir);
@@ -96,35 +96,35 @@ impl Sequence for Move {
                     || next_hex_offset.y != 0
                     && shift.y.abs() >= next_hex_offset.y.abs() {
                 let shift = {
-                    let obj = world.objects().get(&self.obj).borrow();
+                    let obj = ctx.world.objects().get(&self.obj).borrow();
                     obj.screen_shift() - next_hex_offset
                 };
                 let pos = pos.unwrap();
-                let pos_point = world.map_grid().hex().go(pos.point, dir, 1).unwrap();
+                let pos_point = ctx.world.map_grid().hex().go(pos.point, dir, 1).unwrap();
                 Some((ElevatedPoint::new(pos.elevation, pos_point), shift))
             } else {
                 None
             }
         };
         if let Some((pos, shift)) = new_obj_pos_and_shift {
-            world.set_object_pos(&self.obj, pos);
+            ctx.world.set_object_pos(&self.obj, pos);
 
             self.path_pos += 1;
             if self.path_pos >= self.path.len() {
                 self.state = State::Done;
                 return Result::Done(Done::AdvanceLater);
             }
-            world.objects_mut().add_screen_shift(&self.obj, shift);
-            self.init_step(world);
+            ctx.world.objects_mut().add_screen_shift(&self.obj, shift);
+            self.init_step(ctx.world);
         }
         let new_last_time = if let State::Running(last_time) = self.state {
             last_time + self.frame_len
         } else {
-            time
+            ctx.time
         };
         self.state = State::Running(new_last_time);
 
-        Result::Running(if time - new_last_time < self.frame_len {
+        Result::Running(if ctx.time - new_last_time < self.frame_len {
             Running::NotLagging
         } else {
             Running::Lagging

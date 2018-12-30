@@ -1,8 +1,6 @@
 use std::cell::Cell;
-use std::time::Instant;
 use std::rc::Rc;
 
-use game::world::World;
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -38,11 +36,11 @@ impl<T: Sequence> Cancellable<T> {
 }
 
 impl<T: Sequence> Sequence for Cancellable<T> {
-    fn update(&mut self, time: Instant, world: &mut World) -> Result {
+    fn update(&mut self, ctx: &mut Context) -> Result {
         if self.cancel.is_cancelled() {
             Result::Done(Done::AdvanceNow)
         } else {
-            self.sequence.update(time, world)
+            self.sequence.update(ctx)
         }
     }
 }

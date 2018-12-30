@@ -14,8 +14,8 @@ impl Stand {
 }
 
 impl Sequence for Stand {
-    fn update(&mut self, _time: Instant, world: &mut World) -> Result {
-        world.make_object_standing(&self.obj);
+    fn update(&mut self, ctx: &mut Context) -> Result {
+        ctx.world.make_object_standing(&self.obj);
         Result::Done(Done::AdvanceLater)
     }
 }

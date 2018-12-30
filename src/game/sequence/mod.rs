@@ -35,8 +35,13 @@ pub enum Result {
     Done(Done),
 }
 
+pub struct Context<'a> {
+    pub time: Instant,
+    pub world: &'a mut World,
+}
+
 pub trait Sequence {
-    fn update(&mut self, time: Instant, world: &mut World) -> Result;
+    fn update(&mut self, ctx: &mut Context) -> Result;
 
     fn then<T: Sequence>(self, seq: T) -> then::Then<Self, T>
         where Self: Sized
@@ -52,8 +57,8 @@ pub trait Sequence {
 }
 
 impl<T: Sequence + ?Sized> Sequence for Box<T> {
-    fn update(&mut self, time: Instant, world: &mut World) -> Result {
-        (**self).update(time, world)
+    fn update(&mut self, ctx: &mut Context) -> Result {
+        (**self).update(ctx)
     }
 }
 
@@ -80,12 +85,12 @@ impl Sequencer {
         self.sequences.clear();
     }
 
-    pub fn update(&mut self, time: Instant, world: &mut World) {
+    pub fn update(&mut self, ctx: &mut Context) {
         let mut i = 0;
         while i < self.sequences.len() {
             let done = {
                 let seq = &mut self.sequences[i];
-                update_while_lagging(seq, time, world) == NoLagResult::Done
+                update_while_lagging(seq, ctx) == NoLagResult::Done
             };
             if done {
                 self.sequences.swap_remove(i);
@@ -102,9 +107,9 @@ enum NoLagResult {
     Done,
 }
 
-fn update_while_lagging(mut seq: impl AsMut<Sequence>, time: Instant, world: &mut World) -> NoLagResult {
+fn update_while_lagging(mut seq: impl AsMut<Sequence>, ctx: &mut Context) -> NoLagResult {
     loop {
-        break match seq.as_mut().update(time, world) {
+        break match seq.as_mut().update(ctx) {
             Result::Running(Running::Lagging) => continue,
             Result::Running(Running::NotLagging) => NoLagResult::Running,
             Result::Done(_) => NoLagResult::Done,
