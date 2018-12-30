@@ -1,5 +1,8 @@
 pub mod cancellable;
 pub mod chain;
+pub mod noop;
+pub mod repeat;
+pub mod sleep;
 pub mod then;
 
 use std::time::Instant;
