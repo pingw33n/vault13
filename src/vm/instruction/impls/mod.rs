@@ -15,8 +15,8 @@ fn binary_op(ctx: Context, f: impl FnOnce(Value, Value, &Context) -> Result<Valu
     let r = f(left.clone(), right.clone(), &ctx)?;
     ctx.prg.data_stack.push(r)?;
     log_a2r1!(ctx.prg,
-        left.resolved(&ctx.prg.strings).unwrap(),
-        right.resolved(&ctx.prg.strings).unwrap(),
+        left.resolved(&ctx.prg.strings()).unwrap(),
+        right.resolved(&ctx.prg.strings()).unwrap(),
         ctx.prg.data_stack.top().unwrap());
     Ok(())
 }

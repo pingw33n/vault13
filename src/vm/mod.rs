@@ -91,16 +91,9 @@ pub struct Procedure {
 pub struct Program {
     config: Rc<VmConfig>,
     code: Box<[u8]>,
-    code_pos: usize,
-    opcode: Option<(Opcode, usize)>,
-    pub data_stack: Stack,
-    pub return_stack: Stack,
-    // FIXME check if this an Option
-    base: isize,
-    global_base: Option<usize>,
     names: StringMap,
     strings: StringMap,
-    pub procs: HashMap<Rc<String>, Procedure>,
+    procs: HashMap<Rc<String>, Procedure>,
 }
 
 impl Program {
@@ -129,118 +122,13 @@ impl Program {
         debug!("reading procedure table at 0x{:04x}", PROC_TABLE_START);
         let procs = Self::read_proc_table(&code[PROC_TABLE_START..], &names)?;
 
-        let data_stack = Stack::new(config.max_stack_len);
-        let return_stack = Stack::new(config.max_stack_len);
-
         Ok(Self {
             config,
             code,
-            code_pos: 0,
-            opcode: None,
-            data_stack,
-            return_stack,
-            base: -1,
-            global_base: None,
             names,
             strings,
             procs,
         })
-    }
-
-    fn run(&mut self, ctx: &mut Context) -> Result<()> {
-        loop {
-            match self.step(ctx) {
-                Ok(_) => {},
-                Err(ref e) if matches!(e, Error::Halted) => break Ok(()),
-                Err(e) => break Err(e),
-            }
-        }
-    }
-
-    pub fn execute_proc(&mut self, name: &Rc<String>, ctx: &mut Context) -> Result<()> {
-        let proc_pos = self.procs.get(name)
-            .ok_or_else(|| Error::BadProcedure(name.clone()))?
-            .body_pos;
-
-        self.return_stack.push(Value::Int(self.code_pos as i32))?;
-        self.return_stack.push(Value::Int(20))?;
-        self.data_stack.push(Value::Int(0))?; // flags
-        self.data_stack.push(Value::Int(0))?; //unk17_
-        self.data_stack.push(Value::Int(0))?; //unk19_
-        self.code_pos = proc_pos;
-
-        self.run(ctx)
-    }
-
-    fn step(&mut self, ctx: &mut Context) -> Result<()> {
-        trace!("code_pos: 0x{:04x}", self.code_pos);
-        let opcode_pos = self.code_pos;
-        let instr = self.next_instruction()?;
-        self.opcode = Some((instr.opcode(), opcode_pos));
-        instr.execute(instruction::Context {
-            prg: self,
-            ext: ctx,
-        })
-    }
-
-    fn next_instruction(&mut self) -> Result<Instruction> {
-        let opcode = self.get_u16()?;
-        trace!("opcode: 0x{:04x}", opcode);
-        if let Some(&instr) = self.config.instructions.get(&opcode) {
-            trace!("opcode recognized: {:?}", instr.opcode());
-            self.code_pos += 2;
-            Ok(instr)
-        } else {
-            Err(Error::BadOpcode(opcode))
-        }
-    }
-
-    fn get_u16(&mut self) -> Result<u16> {
-        if self.code_pos + 2 <= self.code.len() {
-            Ok(BigEndian::read_u16(&self.code[self.code_pos..]))
-        } else {
-            Err(Error::UnexpectedEof)
-        }
-    }
-
-    fn get_i32(&mut self) -> Result<i32> {
-        if self.code_pos + 4 <= self.code.len() {
-            Ok(BigEndian::read_i32(&self.code[self.code_pos..]))
-        } else {
-            Err(Error::UnexpectedEof)
-        }
-    }
-
-    fn next_i32(&mut self) -> Result<i32> {
-        let r =  self.get_i32();
-        if r.is_ok() {
-            self.code_pos += 4
-        }
-        r
-    }
-
-    fn jump(&mut self, pos: i32) -> Result<()> {
-        if pos >= 0 && pos + Opcode::SIZE as i32 <= self.code.len() as i32 {
-            self.code_pos = pos as usize;
-            Ok(())
-        } else {
-            Err(Error::BadValue(BadValue::Content))
-        }
-    }
-
-    fn global_base(&self) -> Result<usize> {
-        self.global_base
-            .ok_or_else(|| Error::BadState("no global_base set".into()))
-    }
-
-    fn global(&self, id: usize) -> Result<&Value> {
-        let base = self.global_base()?;
-        self.data_stack.get(base + id as usize)
-    }
-
-    fn global_mut(&mut self, id: usize) -> Result<&mut Value> {
-        let base = self.global_base()?;
-        self.data_stack.get_mut(base + id as usize)
     }
 
     fn read_string_table(buf: &[u8]) -> Result<(StringMap, usize)> {
@@ -333,13 +221,149 @@ impl Program {
     }
 }
 
+pub struct ProgramState {
+    program: Rc<Program>,
+    code_pos: usize,
+    opcode: Option<(Opcode, usize)>,
+    pub data_stack: Stack,
+    pub return_stack: Stack,
+    // FIXME check if this an Option
+    base: isize,
+    global_base: Option<usize>,
+}
+
+impl ProgramState {
+    fn new(program: Rc<Program>) -> Self {
+        let data_stack = Stack::new(program.config.max_stack_len);
+        let return_stack = Stack::new(program.config.max_stack_len);
+
+        Self {
+            program,
+            code_pos: 0,
+            opcode: None,
+            data_stack,
+            return_stack,
+            base: -1,
+            global_base: None,
+        }
+    }
+
+    fn code(&self) -> &[u8] {
+        &self.program.code
+    }
+
+    fn names(&self) -> &StringMap {
+        &self.program.names
+    }
+
+    fn strings(&self) -> &StringMap {
+        &self.program.strings
+    }
+
+    fn run(&mut self, ctx: &mut Context) -> Result<()> {
+        loop {
+            match self.step(ctx) {
+                Ok(_) => {},
+                Err(ref e) if matches!(e, Error::Halted) => break Ok(()),
+                Err(e) => break Err(e),
+            }
+        }
+    }
+
+    pub fn execute_proc(&mut self, name: &Rc<String>, ctx: &mut Context) -> Result<()> {
+        let proc_pos = self.program.procs.get(name)
+            .ok_or_else(|| Error::BadProcedure(name.clone()))?
+            .body_pos;
+
+        self.return_stack.push(Value::Int(self.code_pos as i32))?;
+        self.return_stack.push(Value::Int(20))?;
+        self.data_stack.push(Value::Int(0))?; // flags
+        self.data_stack.push(Value::Int(0))?; //unk17_
+        self.data_stack.push(Value::Int(0))?; //unk19_
+        self.code_pos = proc_pos;
+
+        self.run(ctx)
+    }
+
+    fn step(&mut self, ctx: &mut Context) -> Result<()> {
+        trace!("code_pos: 0x{:04x}", self.code_pos);
+        let opcode_pos = self.code_pos;
+        let instr = self.next_instruction()?;
+        self.opcode = Some((instr.opcode(), opcode_pos));
+        instr.execute(instruction::Context {
+            prg: self,
+            ext: ctx,
+        })
+    }
+
+    fn next_instruction(&mut self) -> Result<Instruction> {
+        let opcode = self.get_u16()?;
+        trace!("opcode: 0x{:04x}", opcode);
+        if let Some(&instr) = self.program.config.instructions.get(&opcode) {
+            trace!("opcode recognized: {:?}", instr.opcode());
+            self.code_pos += 2;
+            Ok(instr)
+        } else {
+            Err(Error::BadOpcode(opcode))
+        }
+    }
+
+    fn get_u16(&mut self) -> Result<u16> {
+        if self.code_pos + 2 <= self.code().len() {
+            Ok(BigEndian::read_u16(&self.code()[self.code_pos..]))
+        } else {
+            Err(Error::UnexpectedEof)
+        }
+    }
+
+    fn get_i32(&mut self) -> Result<i32> {
+        if self.code_pos + 4 <= self.code().len() {
+            Ok(BigEndian::read_i32(&self.code()[self.code_pos..]))
+        } else {
+            Err(Error::UnexpectedEof)
+        }
+    }
+
+    fn next_i32(&mut self) -> Result<i32> {
+        let r =  self.get_i32();
+        if r.is_ok() {
+            self.code_pos += 4
+        }
+        r
+    }
+
+    fn jump(&mut self, pos: i32) -> Result<()> {
+        if pos >= 0 && pos + Opcode::SIZE as i32 <= self.code().len() as i32 {
+            self.code_pos = pos as usize;
+            Ok(())
+        } else {
+            Err(Error::BadValue(BadValue::Content))
+        }
+    }
+
+    fn global_base(&self) -> Result<usize> {
+        self.global_base
+            .ok_or_else(|| Error::BadState("no global_base set".into()))
+    }
+
+    fn global(&self, id: usize) -> Result<&Value> {
+        let base = self.global_base()?;
+        self.data_stack.get(base + id as usize)
+    }
+
+    fn global_mut(&mut self, id: usize) -> Result<&mut Value> {
+        let base = self.global_base()?;
+        self.data_stack.get_mut(base + id as usize)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Handle(DefaultKey);
 
 pub struct Vm {
     config: Rc<VmConfig>,
     program_handles: SlotMap<DefaultKey, ()>,
-    programs: SecondaryMap<DefaultKey, Program>,
+    programs: SecondaryMap<DefaultKey, ProgramState>,
 }
 
 impl Vm {
@@ -351,11 +375,15 @@ impl Vm {
         }
     }
 
-    pub fn new_program(&mut self, code: Box<[u8]>) -> Result<Handle> {
-        let program = Program::new(self.config.clone(), code)?;
+    pub fn load_program(&self, code: Box<[u8]>) -> Result<Program> {
+        Program::new(self.config.clone(), code)
+    }
+
+    pub fn insert_program(&mut self, program: Rc<Program>) -> Handle {
+        let program_state = ProgramState::new(program);
         let k = self.program_handles.insert(());
-        self.programs.insert(k, program);
-        Ok(Handle(k))
+        self.programs.insert(k, program_state);
+        Handle(k)
     }
 
     pub fn run(&mut self, program: &Handle, ctx: &mut Context) -> Result<()> {
@@ -367,7 +395,7 @@ impl Vm {
         self.program(program).execute_proc(name, ctx)
     }
 
-    fn program(&mut self, program: &Handle) -> &mut Program {
+    fn program(&mut self, program: &Handle) -> &mut ProgramState {
          self.programs.get_mut(program.0)
             .expect("invalid program handle")
     }

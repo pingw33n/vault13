@@ -4,13 +4,13 @@ use super::*;
 
 fn cmp_test(ctx: Context, f: impl FnOnce(Option<Ordering>) -> bool) -> Result<()> {
     binary_op(ctx, |l, r, ctx| {
-        let r = f(l.partial_cmp(&r, &ctx.prg.strings)?);
+        let r = f(l.partial_cmp(&r, &ctx.prg.strings())?);
         Ok(r.into())
     })
 }
 
 pub fn add(ctx: Context) -> Result<()> {
-    binary_op(ctx, |l, r, ctx| l.add(r, &ctx.prg.strings))
+    binary_op(ctx, |l, r, ctx| l.add(r, &ctx.prg.strings()))
 }
 
 pub fn and(ctx: Context) -> Result<()> {
@@ -59,7 +59,7 @@ pub fn const_string(ctx: Context) -> Result<()> {
 }
 
 pub fn debug_msg(ctx: Context) -> Result<()> {
-    let s = ctx.prg.data_stack.pop()?.into_string(&ctx.prg.strings)?;
+    let s = ctx.prg.data_stack.pop()?.into_string(&ctx.prg.strings())?;
     log_a1!(ctx.prg, s);
     info!(target: "vault13::vm::debug", "{}", s);
     Ok(())
@@ -91,7 +91,7 @@ pub fn exit_prog(ctx: Context) -> Result<()> {
 
 pub fn export_var(ctx: Context) -> Result<()> {
     let name = ctx.prg.data_stack.pop()?;
-    let name = name.into_string(&ctx.prg.names)?;
+    let name = name.into_string(&ctx.prg.names())?;
     if !ctx.ext.external_vars.contains_key(&name) {
         log_a1!(ctx.prg, &name);
         ctx.ext.external_vars.insert(name, None);
@@ -253,7 +253,7 @@ pub fn store_global(ctx: Context) -> Result<()> {
 pub fn store_external(ctx: Context) -> Result<()> {
     let name = ctx.prg.data_stack.pop()?;
     let value = ctx.prg.data_stack.pop()?;
-    let name = name.into_string(&ctx.prg.names)?;
+    let name = name.into_string(&ctx.prg.names())?;
     let v = ctx.ext.external_vars.get_mut(&name)
         .ok_or_else(|| Error::Misc(format!("external variable `{}` doesn't exist", name).into()))?;
     *v = Some(value);

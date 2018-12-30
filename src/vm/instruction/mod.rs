@@ -3,7 +3,7 @@ mod impls;
 use super::*;
 
 pub struct Context<'a, 'b> {
-    pub prg: &'a mut Program,
+    pub prg: &'a mut ProgramState,
     pub ext: &'a mut super::Context<'b>,
 }
 
