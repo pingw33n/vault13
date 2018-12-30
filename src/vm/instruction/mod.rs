@@ -574,7 +574,7 @@ pub(in super) mod instructions {
         i!(Or,                          or),
         i!(OverrideMapStart,            unimplemented),
         i!(PartyAdd,                    unimplemented),
-        i!(PartyMemberObj,              unimplemented),
+        i!(PartyMemberObj,              party_member_obj),
         i!(PartyRemove,                 unimplemented),
         i!(PickupObj,                   unimplemented),
         i!(PlayGmovie,                  unimplemented),

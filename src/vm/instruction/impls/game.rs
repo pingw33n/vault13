@@ -143,6 +143,15 @@ pub fn metarule3(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn party_member_obj(ctx: Context) -> Result<()> {
+    let pid = ctx.prg.data_stack.pop()?.into_int()?;
+    let r = Value::Object(None);
+    ctx.prg.data_stack.push(r)?;
+    log_a1r1!(ctx.prg, pid, ctx.prg.data_stack.top().unwrap());
+    log_stub!(ctx.prg);
+    Ok(())
+}
+
 pub fn set_light_level(ctx: Context) -> Result<()> {
     let v = ctx.prg.data_stack.pop()?.into_int()?;
     log_a1!(ctx.prg, v);
