@@ -69,7 +69,6 @@ impl Handle {
 #[derive(Clone, Debug)]
 pub struct Object {
     pub handle: Option<Handle>,
-//    pub id: u32,
     pub flags: BitFlags<Flag>,
     pos: Option<ElevatedPoint>,
     pub screen_pos: Point,
@@ -80,14 +79,7 @@ pub struct Object {
     pub light_emitter: LightEmitter,
     pub pid: Option<Pid>,
     pub inventory: Inventory,
-//  //  int updated_flags;
-////  GameObject::ItemOrCritter _;
-//    int cid;
-
     pub outline: Option<Outline>,
-//  int script_id;
-//  GameObject *owner;
-//  int script_idx;
 }
 
 impl Object {
