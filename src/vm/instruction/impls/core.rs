@@ -223,6 +223,13 @@ pub fn push_base(ctx: Context) -> Result<()> {
     }
 }
 
+pub fn self_obj(ctx: Context) -> Result<()> {
+    ctx.prg.data_stack.push(Value::Object(ctx.ext.self_obj.clone()))?;
+    log_r1!(ctx.prg, ctx.prg.data_stack.top().unwrap());
+
+    Ok(())
+}
+
 pub fn set_global(ctx: Context) -> Result<()> {
     let global_base = ctx.prg.data_stack.len();
     ctx.prg.global_base = Some(global_base);

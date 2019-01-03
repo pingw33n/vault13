@@ -650,7 +650,7 @@ pub(in super) mod instructions {
         i!(ScrReturn,                   unimplemented),
         i!(Selectfilelist,              unimplemented),
         i!(Selectwin,                   unimplemented),
-        i!(SelfObj,                     unimplemented),
+        i!(SelfObj,                     self_obj),
         i!(SetCritterStat,              unimplemented),
         i!(SetExitGrids,                unimplemented),
         i!(Setfont,                     unimplemented),

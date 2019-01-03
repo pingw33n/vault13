@@ -17,10 +17,12 @@ use self::error::*;
 use self::instruction::{Instruction, instruction_map, Opcode};
 use self::stack::Stack;
 use self::value::Value;
+use game::object;
 
 pub struct Context<'a> {
     pub external_vars: &'a mut HashMap<Rc<String>, Option<Value>>,
     pub global_vars: &'a mut Vec<i32>,
+    pub self_obj: Option<object::Handle>,
 }
 
 pub struct VmConfig {
