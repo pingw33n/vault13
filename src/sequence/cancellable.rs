@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use super::*;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Cancel(Rc<Cell<bool>>);
 
 impl Cancel {
@@ -11,12 +11,16 @@ impl Cancel {
         Cancel(Rc::new(Cell::new(false)))
     }
 
-    pub fn cancel(&self) {
+    pub fn cancel(self) {
         self.0.set(true)
     }
 
     pub fn is_cancelled(&self) -> bool {
         self.0.get()
+    }
+
+    fn clone(&self) -> Self {
+        Cancel(self.0.clone())
     }
 }
 
