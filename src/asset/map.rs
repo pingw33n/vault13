@@ -7,7 +7,7 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 use asset::*;
 use asset::frm::{Fid, FrmDb};
 use asset::proto::{ItemVariant, Pid, ProtoDb};
-use asset::script::ScriptKind;
+use asset::script::*;
 use game::object::*;
 use graphics::{ElevatedPoint, Point};
 use graphics::geometry::hex::{Direction, TileGrid};
@@ -61,9 +61,18 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let entrance_direction = Direction::from_u32(self.reader.read_u32::<BigEndian>()?)
             .ok_or_else(|| Error::new(ErrorKind::InvalidData, "invalid entrance direction"))?;
         let local_var_count = cmp::max(self.reader.read_i32::<BigEndian>()?, 0) as usize;
-        let _script_id = self.reader.read_i32::<BigEndian>()?;
-        let flags = self.reader.read_i32::<BigEndian>()?;
-        println!("flags={}", flags);
+
+        let program_id = self.reader.read_i32::<BigEndian>()?;
+        let program_id = if program_id > 0 {
+            Some(program_id as usize)
+        } else {
+            None
+        };
+        debug!("program_id: {:?}", program_id);
+
+        let flags = self.reader.read_u32::<BigEndian>()?;
+        debug!("flags: {:x}", flags);
+
         let _ = self.reader.read_i32::<BigEndian>()?;
         let global_var_count = cmp::max(self.reader.read_i32::<BigEndian>()?, 0) as usize;
         let _map_id = self.reader.read_i32::<BigEndian>()?;
@@ -106,55 +115,18 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         // scripts
 
-        for _ in ScriptKind::iter() {
+        for script_kind in ScriptKind::iter() {
+            debug!("reading {:?} scripts", script_kind);
             let script_count = self.reader.read_i32::<BigEndian>()?;
-            println!("script_count {}", script_count);
+            debug!("script_count: {}", script_count);
             if script_count > 0 {
-                let script_count = script_count as u32;
-                let node_count = script_count / 16 + (script_count % 16 != 0) as u32;
-                println!("node_count {}", node_count);
+                let script_count = script_count as usize;
+                const NODE_LEN: usize = 16;
+                let node_count = script_count / NODE_LEN + (script_count % NODE_LEN != 0) as usize;
+                debug!("node_count: {}", node_count);
                 for _ in 0..node_count {
-                    for _ in 0..16 {
-                        // Maps contain garbage at unused slots at [len..16) and
-                        // len's position depend on the script kinds of preceding data.
-
-                        let sid = self.reader.read_u32::<BigEndian>()?;
-
-                        let _ = self.reader.read_i32::<BigEndian>()?;
-
-                        if let Some(script_kind) = ScriptKind::from_u32(sid >> 24) {
-                            match script_kind {
-                                ScriptKind::Spatial => {
-                                    let _elevation_and_tile = self.reader.read_i32::<BigEndian>()?;
-                                    let _spatial_radius = self.reader.read_i32::<BigEndian>()?;
-                                }
-                                ScriptKind::Time => {
-                                    let _elevation_and_tile = self.reader.read_i32::<BigEndian>()?;
-                                }
-                                _ => {}
-                            }
-                        }
-
-                        let _flags = self.reader.read_i32::<BigEndian>()?;
-                        let _script_idx = self.reader.read_i32::<BigEndian>()?;
-                        let _ = self.reader.read_i32::<BigEndian>()?;
-                        let _self_obj_id = self.reader.read_i32::<BigEndian>()?;
-                        let _local_var_offset = self.reader.read_i32::<BigEndian>()?;
-                        let num_local_vars = self.reader.read_i32::<BigEndian>()?;
-                        let _return_value = self.reader.read_i32::<BigEndian>()?;
-                        let _action = self.reader.read_i32::<BigEndian>()?;
-                        let _ext_param = self.reader.read_i32::<BigEndian>()?;
-                        let _action_num = self.reader.read_i32::<BigEndian>()?;
-                        let _script_overrides = self.reader.read_i32::<BigEndian>()?;
-                        let _unk1 = self.reader.read_i32::<BigEndian>()?;
-                        let _how_much = self.reader.read_i32::<BigEndian>()?;
-                        let _unk2 = self.reader.read_i32::<BigEndian>()?;
-
-                        let _num_local_vars = if flags & 1 == 0 {
-                            0
-                        } else {
-                            num_local_vars
-                        };
+                    for _ in 0..NODE_LEN {
+                        self.read_script(flags)?;
                     }
 
                     let _len = self.reader.read_i32::<BigEndian>()?;
@@ -185,6 +157,65 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             entrance_direction,
             sqr_tiles,
         })
+    }
+
+    fn read_script(&mut self, flags: u32) -> io::Result<()> {
+        // Maps contain garbage in unused slots but the exact size of the data to skip depends
+        // on the script kinds.
+
+        let sid = Sid::read(self.reader);
+        let sid = match sid {
+            Ok(sid) => sid,
+            Err(ref e) if e.kind() == ErrorKind::InvalidData => {
+                return self.reader.read_exact(&mut [0; 15 * 4][..]);
+            }
+            Err(e) => return Err(e),
+        };
+        trace!("sid: {:?}", sid);
+
+        let _ = self.reader.read_i32::<BigEndian>()?;
+
+        match sid.kind() {
+            ScriptKind::Spatial => {
+                let _elevation_and_tile = self.reader.read_i32::<BigEndian>()?;
+                let _spatial_radius = self.reader.read_i32::<BigEndian>()?;
+            }
+            ScriptKind::Time => {
+                let _elevation_and_tile = self.reader.read_i32::<BigEndian>()?;
+            }
+            _ => {}
+        }
+
+        let _flags = self.reader.read_i32::<BigEndian>()?;
+
+        let program_id = self.reader.read_i32::<BigEndian>()?;
+        let program_id = if program_id > 0 {
+            Some(program_id as usize)
+        } else {
+            None
+        };
+        trace!("program_id: {:?}", program_id);
+
+        let _ = self.reader.read_i32::<BigEndian>()?;
+        let _self_obj_id = self.reader.read_i32::<BigEndian>()?;
+        let _local_var_offset = self.reader.read_i32::<BigEndian>()?;
+        let num_local_vars = self.reader.read_i32::<BigEndian>()?;
+        let _return_value = self.reader.read_i32::<BigEndian>()?;
+        let _action = self.reader.read_i32::<BigEndian>()?;
+        let _ext_param = self.reader.read_i32::<BigEndian>()?;
+        let _action_num = self.reader.read_i32::<BigEndian>()?;
+        let _script_overrides = self.reader.read_i32::<BigEndian>()?;
+        let _unk1 = self.reader.read_i32::<BigEndian>()?;
+        let _how_much = self.reader.read_i32::<BigEndian>()?;
+        let _unk2 = self.reader.read_i32::<BigEndian>()?;
+
+        let _num_local_vars = if flags & 1 == 0 {
+            0
+        } else {
+            num_local_vars
+        };
+
+        Ok(())
     }
 
     fn read_obj(&mut self, f2: bool) -> io::Result<Object> {
@@ -223,8 +254,17 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         };
         let outline = self.read_outline()?;
         trace!("outline: {:?}", outline);
-        let _sid = self.reader.read_u32::<BigEndian>()?;
-        let _script_idx = self.reader.read_u32::<BigEndian>()?;
+
+        let sid = Sid::read_opt(self.reader)?;
+        trace!("sid: {:?}", sid);
+
+        let program_id = self.reader.read_i32::<BigEndian>()?;
+        let program_id = if program_id > 0 {
+            Some(program_id as usize)
+        } else {
+            None
+        };
+        trace!("program_id: {:?}", program_id);
 
         // proto update data
 
@@ -291,7 +331,6 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 }
                 EntityKind::Scenery => {
                     let k = self.proto_db.kind(pid);
-                    println!("{:?} {:?} {:?}", pid, pid.kind(), k);
                     let kind = k.scenery().unwrap();
                     match kind {
                         SceneryKind::Door => {
