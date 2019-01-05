@@ -1,3 +1,5 @@
+pub mod db;
+
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum ScriptKind {
     System = 0x0,

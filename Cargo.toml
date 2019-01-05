@@ -5,6 +5,7 @@ authors = ["Dmytro Lysai <d@emphased.net>"]
 license = "GPL-3.0"
 
 [dependencies]
+atoi = "0.3"
 bit-vec = "0.5"
 bstring = "0.1"
 byteorder = "1.2"
@@ -15,6 +16,7 @@ enum-primitive-derive = "0.1"
 env_logger = "0.6"
 flate2 = "1.0"
 icecream = "0.1"
+if_chain = "0.1"
 log = "0.4"
 matches = "0.1"
 measure_time = "0.6"
