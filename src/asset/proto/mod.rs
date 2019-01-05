@@ -99,9 +99,9 @@ impl Pid {
 
     pub fn read(rd: &mut impl Read) -> io::Result<Self> {
         let v = rd.read_u32::<BigEndian>()?;
-        Ok(Self::from_packed(v)
+        Self::from_packed(v)
             .ok_or_else(|| Error::new(ErrorKind::InvalidData,
-                format!("malformed PID: {:x}", v))).unwrap())
+                format!("malformed PID: {:x}", v)))
     }
 
     pub fn read_opt(rd: &mut impl Read) -> io::Result<Option<Self>> {

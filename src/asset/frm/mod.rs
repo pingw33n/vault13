@@ -54,9 +54,9 @@ impl Fid {
 
     pub fn read(rd: &mut impl Read) -> io::Result<Self> {
         let v = rd.read_u32::<BigEndian>()?;
-        Ok(Self::from_packed(v)
+        Self::from_packed(v)
             .ok_or_else(|| Error::new(ErrorKind::InvalidData,
-                format!("malformed FID: {:x}", v))).unwrap())
+                format!("malformed FID: {:x}", v)))
     }
 
     pub fn read_opt(rd: &mut impl Read) -> io::Result<Option<Self>> {
