@@ -2,7 +2,7 @@ pub mod hex;
 pub mod map;
 pub mod sqr;
 
-use graphics::{Point, Rect};
+use crate::graphics::{Point, Rect};
 
 fn from_screen_rect(rect: &Rect, clip: bool, from_screen: impl Fn(Point) -> Point,
         clip_fn: impl Fn(Point) -> Point) -> Rect {

@@ -1,8 +1,8 @@
 pub mod dat;
 pub mod std;
 
-use std::io::prelude::*;
-use std::io::{Error, ErrorKind, Result};
+use ::std::io::prelude::*;
+use ::std::io::{Error, ErrorKind, Result};
 
 #[derive(Clone, Debug)]
 pub struct Metadata {

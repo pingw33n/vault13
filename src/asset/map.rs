@@ -1,20 +1,21 @@
 use byteorder::{BigEndian, ReadBytesExt};
 use enumflags::BitFlags;
+use log::*;
 use num_traits::FromPrimitive;
 use std::cmp;
 use std::io::{self, Error, ErrorKind, prelude::*};
 
-use asset::*;
-use asset::frm::{Fid, FrmDb};
-use asset::proto::{ItemVariant, Pid, ProtoDb};
-use asset::script::*;
-use game::object::*;
-use graphics::{ElevatedPoint, Point};
-use graphics::geometry::hex::{Direction, TileGrid};
-use graphics::geometry::map::ELEVATION_COUNT;
-use graphics::render::TextureFactory;
-use graphics::sprite::OutlineStyle;
-use util::EnumExt;
+use crate::asset::*;
+use crate::asset::frm::{Fid, FrmDb};
+use crate::asset::proto::{ItemVariant, Pid, ProtoDb};
+use crate::asset::script::*;
+use crate::game::object::*;
+use crate::graphics::{ElevatedPoint, Point};
+use crate::graphics::geometry::hex::{Direction, TileGrid};
+use crate::graphics::geometry::map::ELEVATION_COUNT;
+use crate::graphics::render::TextureFactory;
+use crate::graphics::sprite::OutlineStyle;
+use crate::util::EnumExt;
 
 #[derive(Clone, Copy, Debug, Enum, EnumFlags, Eq, PartialEq)]
 #[repr(u32)]

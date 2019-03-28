@@ -6,7 +6,7 @@ use std::io::prelude::*;
 
 use std::path::{Path, PathBuf};
 
-use util::Limited;
+use crate::util::Limited;
 use super::super::{Metadata, Provider};
 use super::util::{build_normalized_path, normalize_path};
 

@@ -54,7 +54,7 @@ fn read_limited(buf: &mut [u8], pos: u64, limit: u64, reader: &mut io::Read) -> 
 
 impl<T: io::Read> io::Read for Limited<T> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let read = try!(read_limited(buf, self.pos, self.limit, self.get_mut()));
+        let read = read_limited(buf, self.pos, self.limit, self.get_mut())?;
         self.pos += read as u64;
         Ok(read)
     }
@@ -180,7 +180,7 @@ mod tests {
         use std::io::prelude::*;
         use std::io::Cursor;
 
-        use util::Limited;
+        use crate::util::Limited;
 
         #[test]
         fn limits_reads() {

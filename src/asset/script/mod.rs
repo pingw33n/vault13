@@ -1,6 +1,8 @@
 pub mod db;
 
 use byteorder::{BigEndian, ReadBytesExt};
+use enum_map_derive::Enum;
+use enum_primitive_derive::Primitive;
 use num_traits::FromPrimitive;
 use std::fmt;
 use std::io::{self, Error, ErrorKind, prelude::*};

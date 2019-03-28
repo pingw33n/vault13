@@ -1,5 +1,6 @@
 use super::{BadValue, Error, Result};
 use super::value::Value;
+use log::*;
 
 #[derive(Debug)]
 pub struct Stack {

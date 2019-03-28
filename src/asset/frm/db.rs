@@ -4,11 +4,11 @@ use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
 
-use asset::{EntityKind, LstEntry, read_lst, WeaponKind};
-use fs::FileSystem;
-use graphics::sprite::FrameSet;
 use super::*;
-use util::EnumExt;
+use crate::asset::{EntityKind, LstEntry, read_lst, WeaponKind};
+use crate::fs::FileSystem;
+use crate::graphics::sprite::FrameSet;
+use crate::util::EnumExt;
 
 pub struct FrmDb {
     fs: Rc<FileSystem>,

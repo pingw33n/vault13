@@ -1,14 +1,14 @@
-use asset::frm::FrmDb;
-use asset::proto::ProtoDb;
-use game::object::{self, Object, Objects};
-use graphics::{ElevatedPoint, Point};
-use graphics::geometry::hex::Direction;
-use graphics::geometry::map::MapGrid;
-use graphics::lighting::light_grid::LightGrid;
-use util::two_dim_array::Array2d;
-use graphics::geometry::map::ELEVATION_COUNT;
-
 use std::rc::Rc;
+
+use crate::asset::frm::FrmDb;
+use crate::asset::proto::ProtoDb;
+use crate::game::object::{self, Object, Objects};
+use crate::graphics::{ElevatedPoint, Point};
+use crate::graphics::geometry::hex::Direction;
+use crate::graphics::geometry::map::MapGrid;
+use crate::graphics::lighting::light_grid::LightGrid;
+use crate::util::two_dim_array::Array2d;
+use crate::graphics::geometry::map::ELEVATION_COUNT;
 
 pub struct World {
     proto_db: Rc<ProtoDb>,

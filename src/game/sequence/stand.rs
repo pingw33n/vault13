@@ -1,5 +1,5 @@
-use game::object::Handle;
-use sequence::*;
+use crate::game::object::Handle;
+use crate::sequence::*;
 
 pub struct Stand {
     obj: Handle,

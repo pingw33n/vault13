@@ -1,5 +1,8 @@
 mod impls;
 
+use enum_map_derive::Enum;
+use enum_primitive_derive::Primitive;
+
 use super::*;
 
 pub struct Context<'a, 'b> {

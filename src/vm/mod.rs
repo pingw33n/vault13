@@ -5,6 +5,9 @@ mod value;
 
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use enumflags::BitFlags;
+use enumflags_derive::EnumFlags;
+use log::*;
+use matches::matches;
 use slotmap::{DefaultKey, SecondaryMap, SlotMap};
 use std::collections::HashMap;
 use std::io::{self, Cursor};
@@ -17,7 +20,7 @@ use self::error::*;
 use self::instruction::{Instruction, instruction_map, Opcode};
 use self::stack::Stack;
 use self::value::Value;
-use game::object;
+use crate::game::object;
 
 pub struct Context<'a> {
     pub external_vars: &'a mut HashMap<Rc<String>, Option<Value>>,

@@ -1,3 +1,4 @@
+use log::*;
 use std::cmp::Ordering;
 
 use super::*;
@@ -85,7 +86,7 @@ pub fn fetch_global(ctx: Context) -> Result<()> {
 }
 
 pub fn exit_prog(ctx: Context) -> Result<()> {
-    log!(ctx.prg);
+    log_!(ctx.prg);
     Err(Error::Halted)
 }
 
@@ -152,7 +153,7 @@ pub fn negate(ctx: Context) -> Result<()> {
 }
 
 pub fn noop(ctx: Context) -> Result<()> {
-    log!(ctx.prg);
+    log_!(ctx.prg);
     Ok(())
 }
 

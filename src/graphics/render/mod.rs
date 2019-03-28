@@ -6,8 +6,8 @@ use std::fmt;
 use std::rc::Rc;
 use std::time::Instant;
 
-use graphics::color::Rgb15;
-use graphics::font::{self, FontKey};
+use crate::graphics::color::Rgb15;
+use crate::graphics::font::{self, FontKey};
 
 #[derive(Clone)]
 pub struct TextureHandle(Rc<TextureHandleInner>);

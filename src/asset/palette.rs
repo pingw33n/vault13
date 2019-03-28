@@ -1,7 +1,7 @@
 use byteorder::ReadBytesExt;
 use std::io::{self, prelude::*};
 
-use graphics::color::{Palette, Rgb};
+use crate::graphics::color::{Palette, Rgb};
 
 pub fn read_palette(rd: &mut impl Read) -> io::Result<Palette> {
     let mut color_idx_to_rgb18 = [Rgb::black(); 256];

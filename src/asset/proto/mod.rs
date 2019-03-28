@@ -11,9 +11,9 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 use std::ops::RangeInclusive;
 
 use super::*;
-use asset::frm::Fid;
-use asset::EntityKind;
-use util::{enum_iter, EnumIter};
+use crate::asset::frm::Fid;
+use crate::asset::EntityKind;
+use crate::util::{enum_iter, EnumIter};
 
 /*      PID_ROCK = 0x13,
   PID_SMALL_ENERGY_CELL = 0x26,

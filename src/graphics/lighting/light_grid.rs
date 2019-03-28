@@ -1,9 +1,9 @@
 use enum_map::EnumMap;
 use num_traits::clamp;
 
-use graphics::geometry::hex::{Direction, TileGrid};
-use graphics::{ElevatedPoint, Point};
-use util::{EnumExt, vec_with_func};
+use crate::graphics::geometry::hex::{Direction, TileGrid};
+use crate::graphics::{ElevatedPoint, Point};
+use crate::util::{EnumExt, vec_with_func};
 
 const MAX_EMITTER_RADIUS: u32 = 8;
 /// Number of points inside the light cone of MAX_EMITTER_RADIUS.
@@ -236,7 +236,7 @@ impl LightBlock {
                 v11 | v10
             }
             21 => nc[2] && c[15] || nc[1] && c[8],
-              
+
             22 => c[16] && (c[21] || c[15])
                 || c[15] && (c[21] || c[9])
                 || (c[21]
@@ -262,9 +262,9 @@ impl LightBlock {
                 && c[16],
             25 => {
                 let v15 = c[16] || c[8];
-                let v10 = c[18] & (c[24] | c[23] | v15) | 
-                    c[17] | 
-                    c[10] & (c[24] | v15 | c[17]) | 
+                let v10 = c[18] & (c[24] | c[23] | v15) |
+                    c[17] |
+                    c[10] & (c[24] | v15 | c[17]) |
                     (c[1] && c[8] || (c[24] || c[23] || c[16] || c[15] || c[8]) && c[9]);
                 let v11 = (c[19] || c[0]) && c[24];
                 v11 | v10
@@ -376,6 +376,7 @@ impl LightBlock {
 #[cfg(test)]
 mod test {
     use super::*;
+    use enum_map::enum_map;
 
     #[test]
     fn light_cones() {

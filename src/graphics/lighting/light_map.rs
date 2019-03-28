@@ -1,6 +1,6 @@
 use num_traits::clamp;
 
-use graphics::Point;
+use crate::graphics::Point;
 
 pub const VERTEX_COUNT: usize = 10;
 pub const VERTEX_HEXES: [Point; VERTEX_COUNT] = [

@@ -1,11 +1,12 @@
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
+use log::*;
 use std::cmp;
 use std::error::{Error as StdError};
 use std::io::{self, Error, ErrorKind, prelude::*};
 
-use fs::FileSystem;
-use graphics::font::{Font, Glyph, FontKey, Fonts};
-use graphics::render::TextureFactory;
+use crate::fs::FileSystem;
+use crate::graphics::font::{Font, Glyph, FontKey, Fonts};
+use crate::graphics::render::TextureFactory;
 
 fn read_aaf(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Result<Font> {
     let mut magic = [0u8; 4];

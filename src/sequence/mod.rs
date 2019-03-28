@@ -1,3 +1,5 @@
+use enum_map_derive::Enum;
+
 pub mod cancellable;
 pub mod chain;
 pub mod noop;
@@ -7,7 +9,7 @@ pub mod then;
 
 use std::time::Instant;
 
-use game::world::World;
+use crate::game::world::World;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
 pub enum Running {

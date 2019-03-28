@@ -4,16 +4,19 @@ pub use self::db::FrmDb;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use enum_map::EnumMap;
+use enum_map_derive::Enum;
+use enum_primitive_derive::Primitive;
+use log::*;
 use num_traits::FromPrimitive;
 use std::fmt;
 use std::io::{self, Error, ErrorKind, prelude::*};
 
-use asset::{EntityKind, WeaponKind};
-use graphics::Point;
-use graphics::geometry::hex::Direction;
-use graphics::render::TextureFactory;
-use graphics::sprite::{Frame, FrameList, FrameSet};
-use util::EnumExt;
+use crate::asset::{EntityKind, WeaponKind};
+use crate::graphics::Point;
+use crate::graphics::geometry::hex::Direction;
+use crate::graphics::render::TextureFactory;
+use crate::graphics::sprite::{Frame, FrameList, FrameSet};
+use crate::util::EnumExt;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub enum Fid {

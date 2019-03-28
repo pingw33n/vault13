@@ -2,26 +2,6 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 #![deny(non_snake_case)]
 
-extern crate atoi;
-extern crate bit_vec;
-extern crate bstring;
-extern crate byteorder;
-extern crate enumflags;
-extern crate env_logger;
-#[macro_use] extern crate enumflags_derive;
-#[macro_use] extern crate enum_map;
-#[macro_use] extern crate enum_primitive_derive;
-extern crate flate2;
-#[allow(unused_imports)]
-#[macro_use] extern crate icecream;
-extern crate log;
-#[macro_use] extern crate matches;
-#[macro_use] extern crate measure_time;
-extern crate num_traits;
-extern crate png;
-extern crate sdl2;
-extern crate slotmap;
-
 #[macro_use] mod macros;
 
 mod asset;
@@ -33,44 +13,44 @@ mod util;
 mod vm;
 
 use std::rc::Rc;
-use asset::*;
-use asset::palette::read_palette;
-use asset::proto::*;
-use graphics::color::PaletteOverlay;
-use graphics::geometry::map::{ELEVATION_COUNT, MapGrid};
-use graphics::render::software::*;
-use asset::map::*;
-use asset::frm::*;
-use game::object::*;
+use crate::asset::*;
+use crate::asset::palette::read_palette;
+use crate::asset::proto::*;
+use crate::graphics::color::PaletteOverlay;
+use crate::graphics::geometry::map::{ELEVATION_COUNT, MapGrid};
+use crate::graphics::render::software::*;
+use crate::asset::map::*;
+use crate::asset::frm::*;
+use crate::game::object::*;
 use enumflags::BitFlags;
-use graphics::*;
-use graphics::geometry::hex::Direction;
-use game::object::LightEmitter;
-use game::object::Inventory;
-use graphics::Rect;
-use game::world::World;
-use util::two_dim_array::Array2d;
-use sequence::{Sequence, Sequencer};
+use crate::graphics::*;
+use crate::graphics::geometry::hex::Direction;
+use crate::game::object::LightEmitter;
+use crate::game::object::Inventory;
+use crate::graphics::Rect;
+use crate::game::world::World;
+use crate::util::two_dim_array::Array2d;
+use crate::sequence::{Sequence, Sequencer};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
-use graphics::map::render_floor;
+use crate::graphics::map::render_floor;
 use std::cmp;
-use graphics::ElevatedPoint;
-use game::object::Egg;
+use crate::graphics::ElevatedPoint;
+use crate::game::object::Egg;
 use std::time::Instant;
 use std::time::Duration;
 use std::thread;
-use util::EnumExt;
-use graphics::map::render_roof;
-use graphics::sprite::OutlineStyle;
-use sequence::chain::Chain;
-use sequence::cancellable::Cancel;
-use game::sequence::move_seq::Move;
-use game::sequence::stand::Stand;
-use asset::font::load_fonts;
-use graphics::color::*;
-use graphics::font::*;
+use crate::util::EnumExt;
+use crate::graphics::map::render_roof;
+use crate::graphics::sprite::OutlineStyle;
+use crate::sequence::chain::Chain;
+use crate::sequence::cancellable::Cancel;
+use crate::game::sequence::move_seq::Move;
+use crate::game::sequence::stand::Stand;
+use crate::asset::font::load_fonts;
+use crate::graphics::color::*;
+use crate::graphics::font::*;
 
 fn main() {
     env_logger::init();
@@ -275,7 +255,7 @@ fn main() {
                 }
                 Event::KeyDown { keycode: Some(Keycode::A), .. } => {
                     let new_pos = {
-                        let mut obj = world.objects().get(&dude_objh).borrow_mut();
+                        let obj = world.objects().get(&dude_objh).borrow_mut();
                         let mut new_pos = obj.pos().unwrap();
                         new_pos.elevation += 1;
                         while new_pos.elevation < map.sqr_tiles.len() && map.sqr_tiles[new_pos.elevation].is_none() {
@@ -289,7 +269,7 @@ fn main() {
                 }
                 Event::KeyDown { keycode: Some(Keycode::Z), .. } => {
                     let new_pos = {
-                        let mut obj = world.objects().get(&dude_objh).borrow_mut();
+                        let obj = world.objects().get(&dude_objh).borrow_mut();
                         let mut new_pos = obj.pos().unwrap();
                         if new_pos.elevation > 0 {
                             new_pos.elevation -= 1;

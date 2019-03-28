@@ -1,7 +1,7 @@
 use atoi::atoi;
 use std::io::{self, Error, ErrorKind, prelude::*};
 
-use fs::FileSystem;
+use crate::fs::FileSystem;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ScriptInfo {

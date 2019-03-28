@@ -4,7 +4,7 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 use std::str;
 use std::collections::HashMap;
 
-use fs::FileSystem;
+use crate::fs::FileSystem;
 
 #[derive(Debug, Default)]
 pub struct Messages {

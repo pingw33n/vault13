@@ -10,9 +10,9 @@ use std::rc::Rc;
 use std::str;
 
 use super::*;
-use asset::frm::*;
-use asset::message::Messages;
-use fs::FileSystem;
+use crate::asset::frm::*;
+use crate::asset::message::Messages;
+use crate::fs::FileSystem;
 
 pub struct ProtoDb {
     fs: Rc<FileSystem>,

@@ -5,16 +5,16 @@ use std::cmp;
 use std::mem;
 use std::rc::Rc;
 
-use asset::{EntityKind, Flag, FlagExt, WeaponKind};
-use asset::frm::{CritterAnim, Fid, FrmDb};
-use asset::proto::{self, CritterKillKind, Pid, ProtoDb};
-use graphics::{ElevatedPoint, Point, Rect};
-use graphics::geometry::hex::*;
-use graphics::lighting::light_grid::{LightTest, LightTestResult};
-use graphics::render::Canvas;
-use graphics::sprite::{Effect, Frame, OutlineStyle, Sprite, Translucency};
-use util::{self, EnumExt};
-use util::two_dim_array::Array2d;
+use crate::asset::{EntityKind, Flag, FlagExt, WeaponKind};
+use crate::asset::frm::{CritterAnim, Fid, FrmDb};
+use crate::asset::proto::{self, CritterKillKind, Pid, ProtoDb};
+use crate::graphics::{ElevatedPoint, Point, Rect};
+use crate::graphics::geometry::hex::*;
+use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
+use crate::graphics::render::Canvas;
+use crate::graphics::sprite::{Effect, Frame, OutlineStyle, Sprite, Translucency};
+use crate::util::{self, EnumExt};
+use crate::util::two_dim_array::Array2d;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Outline {
@@ -380,7 +380,7 @@ impl Objects {
                     point: Point::new(x, y),
                 };
                 for objh in self.at(pos) {
-                    let mut obj = self.get(objh).borrow_mut();
+                    let obj = self.get(objh).borrow_mut();
                     obj.render_outline(canvas, &self.frm_db, tile_grid);
                 }
             }

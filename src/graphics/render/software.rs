@@ -6,10 +6,10 @@ use std::rc::Rc;
 use std::cell::{Ref, RefCell};
 
 use super::*;
-use graphics::color::{Color8, Palette, PaletteOverlay};
-use graphics::font::{self, FontKey, Fonts};
-use graphics::lighting::light_map::{self, LightMap};
-use graphics::Rect;
+use crate::graphics::color::{Color8, Palette, PaletteOverlay};
+use crate::graphics::font::{self, FontKey, Fonts};
+use crate::graphics::lighting::light_map::{self, LightMap};
+use crate::graphics::Rect;
 
 pub struct Backend {
     canvas: WindowCanvas,

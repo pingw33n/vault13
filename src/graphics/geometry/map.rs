@@ -1,5 +1,7 @@
-use graphics::Point;
+use log::*;
+
 use super::{hex, sqr};
+use crate::graphics::Point;
 
 pub const ELEVATION_COUNT: usize = 3;
 

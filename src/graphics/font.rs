@@ -1,8 +1,9 @@
 use bstring::bstr;
+use enum_map_derive::Enum;
 use std::collections::HashMap;
 
-use graphics::color::Rgb15;
-use graphics::render::{Canvas, Outline, TextureHandle};
+use crate::graphics::color::Rgb15;
+use crate::graphics::render::{Canvas, Outline, TextureHandle};
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
 pub enum HorzAlign {

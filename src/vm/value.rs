@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::rc::Rc;
 
 use super::{BadValue, Error, Result, StringMap};
-use game::object::Handle;
+use crate::game::object::Handle;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum ValueKind {

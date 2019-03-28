@@ -1,9 +1,10 @@
+use enum_map_derive::Enum;
 use std::time::{Duration, Instant};
 
-use asset::frm::CritterAnim;
-use game::object::Handle;
-use game::world::World;
-use sequence::*;
+use crate::asset::frm::CritterAnim;
+use crate::game::object::Handle;
+use crate::game::world::World;
+use crate::sequence::*;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum State {

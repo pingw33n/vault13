@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use util::vec_with_default;
+use crate::util::vec_with_default;
 
 pub struct Array2d<T> {
     arr: Box<[T]>,

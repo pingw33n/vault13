@@ -3,7 +3,7 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use graphics::render::Outline;
+use crate::graphics::render::Outline;
 
 macro_rules! rgb {
     ($r:expr, $g:expr, $b:expr) => {

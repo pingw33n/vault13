@@ -1,3 +1,6 @@
+use enum_map_derive::Enum;
+use enum_primitive_derive::Primitive;
+use log::*;
 use num_traits::FromPrimitive;
 
 use super::*;
@@ -179,7 +182,7 @@ pub fn tile_num_in_direction(ctx: Context) -> Result<()> {
     let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
 
     // FIXME clean up this, better validate
-    use ::graphics::geometry::hex::{Direction, TileGrid};
+    use crate::graphics::geometry::hex::{Direction, TileGrid};
     let hex = TileGrid::default();
     let p = hex.from_linear_inv(tile_num as u32);
     let r = hex.go(p, Direction::from_i32(direction).unwrap(), distance as u32)

@@ -663,6 +663,7 @@ dependencies = [
  "bstring 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "enum-map 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "enum-map-derive 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "enum-primitive-derive 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "enumflags 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "enumflags_derive 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",

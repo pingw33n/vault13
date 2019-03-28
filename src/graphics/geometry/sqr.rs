@@ -1,6 +1,6 @@
 use num_traits::clamp;
 
-use graphics::{Point, Rect};
+use crate::graphics::{Point, Rect};
 
 #[derive(Clone, Debug)]
 pub struct TileGrid {
