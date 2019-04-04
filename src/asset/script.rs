@@ -16,6 +16,10 @@ pub enum ScriptKind {
     Critter = 0x4,
 }
 
+/// Script ID carries different semantics than other identifiers (`Fid`, `Pid`). It is a unique
+/// identifier of a program instance within a single map, while the aforementioned identifiers
+/// refer to static assets. For the reference to the script bytecode file there another identifier -
+/// program ID that maps to file name in `scripts.lst`.
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Sid(u32);
 
