@@ -1,18 +1,27 @@
+use log::*;
+use std::marker::PhantomData;
+
 use super::{BadValue, Error, Result};
 use super::value::Value;
-use log::*;
 
-#[derive(Debug)]
-pub struct Stack {
-    vec: Vec<Value>,
-    max_len: usize,
+/// Static identifier for the stack. Used in logging.
+pub trait StackId {
+    const VALUE: &'static str;
 }
 
-impl Stack {
+#[derive(Debug)]
+pub struct Stack<Id> {
+    vec: Vec<Value>,
+    max_len: usize,
+    _id: PhantomData<Id>,
+}
+
+impl<Id: StackId> Stack<Id> {
     pub fn new(max_len: usize) -> Self {
         Self {
             vec: Vec::new(),
             max_len,
+            _id: PhantomData,
         }
     }
 
@@ -29,7 +38,7 @@ impl Stack {
     }
 
     pub fn push(&mut self, value: Value) -> Result<()> {
-        trace!("stack: pushing {:?}", value);
+        trace!("{}: pushing {:?}", Id::VALUE, value);
         if self.len() < self.max_len {
             self.vec.push(value);
             Ok(())
@@ -44,7 +53,7 @@ impl Stack {
         } else {
             let last = self.len() - 1;
             let r = self.vec.remove(last);
-            trace!("stack: popped {:?}", r);
+            trace!("{}: popped {:?}", Id::VALUE, r);
             Ok(r)
         }
     }
@@ -53,7 +62,7 @@ impl Stack {
         let old_len = self.vec.len();
         if len <= old_len {
             self.vec.truncate(len);
-            trace!("stack: truncated from {} to {}", old_len, len);
+            trace!("{} stack: truncated from {} to {}", Id::VALUE, old_len, len);
             Ok(())
         } else {
             Err(Error::StackUnderflow)

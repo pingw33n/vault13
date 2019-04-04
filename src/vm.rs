@@ -21,6 +21,7 @@ use self::instruction::{Instruction, instruction_map, Opcode};
 use self::stack::Stack;
 use self::value::Value;
 use crate::game::object;
+use crate::vm::stack::StackId;
 
 pub struct Context<'a> {
     pub external_vars: &'a mut HashMap<Rc<String>, Option<Value>>,
@@ -236,8 +237,8 @@ pub struct ProgramState {
     program: Rc<Program>,
     code_pos: usize,
     opcode: Option<(Opcode, usize)>,
-    pub data_stack: Stack,
-    pub return_stack: Stack,
+    pub data_stack: Stack<DataStackId>,
+    pub return_stack: Stack<ReturnStackId>,
     // FIXME check if this an Option
     base: isize,
     global_base: Option<usize>,
@@ -366,6 +367,18 @@ impl ProgramState {
         let base = self.global_base()?;
         self.data_stack.get_mut(base + id as usize)
     }
+}
+
+pub struct DataStackId;
+
+impl StackId for DataStackId {
+    const VALUE: &'static str = "data";
+}
+
+pub struct ReturnStackId;
+
+impl StackId for ReturnStackId {
+    const VALUE: &'static str = "return";
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
