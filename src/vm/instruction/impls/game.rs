@@ -4,6 +4,8 @@ use log::*;
 use num_traits::FromPrimitive;
 
 use super::*;
+use crate::sequence::Sequence;
+use crate::sequence::chain::Chain;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 enum Metarule {
@@ -47,6 +49,13 @@ enum Metarule3 {
     AiGetChemUseValue   = 109,
     WmCarIsOutOfGas     = 110,
     MapTargetLoadArea   = 111,
+}
+
+#[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
+enum RegAnimFuncOp {
+    Begin = 1,
+    Clear = 2,
+    End = 3,
 }
 
 pub fn destroy_object(ctx: Context) -> Result<()> {
@@ -152,6 +161,64 @@ pub fn party_member_obj(ctx: Context) -> Result<()> {
     ctx.prg.data_stack.push(r)?;
     log_a1r1!(ctx.prg, pid, ctx.prg.data_stack.top().unwrap());
     log_stub!(ctx.prg);
+    Ok(())
+}
+
+pub fn reg_anim_animate_forever(ctx: Context) -> Result<()> {
+    use crate::asset::frm::CritterAnim;
+    use crate::game::sequence::frame_anim::*;
+
+    let critter_anim = CritterAnim::from_i32(ctx.prg.data_stack.pop()?.into_int()?)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    let obj = ctx.prg.data_stack.pop()?.into_object()?;
+    if let Some(obj) = obj.clone() {
+        if !ctx.ext.has_active_seq(&obj) {
+            let chain = ctx.prg.instr_state.sequences.entry(obj.clone())
+                .or_insert_with(|| Chain::endless().0);
+            let seq = FrameAnim::new(obj.clone(), Some(critter_anim), AnimDirection::Forward, true);
+            chain.push(seq);
+        } else {
+            debug!("reg_anim_animate_forever: object {:?} already has active sequence", obj);
+        }
+    }
+    log_a2!(ctx.prg, obj, critter_anim);
+    Ok(())
+}
+
+pub fn reg_anim_func(ctx: Context) -> Result<()> {
+    let arg = ctx.prg.data_stack.pop()?;
+    let op = RegAnimFuncOp::from_i32(ctx.prg.data_stack.pop()?.into_int()?)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    match op {
+        RegAnimFuncOp::Begin => {
+            let flags = arg.into_int()?;
+            if !ctx.prg.instr_state.sequences.is_empty() {
+                warn!("RegAnimFunc(Begin, ...): previous session wasn't ended properly with RegAnimFunc(End)");
+            }
+            ctx.prg.instr_state.sequences.clear();
+            log_a2!(ctx.prg, op, flags);
+        }
+        RegAnimFuncOp::End => {
+            for (objh, seq) in ctx.prg.instr_state.sequences.drain() {
+                let (seq, cancel) = seq.cancellable();
+                let mut obj = ctx.ext.world.objects().get(&objh).borrow_mut();
+                assert!(obj.sequence.is_none());
+                obj.sequence = Some(cancel);
+                ctx.ext.sequencer.start(seq);
+            }
+
+            log_a2!(ctx.prg, op, arg);
+        }
+        RegAnimFuncOp::Clear => {
+            let obj = arg.into_object()?;
+            if let Some(obj) = obj.as_ref() {
+                if let Some(s) = ctx.ext.world.objects().get(obj).borrow_mut().sequence.take() {
+                    s.cancel();
+                }
+            }
+            log_a2!(ctx.prg, op, obj);
+        }
+    }
     Ok(())
 }
 

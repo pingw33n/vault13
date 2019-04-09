@@ -2,8 +2,23 @@ mod impls;
 
 use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
+use std::collections::HashMap;
 
 use super::*;
+use crate::game::object;
+use crate::sequence::chain::Chain;
+
+pub struct State {
+    sequences: HashMap<object::Handle, Chain>,
+}
+
+impl State {
+    pub fn new() -> Self {
+        Self {
+            sequences: HashMap::new(),
+        }
+    }
+}
 
 pub struct Context<'a, 'b> {
     pub prg: &'a mut ProgramState,
@@ -609,9 +624,9 @@ pub(in super) mod instructions {
         i!(ReactionInfluence,           unimplemented),
         i!(Refreshmouse,                unimplemented),
         i!(RegAnimAnimate,              unimplemented),
-        i!(RegAnimAnimateForever,       unimplemented),
+        i!(RegAnimAnimateForever,       reg_anim_animate_forever),
         i!(RegAnimAnimateReverse,       unimplemented),
-        i!(RegAnimFunc,                 unimplemented),
+        i!(RegAnimFunc,                 reg_anim_func),
         i!(RegAnimObjMoveToObj,         unimplemented),
         i!(RegAnimObjMoveToTile,        unimplemented),
         i!(RegAnimObjRunToObj,          unimplemented),

@@ -8,11 +8,13 @@ use std::rc::Rc;
 use crate::asset::{EntityKind, Flag, FlagExt, WeaponKind};
 use crate::asset::frm::{CritterAnim, Fid, FrmDb};
 use crate::asset::proto::{self, CritterKillKind, Pid, ProtoDb};
+use crate::asset::script::Sid;
 use crate::graphics::{ElevatedPoint, Point, Rect};
 use crate::graphics::geometry::hex::*;
 use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::{Effect, Frame, OutlineStyle, Sprite, Translucency};
+use crate::sequence::cancellable::Cancel;
 use crate::util::{self, EnumExt};
 use crate::util::two_dim_array::Array2d;
 
@@ -55,7 +57,7 @@ pub struct Egg {
     pub fid: Fid,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Handle(DefaultKey);
 
 impl Handle {
@@ -66,7 +68,7 @@ impl Handle {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Object {
     pub handle: Option<Handle>,
     pub flags: BitFlags<Flag>,
@@ -80,6 +82,8 @@ pub struct Object {
     pub pid: Option<Pid>,
     pub inventory: Inventory,
     pub outline: Option<Outline>,
+    pub sequence: Option<Cancel>,
+    pub sid: Option<Sid>,
 }
 
 impl Object {
@@ -93,7 +97,9 @@ impl Object {
             light_emitter: LightEmitter,
             pid: Option<Pid>,
             inventory: Inventory,
-            outline: Option<Outline>) -> Self {
+            outline: Option<Outline>,
+            sid: Option<Sid>,
+    ) -> Self {
         Self {
             handle: None,
             pos,
@@ -107,6 +113,8 @@ impl Object {
             inventory,
             light_emitter,
             outline,
+            sequence: None,
+            sid,
         }
     }
 

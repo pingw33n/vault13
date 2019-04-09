@@ -10,6 +10,7 @@ use crate::asset::frm::{Fid, FrmDb};
 use crate::asset::proto::{ItemVariant, Pid, ProtoDb};
 use crate::asset::script::*;
 use crate::game::object::*;
+use crate::game::script::Scripts;
 use crate::graphics::{ElevatedPoint, Point};
 use crate::graphics::geometry::hex::{Direction, TileGrid};
 use crate::graphics::geometry::map::ELEVATION_COUNT;
@@ -43,6 +44,7 @@ pub struct MapReader<'a, R: 'a> {
     pub frm_db: &'a FrmDb,
     pub tile_grid: &'a TileGrid,
     pub texture_factory: &'a TextureFactory,
+    pub scripts: &'a mut Scripts,
 }
 
 impl<'a, R: 'a + Read> MapReader<'a, R> {
@@ -146,7 +148,11 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
             for _ in 0..obj_count {
                 let obj = self.read_obj(version != 19)?;
-                self.objects.insert(obj);
+                let sid = obj.sid;
+                let objh = self.objects.insert(obj);
+                if let Some(sid) = sid {
+                    self.scripts.attach_to_object(sid, &objh);
+                }
             }
         }
 
@@ -198,7 +204,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         trace!("program_id: {:?}", program_id);
 
         let _ = self.reader.read_i32::<BigEndian>()?;
-        let _self_obj_id = self.reader.read_i32::<BigEndian>()?;
+        let self_obj_id = self.reader.read_i32::<BigEndian>()?;
+        trace!("self_obj_id: {}", self_obj_id);
         let _local_var_offset = self.reader.read_i32::<BigEndian>()?;
         let num_local_vars = self.reader.read_i32::<BigEndian>()?;
         let _return_value = self.reader.read_i32::<BigEndian>()?;
@@ -256,16 +263,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let outline = self.read_outline()?;
         trace!("outline: {:?}", outline);
 
-        let sid = Sid::read_opt(self.reader)?;
-        trace!("sid: {:?}", sid);
-
-        let program_id = self.reader.read_i32::<BigEndian>()?;
-        let program_id = if program_id > 0 {
-            Some(program_id as usize)
-        } else {
-            None
-        };
-        trace!("program_id: {:?}", program_id);
+        let sid = self.read_obj_script()?;
 
         // proto update data
 
@@ -413,7 +411,33 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             Some(pid),
             inventory,
             outline,
+            sid,
         ))
+    }
+
+    fn read_obj_script(&mut self) -> io::Result<Option<Sid>> {
+        let sid = Sid::read_opt(self.reader)?;
+        trace!("sid: {:?}", sid);
+
+        let program_id = self.reader.read_i32::<BigEndian>()?;
+        let program_id = if program_id > 0 {
+            Some(program_id as u32)
+        } else {
+            None
+        };
+        trace!("program_id: {:?}", program_id);
+
+        if sid.is_some() != program_id.is_some() {
+            warn!("bad sid/program_id pair in object");
+            return Ok(None);
+        }
+
+        if let (Some(sid), Some(program_id)) = (sid, program_id) {
+            self.scripts.instantiate(sid, program_id)?;
+            Ok(Some(sid))
+        } else {
+            Ok(None)
+        }
     }
 
     fn read_outline(&mut self) -> io::Result<Option<Outline>> {

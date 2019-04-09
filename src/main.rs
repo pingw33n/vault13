@@ -45,12 +45,16 @@ use crate::util::EnumExt;
 use crate::graphics::map::render_roof;
 use crate::graphics::sprite::OutlineStyle;
 use crate::sequence::chain::Chain;
-use crate::sequence::cancellable::Cancel;
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
 use crate::asset::font::load_fonts;
 use crate::graphics::color::*;
 use crate::graphics::font::*;
+use asset::script::db::ScriptDb;
+use crate::game::script::Scripts;
+use crate::vm::{Vm, PredefinedProc, Context};
+use std::collections::HashMap;
+use crate::asset::script::ScriptKind;
 
 fn main() {
     env_logger::init();
@@ -97,6 +101,8 @@ fn main() {
 
     let mut objects = Objects::new(map_grid.hex().clone(), ELEVATION_COUNT, proto_db.clone(), frm_db.clone());
 
+    let mut scripts = Scripts::new(ScriptDb::new(fs.clone()).unwrap(), Vm::default());
+
     let map = MapReader {
         reader: &mut fs.reader(&format!("maps/{}", map_name)).unwrap(),
         objects: &mut objects,
@@ -104,6 +110,8 @@ fn main() {
         frm_db: &frm_db,
         tile_grid: map_grid.hex(),
         texture_factory: &texture_factory,
+        scripts: &mut scripts,
+
     }.read().unwrap();
 
     for elev in &map.sqr_tiles {
@@ -138,6 +146,26 @@ fn main() {
     let mut world = World::new(proto_db.clone(), frm_db.clone(), map_grid, Array2d::with_default(200, 200), objects);
     world.rebuild_light_grid();
 
+    let mut sequencer = Sequencer::new();
+
+    let mut external_vars = HashMap::new();
+    let mut global_vars = vec![0; 495];
+
+    scripts.execute_procs(PredefinedProc::Start, &mut Context {
+        external_vars: &mut external_vars,
+        global_vars: &mut global_vars,
+        self_obj: None,
+        world: &mut world,
+        sequencer: &mut sequencer,
+    }, |sid| sid.kind() != ScriptKind::System);
+    scripts.execute_map_procs(PredefinedProc::MapEnter, &mut Context {
+        external_vars: &mut external_vars,
+        global_vars: &mut global_vars,
+        self_obj: None,
+        world: &mut world,
+        sequencer: &mut sequencer,
+    });
+
     let dude_fid = Fid::from_packed(0x101600A).unwrap();
     for fid in all_fids(dude_fid) {
         let _ = frm_db.get_or_load(fid, &texture_factory);
@@ -156,11 +184,10 @@ fn main() {
         None,
         Inventory::new(),
         None,
-
+        None,
     ));
     world.make_object_standing(&dude_objh);
     frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
-
 
     frm_db.get_or_load(Fid::MOUSE_HEX2, &texture_factory).unwrap();
     let mouse_objh = world.insert_object(Object::new(
@@ -181,6 +208,7 @@ fn main() {
             translucent: true,
             disabled: false,
         }),
+        None,
     ));
 
     world.map_grid_mut().center2(map.entrance.point);
@@ -189,19 +217,16 @@ fn main() {
     let scroll_inc = 10;
     let mut roof_visible = false;
 
-    let mut sequencer = Sequencer::new();
-
     frm_db.get_or_load(Fid::MAIN_HUD, &texture_factory).unwrap();
 
-    let (seq, dude_seq) = Chain::endless();
+    let (seq, seq_ctl) = Chain::endless();
+
     sequencer.start(seq);
-    let mut dude_seq_cancel: Option<Cancel> = None;
 
     let mut mouse_hex_pos = Point::new(0, 0);
     let mut mouse_sqr_pos = Point::new(0, 0);
     let mut draw_path_blocked = false;
     let mut draw_debug = true;
-
     'running: loop {
         let dude_pos = world.objects().get(&dude_objh).borrow().pos().unwrap();
         let elevation = dude_pos.elevation;
@@ -215,7 +240,7 @@ fn main() {
                     draw_path_blocked = world.path_for_object(&dude_objh, mouse_hex_pos, true).is_none();
                 }
                 Event::MouseButtonUp { x, y, mouse_btn, .. } => {
-                    if let Some(signal) = dude_seq_cancel.take() {
+                    if let Some(signal) = world.objects().get(&dude_objh).borrow_mut().sequence.take() {
                         signal.cancel();
                     }
 
@@ -228,8 +253,8 @@ fn main() {
                         };
                         if !path.is_empty() {
                             let (seq, signal) = Move::new(dude_objh.clone(), anim, path).cancellable();
-                            dude_seq_cancel = Some(signal);
-                            dude_seq.push(seq.then(Stand::new(dude_objh.clone())));
+                            world.objects().get(&dude_objh).borrow_mut().sequence = Some(signal);
+                            seq_ctl.push(seq.then(Stand::new(dude_objh.clone())));
                         }
                     }
                 }
@@ -353,7 +378,7 @@ fn main() {
             let ref msg = format!(
                 "mouse hex: {}, {} ({})\n\
                  mouse sqr: {}, {} ({})\n\
-                 dude hex:: {}, {} ({})\n\
+                 dude hex: {}, {} ({})\n\
                  ambient: 0x{:x}",
                 mouse_hex_pos.x, mouse_hex_pos.y,
                 world.map_grid().hex().to_linear_inv(mouse_hex_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),

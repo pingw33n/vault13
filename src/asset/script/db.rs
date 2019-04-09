@@ -1,5 +1,6 @@
 use atoi::atoi;
 use std::io::{self, Error, ErrorKind, prelude::*};
+use std::rc::Rc;
 
 use crate::fs::FileSystem;
 
@@ -9,21 +10,32 @@ pub struct ScriptInfo {
     pub local_var_count: usize,
 }
 
-#[derive(Debug)]
 pub struct ScriptDb {
+    fs: Rc<FileSystem>,
     infos: Vec<ScriptInfo>,
 }
 
 impl ScriptDb {
-    pub fn new(fs: &FileSystem) -> io::Result<Self> {
+    pub fn new(fs: Rc<FileSystem>) -> io::Result<Self> {
         let infos = read_lst(&mut fs.reader("scripts/scripts.lst")?)?;
         Ok(Self {
+            fs,
             infos,
         })
     }
 
     pub fn info(&self, program_id: u32) -> Option<&ScriptInfo> {
         self.infos.get(program_id as usize)
+    }
+
+    pub fn load(&self, program_id: u32) -> io::Result<(Box<[u8]>, &ScriptInfo)> {
+        let info = self.info(program_id)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput,
+                format!("program id {} doesn't exist", program_id)))?;
+        let path = format!("scripts/{}.int", info.name);
+        let mut code = Vec::new();
+        self.fs.reader(&path)?.read_to_end(&mut code)?;
+        Ok((code.into(), info))
     }
 }
 

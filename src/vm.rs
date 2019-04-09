@@ -10,23 +10,58 @@ use log::*;
 use matches::matches;
 use slotmap::{DefaultKey, SecondaryMap, SlotMap};
 use std::collections::HashMap;
+use std::fmt;
 use std::io::{self, Cursor};
 use std::result::{Result as StdResult};
 use std::rc::Rc;
 use std::str;
 use std::time::Duration;
 
-use self::error::*;
+pub use self::error::*;
 use self::instruction::{Instruction, instruction_map, Opcode};
 use self::stack::Stack;
 use self::value::Value;
 use crate::game::object;
 use crate::vm::stack::StackId;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PredefinedProc {
+    MapEnter,
+    MapUpdate,
+    MapExit,
+    Start,
+}
+
+impl PredefinedProc {
+    pub fn name(&self) -> &'static str {
+        use PredefinedProc::*;
+        match self {
+            MapEnter => "map_enter_p_proc",
+            MapUpdate => "map_update_p_proc",
+            MapExit => "map_exit_p_proc",
+            Start => "start",
+        }
+    }
+}
+
+impl fmt::Display for PredefinedProc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
 pub struct Context<'a> {
     pub external_vars: &'a mut HashMap<Rc<String>, Option<Value>>,
     pub global_vars: &'a mut Vec<i32>,
     pub self_obj: Option<object::Handle>,
+    pub world: &'a mut crate::game::world::World,
+    pub sequencer: &'a mut crate::sequence::Sequencer,
+}
+
+impl Context<'_> {
+    pub fn has_active_seq(&self, obj: &object::Handle) -> bool {
+        self.world.objects().get(obj).borrow().sequence.is_some()
+    }
 }
 
 pub struct VmConfig {
@@ -242,6 +277,7 @@ pub struct ProgramState {
     // FIXME check if this an Option
     base: isize,
     global_base: Option<usize>,
+    instr_state: instruction::State,
 }
 
 impl ProgramState {
@@ -257,6 +293,7 @@ impl ProgramState {
             return_stack,
             base: -1,
             global_base: None,
+            instr_state: instruction::State::new(),
         }
     }
 
@@ -399,11 +436,11 @@ impl Vm {
         }
     }
 
-    pub fn load_program(&self, code: Box<[u8]>) -> Result<Program> {
+    pub fn load(&self, code: Box<[u8]>) -> Result<Program> {
         Program::new(self.config.clone(), code)
     }
 
-    pub fn insert_program(&mut self, program: Rc<Program>) -> Handle {
+    pub fn insert(&mut self, program: Rc<Program>) -> Handle {
         let program_state = ProgramState::new(program);
         let k = self.program_handles.insert(());
         self.programs.insert(k, program_state);
@@ -415,8 +452,15 @@ impl Vm {
     }
 
     pub fn execute_proc(&mut self, program: &Handle, name: &Rc<String>, ctx: &mut Context)
-            -> Result<()> {
+        -> Result<()>
+    {
         self.program(program).execute_proc(name, ctx)
+    }
+
+    pub fn execute_predefined_proc(&mut self, program: &Handle, proc: PredefinedProc, ctx: &mut Context)
+        -> Result<()>
+    {
+        self.execute_proc(program, &Rc::new(proc.to_string()), ctx)
     }
 
     fn program(&mut self, program: &Handle) -> &mut ProgramState {
