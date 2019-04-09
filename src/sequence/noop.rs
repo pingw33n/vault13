@@ -10,6 +10,6 @@ impl Noop {
 
 impl Sequence for Noop {
     fn update(&mut self, _ctx: &mut Context) -> Result {
-        Result::Done(Done::AdvanceNow)
+        Result::Done
     }
 }

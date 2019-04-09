@@ -16,17 +16,16 @@ impl<T: Sequence, F: FnMut() -> T> Repeat<T, F> {
 
 impl<T: Sequence, F: FnMut() -> T> Sequence for Repeat<T, F> {
     fn update(&mut self, ctx: &mut Context) -> Result {
-        if self.seq.is_none() {
-            self.seq = Some((self.seq_producer)());
+        const MAX_ITERS: usize = 10;
+        for _ in 0..MAX_ITERS {
+            if self.seq.is_none() {
+                self.seq = Some((self.seq_producer)());
+            }
+            match self.seq.as_mut().unwrap().update(ctx) {
+                r @ Result::Running(_) => return r,
+                Result::Done => self.seq = None,
+            }
         }
-        match self.seq.as_mut().unwrap().update(ctx) {
-            r @ Result::Running(_) => r,
-            Result::Done(Done::AdvanceLater) => {
-                self.seq = None;
-                Result::Running(Running::NotLagging)
-            },
-            Result::Done(Done::AdvanceNow) =>
-                panic!("infinite loop in Repeat caused by Done::AdvanceNow result from inner sequence"),
-        }
+        panic!("inner sequence didn't start after {} iterations", MAX_ITERS);
     }
 }

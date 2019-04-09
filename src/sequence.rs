@@ -21,22 +21,14 @@ pub enum Running {
     Lagging,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
-pub enum Done {
-    /// If applicable the caller must advance to the next sequence immediately.
-    AdvanceNow,
-
-    /// If applicable the caller must defer advancing to the next iteration or tick.
-    AdvanceLater,
-}
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Result {
     /// Sequence is still running after the `update()` call.
     Running(Running),
 
     /// Sequence is finished.
-    Done(Done),
+    /// If applicable the caller must advance to the next sequence immediately.
+    Done,
 }
 
 pub struct Context<'a> {
@@ -116,7 +108,7 @@ fn update_while_lagging(mut seq: impl AsMut<Sequence>, ctx: &mut Context) -> NoL
         break match seq.as_mut().update(ctx) {
             Result::Running(Running::Lagging) => continue,
             Result::Running(Running::NotLagging) => NoLagResult::Running,
-            Result::Done(_) => NoLagResult::Done,
+            Result::Done => NoLagResult::Done,
         };
     }
 }

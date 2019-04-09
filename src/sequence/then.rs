@@ -20,14 +20,11 @@ impl<U: Sequence, V: Sequence> Sequence for Then<U, V> {
             break if self.first.is_some() {
                 let r = self.first.as_mut().unwrap().update(ctx);
                 match r {
-                    Result::Done(d) => {
+                    Result::Running(_) => r,
+                    Result::Done => {
                         self.first = None;
-                        if d == Done::AdvanceNow {
-                            continue;
-                        }
-                        Result::Running(Running::NotLagging)
+                        continue;
                     }
-                    _ => r,
                 }
             } else {
                 self.second.update(ctx)

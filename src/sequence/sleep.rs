@@ -6,6 +6,7 @@ use super::*;
 enum State {
     Started,
     Running(Instant),
+    Done,
 }
 
 pub struct Sleep {
@@ -28,9 +29,10 @@ impl Sequence for Sleep {
             State::Started => self.state = State::Running(ctx.time),
             State::Running(start_time) => {
                 if ctx.time - start_time >= self.duration {
-                    return Result::Done(Done::AdvanceLater);
+                    self.state = State::Done;
                 }
             }
+            State::Done => return Result::Done,
         }
         Result::Running(Running::NotLagging)
     }

@@ -94,23 +94,22 @@ impl Sequence for Chain {
         loop {
             let r = match self.sequences.first_mut().map(|seq| seq.update(ctx)) {
                 Some(r @ Result::Running(_)) => r,
-                Some(r @ Result::Done(_))
-                => {
+                Some(Result::Done) => {
                     self.sequences.remove(0);
                     if self.sequences.is_empty() {
                         if self.keep_running && self.control.is_unique() {
                             panic!("all controls are gone and no more sequences can be added");
                         }
-                        r
+                        Result::Done
                     } else {
                         continue;
                     }
                 },
-                None => Result::Done(Done::AdvanceLater),
+                None => Result::Done,
             };
             break match r {
-                Result::Done(_) if self.keep_running => Result::Running(Running::NotLagging),
-                _ => r
+                Result::Done if self.keep_running => Result::Running(Running::NotLagging),
+                Result::Done | Result::Running(_) => r
             }
         }
     }

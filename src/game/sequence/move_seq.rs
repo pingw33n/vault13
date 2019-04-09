@@ -72,7 +72,7 @@ impl Sequence for Move {
                     return Result::Running(Running::NotLagging);
                 }
             }
-            State::Done => return Result::Done(Done::AdvanceLater),
+            State::Done => return Result::Done,
         }
 
         let new_obj_pos_and_shift = {
@@ -116,7 +116,7 @@ impl Sequence for Move {
             self.path_pos += 1;
             if self.path_pos >= self.path.len() {
                 self.state = State::Done;
-                return Result::Done(Done::AdvanceLater);
+                return Result::Running(Running::NotLagging);
             }
             ctx.world.objects_mut().add_screen_shift(self.obj, shift);
             self.init_step(ctx.world);

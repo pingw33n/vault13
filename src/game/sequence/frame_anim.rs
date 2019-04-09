@@ -84,7 +84,7 @@ impl Sequence for FrameAnim {
                     return Result::Running(Running::NotLagging);
                 }
             }
-            State::Done => return Result::Done(Done::AdvanceLater),
+            State::Done => return Result::Done,
         }
 
         let shift = {
@@ -136,7 +136,7 @@ impl Sequence for FrameAnim {
             ctx.world.objects_mut().add_screen_shift(self.obj, shift);
         } else {
             self.state = State::Done;
-            return Result::Done(Done::AdvanceLater);
+            return Result::Running(Running::NotLagging);
         }
 
         let new_last_time = if let State::Running(last_time) = self.state {
