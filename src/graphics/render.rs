@@ -1,6 +1,5 @@
 pub mod software;
 
-use slotmap::DefaultKey;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
@@ -8,6 +7,7 @@ use std::time::Instant;
 
 use crate::graphics::color::Rgb15;
 use crate::graphics::font::{self, FontKey};
+use crate::util::SmKey;
 
 #[derive(Clone)]
 pub struct TextureHandle(Rc<TextureHandleInner>);
@@ -20,8 +20,8 @@ impl fmt::Debug for TextureHandle {
 
 #[derive(Clone)]
 struct TextureHandleInner {
-    key: DefaultKey,
-    drop_list: Rc<RefCell<Vec<DefaultKey>>>,
+    key: SmKey,
+    drop_list: Rc<RefCell<Vec<SmKey>>>,
 }
 
 impl Drop for TextureHandleInner {

@@ -1,6 +1,6 @@
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::render::{Texture as SdlTexture, WindowCanvas};
-use slotmap::{DefaultKey, SecondaryMap, SlotMap};
+use slotmap::{SecondaryMap, SlotMap};
 use std::cmp;
 use std::rc::Rc;
 use std::cell::{Ref, RefCell};
@@ -10,6 +10,7 @@ use crate::graphics::color::{Color8, Palette, PaletteOverlay};
 use crate::graphics::font::{self, FontKey, Fonts};
 use crate::graphics::lighting::light_map::{self, LightMap};
 use crate::graphics::Rect;
+use crate::util::SmKey;
 
 pub struct Backend {
     canvas: WindowCanvas,
@@ -68,15 +69,15 @@ impl Texture {
 }
 
 struct TexturesInner {
-    handles: SlotMap<DefaultKey, ()>,
-    textures: SecondaryMap<DefaultKey, Texture>,
-    drop_list: Rc<RefCell<Vec<DefaultKey>>>,
+    handles: SlotMap<SmKey, ()>,
+    textures: SecondaryMap<SmKey, Texture>,
+    drop_list: Rc<RefCell<Vec<SmKey>>>,
 }
 
 impl TexturesInner {
     fn new() -> Self {
         Self {
-            handles: SlotMap::new(),
+            handles: SlotMap::with_key(),
             textures: SecondaryMap::new(),
             drop_list: Rc::new(RefCell::new(Vec::new())),
         }

@@ -8,7 +8,7 @@ use enumflags::BitFlags;
 use enumflags_derive::EnumFlags;
 use log::*;
 use matches::matches;
-use slotmap::{DefaultKey, SecondaryMap, SlotMap};
+use slotmap::{SecondaryMap, SlotMap};
 use std::collections::HashMap;
 use std::fmt;
 use std::io::{self, Cursor};
@@ -17,12 +17,12 @@ use std::rc::Rc;
 use std::str;
 use std::time::Duration;
 
-pub use self::error::*;
-use self::instruction::{Instruction, instruction_map, Opcode};
-use self::stack::Stack;
-use self::value::Value;
+pub use error::*;
+use instruction::{Instruction, instruction_map, Opcode};
+use stack::{Stack, StackId};
+use value::Value;
 use crate::game::object;
-use crate::vm::stack::StackId;
+use crate::util::SmKey;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PredefinedProc {
@@ -419,19 +419,19 @@ impl StackId for ReturnStackId {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Handle(DefaultKey);
+pub struct Handle(SmKey);
 
 pub struct Vm {
     config: Rc<VmConfig>,
-    program_handles: SlotMap<DefaultKey, ()>,
-    programs: SecondaryMap<DefaultKey, ProgramState>,
+    program_handles: SlotMap<SmKey, ()>,
+    programs: SecondaryMap<SmKey, ProgramState>,
 }
 
 impl Vm {
     pub fn new(config: Rc<VmConfig>) -> Self {
         Self {
             config,
-            program_handles: SlotMap::new(),
+            program_handles: SlotMap::with_key(),
             programs: SecondaryMap::new(),
         }
     }

@@ -2,6 +2,7 @@ pub mod two_dim_array;
 
 use enum_map::Enum;
 use std::cmp;
+use std::fmt;
 use std::io;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
@@ -171,6 +172,33 @@ impl<T: Enum<()>> Iterator for EnumIter<T> {
         let r = T::from_usize(self.i);
         self.i += 1;
         Some(r)
+    }
+}
+
+#[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[repr(transparent)]
+pub struct SmKey(slotmap::KeyData);
+
+impl From<slotmap::KeyData> for SmKey {
+    fn from(k: slotmap::KeyData) -> Self {
+        Self(k)
+    }
+}
+
+impl From<SmKey> for slotmap::KeyData {
+    fn from(k: SmKey) -> Self {
+        k.0
+    }
+}
+
+impl slotmap::Key for SmKey { }
+
+impl fmt::Debug for SmKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let v = self.0.as_ffi();
+        let ver = (v >> 32) as u32;
+        let idx = v as u32;
+        write!(f, "{}:{}", idx, ver)
     }
 }
 

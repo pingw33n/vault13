@@ -1,5 +1,5 @@
 use enumflags::BitFlags;
-use slotmap::{DefaultKey, SecondaryMap, SlotMap};
+use slotmap::{SecondaryMap, SlotMap};
 use std::cell::{Ref, RefCell};
 use std::cmp;
 use std::mem;
@@ -15,7 +15,7 @@ use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::{Effect, Frame, OutlineStyle, Sprite, Translucency};
 use crate::sequence::cancellable::Cancel;
-use crate::util::{self, EnumExt};
+use crate::util::{self, EnumExt, SmKey};
 use crate::util::two_dim_array::Array2d;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -58,13 +58,13 @@ pub struct Egg {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
-pub struct Handle(DefaultKey);
+pub struct Handle(SmKey);
 
 impl Handle {
     #[cfg(test)]
     pub fn null() -> Self {
         use slotmap::Key;
-        Handle(DefaultKey::null())
+        Handle(Key::null())
     }
 }
 
@@ -258,8 +258,8 @@ pub struct Objects {
     tile_grid: TileGrid,
     proto_db: Rc<ProtoDb>,
     frm_db: Rc<FrmDb>,
-    handles: SlotMap<DefaultKey, ()>,
-    objects: SecondaryMap<DefaultKey, RefCell<Object>>,
+    handles: SlotMap<SmKey, ()>,
+    objects: SecondaryMap<SmKey, RefCell<Object>>,
     by_pos: Box<[Array2d<Vec<Handle>>]>,
     detached: Vec<Handle>,
     empty_object_handle_vec: Vec<Handle>,
@@ -277,7 +277,7 @@ impl Objects {
             tile_grid,
             proto_db,
             frm_db,
-            handles: SlotMap::new(),
+            handles: SlotMap::with_key(),
             objects: SecondaryMap::new(),
             by_pos,
             detached: Vec::new(),
