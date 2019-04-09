@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::asset::frm::FrmDb;
 use crate::asset::proto::ProtoDb;
 use crate::game::object::{self, Object, Objects};
-use crate::graphics::{ElevatedPoint, Point};
+use crate::graphics::{EPoint, Point};
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::geometry::map::MapGrid;
 use crate::graphics::lighting::light_grid::LightGrid;
@@ -76,7 +76,7 @@ impl World {
         h
     }
 
-    pub fn set_object_pos(&mut self, h: object::Handle, pos: impl Into<ElevatedPoint>) {
+    pub fn set_object_pos(&mut self, h: object::Handle, pos: impl Into<EPoint>) {
         Self::update_light_grid(&self.objects, &mut self.light_grid, h, -1);
 
         self.objects.set_pos(h, pos);

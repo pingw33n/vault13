@@ -9,7 +9,7 @@ use crate::asset::{EntityKind, Flag, FlagExt, WeaponKind};
 use crate::asset::frm::{CritterAnim, Fid, FrmDb};
 use crate::asset::proto::{self, CritterKillKind, Pid, ProtoDb};
 use crate::asset::script::Sid;
-use crate::graphics::{ElevatedPoint, Point, Rect};
+use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::hex::*;
 use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
 use crate::graphics::render::Canvas;
@@ -72,7 +72,7 @@ impl Handle {
 pub struct Object {
     pub handle: Option<Handle>,
     pub flags: BitFlags<Flag>,
-    pos: Option<ElevatedPoint>,
+    pos: Option<EPoint>,
     pub screen_pos: Point,
     screen_shift: Point,
     pub fid: Fid,
@@ -89,7 +89,7 @@ pub struct Object {
 impl Object {
     pub fn new(
             flags: BitFlags<Flag>,
-            pos: Option<ElevatedPoint>,
+            pos: Option<EPoint>,
             screen_pos: Point,
             screen_shift: Point,
             fid: Fid,
@@ -118,7 +118,7 @@ impl Object {
         }
     }
 
-    pub fn pos(&self) -> Option<ElevatedPoint> {
+    pub fn pos(&self) -> Option<EPoint> {
         self.pos
     }
 
@@ -167,7 +167,7 @@ impl Object {
     }
 
     fn create_sprite(&self, light: u32, effect: Option<Effect>, tile_grid: &TileGrid) -> Sprite {
-        let (pos, centered) = if let Some(ElevatedPoint { point: hex_pos, .. }) = self.pos {
+        let (pos, centered) = if let Some(EPoint { point: hex_pos, .. }) = self.pos {
             (tile_grid.to_screen(hex_pos) + self.screen_shift + Point::new(16, 8), true)
         } else {
             (self.screen_pos, false)
@@ -305,7 +305,7 @@ impl Objects {
         h
     }
 
-    pub fn at(&self, pos: ElevatedPoint) -> &Vec<Handle> {
+    pub fn at(&self, pos: EPoint) -> &Vec<Handle> {
         self.by_pos[pos.elevation]
             .get(pos.point.x as usize, pos.point.y as usize)
             .unwrap()
@@ -376,7 +376,7 @@ impl Objects {
 
     pub fn render(&self, canvas: &mut Canvas, elevation: usize, screen_rect: &Rect,
             tile_grid: &TileGrid, egg: Option<&Egg>,
-            get_light: impl Fn(Option<ElevatedPoint>) -> u32) {
+            get_light: impl Fn(Option<EPoint>) -> u32) {
         let ref get_light = get_light;
         self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, true);
         self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, false);
@@ -387,7 +387,7 @@ impl Objects {
         let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
         for y in hex_rect.top..hex_rect.bottom {
             for x in (hex_rect.left..hex_rect.right).rev() {
-                let pos = ElevatedPoint {
+                let pos = EPoint {
                     elevation,
                     point: Point::new(x, y),
                 };
@@ -404,7 +404,7 @@ impl Objects {
         self.handles.keys().map(|k| Handle(k))
     }
 
-    pub fn set_pos(&mut self, h: Handle, pos: impl Into<ElevatedPoint>) {
+    pub fn set_pos(&mut self, h: Handle, pos: impl Into<EPoint>) {
         self.detach(h);
         self.attach(h, Some(pos.into()), true);
     }
@@ -468,7 +468,7 @@ impl Objects {
     }
 
     // obj_blocking_at()
-    pub fn blocker_at(&self, p: impl Into<ElevatedPoint>, mut filter: impl FnMut(&Object) -> bool)
+    pub fn blocker_at(&self, p: impl Into<EPoint>, mut filter: impl FnMut(&Object) -> bool)
             -> Option<&RefCell<Object>> {
         let p = p.into();
         let mut check = |h| {
@@ -511,7 +511,7 @@ impl Objects {
         None
     }
 
-    pub fn blocker_for_object_at(&self, obj: Handle, p: impl Into<ElevatedPoint>)
+    pub fn blocker_for_object_at(&self, obj: Handle, p: impl Into<EPoint>)
             -> Option<&RefCell<Object>> {
         self.blocker_at(p, |o| o.handle != Some(obj))
     }
@@ -522,7 +522,7 @@ impl Objects {
         let from = o.pos?;
         self.path_finder.borrow_mut().find(from.point, to, smooth,
             |p| {
-                let p = ElevatedPoint::new(from.elevation, p);
+                let p = EPoint::new(from.elevation, p);
                 if self.blocker_for_object_at(obj, p).is_some() {
                     TileState::Blocked
                 } else if let Some(pid) = o.pid {
@@ -564,12 +564,12 @@ impl Objects {
 
     fn render0(&self, canvas: &mut Canvas, elevation: usize,
             screen_rect: &Rect, tile_grid: &TileGrid, egg: Option<&Egg>,
-            get_light: impl Fn(Option<ElevatedPoint>) -> u32,
+            get_light: impl Fn(Option<EPoint>) -> u32,
             flat: bool) {
         let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
         for y in hex_rect.top..hex_rect.bottom {
             for x in (hex_rect.left..hex_rect.right).rev() {
-                let pos = ElevatedPoint {
+                let pos = EPoint {
                     elevation,
                     point: Point::new(x, y),
                 };
@@ -588,7 +588,7 @@ impl Objects {
         }
     }
 
-    fn at_mut(&mut self, pos: ElevatedPoint) -> &mut Vec<Handle> {
+    fn at_mut(&mut self, pos: EPoint) -> &mut Vec<Handle> {
         self.by_pos[pos.elevation]
             .get_mut(pos.point.x as usize, pos.point.y as usize)
             .unwrap()
@@ -624,7 +624,7 @@ impl Objects {
         shift.x.cmp(&other_shift.x)
     }
 
-    fn attach(&mut self, h: Handle, pos: Option<ElevatedPoint>, reset_screen_shift: bool) {
+    fn attach(&mut self, h: Handle, pos: Option<EPoint>, reset_screen_shift: bool) {
         if let Some(pos) = pos {
             {
                 let mut obj = self.get(h).borrow_mut();
@@ -659,7 +659,7 @@ impl Objects {
         }
     }
 
-    fn detach(&mut self, h: Handle) -> Option<ElevatedPoint> {
+    fn detach(&mut self, h: Handle) -> Option<EPoint> {
         let old_pos = mem::replace(&mut self.get(h).borrow_mut().pos, None);
         let list = if let Some(old_pos) = old_pos {
             self.at_mut(old_pos)

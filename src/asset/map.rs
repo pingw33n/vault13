@@ -11,7 +11,7 @@ use crate::asset::proto::{ItemVariant, Pid, ProtoDb};
 use crate::asset::script::*;
 use crate::game::object::*;
 use crate::game::script::Scripts;
-use crate::graphics::{ElevatedPoint, Point};
+use crate::graphics::{EPoint, Point};
 use crate::graphics::geometry::hex::{Direction, TileGrid};
 use crate::graphics::geometry::map::ELEVATION_COUNT;
 use crate::graphics::render::TextureFactory;
@@ -32,7 +32,7 @@ pub enum OutlineFlag {
 }
 
 pub struct Map {
-    pub entrance: ElevatedPoint,
+    pub entrance: EPoint,
     pub entrance_direction: Direction,
     pub sqr_tiles: Vec<Option<Vec<(u16, u16)>>>,
 }
@@ -157,7 +157,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         }
 
         Ok(Map {
-            entrance: ElevatedPoint {
+            entrance: EPoint {
                 elevation: entrance_elevation,
                 point: entrance_pos,
             },
@@ -393,7 +393,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         }
 
         let pos = if pos >= 0 {
-            Some(ElevatedPoint {
+            Some(EPoint {
                 elevation,
                 point: self.tile_grid.from_linear_inv(pos as u32),
             })

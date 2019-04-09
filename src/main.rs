@@ -36,7 +36,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
 use crate::graphics::map::render_floor;
 use std::cmp;
-use crate::graphics::ElevatedPoint;
+use crate::graphics::EPoint;
 use crate::game::object::Egg;
 use std::time::Instant;
 use std::time::Duration;
@@ -235,7 +235,7 @@ fn main() {
                 Event::MouseMotion { x, y, .. } => {
                     mouse_hex_pos = world.map_grid().hex().from_screen((x, y));
                     mouse_sqr_pos = world.map_grid().sqr().from_screen((x, y));
-                    let new_pos = ElevatedPoint::new(elevation, mouse_hex_pos);
+                    let new_pos = EPoint::new(elevation, mouse_hex_pos);
                     world.set_object_pos(mouse_objh, new_pos);
                     draw_path_blocked = world.path_for_object(dude_objh, mouse_hex_pos, true).is_none();
                 }
@@ -333,7 +333,7 @@ fn main() {
                 Some(frm_db.get(fid).frame_lists[Direction::NE].frames[0].texture.clone())
             },
             |point| {
-                let l = world.light_grid().get_clipped(ElevatedPoint { elevation, point });
+                let l = world.light_grid().get_clipped(EPoint { elevation, point });
                 cmp::max(l, ambient_light)
             }
         );

@@ -2,7 +2,7 @@ use enum_map::EnumMap;
 use num_traits::clamp;
 
 use crate::graphics::geometry::hex::{Direction, TileGrid};
-use crate::graphics::{ElevatedPoint, Point};
+use crate::graphics::{EPoint, Point};
 use crate::util::{EnumExt, vec_with_func};
 
 const MAX_EMITTER_RADIUS: u32 = 8;
@@ -20,7 +20,7 @@ pub struct LightTest {
     pub direction: Direction,
 
     /// Hex coords of the point inside the light cone.
-    pub point: ElevatedPoint,
+    pub point: EPoint,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -68,7 +68,7 @@ impl LightGrid {
         }
     }
 
-    pub fn update(&mut self, p: impl Into<ElevatedPoint>, radius: u32, delta: i32,
+    pub fn update(&mut self, p: impl Into<EPoint>, radius: u32, delta: i32,
                   mut tester: impl FnMut(LightTest) -> LightTestResult) {
         assert!(radius <= MAX_EMITTER_RADIUS, "{}", radius);
 
@@ -101,7 +101,7 @@ impl LightGrid {
                     let LightTestResult { block, update } = tester(LightTest {
                         i,
                         direction: dir,
-                        point: ElevatedPoint { elevation: p.elevation, point: light_cone_point },
+                        point: EPoint { elevation: p.elevation, point: light_cone_point },
                     });
                     if update {
                         Self::update_at(&mut self.grid, self.width, p.elevation,
@@ -120,12 +120,12 @@ impl LightGrid {
         &self.grid
     }
 
-    pub fn get(&self, p: impl Into<ElevatedPoint>) -> i32 {
+    pub fn get(&self, p: impl Into<EPoint>) -> i32 {
         let p = p.into();
         self.grid[p.elevation][(self.width * p.point.y + p.point.x) as usize]
     }
 
-    pub fn get_clipped(&self, p: impl Into<ElevatedPoint>) -> u32 {
+    pub fn get_clipped(&self, p: impl Into<EPoint>) -> u32 {
         clamp(self.get(p), 0, 0x10000) as u32
     }
 
@@ -458,7 +458,7 @@ mod test {
                 (0x64a1, 8, 0x10000),
             ] {
                 let point = TileGrid::default().from_linear_inv(linp);
-                actual.update(ElevatedPoint { elevation: 0, point }, radius, amount,
+                actual.update(EPoint { elevation: 0, point }, radius, amount,
                     |_| LightTestResult::default());
             }
 
@@ -479,7 +479,7 @@ mod test {
                 let lt = LightTest {
                     i,
                     direction,
-                    point: ElevatedPoint {
+                    point: EPoint {
                         elevation: ELEVATION,
                         point: (x, y).into(),
                     },
@@ -506,9 +506,9 @@ mod test {
 
             let expected = Vec::from(lg.grid().clone());
 
-            lg.update(ElevatedPoint { elevation: 0, point: Point::new(31, 41) }, 8, 1234567,
+            lg.update(EPoint { elevation: 0, point: Point::new(31, 41) }, 8, 1234567,
                 |_| LightTestResult::default());
-            lg.update(ElevatedPoint { elevation: 0, point: Point::new(31, 41) }, 8, -1234567,
+            lg.update(EPoint { elevation: 0, point: Point::new(31, 41) }, 8, -1234567,
                 |_| LightTestResult::default());
 
             assert_eq!(lg.grid(), &expected[..]);

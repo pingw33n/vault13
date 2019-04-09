@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use crate::asset::frm::CritterAnim;
 use crate::game::object::Handle;
 use crate::game::world::World;
-use crate::graphics::ElevatedPoint;
+use crate::graphics::EPoint;
 use crate::graphics::geometry::hex::{self, Direction};
 use crate::sequence::*;
 
@@ -105,7 +105,7 @@ impl Sequence for Move {
                 };
                 let pos = pos.unwrap();
                 let pos_point = ctx.world.map_grid().hex().go(pos.point, dir, 1).unwrap();
-                Some((ElevatedPoint::new(pos.elevation, pos_point), shift))
+                Some((EPoint::new(pos.elevation, pos_point), shift))
             } else {
                 None
             }
