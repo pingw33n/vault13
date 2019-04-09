@@ -1,4 +1,5 @@
 use enum_map_derive::Enum;
+use if_chain::if_chain;
 use std::time::{Duration, Instant};
 
 use crate::asset::frm::CritterAnim;
@@ -23,16 +24,21 @@ pub struct FrameAnim {
     obj: Handle,
     anim: Option<CritterAnim>,
     direction: AnimDirection,
+    /// If true makes the animation loop forever.
+    wrap: bool,
     frame_len: Duration,
     state: State,
 }
 
 impl FrameAnim {
-    pub fn new(obj: Handle, anim: Option<CritterAnim>, direction: AnimDirection) -> Self {
+    pub fn new(obj: Handle, anim: Option<CritterAnim>, direction: AnimDirection,
+        wrap: bool) -> Self
+    {
         Self {
             obj,
             anim,
             direction,
+            wrap,
             frame_len: Duration::from_millis(1000 / 10),
             state: State::Started,
         }
@@ -41,14 +47,17 @@ impl FrameAnim {
     fn init(&mut self, world: &mut World) {
         let mut obj = world.objects().get(&self.obj).borrow_mut();
 
-        if let Some(anim) = self.anim {
-            obj.fid = obj.fid
-                .critter()
-                .unwrap()
-                .with_direction(Some(obj.direction))
-                .with_anim(anim)
-                .into()
-        }
+        obj.fid = if_chain! {
+            if let Some(anim) = self.anim;
+            if let Some(fid) = obj.fid.critter();
+            then {
+                fid.with_direction(Some(obj.direction))
+                    .with_anim(anim)
+                    .into()
+            } else {
+                obj.fid
+            }
+        };
 
         match self.direction {
             AnimDirection::Forward => obj.frame_idx = 0,
@@ -87,19 +96,35 @@ impl Sequence for FrameAnim {
             if self.state != State::Started {
                 match self.direction {
                     AnimDirection::Forward => {
-                        if obj.frame_idx + 1 < frames.len() {
+                        let done = if obj.frame_idx + 1 < frames.len() {
                             obj.frame_idx += 1;
-                            Some(frames[obj.frame_idx].shift)
+                            false
+                        } else if self.wrap {
+                            obj.frame_idx = 0;
+                            false
                         } else {
+                            true
+                        };
+                        if done {
                             None
+                        } else {
+                            Some(frames[obj.frame_idx].shift)
                         }
                     }
                     AnimDirection::Backward => {
-                        if obj.frame_idx > 0 {
+                        let done = if obj.frame_idx > 0 {
                             obj.frame_idx -= 1;
-                            Some(-frames[obj.frame_idx + 1].shift)
+                            false
+                        } else if self.wrap {
+                            obj.frame_idx = frames.len() - 1;
+                            false
                         } else {
+                            true
+                        };
+                        if done {
                             None
+                        } else {
+                            Some(-frames[obj.frame_idx + 1].shift)
                         }
                     }
                 }
