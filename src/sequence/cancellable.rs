@@ -12,15 +12,23 @@ impl Cancel {
     }
 
     pub fn cancel(self) {
-        self.0.set(true)
+        self.set_done();
     }
 
-    pub fn is_cancelled(&self) -> bool {
+    pub fn is_done(&self) -> bool {
         self.0.get()
+    }
+
+    pub fn is_running(&self) -> bool {
+        !self.is_done()
     }
 
     fn clone(&self) -> Self {
         Cancel(self.0.clone())
+    }
+
+    fn set_done(&self) {
+        self.0.set(true)
     }
 }
 
@@ -41,10 +49,16 @@ impl<T: Sequence> Cancellable<T> {
 
 impl<T: Sequence> Sequence for Cancellable<T> {
     fn update(&mut self, ctx: &mut Context) -> Result {
-        if self.cancel.is_cancelled() {
+        if self.cancel.is_done() {
             Result::Done
         } else {
-            self.sequence.update(ctx)
+            match self.sequence.update(ctx) {
+                r @ Result::Running(_) => r,
+                Result::Done => {
+                    self.cancel.set_done();
+                    Result::Done
+                }
+            }
         }
     }
 }

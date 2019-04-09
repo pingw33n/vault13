@@ -126,6 +126,10 @@ impl Object {
         self.screen_shift
     }
 
+    pub fn has_running_sequence(&self) -> bool {
+        self.sequence.as_ref().map(|seq| seq.is_running()).unwrap_or(false)
+    }
+
     pub fn render(&mut self, canvas: &mut Canvas, light: u32,
             frm_db: &FrmDb, proto_db: &ProtoDb, tile_grid: &TileGrid,
             egg: Option<&Egg>) {

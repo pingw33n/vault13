@@ -172,13 +172,13 @@ pub fn reg_anim_animate_forever(ctx: Context) -> Result<()> {
         .ok_or(Error::BadValue(BadValue::Content))?;
     let obj = ctx.prg.data_stack.pop()?.into_object()?;
     if let Some(obj) = obj {
-        if !ctx.ext.has_active_seq(obj) {
+        if !ctx.ext.has_running_sequence(obj) {
             let chain = ctx.prg.instr_state.sequences.entry(obj)
                 .or_insert_with(|| Chain::endless().0);
             let seq = FrameAnim::new(obj, Some(critter_anim), AnimDirection::Forward, true);
             chain.push(seq);
         } else {
-            debug!("reg_anim_animate_forever: object {:?} already has active sequence", obj);
+            debug!("reg_anim_animate_forever: object {:?} already has running sequence", obj);
         }
     }
     log_a2!(ctx.prg, obj, critter_anim);

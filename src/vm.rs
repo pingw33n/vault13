@@ -59,8 +59,8 @@ pub struct Context<'a> {
 }
 
 impl Context<'_> {
-    pub fn has_active_seq(&self, obj: object::Handle) -> bool {
-        self.world.objects().get(obj).borrow().sequence.is_some()
+    pub fn has_running_sequence(&self, obj: object::Handle) -> bool {
+        self.world.objects().get(obj).borrow().has_running_sequence()
     }
 }
 
