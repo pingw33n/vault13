@@ -59,7 +59,7 @@ pub struct Context<'a> {
 }
 
 impl Context<'_> {
-    pub fn has_active_seq(&self, obj: &object::Handle) -> bool {
+    pub fn has_active_seq(&self, obj: object::Handle) -> bool {
         self.world.objects().get(obj).borrow().sequence.is_some()
     }
 }
@@ -418,7 +418,7 @@ impl StackId for ReturnStackId {
     const VALUE: &'static str = "return";
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Handle(SmKey);
 
 pub struct Vm {
@@ -447,23 +447,23 @@ impl Vm {
         Handle(k)
     }
 
-    pub fn run(&mut self, program: &Handle, ctx: &mut Context) -> Result<()> {
+    pub fn run(&mut self, program: Handle, ctx: &mut Context) -> Result<()> {
        self.program(program).run(ctx)
     }
 
-    pub fn execute_proc(&mut self, program: &Handle, name: &Rc<String>, ctx: &mut Context)
+    pub fn execute_proc(&mut self, program: Handle, name: &Rc<String>, ctx: &mut Context)
         -> Result<()>
     {
         self.program(program).execute_proc(name, ctx)
     }
 
-    pub fn execute_predefined_proc(&mut self, program: &Handle, proc: PredefinedProc, ctx: &mut Context)
+    pub fn execute_predefined_proc(&mut self, program: Handle, proc: PredefinedProc, ctx: &mut Context)
         -> Result<()>
     {
         self.execute_proc(program, &Rc::new(proc.to_string()), ctx)
     }
 
-    fn program(&mut self, program: &Handle) -> &mut ProgramState {
+    fn program(&mut self, program: Handle) -> &mut ProgramState {
          self.programs.get_mut(program.0)
             .expect("invalid program handle")
     }

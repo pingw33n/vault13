@@ -45,7 +45,7 @@ impl FrameAnim {
     }
 
     fn init(&mut self, world: &mut World) {
-        let mut obj = world.objects().get(&self.obj).borrow_mut();
+        let mut obj = world.objects().get(self.obj).borrow_mut();
 
         obj.fid = if_chain! {
             if let Some(anim) = self.anim;
@@ -77,7 +77,7 @@ impl Sequence for FrameAnim {
         match self.state {
             State::Started => {
                 self.init(ctx.world);
-                ctx.world.objects_mut().reset_screen_shift(&self.obj);
+                ctx.world.objects_mut().reset_screen_shift(self.obj);
             },
             State::Running(last_time) => {
                 if ctx.time - last_time < self.frame_len {
@@ -88,7 +88,7 @@ impl Sequence for FrameAnim {
         }
 
         let shift = {
-            let mut obj = ctx.world.objects().get(&self.obj).borrow_mut();
+            let mut obj = ctx.world.objects().get(self.obj).borrow_mut();
 
             let frame_set = ctx.world.frm_db().get(obj.fid);
             let frames = &frame_set.frame_lists[obj.direction].frames;
@@ -133,7 +133,7 @@ impl Sequence for FrameAnim {
             }
         };
         if let Some(shift) = shift {
-            ctx.world.objects_mut().add_screen_shift(&self.obj, shift);
+            ctx.world.objects_mut().add_screen_shift(self.obj, shift);
         } else {
             self.state = State::Done;
             return Result::Done(Done::AdvanceLater);

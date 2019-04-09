@@ -71,12 +71,12 @@ impl World {
     pub fn insert_object(&mut self, object: Object) -> object::Handle {
         let h = self.objects.insert(object);
 
-        Self::update_light_grid(&self.objects, &mut self.light_grid, &h, 1);
+        Self::update_light_grid(&self.objects, &mut self.light_grid, h, 1);
 
         h
     }
 
-    pub fn set_object_pos(&mut self, h: &object::Handle, pos: impl Into<ElevatedPoint>) {
+    pub fn set_object_pos(&mut self, h: object::Handle, pos: impl Into<ElevatedPoint>) {
         Self::update_light_grid(&self.objects, &mut self.light_grid, h, -1);
 
         self.objects.set_pos(h, pos);
@@ -84,25 +84,25 @@ impl World {
         Self::update_light_grid(&self.objects, &mut self.light_grid, h, 1);
     }
 
-    pub fn make_object_standing(&mut self, h: &object::Handle) {
+    pub fn make_object_standing(&mut self, h: object::Handle) {
         self.objects.make_standing(h, &self.frm_db);
     }
 
-    pub fn path_for_object(&self, obj: &object::Handle, to: impl Into<Point>, smooth: bool)
+    pub fn path_for_object(&self, obj: object::Handle, to: impl Into<Point>, smooth: bool)
             -> Option<Vec<Direction>> {
         self.objects.path_for_object(obj, to, smooth, &self.proto_db)
     }
 
     pub fn rebuild_light_grid(&mut self) {
         self.light_grid.clear();
-        for ref h in self.objects.iter() {
+        for h in self.objects.iter() {
             Self::update_light_grid(&self.objects, &mut self.light_grid, h, 1);
         }
     }
 
-    fn update_light_grid(objects: &Objects, light_grid: &mut LightGrid, h: &object::Handle,
+    fn update_light_grid(objects: &Objects, light_grid: &mut LightGrid, h: object::Handle,
             factor: i32) {
-        let obj = objects.get(&h).borrow();
+        let obj = objects.get(h).borrow();
         if let Some(pos) = obj.pos() {
             light_grid.update(pos,
                 obj.light_emitter.radius,

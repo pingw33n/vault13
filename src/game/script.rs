@@ -69,8 +69,8 @@ impl Scripts {
         self.scripts.get(&sid)
     }
 
-    pub fn attach_to_object(&mut self, sid: Sid, obj: &object::Handle) {
-        self.scripts.get_mut(&sid).unwrap().object = Some(obj.clone());
+    pub fn attach_to_object(&mut self, sid: Sid, obj: object::Handle) {
+        self.scripts.get_mut(&sid).unwrap().object = Some(obj);
     }
 
     pub fn set_map_sid(&mut self, map_sid: Option<Sid>) {
@@ -124,13 +124,13 @@ impl Scripts {
         if script.program_id != 511 {
             return;
         }
-        ctx.self_obj = script.object.clone();
+        ctx.self_obj = script.object;
         if !script.inited {
             debug!("[{:?}#{}] running program initialization code", sid, script.program_id);
-            vm.run(&script.program, ctx).unwrap();
+            vm.run(script.program, ctx).unwrap();
             script.inited = true;
         }
         debug!("[{:?}#{}] executing predefined proc {:?}", sid, script.program_id, proc);
-        vm.execute_predefined_proc(&script.program, proc, ctx).unwrap();
+        vm.execute_predefined_proc(script.program, proc, ctx).unwrap();
     }
 }

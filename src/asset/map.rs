@@ -151,7 +151,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 let sid = obj.sid;
                 let objh = self.objects.insert(obj);
                 if let Some(sid) = sid {
-                    self.scripts.attach_to_object(sid, &objh);
+                    self.scripts.attach_to_object(sid, objh);
                 }
             }
         }

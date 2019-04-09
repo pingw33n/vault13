@@ -171,11 +171,11 @@ pub fn reg_anim_animate_forever(ctx: Context) -> Result<()> {
     let critter_anim = CritterAnim::from_i32(ctx.prg.data_stack.pop()?.into_int()?)
         .ok_or(Error::BadValue(BadValue::Content))?;
     let obj = ctx.prg.data_stack.pop()?.into_object()?;
-    if let Some(obj) = obj.clone() {
-        if !ctx.ext.has_active_seq(&obj) {
-            let chain = ctx.prg.instr_state.sequences.entry(obj.clone())
+    if let Some(obj) = obj {
+        if !ctx.ext.has_active_seq(obj) {
+            let chain = ctx.prg.instr_state.sequences.entry(obj)
                 .or_insert_with(|| Chain::endless().0);
-            let seq = FrameAnim::new(obj.clone(), Some(critter_anim), AnimDirection::Forward, true);
+            let seq = FrameAnim::new(obj, Some(critter_anim), AnimDirection::Forward, true);
             chain.push(seq);
         } else {
             debug!("reg_anim_animate_forever: object {:?} already has active sequence", obj);
@@ -201,7 +201,7 @@ pub fn reg_anim_func(ctx: Context) -> Result<()> {
         RegAnimFuncOp::End => {
             for (objh, seq) in ctx.prg.instr_state.sequences.drain() {
                 let (seq, cancel) = seq.cancellable();
-                let mut obj = ctx.ext.world.objects().get(&objh).borrow_mut();
+                let mut obj = ctx.ext.world.objects().get(objh).borrow_mut();
                 assert!(obj.sequence.is_none());
                 obj.sequence = Some(cancel);
                 ctx.ext.sequencer.start(seq);
@@ -211,7 +211,7 @@ pub fn reg_anim_func(ctx: Context) -> Result<()> {
         }
         RegAnimFuncOp::Clear => {
             let obj = arg.into_object()?;
-            if let Some(obj) = obj.as_ref() {
+            if let Some(obj) = obj {
                 if let Some(s) = ctx.ext.world.objects().get(obj).borrow_mut().sequence.take() {
                     s.cancel();
                 }

@@ -57,7 +57,7 @@ pub struct Egg {
     pub fid: Fid,
 }
 
-#[derive(Clone, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Handle(SmKey);
 
 impl Handle {
@@ -293,10 +293,10 @@ impl Objects {
 
         let k = self.handles.insert(());
         let h = Handle(k);
-        obj.handle = Some(h.clone());
+        obj.handle = Some(h);
         self.objects.insert(k, RefCell::new(obj));
 
-        self.attach(&h, pos, true);
+        self.attach(h, pos, true);
 
         h
     }
@@ -307,7 +307,7 @@ impl Objects {
             .unwrap()
     }
 
-    pub fn get(&self, h: &Handle) -> &RefCell<Object> {
+    pub fn get(&self, h: Handle) -> &RefCell<Object> {
         &self.objects[h.0]
     }
 
@@ -316,7 +316,7 @@ impl Objects {
 
         let dir = light_test.direction;
 
-        for objh in self.at(light_test.point) {
+        for &objh in self.at(light_test.point) {
             let obj = self.get(objh).borrow();
             if obj.flags.contains(Flag::TurnedOff) {
                 continue;
@@ -387,7 +387,7 @@ impl Objects {
                     elevation,
                     point: Point::new(x, y),
                 };
-                for objh in self.at(pos) {
+                for &objh in self.at(pos) {
                     let obj = self.get(objh).borrow_mut();
                     obj.render_outline(canvas, &self.frm_db, tile_grid);
                 }
@@ -400,12 +400,12 @@ impl Objects {
         self.handles.keys().map(|k| Handle(k))
     }
 
-    pub fn set_pos(&mut self, h: &Handle, pos: impl Into<ElevatedPoint>) {
+    pub fn set_pos(&mut self, h: Handle, pos: impl Into<ElevatedPoint>) {
         self.detach(h);
         self.attach(h, Some(pos.into()), true);
     }
 
-    pub fn add_screen_shift(&mut self, h: &Handle, shift: impl Into<Point>) -> Point {
+    pub fn add_screen_shift(&mut self, h: Handle, shift: impl Into<Point>) -> Point {
         let pos = self.detach(h);
         let new_shift = {
             let mut obj = self.get(h).borrow_mut();
@@ -416,13 +416,13 @@ impl Objects {
         new_shift
     }
 
-    pub fn reset_screen_shift(&mut self, h: &Handle) {
+    pub fn reset_screen_shift(&mut self, h: Handle) {
         let pos = self.detach(h);
         self.attach(h, pos, true);
     }
 
     // dude_stand()
-    pub fn make_standing(&mut self, h: &Handle, frm_db: &FrmDb) {
+    pub fn make_standing(&mut self, h: Handle, frm_db: &FrmDb) {
         let shift = {
             let mut obj = self.get(h).borrow_mut();
             let mut shift = Point::new(0, 0);
@@ -485,7 +485,7 @@ impl Objects {
             }
             Some(obj)
         };
-        for objh in self.at(p.into()) {
+        for &objh in self.at(p.into()) {
             let r = check(objh);
             if r.is_some() {
                 return r;
@@ -493,7 +493,7 @@ impl Objects {
         }
         for dir in Direction::iter() {
             if let Some(near) = self.tile_grid.go(p.point, dir, 1) {
-                for objh in self.at(near.elevated(p.elevation)) {
+                for &objh in self.at(near.elevated(p.elevation)) {
                     if self.get(objh).borrow().flags.contains(Flag::MultiHex) {
                         let r = check(objh);
                         if r.is_some() {
@@ -507,12 +507,12 @@ impl Objects {
         None
     }
 
-    pub fn blocker_for_object_at(&self, obj: &Handle, p: impl Into<ElevatedPoint>)
+    pub fn blocker_for_object_at(&self, obj: Handle, p: impl Into<ElevatedPoint>)
             -> Option<&RefCell<Object>> {
-        self.blocker_at(p, |o| o.handle.as_ref() != Some(obj))
+        self.blocker_at(p, |o| o.handle != Some(obj))
     }
 
-    pub fn path_for_object(&self, obj: &Handle, to: impl Into<Point>, smooth: bool, proto_db: &ProtoDb)
+    pub fn path_for_object(&self, obj: Handle, to: impl Into<Point>, smooth: bool, proto_db: &ProtoDb)
             -> Option<Vec<Direction>> {
         let o = self.get(obj).borrow();
         let from = o.pos?;
@@ -524,7 +524,7 @@ impl Objects {
                 } else if let Some(pid) = o.pid {
                     let radioacive_goo = self.at(p)
                         .iter()
-                        .any(|h| self.get(h).borrow().pid
+                        .any(|&h| self.get(h).borrow().pid
                             .map(|pid| pid.is_radioactive_goo())
                             .unwrap_or(false));
                     let cost = if radioacive_goo {
@@ -569,7 +569,7 @@ impl Objects {
                     elevation,
                     point: Point::new(x, y),
                 };
-                for objh in self.at(pos) {
+                for &objh in self.at(pos) {
                     let mut obj = self.get(objh).borrow_mut();
                     if flat && !obj.flags.contains(Flag::Flat) {
                         break;
@@ -620,10 +620,10 @@ impl Objects {
         shift.x.cmp(&other_shift.x)
     }
 
-    fn attach(&mut self, h: &Handle, pos: Option<ElevatedPoint>, reset_screen_shift: bool) {
+    fn attach(&mut self, h: Handle, pos: Option<ElevatedPoint>, reset_screen_shift: bool) {
         if let Some(pos) = pos {
             {
-                let mut obj = self.get(&h).borrow_mut();
+                let mut obj = self.get(h).borrow_mut();
                 obj.pos = Some(pos);
                 if reset_screen_shift {
                     obj.screen_shift = Point::new(0, 0);
@@ -632,15 +632,15 @@ impl Objects {
 
             let i = {
                 let list = self.at(pos);
-                let obj = self.get(&h).borrow();
-                match list.binary_search_by(|h| {
+                let obj = self.get(h).borrow();
+                match list.binary_search_by(|&h| {
                     let o = self.get(h).borrow();
                     self.cmp_objs(&o, &obj)
                 }) {
                     Ok(mut i) =>  {
                         // Append to the current group of equal objects.
                         while i < list.len()
-                            && self.cmp_objs(&obj, &self.get(&list[i]).borrow()) == cmp::Ordering::Equal
+                            && self.cmp_objs(&obj, &self.get(list[i]).borrow()) == cmp::Ordering::Equal
                         {
                             i += 1;
                         }
@@ -649,13 +649,13 @@ impl Objects {
                     Err(i) => i,
                 }
             };
-            self.at_mut(pos).insert(i, h.clone());
+            self.at_mut(pos).insert(i, h);
         } else {
-            self.detached.push(h.clone());
+            self.detached.push(h);
         }
     }
 
-    fn detach(&mut self, h: &Handle) -> Option<ElevatedPoint> {
+    fn detach(&mut self, h: Handle) -> Option<ElevatedPoint> {
         let old_pos = mem::replace(&mut self.get(h).borrow_mut().pos, None);
         let list = if let Some(old_pos) = old_pos {
             self.at_mut(old_pos)
@@ -663,7 +663,7 @@ impl Objects {
             &mut self.detached
         };
         // TODO maybe use binary_search for detaching.
-        list.retain(|hh| hh != h);
+        list.retain(|&hh| hh != h);
         old_pos
     }
 }

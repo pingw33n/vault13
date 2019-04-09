@@ -225,7 +225,7 @@ pub fn push_base(ctx: Context) -> Result<()> {
 }
 
 pub fn self_obj(ctx: Context) -> Result<()> {
-    ctx.prg.data_stack.push(Value::Object(ctx.ext.self_obj.clone()))?;
+    ctx.prg.data_stack.push(Value::Object(ctx.ext.self_obj))?;
     log_r1!(ctx.prg, ctx.prg.data_stack.top().unwrap());
 
     Ok(())

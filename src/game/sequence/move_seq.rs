@@ -41,7 +41,7 @@ impl Move {
     }
 
     fn init_step(&mut self, world: &mut World) {
-        let mut obj = world.objects().get(&self.obj).borrow_mut();
+        let mut obj = world.objects().get(self.obj).borrow_mut();
 
         obj.direction = self.path[self.path_pos];
         obj.fid = obj.fid
@@ -65,7 +65,7 @@ impl Sequence for Move {
         match self.state {
             State::Started => {
                 self.init_step(ctx.world);
-                ctx.world.objects_mut().reset_screen_shift(&self.obj);
+                ctx.world.objects_mut().reset_screen_shift(self.obj);
             },
             State::Running(last_time) => {
                 if ctx.time - last_time < self.frame_len {
@@ -77,7 +77,7 @@ impl Sequence for Move {
 
         let new_obj_pos_and_shift = {
             let (shift, pos) = {
-                let mut obj = ctx.world.objects().get(&self.obj).borrow_mut();
+                let mut obj = ctx.world.objects().get(self.obj).borrow_mut();
 
                 let frame_set = ctx.world.frm_db().get(obj.fid);
                 let frames = &frame_set.frame_lists[obj.direction].frames;
@@ -91,7 +91,7 @@ impl Sequence for Move {
 
                 (frames[obj.frame_idx].shift, obj.pos())
             };
-            let shift = ctx.world.objects_mut().add_screen_shift(&self.obj, shift);
+            let shift = ctx.world.objects_mut().add_screen_shift(self.obj, shift);
 
             let dir = self.path[self.path_pos];
             let next_hex_offset = hex::screen_offset(dir);
@@ -100,7 +100,7 @@ impl Sequence for Move {
                     || next_hex_offset.y != 0
                     && shift.y.abs() >= next_hex_offset.y.abs() {
                 let shift = {
-                    let obj = ctx.world.objects().get(&self.obj).borrow();
+                    let obj = ctx.world.objects().get(self.obj).borrow();
                     obj.screen_shift() - next_hex_offset
                 };
                 let pos = pos.unwrap();
@@ -111,14 +111,14 @@ impl Sequence for Move {
             }
         };
         if let Some((pos, shift)) = new_obj_pos_and_shift {
-            ctx.world.set_object_pos(&self.obj, pos);
+            ctx.world.set_object_pos(self.obj, pos);
 
             self.path_pos += 1;
             if self.path_pos >= self.path.len() {
                 self.state = State::Done;
                 return Result::Done(Done::AdvanceLater);
             }
-            ctx.world.objects_mut().add_screen_shift(&self.obj, shift);
+            ctx.world.objects_mut().add_screen_shift(self.obj, shift);
             self.init_step(ctx.world);
         }
         let new_last_time = if let State::Running(last_time) = self.state {

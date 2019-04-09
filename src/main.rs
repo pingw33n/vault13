@@ -186,7 +186,7 @@ fn main() {
         None,
         None,
     ));
-    world.make_object_standing(&dude_objh);
+    world.make_object_standing(dude_objh);
     frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
 
     frm_db.get_or_load(Fid::MOUSE_HEX2, &texture_factory).unwrap();
@@ -228,7 +228,7 @@ fn main() {
     let mut draw_path_blocked = false;
     let mut draw_debug = true;
     'running: loop {
-        let dude_pos = world.objects().get(&dude_objh).borrow().pos().unwrap();
+        let dude_pos = world.objects().get(dude_objh).borrow().pos().unwrap();
         let elevation = dude_pos.elevation;
         for event in event_pump.poll_iter() {
             match event {
@@ -236,25 +236,25 @@ fn main() {
                     mouse_hex_pos = world.map_grid().hex().from_screen((x, y));
                     mouse_sqr_pos = world.map_grid().sqr().from_screen((x, y));
                     let new_pos = ElevatedPoint::new(elevation, mouse_hex_pos);
-                    world.set_object_pos(&mouse_objh, new_pos);
-                    draw_path_blocked = world.path_for_object(&dude_objh, mouse_hex_pos, true).is_none();
+                    world.set_object_pos(mouse_objh, new_pos);
+                    draw_path_blocked = world.path_for_object(dude_objh, mouse_hex_pos, true).is_none();
                 }
                 Event::MouseButtonUp { x, y, mouse_btn, .. } => {
-                    if let Some(signal) = world.objects().get(&dude_objh).borrow_mut().sequence.take() {
+                    if let Some(signal) = world.objects().get(dude_objh).borrow_mut().sequence.take() {
                         signal.cancel();
                     }
 
                     let to = world.map_grid().hex().from_screen((x, y));
-                    if let Some(path) = world.path_for_object(&dude_objh, to, true) {
+                    if let Some(path) = world.path_for_object(dude_objh, to, true) {
                         let anim = if mouse_btn == MouseButton::Left {
                             CritterAnim::Running
                         } else {
                             CritterAnim::Walk
                         };
                         if !path.is_empty() {
-                            let (seq, signal) = Move::new(dude_objh.clone(), anim, path).cancellable();
-                            world.objects().get(&dude_objh).borrow_mut().sequence = Some(signal);
-                            seq_ctl.push(seq.then(Stand::new(dude_objh.clone())));
+                            let (seq, signal) = Move::new(dude_objh, anim, path).cancellable();
+                            world.objects().get(dude_objh).borrow_mut().sequence = Some(signal);
+                            seq_ctl.push(seq.then(Stand::new(dude_objh)));
                         }
                     }
                 }
@@ -271,16 +271,16 @@ fn main() {
                     world.map_grid_mut().scroll((0, scroll_inc));
                 }
                 Event::KeyDown { keycode: Some(Keycode::Comma), .. } => {
-                    let mut obj = world.objects().get(&dude_objh).borrow_mut();
+                    let mut obj = world.objects().get(dude_objh).borrow_mut();
                     obj.direction = obj.direction.rotate_ccw();
                 }
                 Event::KeyDown { keycode: Some(Keycode::Period), .. } => {
-                    let mut obj = world.objects().get(&dude_objh).borrow_mut();
+                    let mut obj = world.objects().get(dude_objh).borrow_mut();
                     obj.direction = obj.direction.rotate_cw();
                 }
                 Event::KeyDown { keycode: Some(Keycode::A), .. } => {
                     let new_pos = {
-                        let obj = world.objects().get(&dude_objh).borrow_mut();
+                        let obj = world.objects().get(dude_objh).borrow_mut();
                         let mut new_pos = obj.pos().unwrap();
                         new_pos.elevation += 1;
                         while new_pos.elevation < map.sqr_tiles.len() && map.sqr_tiles[new_pos.elevation].is_none() {
@@ -289,12 +289,12 @@ fn main() {
                         new_pos
                     };
                     if new_pos.elevation < map.sqr_tiles.len() && map.sqr_tiles[new_pos.elevation].is_some() {
-                        world.objects_mut().set_pos(&dude_objh, new_pos);
+                        world.objects_mut().set_pos(dude_objh, new_pos);
                     }
                 }
                 Event::KeyDown { keycode: Some(Keycode::Z), .. } => {
                     let new_pos = {
-                        let obj = world.objects().get(&dude_objh).borrow_mut();
+                        let obj = world.objects().get(dude_objh).borrow_mut();
                         let mut new_pos = obj.pos().unwrap();
                         if new_pos.elevation > 0 {
                             new_pos.elevation -= 1;
@@ -305,7 +305,7 @@ fn main() {
                         new_pos
                     };
                     if map.sqr_tiles[new_pos.elevation].is_some() {
-                        world.objects_mut().set_pos(&dude_objh, new_pos);
+                        world.objects_mut().set_pos(dude_objh, new_pos);
                     }
                 }
                 Event::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {
@@ -339,7 +339,7 @@ fn main() {
         );
 
         let egg = Egg {
-            pos: world.objects().get(&dude_objh).borrow().pos().unwrap().point,
+            pos: world.objects().get(dude_objh).borrow().pos().unwrap().point,
             fid: Fid::EGG,
         };
         let egg = Some(&egg);
@@ -374,7 +374,7 @@ fn main() {
         }
 
         if draw_debug {
-            let dude_pos = world.objects().get(&dude_objh).borrow().pos().unwrap().point;
+            let dude_pos = world.objects().get(dude_objh).borrow().pos().unwrap().point;
             let ref msg = format!(
                 "mouse hex: {}, {} ({})\n\
                  mouse sqr: {}, {} ({})\n\
