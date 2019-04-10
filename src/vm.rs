@@ -142,7 +142,7 @@ pub struct Context<'a> {
     pub external_vars: &'a mut HashMap<Rc<String>, Option<Value>>,
 
     /// Global game variables.
-    pub global_vars: &'a mut Vec<i32>,
+    pub global_vars: &'a mut [i32],
 
     pub self_obj: Option<object::Handle>,
     pub world: &'a mut crate::game::world::World,
