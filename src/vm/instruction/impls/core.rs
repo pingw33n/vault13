@@ -50,7 +50,7 @@ fn persistent_var(ctx: Context, scope: PersistentVarScope) -> Result<()> {
     } else {
         warn!("{:?}: attempted to get undefined {:?} var {}",
             ctx.prg.opcode.unwrap().0, scope, id);
-        -1
+        0
     });
     ctx.prg.data_stack.push(v)?;
     log_a1r1!(ctx.prg, &id, ctx.prg.data_stack.top().unwrap());
