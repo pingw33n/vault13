@@ -121,7 +121,6 @@ impl ProtoDb {
     }
 
     fn read_proto_file(&self, path: &str) -> io::Result<Proto> {
-        println!("reading {}", path);
         Self::read_proto(&mut self.fs.reader(&path)?)
     }
 
