@@ -18,6 +18,13 @@ use crate::graphics::render::TextureFactory;
 use crate::graphics::sprite::OutlineStyle;
 use crate::util::EnumExt;
 
+struct ScriptInfo {
+    sid: Sid,
+    program_id: u32,
+    local_var_count: usize,
+    local_var_offset: usize,
+}
+
 #[derive(Clone, Copy, Debug, Enum, EnumFlags, Eq, PartialEq)]
 #[repr(u32)]
 pub enum OutlineFlag {
@@ -32,9 +39,11 @@ pub enum OutlineFlag {
 }
 
 pub struct Map {
+    pub savegame: bool,
     pub entrance: EPoint,
     pub entrance_direction: Direction,
     pub sqr_tiles: Vec<Option<Vec<(u16, u16)>>>,
+    pub map_vars: Box<[i32]>,
 }
 
 pub struct MapReader<'a, R: 'a> {
@@ -74,7 +83,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         debug!("program_id: {:?}", program_id);
 
         let flags = self.reader.read_u32::<BigEndian>()?;
-        debug!("flags: {:x}", flags);
+        debug!("flags: 0x{:04b}", flags);
+        let savegame = flags & 0x1 != 0;
 
         let _ = self.reader.read_i32::<BigEndian>()?;
         let map_var_count = cmp::max(self.reader.read_i32::<BigEndian>()?, 0) as usize;
@@ -83,14 +93,14 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         self.reader.read_exact(&mut [0; 44 * 4][..])?;
 
-        // map vars
+        // map global vars
 
         let mut map_vars = Vec::with_capacity(map_var_count);
         for _ in 0..map_var_count {
             map_vars.push(self.reader.read_i32::<BigEndian>()?);
         }
 
-        // local vars
+        // map local vars
 
         let mut local_vars = Vec::with_capacity(local_var_count);
         for _ in 0..local_var_count {
@@ -127,13 +137,30 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 const NODE_LEN: usize = 16;
                 let node_count = script_count / NODE_LEN + (script_count % NODE_LEN != 0) as usize;
                 debug!("node_count: {}", node_count);
+                let mut scripts = Vec::new();
                 for _ in 0..node_count {
+                    scripts.clear();
                     for _ in 0..NODE_LEN {
-                        self.read_script(flags)?;
+                        if let Some(script) = self.read_script()? {
+                            scripts.push(script);
+                        }
                     }
 
-                    let _len = self.reader.read_i32::<BigEndian>()?;
+                    let node_script_count = self.reader.read_i32::<BigEndian>()?;
+                    debug!("node_script_count: {}", node_script_count);
                     let _ = self.reader.read_i32::<BigEndian>()?;
+
+                    scripts.truncate(node_script_count as usize);
+
+                    for script in &scripts {
+                        let local_vars = if savegame && script.local_var_count > 0 {
+                            let end = script.local_var_offset + script.local_var_count;
+                            Some(local_vars[script.local_var_offset..end].into())
+                        } else {
+                            None
+                        };
+                        self.scripts.instantiate(script.sid, script.program_id, local_vars)?;
+                    }
                 }
             }
         }
@@ -157,16 +184,18 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         }
 
         Ok(Map {
+            savegame,
             entrance: EPoint {
                 elevation: entrance_elevation,
                 point: entrance_pos,
             },
             entrance_direction,
             sqr_tiles,
+            map_vars: map_vars.into(),
         })
     }
 
-    fn read_script(&mut self, flags: u32) -> io::Result<()> {
+    fn read_script(&mut self) -> io::Result<Option<ScriptInfo>> {
         // Maps contain garbage in unused slots but the exact size of the data to skip depends
         // on the script kinds.
 
@@ -174,7 +203,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let sid = match sid {
             Ok(sid) => sid,
             Err(ref e) if e.kind() == ErrorKind::InvalidData => {
-                return self.reader.read_exact(&mut [0; 15 * 4][..]);
+                self.reader.read_exact(&mut [0; 15 * 4][..])?;
+                return Ok(None);
             }
             Err(e) => return Err(e),
         };
@@ -197,7 +227,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         let program_id = self.reader.read_i32::<BigEndian>()?;
         let program_id = if program_id > 0 {
-            Some(program_id as usize)
+            Some(program_id as u32)
         } else {
             None
         };
@@ -206,8 +236,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let _ = self.reader.read_i32::<BigEndian>()?;
         let self_obj_id = self.reader.read_i32::<BigEndian>()?;
         trace!("self_obj_id: {}", self_obj_id);
-        let _local_var_offset = self.reader.read_i32::<BigEndian>()?;
-        let num_local_vars = self.reader.read_i32::<BigEndian>()?;
+        let local_var_offset = cmp::max(self.reader.read_i32::<BigEndian>()?, 0) as usize;
+        let local_var_count = cmp::max(self.reader.read_i32::<BigEndian>()?, 0) as usize;
         let _return_value = self.reader.read_i32::<BigEndian>()?;
         let _action = self.reader.read_i32::<BigEndian>()?;
         let _ext_param = self.reader.read_i32::<BigEndian>()?;
@@ -217,13 +247,16 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let _how_much = self.reader.read_i32::<BigEndian>()?;
         let _unk2 = self.reader.read_i32::<BigEndian>()?;
 
-        let _num_local_vars = if flags & 1 == 0 {
-            0
+        if let Some(program_id) = program_id {
+            Ok(Some(ScriptInfo {
+                sid,
+                program_id,
+                local_var_count,
+                local_var_offset,
+            }))
         } else {
-            num_local_vars
-        };
-
-        Ok(())
+            Ok(None)
+        }
     }
 
     fn read_obj(&mut self, f2: bool) -> io::Result<Object> {
@@ -432,8 +465,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             return Ok(None);
         }
 
-        if let (Some(sid), Some(program_id)) = (sid, program_id) {
-            self.scripts.instantiate(sid, program_id)?;
+        if let (Some(sid), Some(_)) = (sid, program_id) {
             Ok(Some(sid))
         } else {
             Ok(None)

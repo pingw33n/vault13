@@ -9,6 +9,7 @@ pub mod script;
 use enumflags_derive::EnumFlags;
 use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
+use log::*;
 use std::io::{self, prelude::*};
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
@@ -446,4 +447,46 @@ pub fn read_lst(rd: &mut impl BufRead) -> io::Result<Vec<LstEntry>> {
         });
     }
     Ok(r)
+}
+
+pub fn read_gam(rd: &mut impl BufRead, tag: &str) -> io::Result<Vec<i32>> {
+    use atoi::atoi;
+
+    let mut r = Vec::new();
+    let mut lines = rd.lines();
+    while let Some(l) = lines.next() {
+        if l?.starts_with(tag) {
+            break;
+        }
+    }
+    for l in lines {
+        let l = l?;
+        let l = l.trim();
+        if l.is_empty() || l.starts_with("//") {
+            continue;
+        }
+
+        let l = l.splitn(2, |c| c == ';').next().unwrap_or(&l);
+        let v = l.find(":=")
+            .and_then(|i| {
+                let v = l[i + 2..].trim();
+                if let Some(v) = atoi::<i32>(v.as_bytes()) {
+                    Some(v)
+                } else {
+                    warn!("couldn't parse .gam var value as i32: {}", v);
+                    None
+                }
+            })
+            .unwrap_or(0);
+        r.push(v);
+    }
+    Ok(r)
+}
+
+pub fn read_game_global_vars(rd: &mut impl BufRead) -> io::Result<Vec<i32>> {
+    read_gam(rd, "GAME_GLOBAL_VARS:")
+}
+
+pub fn read_map_global_vars(rd: &mut impl BufRead) -> io::Result<Vec<i32>> {
+    read_gam(rd, "MAP_GLOBAL_VARS:")
 }

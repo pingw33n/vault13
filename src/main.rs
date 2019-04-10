@@ -61,7 +61,7 @@ fn main() {
     let master_dat = "../../Dropbox/f2/MASTER.DAT";
     let critter_dat = "../../Dropbox/f2/CRITTER.DAT";
     let patch_dat = "../../Dropbox/f2/patch000.DAT";
-    let map_name = "newr1.map";
+    let map_name = "newr1";
 
     let mut fs = fs::FileSystem::new();
     fs.register_provider(fs::dat::v2::new_provider(patch_dat).unwrap());
@@ -103,7 +103,7 @@ fn main() {
     let mut scripts = Scripts::new(ScriptDb::new(fs.clone()).unwrap(), Vm::default());
 
     let map = MapReader {
-        reader: &mut fs.reader(&format!("maps/{}", map_name)).unwrap(),
+        reader: &mut fs.reader(&format!("maps/{}.map", map_name)).unwrap(),
         objects: &mut objects,
         proto_db: &proto_db,
         frm_db: &frm_db,
@@ -146,6 +146,23 @@ fn main() {
     world.rebuild_light_grid();
 
     let mut sequencer = Sequencer::new();
+
+    scripts.vars.global_vars = if map.savegame {
+        unimplemented!("read save.dat")
+    } else {
+        asset::read_game_global_vars(&mut fs.reader("maps/vault13.gam").unwrap()).unwrap().into()
+    };
+    dbg!(&scripts.vars.global_vars);
+    scripts.vars.map_vars = if map.savegame {
+        map.map_vars.clone()
+    } else {
+        let path = format!("maps/{}.gam", map_name);
+        if fs.exists(&path) {
+            asset::read_game_global_vars(&mut fs.reader(&path).unwrap()).unwrap().into()
+        } else {
+            Vec::new().into()
+        }
+    };
 
     scripts.execute_procs(PredefinedProc::Start, &mut game::script::Context {
         world: &mut world,

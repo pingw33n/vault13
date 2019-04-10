@@ -61,7 +61,9 @@ impl Scripts {
         }
     }
 
-    pub fn instantiate(&mut self, sid: Sid, program_id: u32) -> io::Result<()> {
+    pub fn instantiate(&mut self, sid: Sid, program_id: u32, local_vars: Option<Box<[i32]>>)
+        -> io::Result<()>
+    {
         let program = match self.programs.entry(program_id) {
             Entry::Occupied(e) => e.get().clone(),
             Entry::Vacant(e) => {
@@ -77,13 +79,21 @@ impl Scripts {
                 program
             },
         };
-        let program = self.vm.insert(program);
+
         let local_var_count = self.db.info(program_id).unwrap().local_var_count;
+        let local_vars = if let Some(local_vars) = local_vars {
+            assert_eq!(local_vars.len(), local_var_count);
+            local_vars
+        } else {
+            vec![0; local_var_count].into()
+        };
+
+        let program = self.vm.insert(program);
         let existing = self.scripts.insert(sid, Script {
             inited: false,
             program_id,
             program,
-            local_vars: vec![0; local_var_count].into(),
+            local_vars,
             object: None,
         });
         if let Some(existing) = existing {
