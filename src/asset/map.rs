@@ -77,17 +77,17 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         debug!("flags: {:x}", flags);
 
         let _ = self.reader.read_i32::<BigEndian>()?;
-        let global_var_count = cmp::max(self.reader.read_i32::<BigEndian>()?, 0) as usize;
+        let map_var_count = cmp::max(self.reader.read_i32::<BigEndian>()?, 0) as usize;
         let _map_id = self.reader.read_i32::<BigEndian>()?;
         let _time = self.reader.read_u32::<BigEndian>()?;
 
         self.reader.read_exact(&mut [0; 44 * 4][..])?;
 
-        // global vars
+        // map vars
 
-        let mut global_vars = Vec::with_capacity(global_var_count);
-        for _ in 0..global_var_count {
-            global_vars.push(self.reader.read_i32::<BigEndian>()?);
+        let mut map_vars = Vec::with_capacity(map_var_count);
+        for _ in 0..map_var_count {
+            map_vars.push(self.reader.read_i32::<BigEndian>()?);
         }
 
         // local vars
