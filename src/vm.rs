@@ -40,9 +40,9 @@
 //! Identifier type: `string`.
 //! Value type: any.
 //!
-//! External program variables are shared across programs. External variables cleared on map switch.
+//! External variables are shared across programs. External variables cleared on map switch.
 //!
-//! ## Program local variables (LVAR)
+//! ## Map local variables (LVAR)
 //!
 //! Instructions: `local_var`, `set_local_var`.
 //! Visibility: `program`.
@@ -59,7 +59,7 @@
 //! the number of its local variables. This value is used when serializing local variables inside
 //! map.
 //!
-//! ## Map variables (MVAR)
+//! ## Map global variables (MVAR)
 //!
 //! Instructions: `map_var`, `set_map_var`.
 //! Visibility: `map`.
@@ -67,9 +67,9 @@
 //! Identifier type: `int`.
 //! Value type: `int`.
 //!
-//! Map variables are persistent `int` values bound to a map.
+//! Map global variables are persistent `int` values bound to a map.
 //!
-//! Similarly to program local variables the map variables are stored as part of map. The number
+//! Similarly to map local variables the map variables are stored as part of map. The number
 //! of map variables are defined for each map in `.gam` files.
 //!
 //! ## Game global variables (GVAR)
