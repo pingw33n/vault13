@@ -107,7 +107,7 @@ pub fn global_var(ctx: Context) -> Result<()> {
     let v = Value::Int(if let Some(&v) = ctx.ext.global_vars.get(id as usize) {
         v
     } else {
-        warn!("GlobalVar: attempted to get undefined global var {}", id);
+        warn!("global_var: attempted to get undefined global var {}", id);
         -1
     });
     ctx.prg.data_stack.push(v)?;
@@ -245,7 +245,7 @@ pub fn set_global_var(ctx: Context) -> Result<()> {
     if let Some(v) = ctx.ext.global_vars.get_mut(id as usize) {
         *v = value;
     } else {
-        warn!("GlobalVar: attempted to set undefined global var {} = {}", id, value);
+        warn!("set_global_var: attempted to set undefined global var {} = {}", id, value);
     }
     Ok(())
 }
