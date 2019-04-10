@@ -88,7 +88,7 @@
 mod error;
 mod instruction;
 mod stack;
-mod value;
+pub mod value;
 
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use enumflags::BitFlags;

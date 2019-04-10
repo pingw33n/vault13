@@ -52,8 +52,7 @@ use crate::graphics::color::*;
 use crate::graphics::font::*;
 use asset::script::db::ScriptDb;
 use crate::game::script::Scripts;
-use crate::vm::{Vm, PredefinedProc, Context};
-use std::collections::HashMap;
+use crate::vm::{Vm, PredefinedProc};
 use crate::asset::script::ScriptKind;
 
 fn main() {
@@ -148,20 +147,11 @@ fn main() {
 
     let mut sequencer = Sequencer::new();
 
-    let mut external_vars = HashMap::new();
-    let mut global_vars = vec![0; 495];
-
-    scripts.execute_procs(PredefinedProc::Start, &mut Context {
-        external_vars: &mut external_vars,
-        global_vars: &mut global_vars,
-        self_obj: None,
+    scripts.execute_procs(PredefinedProc::Start, &mut game::script::Context {
         world: &mut world,
         sequencer: &mut sequencer,
     }, |sid| sid.kind() != ScriptKind::System);
-    scripts.execute_map_procs(PredefinedProc::MapEnter, &mut Context {
-        external_vars: &mut external_vars,
-        global_vars: &mut global_vars,
-        self_obj: None,
+    scripts.execute_map_procs(PredefinedProc::MapEnter, &mut  game::script::Context {
         world: &mut world,
         sequencer: &mut sequencer,
     });

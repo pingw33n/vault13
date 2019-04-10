@@ -8,6 +8,26 @@ use crate::asset::script::db::ScriptDb;
 use crate::asset::script::Sid;
 use crate::game::object;
 use crate::vm::{self, PredefinedProc, Vm};
+use crate::vm::value::Value;
+
+pub struct Context<'a> {
+    pub world: &'a mut crate::game::world::World,
+    pub sequencer: &'a mut crate::sequence::Sequencer,
+}
+
+pub struct Vars {
+    pub external_vars: HashMap<Rc<String>, Option<Value>>,
+    pub global_vars: Vec<i32>,
+}
+
+impl Vars {
+    pub fn new() -> Self {
+        Self {
+            external_vars: HashMap::new(),
+            global_vars: Vec::new(),
+        }
+    }
+}
 
 pub struct Script {
     /// Whether the program's initialization code has been run.
@@ -22,7 +42,8 @@ pub struct Scripts {
     vm: Vm,
     programs: HashMap<u32, Rc<vm::Program>>,
     scripts: HashMap<Sid, Script>,
-    map_sid: Option<Sid>,
+    pub map_sid: Option<Sid>,
+    pub vars: Vars,
 }
 
 impl Scripts {
@@ -33,6 +54,7 @@ impl Scripts {
             programs: HashMap::new(),
             scripts: HashMap::new(),
             map_sid: None,
+            vars: Vars::new(),
         }
     }
 
@@ -73,28 +95,35 @@ impl Scripts {
         self.scripts.get_mut(&sid).unwrap().object = Some(obj);
     }
 
-    pub fn set_map_sid(&mut self, map_sid: Option<Sid>) {
-        self.map_sid = map_sid;
-    }
-
     pub fn execute_predefined_proc(&mut self, sid: Sid, proc: PredefinedProc,
-        ctx: &mut vm::Context)
+        ctx: &mut Context)
     {
-        Self::execute_predefined_proc0(self.scripts.get_mut(&sid).unwrap(), &mut self.vm,
-            sid, proc, ctx)
+        Self::execute_predefined_proc0(
+            self.scripts.get_mut(&sid).unwrap(),
+            &mut self.vm,
+            sid,
+            proc,
+            &mut self.vars,
+            ctx)
     }
 
-    pub fn execute_procs(&mut self, proc: PredefinedProc, ctx: &mut vm::Context,
+    pub fn execute_procs(&mut self, proc: PredefinedProc, ctx: &mut Context,
         filter: impl Fn(Sid) -> bool)
     {
         for (&sid, script) in self.scripts.iter_mut() {
             if filter(sid) {
-                Self::execute_predefined_proc0(script, &mut self.vm, sid, proc, ctx);
+                Self::execute_predefined_proc0(
+                    script,
+                    &mut self.vm,
+                    sid,
+                    proc,
+                    &mut self.vars,
+                    ctx);
             }
         }
     }
 
-    pub fn execute_map_procs(&mut self, proc: PredefinedProc, ctx: &mut vm::Context) {
+    pub fn execute_map_procs(&mut self, proc: PredefinedProc, ctx: &mut Context) {
         assert!(proc == PredefinedProc::MapEnter
             || proc == PredefinedProc::MapExit
             || proc == PredefinedProc::MapUpdate);
@@ -117,20 +146,28 @@ impl Scripts {
         vm: &mut Vm,
         sid: Sid,
         proc: PredefinedProc,
-        ctx: &mut vm::Context)
+        vars: &mut Vars,
+        ctx: &mut Context)
     {
         // FIXME
         // #511 == animfrfv.int
         if script.program_id != 511 {
             return;
         }
-        ctx.self_obj = script.object;
+        let vm_ctx = &mut vm::Context {
+            external_vars: &mut vars.external_vars,
+            global_vars: &mut vars.global_vars,
+            self_obj: None,
+            world: ctx.world,
+            sequencer: ctx.sequencer,
+        };
         if !script.inited {
             debug!("[{:?}#{}] running program initialization code", sid, script.program_id);
-            vm.run(script.program, ctx).unwrap();
+            vm.run(script.program, vm_ctx).unwrap();
             script.inited = true;
         }
+        vm_ctx.self_obj = script.object;
         debug!("[{:?}#{}] executing predefined proc {:?}", sid, script.program_id, proc);
-        vm.execute_predefined_proc(script.program, proc, ctx).unwrap();
+        vm.execute_predefined_proc(script.program, proc, vm_ctx).unwrap();
     }
 }
