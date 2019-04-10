@@ -1,3 +1,90 @@
+//! # Variable scopes
+//!
+//! In general variables can have the following visibility:
+//!
+//! * `game` - a variable is visible from all programs of all maps.
+//! * `map` - a variable is visible from all programs of the same map.
+//! * `program` - a variable is visible only within program.
+//! * `procedure` - a variable is visible only within procedure.
+//!
+//! ## Procedure variables
+//!
+//! Instructions: all stack instructions.
+//! Visibility: `procedure`.
+//! Persistent: no.
+//! Identifier type: n/a.
+//! Value type: any.
+//!
+//! These are regular variables created in procedure body. They are stored on stack and destroyed
+//! when procedure returns.
+//!
+//! ## Program global variables
+//!
+//! Instructions: `fetch_global`, `store_global`.
+//! Visibility: `program`.
+//! Persistent: no.
+//! Identifier type: `int`.
+//! Value type: any.
+//!
+//! These are non-persistent global variables in program. Accessible from all procedures of that
+//! program.
+//!
+//! Transient program variables stored at special offset on the data stack. This location is
+//! initialized by program initialization code.
+//!
+//! ## External variables
+//!
+//! Instructions: `fetch_external`, `store_external`.
+//! Visibility: `map`.
+//! Persistent: no.
+//! Identifier type: `string`.
+//! Value type: any.
+//!
+//! External program variables are shared across programs. External variables cleared on map switch.
+//!
+//! ## Program local variables (LVAR)
+//!
+//! Instructions: `local_var`, `set_local_var`.
+//! Visibility: `program`.
+//! Persistent: yes.
+//! Identifier type: `int`.
+//! Value type: `int`.
+//!
+//! Called simply "local" or "LVAR". Such variables are persistent `int` values bound to specific
+//! program instance within its map.
+//!
+//! Local variables are stored as part of map in linear array of integers for all local variables
+//! of all scripts. Each script inside map then have a pointer into this array where its variables
+//! are stored. In `scripts.lst` near to each program name there's `local_vars` field that declares
+//! the number of its local variables. This value is used when serializing local variables inside
+//! map.
+//!
+//! ## Map variables (MVAR)
+//!
+//! Instructions: `map_var`, `set_map_var`.
+//! Visibility: `map`.
+//! Persistent: yes.
+//! Identifier type: `int`.
+//! Value type: `int`.
+//!
+//! Map variables are persistent `int` values bound to a map.
+//!
+//! Similarly to program local variables the map variables are stored as part of map. The number
+//! of map variables are defined for each map in `.gam` files.
+//!
+//! ## Game global variables (GVAR)
+//!
+//! Instructions: `global_var`, `set_global_var`.
+//! Visibility: `game`.
+//! Persistent: yes.
+//! Identifier type: `int`.
+//! Value type: `int`.
+//!
+//! Called simply "global" or GVAR. Such variables are persistent `int` values that exist for the
+//! whole game session duration (single savegame).
+//!
+//! Stored in `save.dat`. Defined in `vault13.gam`.
+
 mod error;
 mod instruction;
 mod stack;
@@ -51,8 +138,12 @@ impl fmt::Display for PredefinedProc {
 }
 
 pub struct Context<'a> {
+    /// External variables.
     pub external_vars: &'a mut HashMap<Rc<String>, Option<Value>>,
+
+    /// Global game variables.
     pub global_vars: &'a mut Vec<i32>,
+
     pub self_obj: Option<object::Handle>,
     pub world: &'a mut crate::game::world::World,
     pub sequencer: &'a mut crate::sequence::Sequencer,
