@@ -138,11 +138,17 @@ impl fmt::Display for PredefinedProc {
 }
 
 pub struct Context<'a> {
-    /// External variables.
-    pub external_vars: &'a mut HashMap<Rc<String>, Option<Value>>,
+    /// Program local variables.
+    pub local_vars: &'a mut [i32],
+
+    /// Map variables.
+    pub map_vars: &'a mut [i32],
 
     /// Global game variables.
     pub global_vars: &'a mut [i32],
+
+    /// External variables.
+    pub external_vars: &'a mut HashMap<Rc<String>, Option<Value>>,
 
     pub self_obj: Option<object::Handle>,
     pub world: &'a mut crate::game::world::World,

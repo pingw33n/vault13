@@ -16,15 +16,17 @@ pub struct Context<'a> {
 }
 
 pub struct Vars {
+    pub map_vars: Box<[i32]>,
+    pub global_vars: Box<[i32]>,
     pub external_vars: HashMap<Rc<String>, Option<Value>>,
-    pub global_vars: Vec<i32>,
 }
 
 impl Vars {
     pub fn new() -> Self {
         Self {
+            map_vars: Vec::new().into(),
+            global_vars: Vec::new().into(),
             external_vars: HashMap::new(),
-            global_vars: Vec::new(),
         }
     }
 }
@@ -34,6 +36,7 @@ pub struct Script {
     pub inited: bool,
     pub program_id: u32,
     pub program: vm::Handle,
+    pub local_vars: Box<[i32]>,
     pub object: Option<object::Handle>,
 }
 
@@ -75,10 +78,12 @@ impl Scripts {
             },
         };
         let program = self.vm.insert(program);
+        let local_var_count = self.db.info(program_id).unwrap().local_var_count;
         let existing = self.scripts.insert(sid, Script {
             inited: false,
             program_id,
             program,
+            local_vars: vec![0; local_var_count].into(),
             object: None,
         });
         if let Some(existing) = existing {
@@ -155,8 +160,10 @@ impl Scripts {
             return;
         }
         let vm_ctx = &mut vm::Context {
-            external_vars: &mut vars.external_vars,
+            local_vars: &mut script.local_vars,
+            map_vars: &mut vars.map_vars,
             global_vars: &mut vars.global_vars,
+            external_vars: &mut vars.external_vars,
             self_obj: None,
             world: ctx.world,
             sequencer: ctx.sequencer,

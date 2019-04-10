@@ -3,12 +3,72 @@ use std::cmp::Ordering;
 
 use super::*;
 
+#[derive(Clone, Copy, Debug)]
+enum PersistentVarScope {
+    Local,
+    Map,
+    Global,
+}
+
+impl PersistentVarScope {
+    pub fn get(self, ctx: &crate::vm::Context, id: usize) -> Option<i32> {
+        use PersistentVarScope::*;
+        match self {
+            Local => ctx.local_vars.get(id),
+            Map => ctx.map_vars.get(id),
+            Global => ctx.global_vars.get(id),
+        }.cloned()
+    }
+
+    #[must_use]
+    pub fn set(self, ctx: &mut crate::vm::Context, id: usize, value: i32) -> bool {
+        use PersistentVarScope::*;
+        if let Some(v) = match self {
+            Local => ctx.local_vars.get_mut(id),
+            Map => ctx.map_vars.get_mut(id),
+            Global => ctx.global_vars.get_mut(id),
+        } {
+            *v = value;
+            true
+        } else {
+            false
+        }
+    }
+}
+
 fn cmp_test(ctx: Context, f: impl FnOnce(Option<Ordering>) -> bool) -> Result<()> {
     binary_op(ctx, |l, r, ctx| {
         let r = f(l.partial_cmp(&r, &ctx.prg.strings())?);
         Ok(r.into())
     })
 }
+
+fn persistent_var(ctx: Context, scope: PersistentVarScope) -> Result<()> {
+    let id = ctx.prg.data_stack.pop()?.into_int()?;
+    let v = Value::Int(if let Some(v) = scope.get(ctx.ext, id as usize) {
+        v
+    } else {
+        warn!("{:?}: attempted to get undefined {:?} var {}",
+            ctx.prg.opcode.unwrap().0, scope, id);
+        -1
+    });
+    ctx.prg.data_stack.push(v)?;
+    log_a1r1!(ctx.prg, &id, ctx.prg.data_stack.top().unwrap());
+    Ok(())
+}
+
+fn set_persistent_var(ctx: Context, scope: PersistentVarScope) -> Result<()> {
+    let value = ctx.prg.data_stack.pop()?.into_int()?;
+    let id = ctx.prg.data_stack.pop()?.into_int()?;
+    log_a2!(ctx.prg, id, value);
+    if !scope.set(ctx.ext, id as usize, value) {
+        warn!("{:?}: attempted to set undefined {:?} var {} = {}",
+            ctx.prg.opcode.unwrap().0, scope, id, value);
+    }
+    Ok(())
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub fn add(ctx: Context) -> Result<()> {
     binary_op(ctx, |l, r, ctx| l.add(r, &ctx.prg.strings()))
@@ -103,16 +163,7 @@ pub fn export_var(ctx: Context) -> Result<()> {
 }
 
 pub fn global_var(ctx: Context) -> Result<()> {
-    let id = ctx.prg.data_stack.pop()?.into_int()?;
-    let v = Value::Int(if let Some(&v) = ctx.ext.global_vars.get(id as usize) {
-        v
-    } else {
-        warn!("global_var: attempted to get undefined global var {}", id);
-        -1
-    });
-    ctx.prg.data_stack.push(v)?;
-    log_a1r1!(ctx.prg, &id, ctx.prg.data_stack.top().unwrap());
-    Ok(())
+    persistent_var(ctx, PersistentVarScope::Global)
 }
 
 pub fn greater(ctx: Context) -> Result<()> {
@@ -146,6 +197,14 @@ pub fn less(ctx: Context) -> Result<()> {
 
 pub fn less_equal(ctx: Context) -> Result<()> {
     cmp_test(ctx, |o| o == Some(Ordering::Less) || o == Some(Ordering::Equal))
+}
+
+pub fn local_var(ctx: Context) -> Result<()> {
+    persistent_var(ctx, PersistentVarScope::Local)
+}
+
+pub fn map_var(ctx: Context) -> Result<()> {
+    persistent_var(ctx, PersistentVarScope::Map)
 }
 
 pub fn negate(ctx: Context) -> Result<()> {
@@ -239,15 +298,15 @@ pub fn set_global(ctx: Context) -> Result<()> {
 }
 
 pub fn set_global_var(ctx: Context) -> Result<()> {
-    let value = ctx.prg.data_stack.pop()?.into_int()?;
-    let id = ctx.prg.data_stack.pop()?.into_int()?;
-    log_a2!(ctx.prg, id, value);
-    if let Some(v) = ctx.ext.global_vars.get_mut(id as usize) {
-        *v = value;
-    } else {
-        warn!("set_global_var: attempted to set undefined global var {} = {}", id, value);
-    }
-    Ok(())
+    set_persistent_var(ctx, PersistentVarScope::Global)
+}
+
+pub fn set_local_var(ctx: Context) -> Result<()> {
+    set_persistent_var(ctx, PersistentVarScope::Local)
+}
+
+pub fn set_map_var(ctx: Context) -> Result<()> {
+    set_persistent_var(ctx, PersistentVarScope::Map)
 }
 
 pub fn store_global(ctx: Context) -> Result<()> {
