@@ -26,7 +26,6 @@ use enumflags::BitFlags;
 use crate::graphics::*;
 use crate::graphics::geometry::hex::Direction;
 use crate::game::object::LightEmitter;
-use crate::game::object::Inventory;
 use crate::graphics::Rect;
 use crate::game::world::World;
 use crate::util::two_dim_array::Array2d;
@@ -177,46 +176,26 @@ fn main() {
     for fid in all_fids(dude_fid) {
         let _ = frm_db.get_or_load(fid, &texture_factory);
     }
-    let dude_objh = world.insert_object(Object::new(
-        BitFlags::empty(),
-        Some(map.entrance),
-        Point::new(0, 0),
-        Point::new(0, 0),
-        dude_fid,
-        Direction::NW,
-        LightEmitter {
-            intensity: 0x10000,
-            radius: 4,
-        },
-        None,
-        Inventory::new(),
-        None,
-        None,
-    ));
+    let mut dude_obj = Object::new(dude_fid, None, Some(map.entrance));
+    dude_obj.direction = Direction::NE;
+    dude_obj.light_emitter = LightEmitter {
+        intensity: 0x10000,
+        radius: 4,
+    };
+    let dude_objh = world.insert_object(dude_obj);
     world.make_object_standing(dude_objh);
     frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
 
     frm_db.get_or_load(Fid::MOUSE_HEX2, &texture_factory).unwrap();
-    let mouse_objh = world.insert_object(Object::new(
-        BitFlags::from_bits(0xA000041C).unwrap(),
-        Some(map.entrance),
-        Point::new(0, 0),
-        Point::new(0, 0),
-        Fid::MOUSE_HEX2,
-        Direction::NW,
-        LightEmitter {
-            intensity: 0,
-            radius: 0,
-        },
-        None,
-        Inventory::new(),
-        Some(game::object::Outline {
-            style: OutlineStyle::Red,
-            translucent: true,
-            disabled: false,
-        }),
-        None,
-    ));
+
+    let mut mouse_obj = Object::new(Fid::MOUSE_HEX2, None, Some(map.entrance));
+    mouse_obj.flags = BitFlags::from_bits(0xA000041C).unwrap();
+    mouse_obj.outline = Some(game::object::Outline {
+        style: OutlineStyle::Red,
+        translucent: true,
+        disabled: false,
+    });
+    let mouse_objh = world.insert_object(mouse_obj);
 
     world.map_grid_mut().center2(map.entrance.point);
 

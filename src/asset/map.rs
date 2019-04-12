@@ -83,7 +83,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         debug!("program_id: {:?}", program_id);
 
         let flags = self.reader.read_u32::<BigEndian>()?;
-        debug!("flags: 0x{:04b}", flags);
+        debug!("flags: {:04b}", flags);
         let savegame = flags & 0x1 != 0;
 
         let _ = self.reader.read_i32::<BigEndian>()?;
@@ -270,7 +270,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let screen_pos = Point::new(
             self.reader.read_i32::<BigEndian>()?,
             self.reader.read_i32::<BigEndian>()?);
-        let _frm_idx = self.reader.read_i32::<BigEndian>()?;
+        let frame_idx = cmp::max(self.reader.read_i32::<BigEndian>()?, 0) as usize;
         let direction = self.reader.read_u32::<BigEndian>()?;
         let direction = Direction::from_u32(direction)
             .ok_or_else(|| Error::new(ErrorKind::InvalidData,
@@ -433,19 +433,21 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         } else {
             None
         };
-        Ok(Object::new(
+        Ok(Object {
             flags,
             pos,
             screen_pos,
             screen_shift,
             fid,
+            frame_idx,
             direction,
             light_emitter,
-            Some(pid),
+            pid: Some(pid),
             inventory,
             outline,
+            sequence: None,
             sid,
-        ))
+        })
     }
 
     fn read_obj_script(&mut self) -> io::Result<Option<Sid>> {

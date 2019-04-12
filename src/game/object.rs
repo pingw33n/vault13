@@ -70,7 +70,6 @@ impl Handle {
 
 #[derive(Debug)]
 pub struct Object {
-    pub handle: Option<Handle>,
     pub flags: BitFlags<Flag>,
     pub pos: Option<EPoint>,
     pub screen_pos: Point,
@@ -87,34 +86,24 @@ pub struct Object {
 }
 
 impl Object {
-    pub fn new(
-            flags: BitFlags<Flag>,
-            pos: Option<EPoint>,
-            screen_pos: Point,
-            screen_shift: Point,
-            fid: Fid,
-            direction: Direction,
-            light_emitter: LightEmitter,
-            pid: Option<Pid>,
-            inventory: Inventory,
-            outline: Option<Outline>,
-            sid: Option<Sid>,
-    ) -> Self {
+    pub fn new(fid: Fid, pid: Option<Pid>, pos: Option<EPoint>) -> Self {
         Self {
-            handle: None,
             pos,
-            screen_pos,
-            screen_shift,
+            screen_pos: Point::new(0, 0),
+            screen_shift: Point::new(0, 0),
             fid,
             frame_idx: 0,
-            direction,
-            flags,
+            direction: Direction::NE,
+            flags: BitFlags::empty(),
             pid,
-            inventory,
-            light_emitter,
-            outline,
+            inventory: Inventory::new(),
+            light_emitter: LightEmitter {
+                intensity: 0,
+                radius: 0,
+            },
+            outline: None,
             sequence: None,
-            sid,
+            sid: None,
         }
     }
 
@@ -284,14 +273,11 @@ impl Objects {
         }
     }
 
-    pub fn insert(&mut self, mut obj: Object) -> Handle {
-        assert!(obj.handle.is_none());
-
+    pub fn insert(&mut self, obj: Object) -> Handle {
         let pos = obj.pos;
 
         let k = self.handles.insert(());
         let h = Handle(k);
-        obj.handle = Some(h);
         self.objects.insert(k, RefCell::new(obj));
 
         self.insert_into_tile_grid(h, pos, true);
@@ -462,7 +448,7 @@ impl Objects {
     }
 
     // obj_blocking_at()
-    pub fn blocker_at(&self, p: impl Into<EPoint>, mut filter: impl FnMut(&Object) -> bool)
+    pub fn blocker_at(&self, p: impl Into<EPoint>, mut filter: impl FnMut(Handle, &Object) -> bool)
             -> Option<&RefCell<Object>> {
         let p = p.into();
         let mut check = |h| {
@@ -478,7 +464,7 @@ impl Objects {
             if o.flags.contains(Flag::TurnedOff) || o.flags.contains(Flag::NoBlock) {
                 return None;
             }
-            if !filter(&*o) {
+            if !filter(h, &*o) {
                 return None;
             }
             Some(obj)
@@ -507,7 +493,7 @@ impl Objects {
 
     pub fn blocker_for_object_at(&self, obj: Handle, p: impl Into<EPoint>)
             -> Option<&RefCell<Object>> {
-        self.blocker_at(p, |o| o.handle != Some(obj))
+        self.blocker_at(p, |h, _| h != obj)
     }
 
     pub fn path_for_object(&self, obj: Handle, to: impl Into<Point>, smooth: bool, proto_db: &ProtoDb)
