@@ -53,14 +53,45 @@ use asset::script::db::ScriptDb;
 use crate::game::script::Scripts;
 use crate::vm::{Vm, PredefinedProc};
 use crate::asset::script::ScriptKind;
+use std::path::PathBuf;
+
+fn args() -> clap::App<'static, 'static> {
+    use clap::*;
+
+    App::new("Vault 13 Demo")
+        .arg(Arg::with_name("RESOURCE_DIR")
+            .help("Resource directory where master.dat, critter.dat and patch000.dat can be found")
+            .required(true))
+        .arg(Arg::with_name("MAP")
+            .help("Map name to load. For example: artemple")
+            .required(true))
+        .after_help(
+            "EXAMPLE:\n\
+          \x20   vault13 /path/to/fallout2 artemple")
+}
 
 fn main() {
     env_logger::init();
 
-    let master_dat = "../../Dropbox/f2/MASTER.DAT";
-    let critter_dat = "../../Dropbox/f2/CRITTER.DAT";
-    let patch_dat = "../../Dropbox/f2/patch000.DAT";
-    let map_name = "newr1";
+    let master_dat: PathBuf;
+    let critter_dat: PathBuf;
+    let patch_dat: PathBuf;
+    let map_name: String;
+    {
+        let args = args().get_matches();
+
+        let res_dir = args.value_of("RESOURCE_DIR").unwrap();
+        master_dat = [res_dir, "master.dat"].iter().collect();
+        critter_dat = [res_dir, "critter.dat"].iter().collect();
+        patch_dat = [res_dir, "patch000.dat"].iter().collect();
+
+        let s = args.value_of("MAP").unwrap().to_lowercase();
+        map_name = if s.ends_with(".map") {
+            s[..s.len() - 4].into()
+        } else {
+            s
+        };
+    }
 
     let mut fs = fs::FileSystem::new();
     fs.register_provider(fs::dat::v2::new_provider(patch_dat).unwrap());
