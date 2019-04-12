@@ -76,11 +76,11 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         let program_id = self.reader.read_i32::<BigEndian>()?;
         let program_id = if program_id > 0 {
-            Some(program_id as usize)
+            Some(program_id as u32 - 1)
         } else {
             None
         };
-        debug!("program_id: {:?}", program_id);
+        debug!("map program_id: {:?}", program_id);
 
         let flags = self.reader.read_u32::<BigEndian>()?;
         debug!("flags: {:04b}", flags);
@@ -163,6 +163,10 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                     }
                 }
             }
+        }
+
+        if let Some(program_id) = program_id {
+            self.make_map_script(program_id)?;
         }
 
         // objects
@@ -511,6 +515,17 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             translucent,
             disabled,
         }))
+    }
+
+    fn make_map_script(&mut self, program_id: u32) -> io::Result<()> {
+        let sid = self.scripts.instantiate_map_script(program_id)?;
+        let mut obj = Object::new(Fid::SCROLL_BLOCKER, None, Some(EPoint::new(0, (0, 0))));
+        obj.flags = BitFlags::from(Flag::LightThru)
+            | Flag::WalkThru
+            | Flag::TurnedOff;
+        let objh = self.objects.insert(obj);
+        self.scripts.attach_to_object(sid, objh);
+        Ok(())
     }
 }
 

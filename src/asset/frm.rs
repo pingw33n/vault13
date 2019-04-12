@@ -30,6 +30,7 @@ impl Fid {
     pub const MOUSE_HEX2: Fid = Fid::Generic(GenericFid(0x6000_0f9));
     pub const EGG: Fid = Fid::Generic(GenericFid(0x6000_002));
     pub const MAIN_HUD: Fid = Fid::Generic(GenericFid(0x6000_010));
+    pub const SCROLL_BLOCKER: Fid = Fid::Generic(GenericFid(0x6000_00c));
 
     pub fn new(kind: EntityKind, direction: Option<Direction>, anim: u8, sub_anim: u8, id: u16)
             -> Option<Self> {

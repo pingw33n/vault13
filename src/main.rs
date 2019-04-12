@@ -151,7 +151,6 @@ fn main() {
     } else {
         asset::read_game_global_vars(&mut fs.reader("maps/vault13.gam").unwrap()).unwrap().into()
     };
-    dbg!(&scripts.vars.global_vars);
     scripts.vars.map_vars = if map.savegame {
         map.map_vars.clone()
     } else {
@@ -163,14 +162,22 @@ fn main() {
         }
     };
 
-    scripts.execute_procs(PredefinedProc::Start, &mut game::script::Context {
-        world: &mut world,
-        sequencer: &mut sequencer,
-    }, |sid| sid.kind() != ScriptKind::System);
-    scripts.execute_map_procs(PredefinedProc::MapEnter, &mut  game::script::Context {
-        world: &mut world,
-        sequencer: &mut sequencer,
-    });
+    // Init scripts.
+    {
+        let ctx = &mut game::script::Context {
+            world: &mut world,
+            sequencer: &mut sequencer,
+        };
+
+        // PredefinedProc::Start for map script is never called.
+        // MapEnter in map script is called before anything else.
+        if let Some(sid) = scripts.map_sid() {
+            scripts.execute_predefined_proc(sid, PredefinedProc::MapEnter, ctx);
+        }
+
+        scripts.execute_procs(PredefinedProc::Start, ctx, |sid| sid.kind() != ScriptKind::System);
+        scripts.execute_map_procs(PredefinedProc::MapEnter, ctx);
+    }
 
     let dude_fid = Fid::from_packed(0x101600A).unwrap();
     for fid in all_fids(dude_fid) {

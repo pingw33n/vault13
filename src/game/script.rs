@@ -5,7 +5,7 @@ use std::io;
 use std::rc::Rc;
 
 use crate::asset::script::db::ScriptDb;
-use crate::asset::script::Sid;
+use crate::asset::script::{ScriptKind, Sid};
 use crate::game::object;
 use crate::vm::{self, PredefinedProc, Vm};
 use crate::vm::value::Value;
@@ -45,7 +45,7 @@ pub struct Scripts {
     vm: Vm,
     programs: HashMap<u32, Rc<vm::Program>>,
     scripts: HashMap<Sid, Script>,
-    pub map_sid: Option<Sid>,
+    map_sid: Option<Sid>,
     pub vars: Vars,
 }
 
@@ -59,6 +59,10 @@ impl Scripts {
             map_sid: None,
             vars: Vars::new(),
         }
+    }
+
+    pub fn map_sid(&self) -> Option<Sid> {
+        self.map_sid
     }
 
     pub fn instantiate(&mut self, sid: Sid, program_id: u32, local_vars: Option<Box<[i32]>>)
@@ -100,6 +104,14 @@ impl Scripts {
             panic!("{:?} #{} duplicates existing #{}", sid, program_id, existing.program_id);
         }
         Ok(())
+    }
+
+    pub fn instantiate_map_script(&mut self, program_id: u32) -> io::Result<Sid> {
+        assert!(self.map_sid.is_none());
+        let sid = self.next_sid(ScriptKind::System);
+        self.instantiate(sid, program_id, None)?;
+        self.map_sid = Some(sid);
+        Ok(sid)
     }
 
     pub fn get(&self, sid: Sid) -> Option<&Script> {
@@ -186,5 +198,16 @@ impl Scripts {
         vm_ctx.self_obj = script.object;
         debug!("[{:?}#{}] executing predefined proc {:?}", sid, script.program_id, proc);
         vm.execute_predefined_proc(script.program, proc, vm_ctx).unwrap();
+    }
+
+    fn next_sid(&self, kind: ScriptKind) -> Sid {
+        let id = self.scripts.keys()
+            .cloned()
+            .filter(|sid| sid.kind() == kind)
+            .map(|sid| sid.id())
+            .max()
+            .map(|v| v + 1)
+            .unwrap_or(0);
+        Sid::new(kind, id)
     }
 }
