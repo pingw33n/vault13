@@ -184,7 +184,7 @@ pub fn jmp(ctx: Context) -> Result<()> {
 pub fn if_(ctx: Context) -> Result<()> {
     let cond = ctx.prg.data_stack.pop()?;
     let jump_pos = ctx.prg.data_stack.pop()?.into_int()?;
-    if cond.test() {
+    if !cond.test() {
         ctx.prg.jump(jump_pos)?;
     }
     log_a1r1!(ctx.prg, cond, jump_pos);
