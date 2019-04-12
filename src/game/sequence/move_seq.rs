@@ -89,7 +89,7 @@ impl Sequence for Move {
                     }
                 }
 
-                (frames[obj.frame_idx].shift, obj.pos())
+                (frames[obj.frame_idx].shift, obj.pos)
             };
             let shift = ctx.world.objects_mut().add_screen_shift(self.obj, shift);
 
@@ -101,7 +101,7 @@ impl Sequence for Move {
                     && shift.y.abs() >= next_hex_offset.y.abs() {
                 let shift = {
                     let obj = ctx.world.objects().get(self.obj).borrow();
-                    obj.screen_shift() - next_hex_offset
+                    obj.screen_shift - next_hex_offset
                 };
                 let pos = pos.unwrap();
                 let pos_point = ctx.world.map_grid().hex().go(pos.point, dir, 1).unwrap();

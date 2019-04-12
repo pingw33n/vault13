@@ -72,9 +72,9 @@ impl Handle {
 pub struct Object {
     pub handle: Option<Handle>,
     pub flags: BitFlags<Flag>,
-    pos: Option<EPoint>,
+    pub pos: Option<EPoint>,
     pub screen_pos: Point,
-    screen_shift: Point,
+    pub screen_shift: Point,
     pub fid: Fid,
     pub frame_idx: usize,
     pub direction: Direction,
@@ -116,14 +116,6 @@ impl Object {
             sequence: None,
             sid,
         }
-    }
-
-    pub fn pos(&self) -> Option<EPoint> {
-        self.pos
-    }
-
-    pub fn screen_shift(&self) -> Point {
-        self.screen_shift
     }
 
     pub fn has_running_sequence(&self) -> bool {

@@ -235,7 +235,7 @@ fn main() {
     let mut draw_path_blocked = false;
     let mut draw_debug = true;
     'running: loop {
-        let dude_pos = world.objects().get(dude_objh).borrow().pos().unwrap();
+        let dude_pos = world.objects().get(dude_objh).borrow().pos.unwrap();
         let elevation = dude_pos.elevation;
         for event in event_pump.poll_iter() {
             match event {
@@ -288,7 +288,7 @@ fn main() {
                 Event::KeyDown { keycode: Some(Keycode::A), .. } => {
                     let new_pos = {
                         let obj = world.objects().get(dude_objh).borrow_mut();
-                        let mut new_pos = obj.pos().unwrap();
+                        let mut new_pos = obj.pos.unwrap();
                         new_pos.elevation += 1;
                         while new_pos.elevation < map.sqr_tiles.len() && map.sqr_tiles[new_pos.elevation].is_none() {
                             new_pos.elevation += 1;
@@ -302,7 +302,7 @@ fn main() {
                 Event::KeyDown { keycode: Some(Keycode::Z), .. } => {
                     let new_pos = {
                         let obj = world.objects().get(dude_objh).borrow_mut();
-                        let mut new_pos = obj.pos().unwrap();
+                        let mut new_pos = obj.pos.unwrap();
                         if new_pos.elevation > 0 {
                             new_pos.elevation -= 1;
                             while new_pos.elevation > 0 && map.sqr_tiles[new_pos.elevation].is_none() {
@@ -346,7 +346,7 @@ fn main() {
         );
 
         let egg = Egg {
-            pos: world.objects().get(dude_objh).borrow().pos().unwrap().point,
+            pos: world.objects().get(dude_objh).borrow().pos.unwrap().point,
             fid: Fid::EGG,
         };
         let egg = Some(&egg);
@@ -381,7 +381,7 @@ fn main() {
         }
 
         if draw_debug {
-            let dude_pos = world.objects().get(dude_objh).borrow().pos().unwrap().point;
+            let dude_pos = world.objects().get(dude_objh).borrow().pos.unwrap().point;
             let ref msg = format!(
                 "mouse hex: {}, {} ({})\n\
                  mouse sqr: {}, {} ({})\n\
