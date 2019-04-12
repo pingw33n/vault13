@@ -264,7 +264,9 @@ pub struct Objects {
     frm_db: Rc<FrmDb>,
     handles: SlotMap<SmKey, ()>,
     objects: SecondaryMap<SmKey, RefCell<Object>>,
+    // Objects attached to tile (Object::pos is Some).
     by_pos: Box<[Array2d<Vec<Handle>>]>,
+    // Objects not attached to tile (Object::pos is None).
     detached: Vec<Handle>,
     empty_object_handle_vec: Vec<Handle>,
     path_finder: RefCell<PathFinder>,
@@ -300,7 +302,7 @@ impl Objects {
         obj.handle = Some(h);
         self.objects.insert(k, RefCell::new(obj));
 
-        self.attach(h, pos, true);
+        self.insert_into_tile_grid(h, pos, true);
 
         h
     }
@@ -405,24 +407,24 @@ impl Objects {
     }
 
     pub fn set_pos(&mut self, h: Handle, pos: impl Into<EPoint>) {
-        self.detach(h);
-        self.attach(h, Some(pos.into()), true);
+        self.remove_from_tile_grid(h);
+        self.insert_into_tile_grid(h, Some(pos.into()), true);
     }
 
     pub fn add_screen_shift(&mut self, h: Handle, shift: impl Into<Point>) -> Point {
-        let pos = self.detach(h);
+        let pos = self.remove_from_tile_grid(h);
         let new_shift = {
             let mut obj = self.get(h).borrow_mut();
             obj.screen_shift += shift.into();
             obj.screen_shift
         };
-        self.attach(h, pos, false);
+        self.insert_into_tile_grid(h, pos, false);
         new_shift
     }
 
     pub fn reset_screen_shift(&mut self, h: Handle) {
-        let pos = self.detach(h);
-        self.attach(h, pos, true);
+        let pos = self.remove_from_tile_grid(h);
+        self.insert_into_tile_grid(h, pos, true);
     }
 
     // dude_stand()
@@ -624,7 +626,7 @@ impl Objects {
         shift.x.cmp(&other_shift.x)
     }
 
-    fn attach(&mut self, h: Handle, pos: Option<EPoint>, reset_screen_shift: bool) {
+    fn insert_into_tile_grid(&mut self, h: Handle, pos: Option<EPoint>, reset_screen_shift: bool) {
         if let Some(pos) = pos {
             {
                 let mut obj = self.get(h).borrow_mut();
@@ -659,7 +661,7 @@ impl Objects {
         }
     }
 
-    fn detach(&mut self, h: Handle) -> Option<EPoint> {
+    fn remove_from_tile_grid(&mut self, h: Handle) -> Option<EPoint> {
         let old_pos = mem::replace(&mut self.get(h).borrow_mut().pos, None);
         let list = if let Some(old_pos) = old_pos {
             self.at_mut(old_pos)
