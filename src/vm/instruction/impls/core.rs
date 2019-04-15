@@ -300,6 +300,7 @@ pub fn push_base(ctx: Context) -> Result<()> {
     let new_base = new_base as usize;
     ctx.prg.return_stack.push(Value::Int(ctx.prg.base_encoded()))?;
     ctx.prg.base = Some(new_base);
+    debug!("{:?}: new base: {}", ctx.prg.opcode.unwrap().0, new_base);
     log_a1r2!(ctx.prg, &arg_count, ctx.prg.return_stack.top().unwrap(), &new_base);
     Ok(())
 }
