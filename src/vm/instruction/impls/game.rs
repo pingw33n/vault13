@@ -123,6 +123,42 @@ pub fn dude_obj(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn game_time(ctx: Context) -> Result<()> {
+    let r = ctx.ext.world.game_time.as_decis();
+    ctx.prg.data_stack.push(Value::Int(r as i32))?;
+    log_r1!(ctx.prg, r);
+    Ok(())
+}
+
+pub fn game_time_hour(ctx: Context) -> Result<()> {
+    let time = ctx.ext.world.game_time;
+    let r = 100 * time.hour() as u32 + time.minute() as u32;
+    ctx.prg.data_stack.push(Value::Int(r as i32))?;
+    log_r1!(ctx.prg, r);
+    Ok(())
+}
+
+pub fn game_time_in_seconds(ctx: Context) -> Result<()> {
+    let r = ctx.ext.world.game_time.as_seconds();
+    ctx.prg.data_stack.push(Value::Int(r as i32))?;
+    log_r1!(ctx.prg, r);
+    Ok(())
+}
+
+pub fn get_day(ctx: Context) -> Result<()> {
+    let r = ctx.ext.world.game_time.day();
+    ctx.prg.data_stack.push(Value::Int(r as i32))?;
+    log_r1!(ctx.prg, r);
+    Ok(())
+}
+
+pub fn get_month(ctx: Context) -> Result<()> {
+    let r = ctx.ext.world.game_time.month();
+    ctx.prg.data_stack.push(Value::Int(r as i32))?;
+    log_r1!(ctx.prg, r);
+    Ok(())
+}
+
 pub fn metarule(ctx: Context) -> Result<()> {
     let value = ctx.prg.data_stack.pop()?.into_int()?;
     let id = ctx.prg.data_stack.pop()?.into_int()?;

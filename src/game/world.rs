@@ -2,6 +2,7 @@ use std::rc::Rc;
 
 use crate::asset::frm::FrmDb;
 use crate::asset::proto::ProtoDb;
+use crate::game::GameTime;
 use crate::game::object::{self, Object, Objects};
 use crate::graphics::{EPoint, Point};
 use crate::graphics::geometry::hex::Direction;
@@ -18,6 +19,7 @@ pub struct World {
     objects: Objects,
     light_grid: LightGrid,
     dude_obj: Option<object::Handle>,
+    pub game_time: GameTime,
 }
 
 impl World {
@@ -36,6 +38,7 @@ impl World {
             objects,
             light_grid,
             dude_obj: None,
+            game_time: GameTime::from_decis(0),
         };
         r.rebuild_light_grid();
 

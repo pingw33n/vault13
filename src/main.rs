@@ -54,6 +54,7 @@ use crate::game::script::Scripts;
 use crate::vm::{Vm, PredefinedProc};
 use crate::asset::script::ScriptKind;
 use std::path::PathBuf;
+use crate::game::START_GAME_TIME;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -173,6 +174,7 @@ fn main() {
     }
 
     let mut world = World::new(proto_db.clone(), frm_db.clone(), map_grid, Array2d::with_default(200, 200), objects);
+    world.game_time = START_GAME_TIME;
     world.rebuild_light_grid();
 
     let mut sequencer = Sequencer::new();
