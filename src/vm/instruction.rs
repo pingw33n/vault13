@@ -439,7 +439,7 @@ pub(in super) mod instructions {
         i!(ConstLong,                   const_int),
         i!(ConstShort,                  const_int),
         i!(ConstString,                 const_string),
-        i!(CreateObjectSid,             unimplemented),
+        i!(CreateObjectSid,             create_object_sid),
         i!(Createwin,                   unimplemented),
         i!(CriticalDone,                noop),
         i!(CriticalDone804b,            noop),

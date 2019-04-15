@@ -2,8 +2,12 @@ use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
 use log::*;
 use num_traits::FromPrimitive;
+use std::cmp;
 
 use super::*;
+use crate::asset::proto::Pid;
+use crate::asset::script::Sid;
+use crate::game::object::Object;
 use crate::sequence::Sequence;
 use crate::sequence::chain::Chain;
 
@@ -56,6 +60,37 @@ enum RegAnimFuncOp {
     Begin = 1,
     Clear = 2,
     End = 3,
+}
+
+pub fn create_object_sid(ctx: Context) -> Result<()> {
+    let sid = ctx.prg.data_stack.pop()?.into_int()?;
+    let sid = if sid >= 0 {
+        Some(Sid::from_packed(sid as u32)
+            .ok_or(Error::BadValue(BadValue::Content))?)
+    } else {
+        None
+    };
+
+    let elevation = ctx.prg.data_stack.pop()?.into_int()? as usize;
+    let tile_num = cmp::max(ctx.prg.data_stack.pop()?.into_int()?, 0) as u32;
+
+    let pid = ctx.prg.data_stack.pop()?.into_int()?;
+    let pid = Pid::from_packed(pid as u32)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    // FIXME add proper impl
+    let fid = ctx.ext.world.proto_db().proto(pid).unwrap().fid;
+    let pos = ctx.ext.world.map_grid().hex().from_linear_inv(tile_num);
+    let pos = pos.elevated(elevation);
+    let obj = Object::new(fid, Some(pid), Some(pos));
+    let objh = ctx.ext.world.insert_object(obj);
+
+    ctx.prg.data_stack.push(Value::Object(Some(objh)))?;
+
+    log_a4r1!(ctx.prg, pid, tile_num, elevation, sid, objh);
+    log_stub!(ctx.prg);
+
+    Ok(())
 }
 
 pub fn destroy_object(ctx: Context) -> Result<()> {
