@@ -250,7 +250,8 @@ pub fn pop(ctx: Context) -> Result<()> {
 }
 
 pub fn pop_base(ctx: Context) -> Result<()> {
-    ctx.prg.base = ctx.prg.return_stack.pop()?.into_int()? as isize;
+    let v = ctx.prg.return_stack.pop()?.into_int()?;
+    ctx.prg.set_base_encoded(v);
     log_r1!(ctx.prg, &ctx.prg.base);
     Ok(())
 }
@@ -276,26 +277,23 @@ pub fn pop_return(ctx: Context) -> Result<()> {
 }
 
 pub fn pop_to_base(ctx: Context) -> Result<()> {
-    if ctx.prg.base < 0 {
-        return Err(Error::Misc("base is not set".into()));
-    }
-    let base = ctx.prg.base as usize;
+    let base = ctx.prg.base()?;
     ctx.prg.data_stack.truncate(base)?;
-    log_r1!(ctx.prg, &base);
+    log_r1!(ctx.prg, base);
     Ok(())
 }
 
 pub fn push_base(ctx: Context) -> Result<()> {
     let arg_count = ctx.prg.data_stack.pop()?.into_int()?;
     let new_base = ctx.prg.data_stack.len() as isize - arg_count as isize;
-    if new_base >= 0 {
-        ctx.prg.return_stack.push(Value::Int(ctx.prg.base as i32))?;
-        ctx.prg.base = new_base;
-        log_a1r2!(ctx.prg, &arg_count, ctx.prg.return_stack.top().unwrap(), &new_base);
-        Ok(())
-    } else {
-        Err(Error::BadValue(BadValue::Content))
+    if new_base < 0 {
+        return Err(Error::BadValue(BadValue::Content));
     }
+    let new_base = new_base as usize;
+    ctx.prg.return_stack.push(Value::Int(ctx.prg.base_encoded()))?;
+    ctx.prg.base = Some(new_base);
+    log_a1r2!(ctx.prg, &arg_count, ctx.prg.return_stack.top().unwrap(), &new_base);
+    Ok(())
 }
 
 pub fn self_obj(ctx: Context) -> Result<()> {

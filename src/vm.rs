@@ -387,8 +387,7 @@ pub struct ProgramState {
     opcode: Option<(Opcode, usize)>,
     pub data_stack: Stack<DataStackId>,
     pub return_stack: Stack<ReturnStackId>,
-    // FIXME check if this an Option
-    base: isize,
+    base:  Option<usize>,
     global_base: Option<usize>,
     instr_state: instruction::State,
 }
@@ -404,7 +403,7 @@ impl ProgramState {
             opcode: None,
             data_stack,
             return_stack,
-            base: -1,
+            base: None,
             global_base: None,
             instr_state: instruction::State::new(),
         }
@@ -501,6 +500,29 @@ impl ProgramState {
         } else {
             Err(Error::BadValue(BadValue::Content))
         }
+    }
+
+    fn base(&self) -> Result<usize> {
+        self.base
+            .ok_or_else(|| Error::BadState("no base set".into()))
+    }
+
+    fn base_encoded(&self) -> i32 {
+        self.base.map(|v| v as i32).unwrap_or(-1)
+    }
+
+    fn set_base_encoded(&mut self, v: i32) {
+        self.base = if v < 0 { None } else { Some(v as usize) };
+    }
+
+    fn base_val(&self, id: usize) -> Result<&Value> {
+        let base = self.base()?;
+        self.data_stack.get(base + id as usize)
+    }
+
+    fn base_val_mut(&mut self, id: usize) -> Result<&mut Value> {
+        let base = self.base()?;
+        self.data_stack.get_mut(base + id as usize)
     }
 
     fn global_base(&self) -> Result<usize> {
