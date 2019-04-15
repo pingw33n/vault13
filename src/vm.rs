@@ -387,7 +387,9 @@ pub struct ProgramState {
     opcode: Option<(Opcode, usize)>,
     pub data_stack: Stack<DataStackId>,
     pub return_stack: Stack<ReturnStackId>,
+    /// Base offset in `data_stack` of procedure variables.
     base:  Option<usize>,
+    /// Base offset in `data_stack` of program global variables.
     global_base: Option<usize>,
     instr_state: instruction::State,
 }

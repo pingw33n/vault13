@@ -152,6 +152,14 @@ pub fn equal(ctx: Context) -> Result<()> {
     cmp_test(ctx, |o| o == Some(Ordering::Equal))
 }
 
+pub fn fetch(ctx: Context) -> Result<()> {
+    let id = ctx.prg.data_stack.pop()?.into_int()?;
+    let v = ctx.prg.base_val(id as usize)?.clone();
+    ctx.prg.data_stack.push(v)?;
+    log_a1r1!(ctx.prg, id, ctx.prg.data_stack.top().unwrap());
+    Ok(())
+}
+
 pub fn fetch_global(ctx: Context) -> Result<()> {
     let id = ctx.prg.data_stack.pop()?.into_int()?;
     let v = ctx.prg.global(id as usize)?.clone();
@@ -320,6 +328,14 @@ pub fn set_local_var(ctx: Context) -> Result<()> {
 
 pub fn set_map_var(ctx: Context) -> Result<()> {
     set_persistent_var(ctx, PersistentVarScope::Map)
+}
+
+pub fn store(ctx: Context) -> Result<()> {
+    let id = ctx.prg.data_stack.pop()?.into_int()? as usize;
+    let value = ctx.prg.data_stack.pop()?;
+    *ctx.prg.base_val_mut(id)? = value;
+    log_a2!(ctx.prg, id, ctx.prg.base_val(id).unwrap());
+    Ok(())
 }
 
 pub fn store_global(ctx: Context) -> Result<()> {
