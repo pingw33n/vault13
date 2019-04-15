@@ -231,7 +231,8 @@ pub struct Program {
     code: Box<[u8]>,
     names: StringMap,
     strings: StringMap,
-    procs: HashMap<Rc<String>, Procedure>,
+    procs: Vec<Procedure>,
+    proc_by_name: HashMap<Rc<String>, u32>,
 }
 
 impl Program {
@@ -258,7 +259,7 @@ impl Program {
             Self::read_string_table(&code[string_table_start..])?;
 
         debug!("reading procedure table at 0x{:04x}", PROC_TABLE_START);
-        let procs = Self::read_proc_table(&code[PROC_TABLE_START..], &names)?;
+        let (procs, proc_by_name) = Self::read_proc_table(&code[PROC_TABLE_START..], &names)?;
 
         Ok(Self {
             config,
@@ -266,7 +267,16 @@ impl Program {
             names,
             strings,
             procs,
+            proc_by_name,
         })
+    }
+
+    pub fn proc(&self, id: u32) -> Option<&Procedure> {
+        self.procs.get(id as usize)
+    }
+
+    pub fn proc_by_name(&self, name: &Rc<String>) -> Option<&Procedure> {
+        self.proc_by_name.get(name).map(|&i| &self.procs[i as usize])
     }
 
     fn read_string_table(buf: &[u8]) -> Result<(StringMap, usize)> {
@@ -314,11 +324,13 @@ impl Program {
         Self::map_io_err(read())
     }
 
-    fn read_proc_table(buf: &[u8], names: &StringMap) -> Result<HashMap<Rc<String>, Procedure>> {
+    fn read_proc_table(buf: &[u8], names: &StringMap)
+        -> Result<(Vec<Procedure>, HashMap<Rc<String>, u32>)>
+    {
         let mut rd = Cursor::new(buf);
-        let mut read = || -> io::Result<HashMap<Rc<String>, Procedure>> {
+        let mut read = || -> io::Result<Vec<Procedure>> {
             let count = rd.read_u32::<BigEndian>()? as usize;
-            let mut r = HashMap::with_capacity(count);
+            let mut r = Vec::with_capacity(count);
             for i in 0..count {
                 let name = rd.read_u32::<BigEndian>()? as usize;
                 let name = names.get(name)
@@ -345,16 +357,20 @@ impl Program {
                     if proc.arg_count > 0 { "..." } else { "" },
                     proc);
 
-                if r.contains_key(&name) {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData,
-                        format!("duplicate procedure name: {}", name)));
-                }
-
-                r.insert(name, proc);
+                r.push(proc);
             }
             Ok(r)
         };
-        Self::map_io_err(read())
+        let procs = Self::map_io_err(read())?;
+        let mut proc_by_name = HashMap::with_capacity(procs.len());
+        for (i, proc) in procs.iter().enumerate() {
+            if proc_by_name.contains_key(&proc.name) {
+                return Self::map_io_err(Err(io::Error::new(io::ErrorKind::InvalidData,
+                    format!("duplicate procedure name: {}", proc.name))));
+            }
+            proc_by_name.insert(proc.name.clone(), i as u32);
+        }
+        Ok((procs, proc_by_name))
     }
 
     fn map_io_err<T>(r: io::Result<T>) -> Result<T> {
@@ -417,7 +433,7 @@ impl ProgramState {
     }
 
     pub fn execute_proc(&mut self, name: &Rc<String>, ctx: &mut Context) -> Result<()> {
-        let proc_pos = self.program.procs.get(name)
+        let proc_pos = self.program.proc_by_name(name)
             .ok_or_else(|| Error::BadProcedure(name.clone()))?
             .body_pos;
 

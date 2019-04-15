@@ -101,6 +101,21 @@ pub fn bwxor(ctx: Context) -> Result<()> {
     binary_op(ctx, |l, r, _| l.bwxor(r))
 }
 
+pub fn call(ctx: Context) -> Result<()> {
+    let proc_id = ctx.prg.data_stack.pop()?.into_int()? as u32;
+    let body_pos = {
+        let proc = ctx.prg.program.proc(proc_id)
+            .ok_or_else(|| Error::BadProcedureId(proc_id))?;
+        if proc.flags.contains(ProcedureFlag::Import) {
+            return Err(Error::Misc("calling imported procedure is not supported".into()));
+        }
+        proc.body_pos as i32
+    };
+    ctx.prg.jump(body_pos)?;
+    log_a1r1!(ctx.prg, proc_id, body_pos);
+    Ok(())
+}
+
 pub fn const_int(ctx: Context) -> Result<()> {
     let v = ctx.prg.next_i32()?;
     ctx.prg.data_stack.push(Value::Int(v))?;

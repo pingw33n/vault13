@@ -13,6 +13,7 @@ pub enum Error {
     BadMetadata(Cow<'static, str>),
     BadOpcode(u16),
     BadProcedure(Rc<String>),
+    BadProcedureId(u32),
     BadState(Cow<'static, str>),
     BadValue(BadValue),
     Halted,

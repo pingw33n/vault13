@@ -424,7 +424,7 @@ pub(in super) mod instructions {
         i!(Bwnot,                       bwnot),
         i!(Bwor,                        bwor),
         i!(Bwxor,                       bwxor),
-        i!(Call,                        unimplemented),
+        i!(Call,                        call),
         i!(CallAt,                      unimplemented),
         i!(CallCondition,               unimplemented),
         i!(Callstart,                   unimplemented),
