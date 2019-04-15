@@ -62,6 +62,22 @@ enum RegAnimFuncOp {
     End = 3,
 }
 
+pub fn add_mult_objs_to_inven(ctx: Context) -> Result<()> {
+    let count = ctx.prg.data_stack.pop()?.into_int()?;
+    let count = if count > 99999 {
+        500
+    } else if count < 0 {
+        1
+    } else {
+        count
+    };
+    let item = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let target = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    log_a3!(ctx.prg, target, item, count);
+    log_stub!(ctx.prg);
+    Ok(())
+}
+
 pub fn create_object_sid(ctx: Context) -> Result<()> {
     let sid = ctx.prg.data_stack.pop()?.into_int()?;
     let sid = if sid >= 0 {

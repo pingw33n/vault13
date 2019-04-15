@@ -399,7 +399,7 @@ pub(in super) mod instructions {
         i!(Addbuttonrightproc,          unimplemented),
         i!(Addbuttontext,               unimplemented),
         i!(Addkey,                      unimplemented),
-        i!(AddMultObjsToInven,          unimplemented),
+        i!(AddMultObjsToInven,          add_mult_objs_to_inven),
         i!(Addnamedevent,               unimplemented),
         i!(Addnamedhandler,             unimplemented),
         i!(AddObjToInven,               unimplemented),
