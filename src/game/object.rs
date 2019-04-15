@@ -273,6 +273,10 @@ impl Objects {
         }
     }
 
+    pub fn contains(&self, obj: Handle) -> bool {
+        self.objects.contains_key(obj.0)
+    }
+
     pub fn insert(&mut self, obj: Object) -> Handle {
         let pos = obj.pos;
 

@@ -478,7 +478,7 @@ pub(in super) mod instructions {
         i!(DoCheck,                     unimplemented),
         i!(DropObj,                     unimplemented),
         i!(DToA,                        dtoa),
-        i!(DudeObj,                     unimplemented),
+        i!(DudeObj,                     dude_obj),
         i!(Dump,                        unimplemented),
         i!(Dup,                         unimplemented),
         i!(Elevation,                   unimplemented),

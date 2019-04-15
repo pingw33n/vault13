@@ -17,6 +17,7 @@ pub struct World {
     sqr_tiles: Array2d<(u16, u16)>,
     objects: Objects,
     light_grid: LightGrid,
+    dude_obj: Option<object::Handle>,
 }
 
 impl World {
@@ -34,6 +35,7 @@ impl World {
             sqr_tiles,
             objects,
             light_grid,
+            dude_obj: None,
         };
         r.rebuild_light_grid();
 
@@ -74,6 +76,16 @@ impl World {
         Self::update_light_grid(&self.objects, &mut self.light_grid, h, 1);
 
         h
+    }
+
+    pub fn dude_obj(&self) -> Option<object::Handle> {
+        self.dude_obj
+    }
+
+    pub fn set_dude_obj(&mut self, obj: object::Handle) {
+        assert!(self.objects.contains(obj));
+        assert!(self.dude_obj.is_none());
+        self.dude_obj = Some(obj);
     }
 
     pub fn set_object_pos(&mut self, h: object::Handle, pos: impl Into<EPoint>) {

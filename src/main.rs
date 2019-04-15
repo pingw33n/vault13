@@ -221,6 +221,7 @@ fn main() {
         radius: 4,
     };
     let dude_objh = world.insert_object(dude_obj);
+    world.set_dude_obj(dude_objh);
     world.make_object_standing(dude_objh);
     frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
 

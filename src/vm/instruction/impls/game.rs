@@ -100,6 +100,13 @@ pub fn destroy_object(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn dude_obj(ctx: Context) -> Result<()> {
+    let obj = ctx.ext.world.dude_obj();
+    ctx.prg.data_stack.push(Value::Object(obj))?;
+    log_r1!(ctx.prg, obj);
+    Ok(())
+}
+
 pub fn metarule(ctx: Context) -> Result<()> {
     let value = ctx.prg.data_stack.pop()?.into_int()?;
     let id = ctx.prg.data_stack.pop()?.into_int()?;
