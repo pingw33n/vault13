@@ -358,13 +358,13 @@ pub fn store_external(ctx: Context) -> Result<()> {
 }
 
 pub fn swapa(ctx: Context) -> Result<()> {
-    let dv = ctx.prg.data_stack.pop()?;
-    let rv = ctx.prg.return_stack.pop()?;
-    ctx.prg.data_stack.push(rv)?;
-    ctx.prg.return_stack.push(dv)?;
+    let v1 = ctx.prg.return_stack.pop()?;
+    let v2 = ctx.prg.return_stack.pop()?;
+    ctx.prg.return_stack.push(v1)?;
+    ctx.prg.return_stack.push(v2)?;
     log_a2!(ctx.prg,
-        ctx.prg.return_stack.top().unwrap(),
-        ctx.prg.data_stack.top().unwrap());
+        ctx.prg.return_stack.get(ctx.prg.return_stack.len() - 2).unwrap(),
+        ctx.prg.return_stack.top().unwrap());
     Ok(())
 }
 
