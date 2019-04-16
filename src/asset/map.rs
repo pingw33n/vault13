@@ -17,6 +17,7 @@ use crate::graphics::geometry::map::ELEVATION_COUNT;
 use crate::graphics::render::TextureFactory;
 use crate::graphics::sprite::OutlineStyle;
 use crate::util::EnumExt;
+use crate::util::two_dim_array::Array2d;
 
 struct ScriptInfo {
     sid: Sid,
@@ -42,7 +43,7 @@ pub struct Map {
     pub savegame: bool,
     pub entrance: EPoint,
     pub entrance_direction: Direction,
-    pub sqr_tiles: Vec<Option<Vec<(u16, u16)>>>,
+    pub sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
     pub map_vars: Box<[i32]>,
 }
 
@@ -117,11 +118,11 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 sqr_tiles.push(None);
                 continue;
             }
-            let mut tiles = Vec::with_capacity(10000);
-            for _ in 0..tiles.capacity() {
+            let mut tiles = Array2d::with_default(100, 100);
+            for v in tiles.as_slice_mut() {
                 let roof_id = self.reader.read_u16::<BigEndian>()?;
                 let floor_id = self.reader.read_u16::<BigEndian>()?;
-                tiles.push((floor_id, roof_id));
+                *v = (floor_id, roof_id);
             }
             sqr_tiles.push(Some(tiles));
         }

@@ -1,25 +1,29 @@
+use std::cmp;
 use std::rc::Rc;
 
-use crate::asset::frm::FrmDb;
+use crate::asset::EntityKind;
+use crate::asset::frm::{Fid, FrmDb};
 use crate::asset::proto::ProtoDb;
 use crate::game::GameTime;
-use crate::game::object::{self, Object, Objects};
-use crate::graphics::{EPoint, Point};
+use crate::game::object::{self, Egg, Object, Objects};
+use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::hex::Direction;
-use crate::graphics::geometry::map::MapGrid;
+use crate::graphics::geometry::map::{ELEVATION_COUNT, MapGrid};
 use crate::graphics::lighting::light_grid::LightGrid;
+use crate::graphics::map::*;
+use crate::graphics::render::Canvas;
 use crate::util::two_dim_array::Array2d;
-use crate::graphics::geometry::map::ELEVATION_COUNT;
 
 pub struct World {
     proto_db: Rc<ProtoDb>,
     frm_db: Rc<FrmDb>,
     map_grid: MapGrid,
-    sqr_tiles: Array2d<(u16, u16)>,
+    sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
     objects: Objects,
     light_grid: LightGrid,
     dude_obj: Option<object::Handle>,
     pub game_time: GameTime,
+    pub ambient_light: u32,
 }
 
 impl World {
@@ -27,8 +31,9 @@ impl World {
             proto_db: Rc<ProtoDb>,
             frm_db: Rc<FrmDb>,
             map_grid: MapGrid,
-            sqr_tiles: Array2d<(u16, u16)>,
+            sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
             objects: Objects) -> Self {
+        assert_eq!(sqr_tiles.len(), ELEVATION_COUNT);
         let light_grid = LightGrid::new(map_grid.hex(), ELEVATION_COUNT);
         let mut r = Self {
             proto_db,
@@ -39,6 +44,7 @@ impl World {
             light_grid,
             dude_obj: None,
             game_time: GameTime::from_decis(0),
+            ambient_light: 0x10000,
         };
         r.rebuild_light_grid();
 
@@ -91,6 +97,16 @@ impl World {
         self.dude_obj = Some(obj);
     }
 
+    pub fn elevation(&self) -> usize {
+        self.objects.get(self.dude_obj.expect("no dude_obj")).borrow()
+            .pos.expect("dude_obj has no pos")
+            .elevation
+    }
+
+    pub fn has_elevation(&self, elevation: usize) -> bool {
+        self.sqr_tiles[elevation].is_some()
+    }
+
     pub fn set_object_pos(&mut self, h: object::Handle, pos: impl Into<EPoint>) {
         Self::update_light_grid(&self.objects, &mut self.light_grid, h, -1);
 
@@ -113,6 +129,47 @@ impl World {
         for h in self.objects.iter() {
             Self::update_light_grid(&self.objects, &mut self.light_grid, h, 1);
         }
+    }
+
+    pub fn render(&self, canvas: &mut Canvas, rect: &Rect, draw_roof: bool) {
+        let elevation = self.elevation();
+        render_floor(canvas, self.map_grid.sqr(), rect,
+            |num| {
+                let fid = Fid::new_generic(EntityKind::SqrTile,
+                    self.sqr_tiles[elevation].as_ref().unwrap()[num as usize].0).unwrap();
+                Some(self.frm_db.get(fid).frame_lists[Direction::NE].frames[0].texture.clone())
+            },
+            |point| {
+                let l = self.light_grid().get_clipped(EPoint { elevation, point });
+                cmp::max(l, self.ambient_light)
+            }
+        );
+
+        let egg = if let Some(dude_obj) = self.dude_obj {
+            Some(Egg {
+                pos: self.objects().get(dude_obj).borrow().pos.unwrap().point,
+                fid: Fid::EGG,
+            })
+        } else {
+            None
+        };
+        self.objects().render(canvas, elevation, rect, self.map_grid.hex(), egg.as_ref(),
+            |pos| if let Some(pos) = pos {
+                cmp::max(self.light_grid().get_clipped(pos), self.ambient_light)
+            } else {
+                self.ambient_light
+            });
+
+        if draw_roof {
+            render_roof(canvas, self.map_grid.sqr(), rect,
+                |num| Some(self.frm_db.get(Fid::new_generic(EntityKind::SqrTile,
+                    self.sqr_tiles[elevation].as_ref().unwrap()[num as usize].1).unwrap())
+                        .first().texture.clone()));
+        }
+
+        self.objects().render_outlines(canvas, elevation, rect, self.map_grid.hex());
+
+        // TODO render floating text objects.
     }
 
     fn update_light_grid(objects: &Objects, light_grid: &mut LightGrid, h: object::Handle,

@@ -17,9 +17,9 @@ pub struct Limited<T> {
 impl<T> Limited<T> {
     pub fn new(inner: T, limit: u64) -> Limited<T> {
         Limited {
-            inner: inner,
+            inner,
             pos: 0,
-            limit: limit,
+            limit,
         }
     }
 

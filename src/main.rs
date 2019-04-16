@@ -28,20 +28,16 @@ use crate::graphics::geometry::hex::Direction;
 use crate::game::object::LightEmitter;
 use crate::graphics::Rect;
 use crate::game::world::World;
-use crate::util::two_dim_array::Array2d;
 use crate::sequence::{Sequence, Sequencer};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
-use crate::graphics::map::render_floor;
 use std::cmp;
 use crate::graphics::EPoint;
-use crate::game::object::Egg;
 use std::time::Instant;
 use std::time::Duration;
 use std::thread;
 use crate::util::EnumExt;
-use crate::graphics::map::render_roof;
 use crate::graphics::sprite::OutlineStyle;
 use crate::sequence::chain::Chain;
 use crate::game::sequence::move_seq::Move;
@@ -146,14 +142,12 @@ fn main() {
 
     for elev in &map.sqr_tiles {
         if let Some(ref elev) = elev {
-            for &(floor, roof) in elev {
+            for &(floor, roof) in elev.as_slice() {
                 frm_db.get_or_load(Fid::new_generic(EntityKind::SqrTile, floor).unwrap(), &texture_factory).unwrap();
                 frm_db.get_or_load(Fid::new_generic(EntityKind::SqrTile, roof).unwrap(), &texture_factory).unwrap();
             }
         }
     }
-
-    let mut ambient_light = 0x6666;
 
     fn all_fids(fid: Fid) -> Vec<Fid> {
         let mut r = vec![fid];
@@ -173,7 +167,7 @@ fn main() {
         r
     }
 
-    let mut world = World::new(proto_db.clone(), frm_db.clone(), map_grid, Array2d::with_default(200, 200), objects);
+    let mut world = World::new(proto_db.clone(), frm_db.clone(), map_grid, map.sqr_tiles, objects);
     world.game_time = START_GAME_TIME;
     world.rebuild_light_grid();
 
@@ -255,14 +249,12 @@ fn main() {
     let mut draw_path_blocked = false;
     let mut draw_debug = true;
     'running: loop {
-        let dude_pos = world.objects().get(dude_objh).borrow().pos.unwrap();
-        let elevation = dude_pos.elevation;
         for event in event_pump.poll_iter() {
             match event {
                 Event::MouseMotion { x, y, .. } => {
                     mouse_hex_pos = world.map_grid().hex().from_screen((x, y));
                     mouse_sqr_pos = world.map_grid().sqr().from_screen((x, y));
-                    let new_pos = EPoint::new(elevation, mouse_hex_pos);
+                    let new_pos = EPoint::new(world.elevation(), mouse_hex_pos);
                     world.set_object_pos(mouse_objh, new_pos);
                     draw_path_blocked = world.path_for_object(dude_objh, mouse_hex_pos, true).is_none();
                 }
@@ -310,12 +302,12 @@ fn main() {
                         let obj = world.objects().get(dude_objh).borrow_mut();
                         let mut new_pos = obj.pos.unwrap();
                         new_pos.elevation += 1;
-                        while new_pos.elevation < map.sqr_tiles.len() && map.sqr_tiles[new_pos.elevation].is_none() {
+                        while new_pos.elevation < ELEVATION_COUNT && !world.has_elevation(new_pos.elevation) {
                             new_pos.elevation += 1;
                         }
                         new_pos
                     };
-                    if new_pos.elevation < map.sqr_tiles.len() && map.sqr_tiles[new_pos.elevation].is_some() {
+                    if new_pos.elevation < ELEVATION_COUNT && world.has_elevation(new_pos.elevation) {
                         world.objects_mut().set_pos(dude_objh, new_pos);
                     }
                 }
@@ -325,21 +317,21 @@ fn main() {
                         let mut new_pos = obj.pos.unwrap();
                         if new_pos.elevation > 0 {
                             new_pos.elevation -= 1;
-                            while new_pos.elevation > 0 && map.sqr_tiles[new_pos.elevation].is_none() {
+                            while new_pos.elevation > 0 && !world.has_elevation(new_pos.elevation) {
                                 new_pos.elevation -= 1;
                             }
                         }
                         new_pos
                     };
-                    if map.sqr_tiles[new_pos.elevation].is_some() {
+                    if world.has_elevation(new_pos.elevation) {
                         world.objects_mut().set_pos(dude_objh, new_pos);
                     }
                 }
                 Event::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {
-                    ambient_light = cmp::max(ambient_light as i32 - 1000, 0) as u32;
+                    world.ambient_light = cmp::max(world.ambient_light as i32 - 1000, 0) as u32;
                 }
                 Event::KeyDown { keycode: Some(Keycode::RightBracket), .. } => {
-                    ambient_light = cmp::min(ambient_light + 1000, 0x10000);
+                    world.ambient_light = cmp::min(world.ambient_light + 1000, 0x10000);
                 }
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => {
                     roof_visible = !roof_visible;
@@ -354,38 +346,7 @@ fn main() {
             }
         }
 
-        render_floor(canvas, world.map_grid().sqr(), &visible_rect,
-            |num| {
-                let fid = Fid::new_generic(EntityKind::SqrTile, map.sqr_tiles[elevation].as_ref().unwrap()[num as usize].0).unwrap();
-                Some(frm_db.get(fid).frame_lists[Direction::NE].frames[0].texture.clone())
-            },
-            |point| {
-                let l = world.light_grid().get_clipped(EPoint { elevation, point });
-                cmp::max(l, ambient_light)
-            }
-        );
-
-        let egg = Egg {
-            pos: world.objects().get(dude_objh).borrow().pos.unwrap().point,
-            fid: Fid::EGG,
-        };
-        let egg = Some(&egg);
-        world.objects().render(canvas, elevation, &visible_rect, world.map_grid().hex(), egg,
-            |pos| if let Some(pos) = pos {
-                cmp::max(world.light_grid().get_clipped(pos), ambient_light)
-            } else {
-                ambient_light
-            });
-
-        if roof_visible {
-            render_roof(canvas, &world.map_grid().sqr(), &visible_rect,
-                |num| Some(frm_db.get(Fid::new_generic(EntityKind::SqrTile,
-                    map.sqr_tiles[elevation].as_ref().unwrap()[num as usize].1).unwrap()).first().texture.clone()));
-        }
-
-        world.objects().render_outlines(canvas, elevation, &visible_rect, world.map_grid().hex());
-
-        // TODO render floating text objects.
+        world.render(canvas, &visible_rect, roof_visible);
 
         canvas.draw(&frm_db.get(Fid::MAIN_HUD).first().texture, 0, visible_rect.bottom, 0x10000);
 
@@ -413,7 +374,7 @@ fn main() {
                 world.map_grid().sqr().to_linear_inv(mouse_sqr_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 dude_pos.x, dude_pos.y,
                 world.map_grid().hex().to_linear_inv(dude_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
-                ambient_light,
+                world.ambient_light,
             );
             canvas.draw_text(msg.as_bytes(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),
                 &DrawOptions {

@@ -25,6 +25,10 @@ impl<T> Array2d<T> {
         self.arr.len() / self.width
     }
 
+    pub fn len(&self) -> usize {
+        self.arr.len()
+    }
+
     pub fn get(&self, x: usize, y: usize) -> Option<&T> {
         self.arr.get(self.lin(x, y))
     }
@@ -32,6 +36,14 @@ impl<T> Array2d<T> {
     pub fn get_mut(&mut self, x: usize, y: usize) -> Option<&mut T> {
         let i = self.lin(x, y);
         self.arr.get_mut(i)
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        &self.arr
+    }
+
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
+        &mut self.arr
     }
 
     fn lin(&self, x: usize, y: usize) -> usize {
