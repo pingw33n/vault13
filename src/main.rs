@@ -177,6 +177,21 @@ fn main() {
     world.game_time = START_GAME_TIME;
     world.rebuild_light_grid();
 
+    let dude_fid = Fid::from_packed(0x101600A).unwrap();
+    for fid in all_fids(dude_fid) {
+        let _ = frm_db.get_or_load(fid, &texture_factory);
+    }
+    let mut dude_obj = Object::new(dude_fid, None, Some(map.entrance));
+    dude_obj.direction = Direction::NE;
+    dude_obj.light_emitter = LightEmitter {
+        intensity: 0x10000,
+        radius: 4,
+    };
+    let dude_objh = world.insert_object(dude_obj);
+    world.set_dude_obj(dude_objh);
+    world.make_object_standing(dude_objh);
+    frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
+
     let mut sequencer = Sequencer::new();
 
     scripts.vars.global_vars = if map.savegame {
@@ -211,21 +226,6 @@ fn main() {
         scripts.execute_procs(PredefinedProc::Start, ctx, |sid| sid.kind() != ScriptKind::System);
         scripts.execute_map_procs(PredefinedProc::MapEnter, ctx);
     }
-
-    let dude_fid = Fid::from_packed(0x101600A).unwrap();
-    for fid in all_fids(dude_fid) {
-        let _ = frm_db.get_or_load(fid, &texture_factory);
-    }
-    let mut dude_obj = Object::new(dude_fid, None, Some(map.entrance));
-    dude_obj.direction = Direction::NE;
-    dude_obj.light_emitter = LightEmitter {
-        intensity: 0x10000,
-        radius: 4,
-    };
-    let dude_objh = world.insert_object(dude_obj);
-    world.set_dude_obj(dude_objh);
-    world.make_object_standing(dude_objh);
-    frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
 
     frm_db.get_or_load(Fid::MOUSE_HEX2, &texture_factory).unwrap();
 

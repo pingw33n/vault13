@@ -8,8 +8,10 @@ use super::*;
 use crate::asset::proto::Pid;
 use crate::asset::script::Sid;
 use crate::game::object::Object;
+use crate::graphics::geometry::hex::Direction;
 use crate::sequence::Sequence;
 use crate::sequence::chain::Chain;
+use crate::graphics::EPoint;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 enum Metarule {
@@ -106,6 +108,20 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
     log_a4r1!(ctx.prg, pid, tile_num, elevation, sid, objh);
     log_stub!(ctx.prg);
 
+    Ok(())
+}
+
+pub fn critter_add_trait(ctx: Context) -> Result<()> {
+    let value = ctx.prg.data_stack.pop()?.into_int()?;
+    let sub_kind = ctx.prg.data_stack.pop()?.into_int()?;
+    let kind = ctx.prg.data_stack.pop()?.into_int()?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    let r = -1;
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a4r1!(ctx.prg, obj, kind, sub_kind, value, r);
+    log_stub!(ctx.prg);
     Ok(())
 }
 
@@ -249,6 +265,32 @@ pub fn metarule3(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn override_map_start(ctx: Context) -> Result<()> {
+    let direction = ctx.prg.data_stack.pop()?.into_int()?;
+    let direction = Direction::from_i32(direction)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    let elevation = ctx.prg.data_stack.pop()?.into_int()? as usize;
+    let y = ctx.prg.data_stack.pop()?.into_int()?;
+
+    let x = ctx.prg.data_stack.pop()?.into_int()?;
+
+    let world = &mut ctx.ext.world;
+    let x = world.map_grid().hex().width() - x;
+
+    let obj = world.dude_obj().unwrap();
+    let pos = EPoint::new(elevation, (x, y));
+    world.set_object_pos(obj, pos);
+    world.objects_mut().get(obj).borrow_mut().direction = direction;
+
+    world.map_grid_mut().center2(pos.point);
+
+    log_a4!(ctx.prg, x, y, direction, elevation);
+
+    Ok(())
+}
+
+
 pub fn party_member_obj(ctx: Context) -> Result<()> {
     let pid = ctx.prg.data_stack.pop()?.into_int()?;
     let r = Value::Object(None);
@@ -325,14 +367,20 @@ pub fn set_light_level(ctx: Context) -> Result<()> {
 
 pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
     let pid = ctx.prg.data_stack.pop()?.into_int()?;
-    let elevation = ctx.prg.data_stack.pop()?.into_int()?;
+    let pid = Pid::from_packed(pid as u32)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    let elevation = ctx.prg.data_stack.pop()?.into_int()? as usize;
     let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
 
-    let r = false;
+    let pos = ctx.ext.world.map_grid().hex().from_linear_inv(tile_num as u32)
+        .elevated(elevation);
+
+    let r = ctx.ext.world.objects().at(pos).iter()
+        .any(|&obj| ctx.ext.world.objects().get(obj).borrow().pid == Some(pid));
     ctx.prg.data_stack.push(r.into())?;
 
     log_a3r1!(ctx.prg, tile_num, elevation, pid, ctx.prg.data_stack.top().unwrap());
-    log_stub!(ctx.prg);
 
     Ok(())
 }
