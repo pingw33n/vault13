@@ -8,7 +8,7 @@ use std::rc::Rc;
 use crate::asset::{EntityKind, Flag, FlagExt, WeaponKind};
 use crate::asset::frm::{CritterAnim, Fid, FrmDb};
 use crate::asset::proto::{self, CritterKillKind, Pid, ProtoDb};
-use crate::asset::script::Sid;
+use crate::game::script::Sid;
 use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::hex::*;
 use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};

@@ -1,14 +1,82 @@
+use byteorder::{BigEndian, ReadBytesExt};
+use enum_map_derive::Enum;
+use enum_primitive_derive::Primitive;
+use num_traits::FromPrimitive;
 use log::*;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use std::io;
+use std::fmt;
+use std::io::{self, prelude::*};
 use std::rc::Rc;
 
 use crate::asset::script::db::ScriptDb;
-use crate::asset::script::{ScriptKind, Sid};
 use crate::game::object;
 use crate::vm::{self, PredefinedProc, Vm};
 use crate::vm::value::Value;
+
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
+pub enum ScriptKind {
+    System = 0x0,
+    Spatial = 0x1,
+    Time = 0x2,
+    Item = 0x3,
+    Critter = 0x4,
+}
+
+/// Script ID carries different semantics than other identifiers (`Fid`, `Pid`). It is a unique
+/// identifier of a program instance within a single map, while the aforementioned identifiers
+/// refer to static assets. For the reference to the script bytecode file there another identifier -
+/// program ID that maps to file name in `scripts.lst`.
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq, Ord, PartialOrd)]
+pub struct Sid(u32);
+
+impl Sid {
+    pub fn new(kind: ScriptKind, id: u32) -> Self {
+        assert!(id <= 0xffffff);
+        Sid((kind as u32) << 24 | id)
+    }
+
+    pub fn from_packed(v: u32) -> Option<Self> {
+        ScriptKind::from_u32(v >> 24)?;
+        Some(Sid(v))
+    }
+
+    pub fn pack(self) -> u32 {
+        self.0
+    }
+
+    pub fn read(rd: &mut impl Read) -> io::Result<Self> {
+        let v = rd.read_u32::<BigEndian>()?;
+        Self::from_packed(v)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                format!("malformed SID: {:x}", v)))
+    }
+
+    pub fn read_opt(rd: &mut impl Read) -> io::Result<Option<Self>> {
+        let v = rd.read_i32::<BigEndian>()?;
+        Ok(if v >= 0 {
+            Some(Self::from_packed(v as u32)
+                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    format!("malformed SID: {:x}", v)))?)
+        } else {
+            None
+        })
+    }
+
+    pub fn kind(self) -> ScriptKind {
+        ScriptKind::from_u32(self.0 >> 24).unwrap()
+    }
+
+    pub fn id(self) -> u32 {
+        self.0 & 0xffffff
+    }
+}
+
+impl fmt::Debug for Sid {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Sid(0x{:08x})", self.0)
+    }
+}
 
 pub struct Context<'a> {
     pub world: &'a mut crate::game::world::World,
@@ -177,10 +245,10 @@ impl Scripts {
         ctx: &mut Context)
     {
         // FIXME
-        // #511 == animfrfv.int
-        if script.program_id != 511 {
-            return;
-        }
+//         #511 == animfrfv.int
+//        if script.program_id != 511 {
+//            return;
+//        }
         let vm_ctx = &mut vm::Context {
             local_vars: &mut script.local_vars,
             map_vars: &mut vars.map_vars,

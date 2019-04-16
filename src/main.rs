@@ -52,7 +52,7 @@ use crate::graphics::font::*;
 use asset::script::db::ScriptDb;
 use crate::game::script::Scripts;
 use crate::vm::{Vm, PredefinedProc};
-use crate::asset::script::ScriptKind;
+use crate::game::script::ScriptKind;
 use std::path::PathBuf;
 use crate::game::START_GAME_TIME;
 

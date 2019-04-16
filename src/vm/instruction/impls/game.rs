@@ -6,8 +6,8 @@ use std::cmp;
 
 use super::*;
 use crate::asset::proto::Pid;
-use crate::asset::script::Sid;
 use crate::game::object::Object;
+use crate::game::script::Sid;
 use crate::graphics::geometry::hex::Direction;
 use crate::sequence::Sequence;
 use crate::sequence::chain::Chain;
