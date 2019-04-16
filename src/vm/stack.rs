@@ -1,4 +1,5 @@
 use log::*;
+use std::fmt;
 use std::marker::PhantomData;
 
 use super::{BadValue, Error, Result};
@@ -9,7 +10,6 @@ pub trait StackId {
     const VALUE: &'static str;
 }
 
-#[derive(Debug)]
 pub struct Stack<Id> {
     vec: Vec<Value>,
     max_len: usize,
@@ -75,5 +75,11 @@ impl<Id: StackId> Stack<Id> {
 
     pub fn get_mut(&mut self, i: usize) -> Result<&mut Value> {
         self.vec.get_mut(i).ok_or(Error::BadValue(BadValue::Content))
+    }
+}
+
+impl<Id: StackId> fmt::Debug for Stack<Id> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Stack(id=\"{}\", values={:?})", Id::VALUE, self.vec)
     }
 }
