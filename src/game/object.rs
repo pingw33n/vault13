@@ -16,7 +16,7 @@ use crate::graphics::render::Canvas;
 use crate::graphics::sprite::{Effect, Frame, OutlineStyle, Sprite, Translucency};
 use crate::sequence::cancellable::Cancel;
 use crate::util::{self, EnumExt, SmKey};
-use crate::util::two_dim_array::Array2d;
+use crate::util::array2d::Array2d;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Outline {

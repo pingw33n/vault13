@@ -17,7 +17,7 @@ use crate::graphics::geometry::map::ELEVATION_COUNT;
 use crate::graphics::render::TextureFactory;
 use crate::graphics::sprite::OutlineStyle;
 use crate::util::EnumExt;
-use crate::util::two_dim_array::Array2d;
+use crate::util::array2d::Array2d;
 
 struct ScriptInfo {
     sid: Sid,

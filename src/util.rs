@@ -1,4 +1,4 @@
-pub mod two_dim_array;
+pub mod array2d;
 
 use enum_map::Enum;
 use std::cmp;

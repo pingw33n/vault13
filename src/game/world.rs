@@ -12,7 +12,7 @@ use crate::graphics::geometry::map::{ELEVATION_COUNT, MapGrid};
 use crate::graphics::lighting::light_grid::LightGrid;
 use crate::graphics::map::*;
 use crate::graphics::render::Canvas;
-use crate::util::two_dim_array::Array2d;
+use crate::util::array2d::Array2d;
 
 pub struct World {
     proto_db: Rc<ProtoDb>,
