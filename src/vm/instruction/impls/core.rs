@@ -291,16 +291,32 @@ pub fn pop_base(ctx: Context) -> Result<()> {
     Ok(())
 }
 
-pub fn pop_flags_exit(ctx: Context) -> Result<()> {
-    let pos = ctx.prg.data_stack.pop()?.into_int()?;
+fn pop_flags0(ctx: &mut Context) -> Result<(i32, i32, i32)> {
+    let unk17 = ctx.prg.data_stack.pop()?.into_int()?;
+    let unk19 = ctx.prg.data_stack.pop()?.into_int()?;
+    let flags = ctx.prg.data_stack.pop()?.into_int()?;
+    Ok((unk17, unk19, flags))
+}
+
+pub fn pop_flags(mut ctx: Context) -> Result<()> {
+    let (unk17, unk19, flags) = pop_flags0(&mut ctx)?;
+    log_a3!(ctx.prg, unk17, unk19, flags);
+    Ok(())
+}
+
+pub fn pop_flags_exit(mut ctx: Context) -> Result<()> {
+    let (unk17, unk19, flags) = pop_flags0(&mut ctx)?;
+    let pos = ctx.prg.return_stack.pop()?.into_int()?;
     ctx.prg.jump(pos)?;
-    log_a1!(ctx.prg, pos);
+    log_a4!(ctx.prg, unk17, unk19, flags, pos);
     Err(Error::Halted)
 }
 
-pub fn pop_flags_return(ctx: Context) -> Result<()> {
-    let flags = ctx.prg.return_stack.pop()?.into_int()?;
-    log_r1!(ctx.prg, flags);
+pub fn pop_flags_return(mut ctx: Context) -> Result<()> {
+    let (unk17, unk19, flags) = pop_flags0(&mut ctx)?;
+    let pos = ctx.prg.return_stack.pop()?.into_int()?;
+    ctx.prg.jump(pos)?;
+    log_a4!(ctx.prg, unk17, unk19, flags, pos);
     Ok(())
 }
 

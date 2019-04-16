@@ -604,7 +604,7 @@ pub(in super) mod instructions {
         i!(PopAddress,                  unimplemented),
         i!(PopBase,                     pop_base),
         i!(PopExit,                     unimplemented),
-        i!(PopFlags,                    unimplemented),
+        i!(PopFlags,                    pop_flags),
         i!(PopFlagsExit,                pop_flags_exit),
         i!(PopFlagsExitExtern,          unimplemented),
         i!(PopFlagsReturn,              pop_flags_return),

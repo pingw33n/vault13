@@ -438,11 +438,16 @@ impl ProgramState {
             .ok_or_else(|| Error::BadProcedure(name.clone()))?
             .body_pos;
 
+        // setupCallWithReturnVal()
         self.return_stack.push(Value::Int(self.code_pos as i32))?;
-        self.return_stack.push(Value::Int(20))?;
+        // TODO How important is this? The value varies in different call places.
+        self.return_stack.push(Value::Int(24))?;
         self.data_stack.push(Value::Int(0))?; // flags
         self.data_stack.push(Value::Int(0))?; //unk17_
         self.data_stack.push(Value::Int(0))?; //unk19_
+
+        self.data_stack.push(Value::Int(0))?;
+
         self.code_pos = proc_pos;
 
         self.run(ctx)
