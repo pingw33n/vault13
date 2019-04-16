@@ -9,6 +9,7 @@ use std::fmt;
 use std::io::{self, prelude::*};
 use std::rc::Rc;
 
+use crate::asset::script::ProgramId;
 use crate::asset::script::db::ScriptDb;
 use crate::game::object;
 use crate::vm::{self, PredefinedProc, Vm};
@@ -25,8 +26,8 @@ pub enum ScriptKind {
 
 /// Script ID carries different semantics than other identifiers (`Fid`, `Pid`). It is a unique
 /// identifier of a program instance within a single map, while the aforementioned identifiers
-/// refer to static assets. For the reference to the script bytecode file there another identifier -
-/// program ID that maps to file name in `scripts.lst`.
+/// refer to static assets. For the reference to the script bytecode file there's another
+/// identifier - program ID that maps to file name in `scripts.lst`.
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Sid(u32);
 
@@ -102,7 +103,7 @@ impl Vars {
 pub struct Script {
     /// Whether the program's initialization code has been run.
     pub inited: bool,
-    pub program_id: u32,
+    pub program_id: ProgramId,
     pub program: vm::Handle,
     pub local_vars: Box<[i32]>,
     pub object: Option<object::Handle>,
@@ -133,7 +134,7 @@ impl Scripts {
         self.map_sid
     }
 
-    pub fn instantiate(&mut self, sid: Sid, program_id: u32, local_vars: Option<Box<[i32]>>)
+    pub fn instantiate(&mut self, sid: Sid, program_id: ProgramId, local_vars: Option<Box<[i32]>>)
         -> io::Result<()>
     {
         let program = match self.programs.entry(program_id) {
@@ -174,7 +175,7 @@ impl Scripts {
         Ok(())
     }
 
-    pub fn instantiate_map_script(&mut self, program_id: u32) -> io::Result<Sid> {
+    pub fn instantiate_map_script(&mut self, program_id: ProgramId) -> io::Result<Sid> {
         assert!(self.map_sid.is_none());
         let sid = self.next_sid(ScriptKind::System);
         self.instantiate(sid, program_id, None)?;

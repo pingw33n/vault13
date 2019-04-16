@@ -8,6 +8,7 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 use crate::asset::*;
 use crate::asset::frm::{Fid, FrmDb};
 use crate::asset::proto::{ItemVariant, Pid, ProtoDb};
+use crate::asset::script::ProgramId;
 use crate::game::object::*;
 use crate::game::script::*;
 use crate::graphics::{EPoint, Point};
@@ -19,7 +20,7 @@ use crate::util::EnumExt;
 
 struct ScriptInfo {
     sid: Sid,
-    program_id: u32,
+    program_id: ProgramId,
     local_var_count: usize,
     local_var_offset: usize,
 }
@@ -516,7 +517,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         }))
     }
 
-    fn make_map_script(&mut self, program_id: u32) -> io::Result<()> {
+    fn make_map_script(&mut self, program_id: ProgramId) -> io::Result<()> {
         let sid = self.scripts.instantiate_map_script(program_id)?;
         let mut obj = Object::new(Fid::SCROLL_BLOCKER, None, Some(EPoint::new(0, (0, 0))));
         obj.flags = BitFlags::from(Flag::LightThru)

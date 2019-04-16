@@ -2,6 +2,7 @@ use atoi::atoi;
 use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
 
+use super::ProgramId;
 use crate::fs::FileSystem;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -24,11 +25,11 @@ impl ScriptDb {
         })
     }
 
-    pub fn info(&self, program_id: u32) -> Option<&ScriptInfo> {
+    pub fn info(&self, program_id: ProgramId) -> Option<&ScriptInfo> {
         self.infos.get(program_id as usize)
     }
 
-    pub fn load(&self, program_id: u32) -> io::Result<(Box<[u8]>, &ScriptInfo)> {
+    pub fn load(&self, program_id: ProgramId) -> io::Result<(Box<[u8]>, &ScriptInfo)> {
         let info = self.info(program_id)
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput,
                 format!("program id {} doesn't exist", program_id)))?;
