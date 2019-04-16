@@ -80,6 +80,6 @@ impl<Id: StackId> Stack<Id> {
 
 impl<Id: StackId> fmt::Debug for Stack<Id> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Stack(id=\"{}\", values={:?})", Id::VALUE, self.vec)
+        write!(f, "Stack(id=\"{}\", max_len={}, values={:?})", Id::VALUE, self.max_len, self.vec)
     }
 }
