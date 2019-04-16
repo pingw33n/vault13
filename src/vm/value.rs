@@ -179,6 +179,76 @@ impl Value {
         )
     }
 
+    pub fn div(self, other: Value, strings: &StringMap) -> Result<Value> {
+        let lkind_bad = match self.kind() {
+            ValueKind::Int | ValueKind::Float => false,
+            _ => true
+        };
+        let rkind_bad = match other.kind() {
+            ValueKind::Int | ValueKind::Float => false,
+            _ => true
+        };
+        if lkind_bad || rkind_bad {
+            return Err(Error::BadValue(BadValue::Type));
+        }
+        self.coerce_into_same_kind_and(other, strings,
+            |l, r| l.checked_div(r).map(|v| v.into()).ok_or(Error::BadValue(BadValue::Content)),
+            |l, r| if r == 0.0 {
+                Err(Error::BadValue(BadValue::Content))
+            } else {
+                Ok((l / r).into())
+            },
+            |_, _| unreachable!(),
+            |_, _| unreachable!(),
+        )
+    }
+
+    pub fn mul(self, other: Value, strings: &StringMap) -> Result<Value> {
+        let lkind_bad = match self.kind() {
+            ValueKind::Int | ValueKind::Float => false,
+            _ => true
+        };
+        let rkind_bad = match other.kind() {
+            ValueKind::Int | ValueKind::Float => false,
+            _ => true
+        };
+        if lkind_bad || rkind_bad {
+            return Err(Error::BadValue(BadValue::Type));
+        }
+        self.coerce_into_same_kind_and(other, strings,
+            |l, r| l.checked_mul(r).map(|v| v.into()).ok_or(Error::BadValue(BadValue::Content)),
+            |l, r| Ok((l * r).into()),
+            |_, _| unreachable!(),
+            |_, _| unreachable!(),
+        )
+    }
+
+    pub fn rem(self, other: Value, _strings: &StringMap) -> Result<Value> {
+        let l = self.into_int()?;
+        let r = other.into_int()?;
+        l.checked_rem(r).map(|v| v.into()).ok_or(Error::BadValue(BadValue::Content))
+    }
+
+    pub fn sub(self, other: Value, strings: &StringMap) -> Result<Value> {
+        let lkind_bad = match self.kind() {
+            ValueKind::Int | ValueKind::Float => false,
+            _ => true
+        };
+        let rkind_bad = match other.kind() {
+            ValueKind::Int | ValueKind::Float => false,
+            _ => true
+        };
+        if lkind_bad || rkind_bad {
+            return Err(Error::BadValue(BadValue::Type));
+        }
+        self.coerce_into_same_kind_and(other, strings,
+            |l, r| l.checked_sub(r).map(|v| v.into()).ok_or(Error::BadValue(BadValue::Content)),
+            |l, r| Ok((l - r).into()),
+            |_, _| unreachable!(),
+            |_, _| unreachable!(),
+        )
+    }
+
     pub fn bwand(self, other: Value) -> Result<Value> {
         let left = self.coerce_into_int()?;
         let right = other.coerce_into_int()?;
@@ -600,6 +670,160 @@ mod test {
                 assert_eq!(right.clone().add(left.clone(), &strings), exp,
                     "{:?} {:?} {:?}", left, right, exp);
             }
+        }
+    }
+
+    #[test]
+    fn div() {
+        const S: &'static [(usize, &'static str)] = &[
+            (12, "123"),     // 0
+            (34, "123.456"), // 1
+            (56, "0"),       // 2
+            (56, "0.0"),     // 3
+        ];
+        let strings = strings(S);
+
+        let mut d = vec![
+            (Int(456), Int(123), Ok(Int(456 / 123))),
+            (Int(123), Float(456.789), Ok(Float(123.0 / 456.789))),
+            (Float(123.456), Float(456.789), Ok(Float(123.456 / 456.789))),
+
+            (Int(456), Int(0), Err(Error::BadValue(BadValue::Content))),
+            (Int(i32::min_value()), Int(-1), Err(Error::BadValue(BadValue::Content))),
+
+            (String(Indirect(S[0].0)), String(Indirect(S[1].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[0].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[2].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[3].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[2].0)), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[3].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[0].0)), Float(12.123), Err(Error::BadValue(BadValue::Type))),
+            (Float(12.123), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(usize::max_value())), Int(0), Err(Error::BadValue(BadValue::Type))),
+        ];
+        generate_string_direct_cases(&mut d, &strings);
+
+        for (left, right, exp) in d {
+            assert_eq!(left.clone().div(right.clone(), &strings), exp,
+                "{:?} {:?} {:?}", left, right, exp);
+        }
+    }
+
+    #[test]
+    fn mul() {
+        const S: &'static [(usize, &'static str)] = &[
+            (12, "123"),     // 0
+            (34, "123.456"), // 1
+            (56, "0"),       // 2
+            (56, "0.0"),     // 3
+        ];
+        let strings = strings(S);
+
+        let mut d = vec![
+            (Int(456), Int(0), Ok(Int(456 * 0))),
+            (Int(456), Int(123), Ok(Int(456 * 123))),
+            (Int(123), Float(456.789), Ok(Float(123.0 * 456.789))),
+            (Float(123.456), Float(456.789), Ok(Float(123.456 * 456.789))),
+
+            (Int(i32::min_value()), Int(-1), Err(Error::BadValue(BadValue::Content))),
+            (Int(i32::max_value()), Int(2), Err(Error::BadValue(BadValue::Content))),
+
+            (String(Indirect(S[0].0)), String(Indirect(S[1].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[0].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[2].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[3].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[2].0)), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[3].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[0].0)), Float(12.123), Err(Error::BadValue(BadValue::Type))),
+            (Float(12.123), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(usize::max_value())), Int(0), Err(Error::BadValue(BadValue::Type))),
+        ];
+        generate_string_direct_cases(&mut d, &strings);
+        fill_bad_type_binary_variants(&mut d, S[0].0, true);
+
+        for (left, right, exp) in d {
+            assert_eq!(left.clone().mul(right.clone(), &strings), exp,
+                "{:?} {:?} {:?}", left, right, exp);
+            if exp.is_err() {
+                assert_eq!(right.clone().mul(left.clone(), &strings), exp,
+                    "{:?} {:?} {:?}", left, right, exp);
+            }
+        }
+    }
+
+    #[test]
+    fn rem() {
+        const S: &'static [(usize, &'static str)] = &[
+            (12, "123"),     // 0
+            (34, "123.456"), // 1
+            (56, "0"),       // 2
+            (56, "0.0"),     // 3
+        ];
+        let strings = strings(S);
+
+        let mut d = vec![
+            (Int(456), Int(123), Ok(Int(456 % 123))),
+
+            (Int(456), Int(0), Err(Error::BadValue(BadValue::Content))),
+            (Int(i32::min_value()), Int(-1), Err(Error::BadValue(BadValue::Content))),
+
+            (Int(123), Float(456.789), Err(Error::BadValue(BadValue::Type))),
+            (Float(123.456), Float(456.789), Err(Error::BadValue(BadValue::Type))),
+
+            (String(Indirect(S[0].0)), String(Indirect(S[1].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[0].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[2].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[3].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[2].0)), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[3].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[0].0)), Float(12.123), Err(Error::BadValue(BadValue::Type))),
+            (Float(12.123), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(usize::max_value())), Int(0), Err(Error::BadValue(BadValue::Type))),
+        ];
+        generate_string_direct_cases(&mut d, &strings);
+
+        for (left, right, exp) in d {
+            assert_eq!(left.clone().rem(right.clone(), &strings), exp,
+                "{:?} {:?} {:?}", left, right, exp);
+        }
+    }
+
+    #[test]
+    fn sub() {
+        const S: &'static [(usize, &'static str)] = &[
+            (12, "123"),     // 0
+            (34, "123.456"), // 1
+            (56, "0"),       // 2
+            (56, "0.0"),     // 3
+        ];
+        let strings = strings(S);
+
+        let mut d = vec![
+            (Int(123), Int(456), Ok(Int(123 - 456))),
+            (Int(123), Float(456.789), Ok(Float(123.0 - 456.789))),
+            (Float(123.456), Float(456.789), Ok(Float(123.456 - 456.789))),
+
+            (Int(i32::min_value()), Int(1), Err(Error::BadValue(BadValue::Content))),
+
+            (String(Indirect(S[0].0)), String(Indirect(S[1].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[0].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[2].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[3].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[2].0)), Err(Error::BadValue(BadValue::Type))),
+            (Int(42), String(Indirect(S[3].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(S[0].0)), Float(12.123), Err(Error::BadValue(BadValue::Type))),
+            (Float(12.123), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(usize::max_value())), Int(0), Err(Error::BadValue(BadValue::Type))),
+        ];
+        generate_string_direct_cases(&mut d, &strings);
+
+        for (left, right, exp) in d {
+            assert_eq!(left.clone().sub(right.clone(), &strings), exp,
+                "{:?} {:?} {:?}", left, right, exp);
         }
     }
 

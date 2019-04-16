@@ -38,7 +38,7 @@ impl PersistentVarScope {
 
 fn cmp_test(ctx: Context, f: impl FnOnce(Option<Ordering>) -> bool) -> Result<()> {
     binary_op(ctx, |l, r, ctx| {
-        let r = f(l.partial_cmp(&r, &ctx.prg.strings())?);
+        let r = f(l.partial_cmp(&r, ctx.prg.strings())?);
         Ok(r.into())
     })
 }
@@ -71,7 +71,7 @@ fn set_persistent_var(ctx: Context, scope: PersistentVarScope) -> Result<()> {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub fn add(ctx: Context) -> Result<()> {
-    binary_op(ctx, |l, r, ctx| l.add(r, &ctx.prg.strings()))
+    binary_op(ctx, |l, r, ctx| l.add(r, ctx.prg.strings()))
 }
 
 pub fn and(ctx: Context) -> Result<()> {
@@ -116,6 +116,17 @@ pub fn call(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn div(ctx: Context) -> Result<()> {
+    binary_op(ctx, |l, r, ctx| l.div(r, ctx.prg.strings()))
+}
+
+pub fn const_float(ctx: Context) -> Result<()> {
+    let v = ctx.prg.next_f32()?;
+    ctx.prg.data_stack.push(Value::Float(v))?;
+    log_r1!(ctx.prg, ctx.prg.data_stack.top().unwrap());
+    Ok(())
+}
+
 pub fn const_int(ctx: Context) -> Result<()> {
     let v = ctx.prg.next_i32()?;
     ctx.prg.data_stack.push(Value::Int(v))?;
@@ -135,7 +146,7 @@ pub fn const_string(ctx: Context) -> Result<()> {
 }
 
 pub fn debug_msg(ctx: Context) -> Result<()> {
-    let s = ctx.prg.data_stack.pop()?.into_string(&ctx.prg.strings())?;
+    let s = ctx.prg.data_stack.pop()?.into_string(ctx.prg.strings())?;
     log_a1!(ctx.prg, s);
     info!(target: "vault13::vm::debug", "{}", s);
     Ok(())
@@ -145,6 +156,14 @@ pub fn dtoa(ctx: Context) -> Result<()> {
     let v = ctx.prg.data_stack.pop()?;
     ctx.prg.return_stack.push(v)?;
     log_r1!(ctx.prg, ctx.prg.return_stack.top().unwrap());
+    Ok(())
+}
+
+pub fn dup(ctx: Context) -> Result<()> {
+    let v = ctx.prg.data_stack.pop()?;
+    ctx.prg.data_stack.push(v.clone())?;
+    ctx.prg.data_stack.push(v)?;
+    log_a1!(ctx.prg, ctx.prg.data_stack.top().unwrap());
     Ok(())
 }
 
@@ -228,6 +247,14 @@ pub fn local_var(ctx: Context) -> Result<()> {
 
 pub fn map_var(ctx: Context) -> Result<()> {
     persistent_var(ctx, PersistentVarScope::Map)
+}
+
+pub fn mod_(ctx: Context) -> Result<()> {
+    binary_op(ctx, |l, r, ctx| l.rem(r, ctx.prg.strings()))
+}
+
+pub fn mul(ctx: Context) -> Result<()> {
+    binary_op(ctx, |l, r, ctx| l.mul(r, ctx.prg.strings()))
 }
 
 pub fn negate(ctx: Context) -> Result<()> {
@@ -355,6 +382,21 @@ pub fn store_external(ctx: Context) -> Result<()> {
         .ok_or_else(|| Error::Misc(format!("external variable `{}` doesn't exist", name).into()))?;
     *v = Some(value);
     log_a2!(ctx.prg, &name, v);
+    Ok(())
+}
+
+pub fn sub(ctx: Context) -> Result<()> {
+    binary_op(ctx, |l, r, ctx| l.sub(r, ctx.prg.strings()))
+}
+
+pub fn swap(ctx: Context) -> Result<()> {
+    let v1 = ctx.prg.data_stack.pop()?;
+    let v2 = ctx.prg.data_stack.pop()?;
+    ctx.prg.data_stack.push(v1)?;
+    ctx.prg.data_stack.push(v2)?;
+    log_a2!(ctx.prg,
+        ctx.prg.data_stack.get(ctx.prg.data_stack.len() - 2).unwrap(),
+        ctx.prg.data_stack.top().unwrap());
     Ok(())
 }
 

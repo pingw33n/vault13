@@ -495,6 +495,22 @@ impl ProgramState {
         r
     }
 
+    fn get_f32(&mut self) -> Result<f32> {
+        if self.code_pos + 4 <= self.code().len() {
+            Ok(BigEndian::read_f32(&self.code()[self.code_pos..]))
+        } else {
+            Err(Error::UnexpectedEof)
+        }
+    }
+
+    fn next_f32(&mut self) -> Result<f32> {
+        let r =  self.get_f32();
+        if r.is_ok() {
+            self.code_pos += 4
+        }
+        r
+    }
+
     fn jump(&mut self, pos: i32) -> Result<()> {
         if pos >= 0 && pos + Opcode::SIZE as i32 <= self.code().len() as i32 {
             self.code_pos = pos as usize;
