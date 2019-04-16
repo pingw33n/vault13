@@ -359,9 +359,26 @@ pub fn reg_anim_func(ctx: Context) -> Result<()> {
 }
 
 pub fn set_light_level(ctx: Context) -> Result<()> {
-    let v = ctx.prg.data_stack.pop()?.into_int()?;
+    let v = cmp::min(cmp::max(ctx.prg.data_stack.pop()?.into_int()?, 0), 100) as u32;
+
+    const MIN: u32 = 0x4000;
+    const MID: u32 = 0xA000;
+    const MAX: u32 = 0x10000;
+
+    // TODO This probably should be fixed as follows:
+    // if v < 50 { MIN + v * (MID - MIN) / 50 } else { MID + (v - 50) * (MAX - MID) / 50 }
+    let light = if v < 50 {
+        MIN + v * (MID - MIN) / 100
+    } else if v == 50 {
+        MID
+    } else {
+        MID + v * (MAX - MID) / 100
+    };
+
+    ctx.ext.world.ambient_light = light;
+
     log_a1!(ctx.prg, v);
-    log_stub!(ctx.prg);
+
     Ok(())
 }
 
