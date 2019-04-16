@@ -192,6 +192,8 @@ fn main() {
     world.make_object_standing(dude_objh);
     frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
 
+    world.map_grid_mut().center2(map.entrance.point);
+
     let mut sequencer = Sequencer::new();
 
     scripts.vars.global_vars = if map.savegame {
@@ -237,8 +239,6 @@ fn main() {
         disabled: false,
     });
     let mouse_objh = world.insert_object(mouse_obj);
-
-    world.map_grid_mut().center2(map.entrance.point);
 
     let visible_rect = Rect::with_size(0, 0, 640, 380);
     let scroll_inc = 10;

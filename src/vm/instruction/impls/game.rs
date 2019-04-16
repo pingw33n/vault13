@@ -273,10 +273,10 @@ pub fn override_map_start(ctx: Context) -> Result<()> {
     let elevation = ctx.prg.data_stack.pop()?.into_int()? as usize;
     let y = ctx.prg.data_stack.pop()?.into_int()?;
 
-    let x = ctx.prg.data_stack.pop()?.into_int()?;
-
     let world = &mut ctx.ext.world;
-    let x = world.map_grid().hex().width() - x;
+
+    let x = ctx.prg.data_stack.pop()?.into_int()?;
+    let x = world.map_grid().hex().invert_x(x);
 
     let obj = world.dude_obj().unwrap();
     let pos = EPoint::new(elevation, (x, y));

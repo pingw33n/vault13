@@ -411,6 +411,11 @@ impl TileGrid {
         }
     }
 
+    /// Inverts `x` coordinate. 0 becomes `width - 1` and `width - 1` becomes 0.
+    pub fn invert_x(&self, x: i32) -> i32 {
+        self.width - 1 - x
+    }
+
     // tile_num_in_direction_()
     fn go0(&self, p: impl Into<Point>, direction: Direction, distance: u32, clip: bool) -> Point {
         // Advance per each direction for even/odd hex.

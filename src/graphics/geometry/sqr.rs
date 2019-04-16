@@ -132,6 +132,11 @@ impl TileGrid {
             y: clamp(p.y, 0, self.height - 1),
         }
     }
+
+    /// Inverts `x` coordinate. 0 becomes `width - 1` and `width - 1` becomes 0.
+    pub fn invert_x(&self, x: i32) -> i32 {
+        self.width - 1 - x
+    }
 }
 
 impl Default for TileGrid {
