@@ -600,15 +600,6 @@ impl PathFinder {
                         .next()
                 };
                 if let Some((open_idx, step_idx)) = existing_step {
-                    {
-                        let mut step = &mut self.steps[step_idx];
-                        // This is different from original which doesn't check for better route variants.
-                        if next_cost < step.cost {
-                            step.direction = next_direction;
-                            step.cost = next_cost;
-                            step.came_from = idx;
-                        }
-                    }
                     self.open_steps.remove(open_idx);
                     self.open(step_idx);
                 } else {
