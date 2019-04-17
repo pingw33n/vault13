@@ -116,7 +116,7 @@ impl Sequence for Move {
             self.path_pos += 1;
             if self.path_pos >= self.path.len() {
                 self.state = State::Done;
-                return Result::Running(Running::NotLagging);
+                return Result::Done;
             }
             ctx.world.objects_mut().add_screen_shift(self.obj, shift);
             self.init_step(ctx.world);
