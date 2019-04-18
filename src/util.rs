@@ -1,4 +1,5 @@
 pub mod array2d;
+pub mod random;
 
 use enum_map::Enum;
 use std::cmp;

@@ -70,6 +70,8 @@ fn args() -> clap::App<'static, 'static> {
 fn main() {
     env_logger::init();
 
+    util::random::check_chi_square();
+
     let master_dat: PathBuf;
     let critter_dat: PathBuf;
     let patch_dat: PathBuf;

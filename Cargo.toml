@@ -24,5 +24,6 @@ matches = "0.1"
 measure_time = "0.6"
 num-traits = "0.1"
 png = "0.13"
+rand = "0.6"
 sdl2 = { version = "0.32.1", features = ["unsafe_textures"] }
 slotmap = "0.3"
