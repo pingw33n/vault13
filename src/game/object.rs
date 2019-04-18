@@ -17,6 +17,7 @@ use crate::graphics::sprite::{Effect, Frame, OutlineStyle, Sprite, Translucency}
 use crate::sequence::cancellable::Cancel;
 use crate::util::{self, EnumExt, SmKey};
 use crate::util::array2d::Array2d;
+use core::borrow::Borrow;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Outline {
@@ -145,6 +146,44 @@ impl Object {
             let sprite = self.create_sprite(0x10000, Some(effect), tile_grid);
             sprite.render(canvas, frm_db);
         }
+    }
+
+    // obj_bound()
+    pub fn bounds(&self, frm_db: &FrmDb, tile_grid: &TileGrid) -> Rect {
+        let frms = frm_db.get(self.fid);
+        let frms = frms.borrow();
+
+        let frame_list = &frms.frame_lists[self.direction];
+        let frame = &frame_list.frames[self.frame_idx];
+        let frame_size = Point::new(frame.width, frame.height);
+
+        self.bounds0(frame_list.center, frame_size, tile_grid)
+    }
+
+    fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &TileGrid) -> Rect {
+        let mut r = if let Some(pos) = self.pos {
+            let top_left =
+                tile_grid.to_screen(pos.point)
+                + Point::new(16, 8)
+                + frame_center
+                + self.screen_shift
+                - Point::new(frame_size.x / 2, frame_size.y - 1);
+            let bottom_right = top_left + frame_size;
+            Rect::with_points(top_left, bottom_right)
+        } else {
+            Rect::with_points(self.screen_pos, self.screen_pos + frame_size)
+        };
+
+        let has_outline = self.outline.map(|o| !o.disabled).unwrap_or(false);
+        if has_outline {
+            // Include 1-pixel outline.
+            r.left -= 1;
+            r.top -= 1;
+            r.right += 1;
+            r.bottom += 1;
+        }
+
+        r
     }
 
     fn create_sprite(&self, light: u32, effect: Option<Effect>, tile_grid: &TileGrid) -> Sprite {
@@ -537,6 +576,10 @@ impl Objects {
             })
     }
 
+    pub fn bounds(&self, obj: Handle, tile_grid: &TileGrid) -> Rect {
+        self.get(obj).borrow().bounds(&self.frm_db, tile_grid)
+    }
+
     fn get_render_hex_rect(screen_rect: &Rect, tile_grid: &TileGrid) -> Rect {
         tile_grid.from_screen_rect(&Rect {
             left: -320,
@@ -653,5 +696,23 @@ impl Objects {
         // TODO maybe use binary_search for detaching.
         list.retain(|&hh| hh != h);
         old_pos
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn bounds() {
+        let screen_shift = Point::new(10, 20);
+        let base = Point::new(2384, 468) + screen_shift;
+
+        let tg = TileGrid::default();
+        let mut obj = Object::new(Fid::SCROLL_BLOCKER, None, Some(EPoint::new(0, (55, 66))));
+        obj.screen_shift = screen_shift;
+        assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &tg),
+            Rect::with_points((1, -51), (30, 12))
+                .translate(base.x, base.y));
     }
 }

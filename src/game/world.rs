@@ -131,6 +131,10 @@ impl World {
         }
     }
 
+    pub fn object_bounds(&self, obj: object::Handle) -> Rect {
+        self.objects.bounds(obj, self.map_grid.hex())
+    }
+
     pub fn render(&self, canvas: &mut Canvas, rect: &Rect, draw_roof: bool) {
         let elevation = self.elevation();
         render_floor(canvas, self.map_grid.sqr(), rect,
