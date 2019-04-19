@@ -1,3 +1,4 @@
+pub mod fidget;
 pub mod object;
 pub mod script;
 pub mod sequence;

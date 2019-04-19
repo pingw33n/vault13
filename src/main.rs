@@ -50,6 +50,7 @@ use crate::vm::{Vm, PredefinedProc};
 use crate::game::script::ScriptKind;
 use std::path::PathBuf;
 use crate::game::START_GAME_TIME;
+use crate::game::fidget::Fidget;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -245,6 +246,8 @@ fn main() {
 
     frm_db.get_or_load(Fid::MAIN_HUD, &texture_factory).unwrap();
 
+    let mut fidget = Fidget::new();
+
     let mut mouse_hex_pos = Point::new(0, 0);
     let mut mouse_sqr_pos = Point::new(0, 0);
     let mut draw_path_blocked = false;
@@ -391,6 +394,8 @@ fn main() {
             time: now,
             world: &mut world
         });
+
+        fidget.update(now, &mut world, &visible_rect, &mut sequencer);
 
         canvas.update(now);
 

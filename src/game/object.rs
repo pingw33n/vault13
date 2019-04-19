@@ -160,6 +160,12 @@ impl Object {
         self.bounds0(frame_list.center, frame_size, tile_grid)
     }
 
+    // critter_is_dead()
+    pub fn is_critter_dead(&self) -> bool {
+        // FIXME
+        false
+    }
+
     fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &TileGrid) -> Rect {
         let mut r = if let Some(pos) = self.pos {
             let top_left =

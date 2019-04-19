@@ -241,6 +241,13 @@ impl Rect {
             y >= self.top && y < self.bottom
     }
 
+    pub fn intersects(&self, other: &Rect) -> bool {
+        self.left < other.right &&
+            self.right > other.left &&
+            self.top < other.bottom &&
+            self.bottom > other.top
+    }
+
     pub fn top_left(&self) -> Point {
         Point::new(self.left, self.top)
     }
