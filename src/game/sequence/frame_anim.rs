@@ -77,7 +77,6 @@ impl Sequence for FrameAnim {
         match self.state {
             State::Started => {
                 self.init(ctx.world);
-                ctx.world.objects_mut().reset_screen_shift(self.obj);
             },
             State::Running(last_time) => {
                 if ctx.time - last_time < self.frame_len {
