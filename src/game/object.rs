@@ -432,6 +432,12 @@ impl Objects {
         self.insert_into_tile_grid(h, Some(pos.into()), true);
     }
 
+    pub fn set_screen_shift(&mut self, h: Handle, shift: impl Into<Point>) {
+        let pos = self.remove_from_tile_grid(h);
+        self.get(h).borrow_mut().screen_shift = shift.into();
+        self.insert_into_tile_grid(h, pos, false);
+    }
+
     pub fn add_screen_shift(&mut self, h: Handle, shift: impl Into<Point>) -> Point {
         let pos = self.remove_from_tile_grid(h);
         let new_shift = {
@@ -487,7 +493,7 @@ impl Objects {
             obj.frame_idx = 0;
             shift
         };
-        self.add_screen_shift(h, shift);
+        self.set_screen_shift(h, shift);
     }
 
     // obj_blocking_at()
