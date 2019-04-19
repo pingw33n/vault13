@@ -1,5 +1,15 @@
 use log::*;
+use std::cell::RefCell;
 use std::cmp;
+use std::thread_local;
+
+thread_local! {
+    static RANDOM: RefCell<Random> = RefCell::new(Random::new());
+}
+
+pub fn random(from_inclusive: i32, to_inclusive: i32) -> i32 {
+    RANDOM.with(|rand| rand.borrow_mut().gen(from_inclusive, to_inclusive))
+}
 
 /// Pseudo-random generator based on Minimal Standard by Lewis, Goodman, and Miller in 1969.
 pub struct Random {
@@ -72,9 +82,8 @@ pub fn check_chi_square() {
 
     let mut freqs = [0i32; RANGE];
 
-    let mut rand = Random::new();
     for _ in 0..ITER_COUNT {
-        let i = rand.gen(1, RANGE as i32) - 1;
+        let i = random(1, RANGE as i32) - 1;
         assert!(i >= 0 && i < RANGE as i32);
         freqs[i as usize] += 1;
     }
