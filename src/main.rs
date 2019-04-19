@@ -173,9 +173,6 @@ fn main() {
     world.rebuild_light_grid();
 
     let dude_fid = Fid::from_packed(0x101600A).unwrap();
-    for fid in all_fids(dude_fid) {
-        let _ = frm_db.get_or_load(fid, &texture_factory);
-    }
     let mut dude_obj = Object::new(dude_fid, None, Some(map.entrance));
     dude_obj.direction = Direction::NE;
     dude_obj.light_emitter = LightEmitter {
@@ -184,6 +181,13 @@ fn main() {
     };
     let dude_objh = world.insert_object(dude_obj);
     world.set_dude_obj(dude_objh);
+
+    for obj in world.objects().iter() {
+        for fid in all_fids(world.objects().get(obj).borrow().fid) {
+            let _ = frm_db.get_or_load(fid, &texture_factory);
+        }
+    }
+
     world.make_object_standing(dude_objh);
     frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
 
