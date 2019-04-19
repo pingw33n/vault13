@@ -39,7 +39,6 @@ use std::time::Duration;
 use std::thread;
 use crate::util::EnumExt;
 use crate::graphics::sprite::OutlineStyle;
-use crate::sequence::chain::Chain;
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
 use crate::asset::font::load_fonts;
@@ -242,10 +241,6 @@ fn main() {
 
     frm_db.get_or_load(Fid::MAIN_HUD, &texture_factory).unwrap();
 
-    let (seq, seq_ctl) = Chain::endless();
-
-    sequencer.start(seq);
-
     let mut mouse_hex_pos = Point::new(0, 0);
     let mut mouse_sqr_pos = Point::new(0, 0);
     let mut draw_path_blocked = false;
@@ -275,7 +270,7 @@ fn main() {
                         if !path.is_empty() {
                             let (seq, signal) = Move::new(dude_objh, anim, path).cancellable();
                             world.objects().get(dude_objh).borrow_mut().sequence = Some(signal);
-                            seq_ctl.push(seq.then(Stand::new(dude_objh)));
+                            sequencer.start(seq.then(Stand::new(dude_objh)));
                         }
                     }
                 }
