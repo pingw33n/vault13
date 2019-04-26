@@ -79,6 +79,18 @@ pub struct Sprite {
 }
 
 impl Sprite {
+    pub fn new(fid: Fid) -> Self {
+        Sprite {
+            pos: Point::new(0, 0),
+            centered: false,
+            fid,
+            frame_idx: 0,
+            direction: Direction::NE,
+            light: 0x10000,
+            effect: None,
+        }
+    }
+
     pub fn render(&self, canvas: &mut Canvas, frm_db: &FrmDb) -> Rect {
         let frms = frm_db.get(self.fid);
         let frml = &frms.frame_lists[self.direction];

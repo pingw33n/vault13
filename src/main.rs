@@ -9,6 +9,7 @@ mod fs;
 mod game;
 mod graphics;
 mod sequence;
+mod ui;
 mod util;
 mod vm;
 
@@ -51,6 +52,8 @@ use crate::game::script::ScriptKind;
 use std::path::PathBuf;
 use crate::game::START_GAME_TIME;
 use crate::game::fidget::Fidget;
+use crate::ui::{Ui, Cursor};
+use log::*;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -111,6 +114,10 @@ fn main() {
         .allow_highdpi()
         .build()
         .unwrap();
+
+    let mouse = sdl.mouse();
+    mouse.set_relative_mouse_mode(true);
+
     let canvas = window
         .into_canvas()
         .present_vsync()
@@ -229,9 +236,7 @@ fn main() {
         scripts.execute_map_procs(PredefinedProc::MapEnter, ctx);
     }
 
-    frm_db.get_or_load(Fid::MOUSE_HEX2, &texture_factory).unwrap();
-
-    let mut mouse_obj = Object::new(Fid::MOUSE_HEX2, None, Some(map.entrance));
+    let mut mouse_obj = Object::new(Fid::MOUSE_HEX_OUTLINE, None, Some(map.entrance));
     mouse_obj.flags = BitFlags::from_bits(0xA000041C).unwrap();
     mouse_obj.outline = Some(game::object::Outline {
         style: OutlineStyle::Red,
@@ -244,7 +249,60 @@ fn main() {
     let scroll_inc = 10;
     let mut roof_visible = false;
 
-    frm_db.get_or_load(Fid::MAIN_HUD, &texture_factory).unwrap();
+    // Load all interface frame sets.
+    for id in 0.. {
+        let fid = Fid::new_generic(EntityKind::Interface, id).unwrap();
+        if frm_db.name(fid).is_none() {
+            break;
+        }
+        if let Err(e) = frm_db.get_or_load(fid, &texture_factory) {
+            warn!("couldn't load interface frame set {:?}: {:?}", fid, e);
+        }
+    }
+
+    let ui = &mut Ui::new(frm_db.clone());
+    ui.cursor = ui::Cursor::Arrow;
+
+    {
+        use ui::button::Button;
+        use graphics::sprite::Sprite;
+
+        let main_hud = ui.new_window(Rect::with_size(0, 379, 640, 100), Some(Sprite::new(Fid::IFACE)));
+
+        // Inventory button.
+        // Original places it bit off, at y=41.
+        ui.new_widget(main_hud, Rect::with_size(211, 40, 32, 21), None, None,
+            Button::new(Fid::INVENTORY_BUTTON_UP, Fid::INVENTORY_BUTTON_DOWN));
+
+        // Options button.
+        ui.new_widget(main_hud, Rect::with_size(210, 62, 34, 34), None, None,
+            Button::new(Fid::OPTIONS_BUTTON_UP, Fid::OPTIONS_BUTTON_DOWN));
+
+        // Single/burst switch button.
+        ui.new_widget(main_hud, Rect::with_size(218, 6, 22, 21), None, None,
+            Button::new(Fid::BIG_RED_BUTTON_UP, Fid::BIG_RED_BUTTON_DOWN));
+
+        // Skilldex button.
+        ui.new_widget(main_hud, Rect::with_size(523, 6, 22, 21), None, None,
+            Button::new(Fid::BIG_RED_BUTTON_UP, Fid::BIG_RED_BUTTON_DOWN));
+
+        // MAP button.
+        ui.new_widget(main_hud, Rect::with_size(526, 40, 41, 19), None, None,
+            Button::new(Fid::MAP_BUTTON_UP, Fid::MAP_BUTTON_DOWN));
+
+        // CHA button.
+        ui.new_widget(main_hud, Rect::with_size(526, 59, 41, 19), None, None,
+            Button::new(Fid::CHARACTER_BUTTON_UP, Fid::CHARACTER_BUTTON_DOWN));
+
+        // PIP button.
+        ui.new_widget(main_hud, Rect::with_size(526, 78, 41, 19), None, None,
+            Button::new(Fid::PIP_BUTTON_UP, Fid::PIP_BUTTON_DOWN));
+
+        // Attack button.
+        // FIXME this should be a custom button with overlay text images.
+        ui.new_widget(main_hud, Rect::with_size(267, 26, 188, 67), None, None,
+            Button::new(Fid::SINGLE_ATTACK_BUTTON_UP, Fid::SINGLE_ATTACK_BUTTON_DOWN));
+    }
 
     let mut fidget = Fidget::new();
 
@@ -254,8 +312,12 @@ fn main() {
     let mut draw_debug = true;
     'running: loop {
         for event in event_pump.poll_iter() {
+            let handled = ui.handle_input(&event);
+            if !handled {
             match event {
                 Event::MouseMotion { x, y, .. } => {
+                    ui.cursor = Cursor::Hidden;
+                    world.objects_mut().get(mouse_objh).borrow_mut().flags.remove(Flag::TurnedOff);
                     mouse_hex_pos = world.map_grid().hex().from_screen((x, y));
                     mouse_sqr_pos = world.map_grid().sqr().from_screen((x, y));
                     let new_pos = EPoint::new(world.elevation(), mouse_hex_pos);
@@ -348,11 +410,13 @@ fn main() {
                 },
                 _ => {}
             }
+            } else {
+                ui.cursor = Cursor::Arrow;
+                world.objects_mut().get(mouse_objh).borrow_mut().flags.insert(Flag::TurnedOff);
+            }
         }
 
         world.render(canvas, &visible_rect, roof_visible);
-
-        canvas.draw(&frm_db.get(Fid::MAIN_HUD).first().texture, 0, visible_rect.bottom, 0x10000);
 
         if draw_path_blocked {
             let center = world.map_grid().hex().to_screen(mouse_hex_pos) + Point::new(16, 8);
@@ -364,6 +428,8 @@ fn main() {
                     outline: Some(graphics::render::Outline::Fixed { color: BLACK, trans_color: None }),
                 });
         }
+
+        ui.render(canvas);
 
         if draw_debug {
             let dude_pos = world.objects().get(dude_objh).borrow().pos.unwrap().point;
