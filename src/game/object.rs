@@ -721,7 +721,7 @@ mod test {
         let base = Point::new(2384, 468) + screen_shift;
 
         let tg = TileGrid::default();
-        let mut obj = Object::new(Fid::SCROLL_BLOCKER, None, Some(EPoint::new(0, (55, 66))));
+        let mut obj = Object::new(Fid::BLANK, None, Some(EPoint::new(0, (55, 66))));
         obj.screen_shift = screen_shift;
         assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &tg),
             Rect::with_points((1, -51), (30, 12))
