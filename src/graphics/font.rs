@@ -31,12 +31,25 @@ impl Default for VertAlign {
     }
 }
 
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+pub enum OverflowMode {
+    Truncate,
+    WordWrap,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Overflow {
+    pub size: i32,
+    pub mode: OverflowMode,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DrawOptions {
     pub horz_align: HorzAlign,
     pub vert_align: VertAlign,
     pub dst_color: Option<Rgb15>,
     pub outline: Option<Outline>,
+    pub horz_overflow: Option<Overflow>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -89,6 +102,17 @@ impl Font {
         text.lines().count() as i32 * self.height
     }
 
+    pub fn lines<'a, 'b>(&'a self, text: &'b bstr, horz_overflow: Option<Overflow>)
+        -> Lines<'a, 'b>
+    {
+        Lines {
+            font: self,
+            text,
+            horz_overflow,
+            i: 0,
+        }
+    }
+
     pub fn draw(&self, canvas: &mut Canvas, text: &bstr, x: i32, y: i32, color: Rgb15,
             options: &DrawOptions) {
         let mut y = match options.vert_align {
@@ -97,7 +121,7 @@ impl Font {
             VertAlign::Bottom => y - self.measure_text_height(text),
         };
 
-        for line in text.lines() {
+        for line in self.lines(text, options.horz_overflow) {
             let mut x = match options.horz_align {
                 HorzAlign::Left => x,
                 HorzAlign::Center => x - self.measure_max_line_width(line) / 2,
@@ -115,6 +139,77 @@ impl Font {
                 x += glyph.width + self.horz_spacing;
             }
             y += self.height + self.vert_spacing;
+        }
+    }
+}
+
+pub struct Lines<'a, 'b> {
+    font: &'a Font,
+    text: &'b bstr,
+    horz_overflow: Option<Overflow>,
+    i: usize,
+}
+
+impl<'a, 'b> Iterator for Lines<'a, 'b> {
+    type Item = &'b bstr;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut cur_width = 0;
+        let start = self.i;
+        let mut end;
+        loop {
+            end = self.i;
+
+            if self.i == self.text.len() {
+                break;
+            }
+
+            let c = self.text[self.i];
+
+            self.i += 1;
+
+            if c == b'\r' {
+                if self.i < self.text.len() && self.text[self.i] == b'\n' {
+                    self.i += 1;
+                }
+                break;
+            }
+            if c == b'\n' {
+                break;
+            }
+
+            let glyph = &self.font.glyphs[c as usize];
+
+            cur_width += glyph.width + self.font.horz_spacing;
+
+            if let Some(Overflow { size, mode }) = self.horz_overflow {
+                if cur_width > size {
+                    match mode {
+                        OverflowMode::Truncate => {}
+                        OverflowMode::WordWrap => {
+                            if let Some(i) = self.text[start..end].iter()
+                                .rposition(|&c| c == b' ')
+                                .map(|i| start + i)
+                            {
+                                end = i;
+                                self.i = i + 1;
+                                // Trim trailing whitespace.
+                                while end > start + 1 && self.text[end - 1] == b' ' {
+                                    end -= 1;
+                                }
+                            } else {
+                                self.i -= 1;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        if start < self.text.len() {
+            Some(&self.text[start..end])
+        } else {
+            None
         }
     }
 }
