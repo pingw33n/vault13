@@ -426,6 +426,7 @@ fn main() {
                     vert_align: VertAlign::Middle,
                     dst_color: Some(BLACK),
                     outline: Some(graphics::render::Outline::Fixed { color: BLACK, trans_color: None }),
+                    .. Default::default()
                 });
         }
 
