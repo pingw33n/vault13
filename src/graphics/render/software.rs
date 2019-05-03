@@ -34,7 +34,7 @@ impl Backend {
         TextureFactory(TextureFactoryInner::Software(self.textures.clone()))
     }
 
-    pub fn into_canvas(self, fonts: Fonts) -> Box<Canvas> {
+    pub fn into_canvas(self, fonts: Rc<Fonts>) -> Box<Canvas> {
         Box::new(CanvasImpl::new(self, fonts))
     }
 }
@@ -134,12 +134,11 @@ struct CanvasImpl {
     back_buf: Texture,
     canvas_texture: SdlTexture,
     clip_rect: Rect,
-    // None represents sentinel value so other drawing methods can be called from draw_text()
-    fonts: Option<Box<Fonts>>,
+    fonts: Rc<Fonts>,
 }
 
 impl CanvasImpl {
-    fn new(backend: Backend, fonts: Fonts) -> Self {
+    fn new(backend: Backend, fonts: Rc<Fonts>) -> Self {
         let (w, h) = backend.canvas.window().size();
         let canvas_texture = backend.canvas
             .texture_creator()
@@ -154,7 +153,7 @@ impl CanvasImpl {
             back_buf: Texture::new_empty(w as i32, h as i32, 0),
             canvas_texture,
             clip_rect: Rect::with_size(0, 0, w as i32, h as i32),
-            fonts: Some(Box::new(fonts)),
+            fonts,
         }
     }
 
@@ -247,6 +246,10 @@ impl Canvas for CanvasImpl {
 
     fn update(&mut self, time: Instant) {
         self.palette_overlay.rotate(time);
+    }
+
+    fn fonts(&self) -> &Rc<Fonts> {
+        &self.fonts
     }
 
     fn draw(&mut self, tex: &TextureHandle, x: i32, y: i32, light: u32) {
@@ -459,14 +462,9 @@ impl Canvas for CanvasImpl {
         }
     }
 
-    fn draw_text(&mut self, text: &[u8], x: i32, y: i32, font: FontKey, color: Rgb15,
+    fn draw_text(&mut self, text: &bstr, x: i32, y: i32, font: FontKey, color: Rgb15,
             options: &font::DrawOptions) {
-        // Mark self.fonts with sentinel value.
-        let fonts = self.fonts.take().unwrap();
-        fonts.get(font)
-            .draw(self, text.into(), x, y, color, options);
-
-        // Put fonts back.
-        self.fonts = Some(fonts);
+        let fonts = self.fonts.clone();
+        fonts.get(font).draw(self, text.into(), x, y, color, options);
     }
 }
