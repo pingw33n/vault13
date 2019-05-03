@@ -6,8 +6,9 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use crate::graphics::color::Rgb15;
-use crate::graphics::font::{self, FontKey};
+use crate::graphics::font::{self, FontKey, Fonts};
 use crate::util::SmKey;
+use bstring::bstr;
 
 #[derive(Clone)]
 pub struct TextureHandle(Rc<TextureHandleInner>);
@@ -61,6 +62,8 @@ pub trait Canvas {
     fn present(&mut self);
     fn update(&mut self, time: Instant);
 
+    fn fonts(&self) -> &Rc<Fonts>;
+
     fn draw(&mut self, tex: &TextureHandle, x: i32, y: i32, light: u32);
     fn draw_multi_light(&mut self, tex: &TextureHandle, x: i32, y: i32, lights: &[u32]);
 
@@ -81,6 +84,6 @@ pub trait Canvas {
     fn draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
     fn draw_translucent_dark(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
     fn draw_outline(&mut self, tex: &TextureHandle, x: i32, y: i32, outline: Outline);
-    fn draw_text(&mut self, text: &[u8], x: i32, y: i32, font: FontKey, color: Rgb15,
+    fn draw_text(&mut self, text: &bstr, x: i32, y: i32, font: FontKey, color: Rgb15,
         options: &font::DrawOptions);
 }

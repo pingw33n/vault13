@@ -53,7 +53,7 @@ impl Widget for Button {
         }
     }
 
-    fn render(&mut self, ctx: RenderContext) {
+    fn render(&mut self, ctx: Render) {
         let sprite = &mut self.sprites[self.state];
         sprite.pos = ctx.base.unwrap().rect.top_left();
         sprite.render(ctx.canvas, ctx.frm_db);

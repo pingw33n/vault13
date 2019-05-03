@@ -1,3 +1,6 @@
+pub mod button;
+pub mod message_panel;
+
 use downcast_rs::{Downcast, impl_downcast};
 use enum_map_derive::Enum;
 use sdl2::event::{Event as SdlEvent};
@@ -12,8 +15,6 @@ use crate::graphics::render::Canvas;
 use crate::graphics::sprite::Sprite;
 use crate::util::SmKey;
 use sdl2::mouse::MouseButton;
-
-pub mod button;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
@@ -82,16 +83,13 @@ impl Ui {
     }
 
     pub fn new_window(&mut self, rect: Rect, background: Option<Sprite>) -> Handle {
-        let k = self.widget_handles.insert(());
-        self.widget_bases.insert(k, RefCell::new(Base {
+        let h = self.insert_widget(None, Base {
             rect,
             cursor: None,
             background,
-        }));
-        self.widgets.insert(k, RefCell::new(Box::new(Window {
+        }, Box::new(Window {
             widgets: Vec::new(),
-        })));
-        let h = Handle(k);
+        }));
         self.windows_order.push(h);
         h
     }
@@ -110,18 +108,21 @@ impl Ui {
             rect.translate(top_left.x, top_left.y)
         };
 
-        let k = self.widget_handles.insert(());
-        self.widget_bases.insert(k, RefCell::new(Base {
+        let h = self.insert_widget(Some(window), Base {
             rect,
             cursor,
             background,
-        }));
-        self.widgets.insert(k, RefCell::new(Box::new(widget)));
-        let h = Handle(k);
-        let mut win = self.widgets[window.0].borrow_mut();
-        let win = win.downcast_mut::<Window>().unwrap();
-        win.widgets.push(h);
+        }, Box::new(widget));
+
         h
+    }
+
+    pub fn widget_base(&self, handle: Handle) -> &RefCell<Base> {
+        &self.widget_bases[handle.0]
+    }
+
+    pub fn widget(&self, handle: Handle) -> &RefCell<Box<Widget>> {
+        &self.widgets[handle.0]
     }
 
     pub fn handle_input(&mut self, event: &SdlEvent) -> bool {
@@ -140,7 +141,7 @@ impl Ui {
                 };
                 self.widgets[target.0].borrow_mut().handle_event(HandleEvent {
                     this: target,
-                    base: &self.widget_bases[target.0].borrow(),
+                    base: &mut self.widget_bases[target.0].borrow_mut(),
                     event: Event::MouseDown { pos, button: *mouse_btn },
                     capture: &mut self.capture,
                 });
@@ -159,7 +160,7 @@ impl Ui {
                 };
                 self.widgets[target.0].borrow_mut().handle_event(HandleEvent {
                     this: target,
-                    base: &self.widget_bases[target.0].borrow(),
+                    base: &mut self.widget_bases[target.0].borrow_mut(),
                     event: Event::MouseMove { pos },
                     capture: &mut self.capture,
                 });
@@ -178,7 +179,7 @@ impl Ui {
                 };
                 self.widgets[target.0].borrow_mut().handle_event(HandleEvent {
                     this: target,
-                    base: &self.widget_bases[target.0].borrow(),
+                    base: &mut self.widget_bases[target.0].borrow_mut(),
                     event: Event::MouseUp { pos, button: *mouse_btn },
                     capture: &mut self.capture,
                 });
@@ -190,25 +191,25 @@ impl Ui {
 
     pub fn render(&mut self, canvas: &mut Canvas) {
         for &winh in &self.windows_order {
-            self.widget_bases[winh.0].borrow_mut().render(RenderContext {
+            self.widget_bases[winh.0].borrow_mut().render(Render {
                 frm_db: &self.frm_db,
                 canvas,
                 base: None,
             });
             let mut win = self.widgets[winh.0].borrow_mut();
             let win = win.downcast_mut::<Window>().unwrap();
-            win.render(RenderContext {
+            win.render(Render {
                 frm_db: &self.frm_db,
                 canvas,
                 base: Some(&self.widget_bases[winh.0].borrow()),
             });
             for &widgh in &win.widgets {
-                self.widget_bases[widgh.0].borrow_mut().render(RenderContext {
+                self.widget_bases[widgh.0].borrow_mut().render(Render {
                     frm_db: &self.frm_db,
                     canvas,
                     base: Some(&self.widget_bases[winh.0].borrow()),
                 });
-                self.widgets[widgh.0].borrow_mut().render(RenderContext {
+                self.widgets[widgh.0].borrow_mut().render(Render {
                     frm_db: &self.frm_db,
                     canvas,
                     base: Some(&self.widget_bases[widgh.0].borrow()),
@@ -258,6 +259,26 @@ impl Ui {
             self.cursor_pos = pos;
         }
     }
+
+    fn insert_widget(&mut self, window: Option<Handle>, base: Base, widget: Box<Widget>) -> Handle {
+        let k = self.widget_handles.insert(());
+        self.widget_bases.insert(k, RefCell::new(base));
+        self.widgets.insert(k, RefCell::new(widget));
+
+        let h = Handle(k);
+
+        if let Some(winh) = window {
+            let mut win = self.widgets[winh.0].borrow_mut();
+            let win = win.downcast_mut::<Window>().unwrap();
+            win.widgets.push(h);
+        }
+
+        self.widgets[k].borrow_mut().init(Init {
+            base: &mut self.widget_bases[k].borrow_mut(),
+        });
+
+        h
+    }
 }
 
 pub struct Window {
@@ -268,7 +289,7 @@ impl Widget for Window {
     fn handle_event(&mut self, _ctx: HandleEvent) {
     }
 
-    fn render(&mut self, _ctx: RenderContext) {
+    fn render(&mut self, _ctx: Render) {
     }
 }
 
@@ -282,7 +303,7 @@ impl Widget for Base {
     fn handle_event(&mut self, _ctx: HandleEvent) {
     }
 
-    fn render(&mut self, ctx: RenderContext) {
+    fn render(&mut self, ctx: Render) {
         if let Some(background) = &mut self.background {
             background.pos = self.rect.top_left();
             background.render(ctx.canvas, ctx.frm_db);
@@ -292,7 +313,7 @@ impl Widget for Base {
 
 pub struct HandleEvent<'a> {
     this: Handle,
-    base: &'a Base,
+    base: &'a mut Base,
     event: Event,
     capture: &'a mut Option<Handle>,
 }
@@ -311,16 +332,22 @@ impl HandleEvent<'_> {
     }
 }
 
-pub struct RenderContext<'a> {
+pub struct Render<'a> {
     frm_db: &'a FrmDb,
     canvas: &'a mut Canvas,
     base: Option<&'a Base>,
 }
 
+pub struct Init<'a> {
+    base: &'a mut Base,
+}
+
 pub trait Widget: Downcast {
+    fn init(&mut self, _ctx: Init) {}
+
     fn handle_event(&mut self, ctx: HandleEvent);
 
-    fn render(&mut self, ctx: RenderContext);
+    fn render(&mut self, ctx: Render);
 }
 
 impl_downcast!(Widget);

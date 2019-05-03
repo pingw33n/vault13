@@ -54,6 +54,7 @@ use crate::game::START_GAME_TIME;
 use crate::game::fidget::Fidget;
 use crate::ui::{Ui, Cursor};
 use log::*;
+use crate::ui::message_panel::MessagePannel;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -127,9 +128,9 @@ fn main() {
     let gfx_backend = Backend::new(canvas, Box::new(pal.clone()), PaletteOverlay::standard());
     let texture_factory = gfx_backend.new_texture_factory();
 
-    let fonts = load_fonts(&fs, &texture_factory);
+    let fonts = Rc::new(load_fonts(&fs, &texture_factory));
 
-    let mut canvas = gfx_backend.into_canvas(fonts);
+    let mut canvas = gfx_backend.into_canvas(fonts.clone());
     let canvas = canvas.as_mut();
 
     let map_grid = MapGrid::new(640, 380);
@@ -256,7 +257,7 @@ fn main() {
             break;
         }
         if let Err(e) = frm_db.get_or_load(fid, &texture_factory) {
-            warn!("couldn't load interface frame set {:?}: {:?}", fid, e);
+            warn!("couldn't load interface frame set {:?}: {}", fid, e);
         }
     }
 
@@ -269,8 +270,23 @@ fn main() {
 
         let main_hud = ui.new_window(Rect::with_size(0, 379, 640, 100), Some(Sprite::new(Fid::IFACE)));
 
+        // Message panel.
+        let message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 165, 65), None, None,
+            MessagePannel::new(fonts.clone(),
+                FontKey::antialiased(1),
+                Rgb15::new(0, 31, 0),
+                100));
+
+        {
+            let mut mp = ui.widget(message_panel).borrow_mut();
+            let mp = mp.downcast_mut::<MessagePannel>().unwrap();
+            mp.push_message("You see a young man with bulging muscles and a very confident air about him.");
+            mp.push_message("He looks Unhurt");
+            mp.push_message("You see: Rocks.");
+        }
+
         // Inventory button.
-        // Original places it bit off, at y=41.
+        // Original location is a bit off, at y=41.
         ui.new_widget(main_hud, Rect::with_size(211, 40, 32, 21), None, None,
             Button::new(Fid::INVENTORY_BUTTON_UP, Fid::INVENTORY_BUTTON_DOWN));
 
@@ -420,7 +436,7 @@ fn main() {
 
         if draw_path_blocked {
             let center = world.map_grid().hex().to_screen(mouse_hex_pos) + Point::new(16, 8);
-            canvas.draw_text(b"X", center.x, center.y, FontKey::antialiased(1),
+            canvas.draw_text(b"X".as_ref().into(), center.x, center.y, FontKey::antialiased(1),
                 RED, &DrawOptions {
                     horz_align: HorzAlign::Center,
                     vert_align: VertAlign::Middle,
@@ -447,7 +463,7 @@ fn main() {
                 world.map_grid().hex().to_linear_inv(dude_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 world.ambient_light,
             );
-            canvas.draw_text(msg.as_bytes(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),
+            canvas.draw_text(msg.as_bytes().into(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),
                 &DrawOptions {
                     dst_color: Some(BLACK),
                     outline: Some(graphics::render::Outline::Fixed { color: BLACK, trans_color: None }),
