@@ -283,6 +283,9 @@ fn main() {
             mp.push_message("You see a young man with bulging muscles and a very confident air about him.");
             mp.push_message("He looks Unhurt");
             mp.push_message("You see: Rocks.");
+            mp.push_message("You see: Test 1.");
+            mp.push_message("You see: Test 2.");
+            mp.push_message("You see: Test 3.");
         }
 
         // Inventory button.
