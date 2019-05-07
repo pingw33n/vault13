@@ -327,8 +327,10 @@ fn main() {
     let mut draw_path_blocked = false;
     let mut draw_debug = true;
     'running: loop {
+        let now = Instant::now();
+
         for event in event_pump.poll_iter() {
-            let handled = ui.handle_input(&event);
+            let handled = ui.handle_input(now, &event);
             if !handled {
             match event {
                 Event::MouseMotion { x, y, .. } => {
@@ -432,6 +434,8 @@ fn main() {
             }
         }
 
+        ui.update(now);
+
         world.render(canvas, &visible_rect, roof_visible);
 
         if draw_path_blocked {
@@ -470,8 +474,6 @@ fn main() {
                     .. Default::default()
                 });
         }
-
-        let now = Instant::now();
 
         sequencer.update(&mut sequence::Context {
             time: now,
