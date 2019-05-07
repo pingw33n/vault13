@@ -102,6 +102,10 @@ impl Font {
         text.lines().count() as i32 * self.height
     }
 
+    pub fn vert_advance(&self) -> i32 {
+        self.height + self.vert_spacing
+    }
+
     pub fn lines<'a, 'b>(&'a self, text: &'b bstr, horz_overflow: Option<Overflow>)
         -> Lines<'a, 'b>
     {
@@ -138,7 +142,7 @@ impl Font {
                 }
                 x += glyph.width + self.horz_spacing;
             }
-            y += self.height + self.vert_spacing;
+            y += self.vert_advance();
         }
     }
 }
