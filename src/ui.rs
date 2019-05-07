@@ -231,7 +231,8 @@ impl Ui {
     }
 
     fn effective_cursor(&self) -> Cursor {
-        self.widget_at(self.cursor_pos)
+        self.capture
+            .or_else(|| self.widget_at(self.cursor_pos))
             .and_then(|h| self.widget_bases[h.0].borrow().cursor)
             .unwrap_or(self.cursor)
     }
