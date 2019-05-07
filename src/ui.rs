@@ -4,9 +4,11 @@ pub mod message_panel;
 use downcast_rs::{Downcast, impl_downcast};
 use enum_map_derive::Enum;
 use sdl2::event::{Event as SdlEvent};
+use sdl2::mouse::MouseButton;
 use slotmap::{SecondaryMap, SlotMap};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Instant;
 
 use crate::asset::frm::{Fid, FrmDb};
 use crate::graphics::{Point, Rect};
@@ -14,7 +16,6 @@ use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::Sprite;
 use crate::util::SmKey;
-use sdl2::mouse::MouseButton;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
@@ -29,6 +30,9 @@ pub enum Event {
         pos: Point,
         button: MouseButton,
     },
+    Tick,
+    #[doc(hidden)]
+    __NonExhaustive,
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd)]
@@ -53,7 +57,6 @@ impl Cursor {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Handle(SmKey);
-
 
 pub struct Ui {
     frm_db: Rc<FrmDb>,
@@ -125,7 +128,17 @@ impl Ui {
         &self.widgets[handle.0]
     }
 
-    pub fn handle_input(&mut self, event: &SdlEvent) -> bool {
+    fn widget_handle_event(&mut self, now: Instant, target: Handle, event: Event) {
+        self.widgets[target.0].borrow_mut().handle_event(HandleEvent {
+            now,
+            this: target,
+            base: &mut self.widget_bases[target.0].borrow_mut(),
+            event,
+            capture: &mut self.capture,
+        });
+    }
+
+    pub fn handle_input(&mut self, now: Instant, event: &SdlEvent) -> bool {
         match event {
             SdlEvent::MouseButtonDown { x, y, mouse_btn, .. } => {
                 let pos = Point::new(*x, *y);
@@ -139,12 +152,7 @@ impl Ui {
                 } else {
                     return false;
                 };
-                self.widgets[target.0].borrow_mut().handle_event(HandleEvent {
-                    this: target,
-                    base: &mut self.widget_bases[target.0].borrow_mut(),
-                    event: Event::MouseDown { pos, button: *mouse_btn },
-                    capture: &mut self.capture,
-                });
+                self.widget_handle_event(now, target, Event::MouseDown { pos, button: *mouse_btn });
             }
             SdlEvent::MouseMotion { x, y, .. } => {
                 let pos = Point::new(*x, *y);
@@ -158,12 +166,7 @@ impl Ui {
                 } else {
                     return false;
                 };
-                self.widgets[target.0].borrow_mut().handle_event(HandleEvent {
-                    this: target,
-                    base: &mut self.widget_bases[target.0].borrow_mut(),
-                    event: Event::MouseMove { pos },
-                    capture: &mut self.capture,
-                });
+                self.widget_handle_event(now, target, Event::MouseMove { pos });
             }
             SdlEvent::MouseButtonUp { x, y, mouse_btn, .. } => {
                 let pos = Point::new(*x, *y);
@@ -177,16 +180,19 @@ impl Ui {
                 } else {
                     return false;
                 };
-                self.widgets[target.0].borrow_mut().handle_event(HandleEvent {
-                    this: target,
-                    base: &mut self.widget_bases[target.0].borrow_mut(),
-                    event: Event::MouseUp { pos, button: *mouse_btn },
-                    capture: &mut self.capture,
-                });
+                self.widget_handle_event(now, target, Event::MouseUp { pos, button: *mouse_btn });
             }
             _ => return false,
         }
         true
+    }
+
+    pub fn update(&mut self, now: Instant) {
+        // FIXME avoid copy/allocation
+        let handles: Vec<_> = self.widgets.keys().collect();
+        for h in handles {
+            self.widget_handle_event(now, Handle(h), Event::Tick);
+        }
     }
 
     pub fn render(&mut self, canvas: &mut Canvas) {
@@ -313,6 +319,7 @@ impl Widget for Base {
 }
 
 pub struct HandleEvent<'a> {
+    now: Instant,
     this: Handle,
     base: &'a mut Base,
     event: Event,
