@@ -1,5 +1,6 @@
 use enum_map::EnumMap;
 use enum_map_derive::Enum;
+use std::rc::Rc;
 
 use crate::asset::frm::{Fid, FrmDb};
 use crate::graphics::color::*;
@@ -32,6 +33,80 @@ pub struct Frame {
     pub width: i32,
     pub height: i32,
     pub texture: TextureHandle,
+    pub mask: Mask,
+}
+
+#[derive(Clone, Debug)]
+pub struct Mask {
+    bitmask: Rc<[u8]>,
+    width: i32,
+}
+
+impl Mask {
+    pub fn new(width: i32, pixels: &[u8]) -> Self {
+        let pix_len = pixels.len();
+        assert_eq!(pix_len as i32 % width, 0);
+
+        // Convert to bit mask.
+
+        #[inline(always)]
+        fn bit(b: u8) -> u8 {
+            (b != 0) as u8
+        }
+
+        #[inline(always)]
+        fn byte(pixels: &[u8], i: usize) -> u8 {
+            bit(pixels[i + 0]) << 0 |
+                bit(pixels[i + 1]) << 1 |
+                bit(pixels[i + 2]) << 2 |
+                bit(pixels[i + 3]) << 3 |
+                bit(pixels[i + 4]) << 4 |
+                bit(pixels[i + 5]) << 5 |
+                bit(pixels[i + 6]) << 6 |
+                bit(pixels[i + 7]) << 7
+        }
+
+        let mut bitmask = vec![0; (pix_len + 7) / 8];
+        let mut i = 0;
+        let mut j = 0;
+        let end_i = pix_len / 8 * 8;
+        while i < end_i {
+            bitmask[j] = byte(pixels, i);
+            i += 8;
+            j += 1;
+        }
+        if end_i < pix_len {
+            let mut p = [0; 8];
+            let mut i = end_i;
+            loop {
+                p[0] = pixels[i]; i += 1;
+                if i < pix_len { p[1] = pixels[i]; i += 1; } else { break; }
+                if i < pix_len { p[2] = pixels[i]; i += 1; } else { break; }
+                if i < pix_len { p[3] = pixels[i]; i += 1; } else { break; }
+                if i < pix_len { p[4] = pixels[i]; i += 1; } else { break; }
+                if i < pix_len { p[5] = pixels[i]; i += 1; } else { break; }
+                if i < pix_len { p[6] = pixels[i]; i += 1; } else { break; }
+                if i < pix_len { p[7] = pixels[i]; }
+                break;
+            }
+            bitmask[j] = byte(&p, 0);
+        }
+
+
+        Self {
+            bitmask: bitmask.into(),
+            width,
+        }
+    }
+
+    #[must_use]
+    pub fn test(&self, point: impl Into<Point>) -> bool {
+        let Point { x, y } = point.into();
+        let i = x + y * self.width;
+        let bit = i % 8;
+        let i = i as usize / 8;
+        self.bitmask[i] & (1 << bit) != 0
+    }
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
@@ -166,6 +241,26 @@ impl Sprite {
             top: p.y - frm.height + 1,
             right: p.x + frm.width / 2,
             bottom: p.y + 1,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[cfg(test)]
+    mod mask {
+        use super::*;
+
+        #[test]
+        fn test() {
+            let mask = Mask::new(3, &[0, 1, 0, 2, 0, 100]);
+            assert_eq!(&*mask.bitmask, &[0b101010]);
+            assert_eq!(mask.test((0, 0)), false);
+            assert_eq!(mask.test((1, 0)), true);
+            assert_eq!(mask.test((0, 1)), true);
+            assert_eq!(mask.test((1, 1)), false);
         }
     }
 }

@@ -16,7 +16,7 @@ use crate::asset::{EntityKind, WeaponKind};
 use crate::graphics::Point;
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render::TextureFactory;
-use crate::graphics::sprite::{Frame, FrameList, FrameSet};
+use crate::graphics::sprite::{Frame, FrameList, FrameSet, Mask};
 use crate::util::EnumExt;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Ord, PartialOrd)]
@@ -586,6 +586,7 @@ pub fn read_frm(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Res
             let mut pixels = vec![0; len].into_boxed_slice();
             rd.read_exact(&mut pixels)?;
 
+            let mask = Mask::new(width, &pixels);
             let texture = texture_factory.new_texture(width, height, pixels);
 
             frames.push(Frame {
@@ -593,6 +594,7 @@ pub fn read_frm(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Res
                 width,
                 height,
                 texture,
+                mask,
             });
         }
         frame_lists[dir] = Some(FrameList {
