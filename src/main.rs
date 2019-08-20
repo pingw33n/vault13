@@ -49,19 +49,21 @@ use asset::script::db::ScriptDb;
 use crate::game::script::Scripts;
 use crate::vm::{Vm, PredefinedProc};
 use crate::game::script::ScriptKind;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use crate::game::START_GAME_TIME;
 use crate::game::fidget::Fidget;
 use crate::ui::{Ui, Cursor};
 use log::*;
 use crate::ui::message_panel::MessagePannel;
+use clap::ArgMatches;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
 
     App::new("Vault 13 Demo")
         .arg(Arg::with_name("RESOURCE_DIR")
-            .help("Resource directory where master.dat, critter.dat and patch000.dat can be found")
+            .help("One or more resource directories where master.dat, critter.dat and patchXXX.dat \
+                   can be found")
             .required(true))
         .arg(Arg::with_name("MAP")
             .help("Map name to load. For example: artemple")
@@ -71,22 +73,57 @@ fn args() -> clap::App<'static, 'static> {
           \x20   vault13 /path/to/fallout2 artemple")
 }
 
+fn setup_file_system(fs: &mut fs::FileSystem, args: &ArgMatches) {
+    let res_dir = Path::new(args.value_of("RESOURCE_DIR").unwrap());
+    info!("Using resources dir: {}", res_dir.display());
+
+    let mut dat_files = Vec::new();
+
+    // Add patchXXX.dat files.
+    for i in 0..999 {
+        let file = format!("patch{:03}.dat", i);
+        let path: PathBuf = [res_dir, Path::new(&file)].iter().collect();
+        if path.is_file() {
+            info!("Found {}", file);
+            dat_files.push(path)
+        } else {
+            break;
+        }
+    }
+    dat_files.reverse();
+
+    for file in &["master.dat", "critter.dat"] {
+        let path: PathBuf = [res_dir, Path::new(file)].iter().collect();
+        if path.is_file() {
+            info!("Found {}", file);
+            dat_files.push(path);
+        }
+    }
+
+    let data_dir: PathBuf = [res_dir, Path::new("data")].iter().collect();
+    if data_dir.is_dir() {
+        info!("Found `data` dir");
+        fs.register_provider(fs::std::new_provider(data_dir).unwrap());
+    }
+
+    for dat_file in dat_files.iter().rev() {
+        fs.register_provider(fs::dat::v2::new_provider(dat_file).unwrap());
+    }
+
+
+}
+
 fn main() {
     env_logger::init();
 
     util::random::check_chi_square();
 
-    let master_dat: PathBuf;
-    let critter_dat: PathBuf;
-    let patch_dat: PathBuf;
+    let mut fs = fs::FileSystem::new();
+
     let map_name: String;
     {
-        let args = args().get_matches();
-
-        let res_dir = args.value_of("RESOURCE_DIR").unwrap();
-        master_dat = [res_dir, "master.dat"].iter().collect();
-        critter_dat = [res_dir, "critter.dat"].iter().collect();
-        patch_dat = [res_dir, "patch000.dat"].iter().collect();
+        let args = &args().get_matches();
+        setup_file_system(&mut fs, args);
 
         let s = args.value_of("MAP").unwrap().to_lowercase();
         map_name = if s.ends_with(".map") {
@@ -96,10 +133,6 @@ fn main() {
         };
     }
 
-    let mut fs = fs::FileSystem::new();
-    fs.register_provider(fs::dat::v2::new_provider(patch_dat).unwrap());
-    fs.register_provider(fs::dat::v2::new_provider(master_dat).unwrap());
-    fs.register_provider(fs::dat::v2::new_provider(critter_dat).unwrap());
     let fs = Rc::new(fs);
 
     let ref proto_db = Rc::new(ProtoDb::new(fs.clone(), "english").unwrap());
