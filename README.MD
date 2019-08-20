@@ -21,8 +21,11 @@ cargo run --release -- /path/to/fallout2 artemple
 
 Controls that work in demo:
 
-* Mouse - left button to run, right button to walk.
+* Mouse
+    * Left button to run/walk when in move mode (hex cursor). 
+    * Right button to toggle move/pick mode.
 * Arrows - scroll map.
+* Hold `SHIFT` to walk instead of run.
 * `<` and `>` - rotate the player character.
 * `[` and `]` - decrease/increase ambient light.
 * `r` - toggle roof drawing.
