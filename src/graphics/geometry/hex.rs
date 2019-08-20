@@ -860,7 +860,7 @@ mod test {
         assert_eq!(t.find((2, 0), (0, 3), false, |_| TileState::Passable(0)),
             Some(vec![SE, SW, SE, SW]));
         assert_eq!(t.find((2, 0), (0, 3), true, |_| TileState::Passable(0)),
-            Some(vec![SE, SE, SW, SW]));
+            Some(vec![SE, SW, SW, SE]));
     }
 
     #[test]
