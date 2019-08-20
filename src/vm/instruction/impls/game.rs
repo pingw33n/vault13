@@ -408,7 +408,7 @@ pub fn tile_num_in_direction(ctx: Context) -> Result<()> {
     let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
 
     // FIXME clean up this, better validate
-    use crate::graphics::geometry::hex::{Direction, TileGrid};
+    use crate::graphics::geometry::hex::TileGrid;
     let hex = TileGrid::default();
     let p = hex.from_linear_inv(tile_num as u32);
     let r = hex.go(p, Direction::from_i32(direction).unwrap(), distance as u32)
