@@ -5,7 +5,7 @@ use crate::asset::EntityKind;
 use crate::asset::frm::{Fid, FrmDb};
 use crate::asset::proto::ProtoDb;
 use crate::game::GameTime;
-use crate::game::object::{self, Egg, Object, Objects};
+use crate::game::object::{self, DamageFlag, Egg, Object, Objects, SubObject};
 use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::geometry::map::{ELEVATION_COUNT, MapGrid};
@@ -135,6 +135,45 @@ impl World {
         self.objects.bounds(obj, self.map_grid.hex())
     }
 
+    pub fn object_hit_test(&self, p: impl Into<Point>, rect: &Rect)
+        -> Vec<(object::Handle, object::Hit)>
+    {
+        self.objects.hit_test(p.into().elevated(self.elevation()), rect,
+            self.map_grid.hex(), self.egg())
+    }
+
+    // object_under_mouse()
+    pub fn pick_object(&self, pos: impl Into<Point>, rect: &Rect, include_dude: bool)
+        -> Option<object::Handle>
+    {
+        let filter_dude = |oh: &&(object::Handle, object::Hit)| -> bool {
+            include_dude || Some(oh.0) != self.dude_obj
+        };
+        let hits = self.object_hit_test(pos, rect);
+        let r = hits
+            .iter()
+            .filter(filter_dude)
+            .filter(|(_, h)| !h.translucent && !h.with_egg)
+            .filter(|&&(o, _)| {
+                let obj = self.objects.get(o).borrow();
+                if let Some(SubObject::Critter(critter)) = &obj.sub {
+                    !critter.combat.damage_flags.intersects(DamageFlag::Dead | DamageFlag::KnockedOut)
+                } else {
+                    true
+                }
+            })
+            .map(|&(o, _)| o)
+            .next();
+        if r.is_none() {
+            hits.iter()
+                .filter(filter_dude)
+                .map(|&(o, _)| o)
+                .next()
+        } else {
+            r
+        }
+    }
+
     pub fn render(&self, canvas: &mut Canvas, rect: &Rect, draw_roof: bool) {
         let elevation = self.elevation();
         render_floor(canvas, self.map_grid.sqr(), rect,
@@ -149,15 +188,7 @@ impl World {
             }
         );
 
-        let egg = if let Some(dude_obj) = self.dude_obj {
-            Some(Egg {
-                pos: self.objects().get(dude_obj).borrow().pos.unwrap().point,
-                fid: Fid::EGG,
-            })
-        } else {
-            None
-        };
-        self.objects().render(canvas, elevation, rect, self.map_grid.hex(), egg.as_ref(),
+        self.objects().render(canvas, elevation, rect, self.map_grid.hex(), self.egg().as_ref(),
             |pos| if let Some(pos) = pos {
                 cmp::max(self.light_grid().get_clipped(pos), self.ambient_light)
             } else {
@@ -184,6 +215,17 @@ impl World {
                 obj.light_emitter.radius,
                 factor * obj.light_emitter.intensity as i32,
                 |lt| objects.light_test(lt));
+        }
+    }
+
+    fn egg(&self) -> Option<Egg> {
+        if let Some(dude_obj) = self.dude_obj {
+            Some(Egg {
+                pos: self.objects().get(dude_obj).borrow().pos.unwrap().point,
+                fid: Fid::EGG,
+            })
+        } else {
+            None
         }
     }
 }

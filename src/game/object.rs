@@ -1,4 +1,7 @@
 use enumflags::BitFlags;
+use enumflags_derive::EnumFlags;
+use enum_primitive_derive::Primitive;
+use if_chain::if_chain;
 use slotmap::{SecondaryMap, SlotMap};
 use std::cell::{Ref, RefCell};
 use std::cmp;
@@ -13,11 +16,10 @@ use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::hex::*;
 use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
 use crate::graphics::render::Canvas;
-use crate::graphics::sprite::{Effect, Frame, OutlineStyle, Sprite, Translucency};
+use crate::graphics::sprite::*;
 use crate::sequence::cancellable::Cancel;
 use crate::util::{self, EnumExt, SmKey};
 use crate::util::array2d::Array2d;
-use core::borrow::Borrow;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Outline {
@@ -53,9 +55,36 @@ pub struct LightEmitter {
     pub radius: u32,
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct Egg {
     pub pos: Point,
     pub fid: Fid,
+}
+
+impl Egg {
+    #[must_use]
+    pub fn hit_test(&self, p: Point, tile_grid: &TileGrid, frm_db: &FrmDb) -> bool {
+        let screen_pos = tile_grid.to_screen(self.pos) + Point::new(16, 8);
+        let frms = frm_db.get(self.fid);
+        let frml = &frms.frame_lists[Direction::NE];
+        let frm = &frml.frames[0];
+
+        let bounds = frm.bounds_centered(screen_pos, frml.center);
+        if !bounds.contains(p.x, p.y) {
+            return false;
+        }
+        let p = p - bounds.top_left();
+        frm.mask.test(p)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Hit {
+    /// Hit a translucent object.
+    pub translucent: bool,
+
+    /// Hit a `Wall` or `Scenery` object at point which is masked by the Egg.
+    pub with_egg: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
@@ -84,6 +113,7 @@ pub struct Object {
     pub outline: Option<Outline>,
     pub sequence: Option<Cancel>,
     pub sid: Option<Sid>,
+    pub sub: Option<SubObject>,
 }
 
 impl Object {
@@ -105,7 +135,15 @@ impl Object {
             outline: None,
             sequence: None,
             sid: None,
+            sub: match fid.kind() {
+                EntityKind::Critter => Some(SubObject::Critter(Default::default())),
+                _ => None,
+            }
         }
+    }
+
+    pub fn kind(&self) -> EntityKind {
+        self.fid.kind()
     }
 
     pub fn has_running_sequence(&self) -> bool {
@@ -150,20 +188,38 @@ impl Object {
 
     // obj_bound()
     pub fn bounds(&self, frm_db: &FrmDb, tile_grid: &TileGrid) -> Rect {
-        let frms = frm_db.get(self.fid);
-        let frms = frms.borrow();
-
-        let frame_list = &frms.frame_lists[self.direction];
-        let frame = &frame_list.frames[self.frame_idx];
-        let frame_size = Point::new(frame.width, frame.height);
-
-        self.bounds0(frame_list.center, frame_size, tile_grid)
+        let (frame_list, frame) = self.frame_list(frm_db);
+        self.bounds0(frame_list.center, frame.size(), tile_grid)
     }
 
     // critter_is_dead()
     pub fn is_critter_dead(&self) -> bool {
         // FIXME
         false
+    }
+
+    // obj_intersects_with
+    #[must_use]
+    pub fn hit_test(&self, p: Point, frm_db: &FrmDb, tile_grid: &TileGrid) -> Option<Hit> {
+        if self.flags.contains(Flag::TurnedOff) {
+            return None;
+        }
+
+        let bounds = self.bounds(frm_db, tile_grid);
+        if !bounds.contains(p.x, p.y) {
+            return None;
+        }
+
+        let p = p - bounds.top_left();
+        if !self.frame(frm_db).mask.test(p) {
+            return None;
+        }
+
+        let translucent = self.has_trans() && !self.flags.contains(Flag::TransNone);
+        Some(Hit {
+            translucent,
+            with_egg: false,
+        })
     }
 
     fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &TileGrid) -> Rect {
@@ -220,9 +276,7 @@ impl Object {
         let with_egg =
             egg.is_some()
             // Doesn't have any translucency flags.
-            && !self.flags.intersects(
-                Flag::TransEnergy | Flag::TransGlass | Flag::TransRed | Flag::TransSteam |
-                Flag::TransWall | Flag::TransNone)
+            && !self.has_trans()
             // Scenery or wall with position and proto.
             && (kind == EntityKind::Scenery || kind == EntityKind::Wall)
                 && self.pos.is_some() && self.pid.is_some();
@@ -273,14 +327,24 @@ impl Object {
         }.map(Effect::Translucency)
     }
 
-    fn frame<'a>(&self, frm_db: &'a FrmDb) -> Ref<'a, Frame> {
+    fn frame_list<'a>(&self, frm_db: &'a FrmDb) -> (Ref<'a, FrameList>, Ref<'a, Frame>) {
         let direction = self.direction;
         let frame_idx = self.frame_idx;
         let frms = frm_db.get(self.fid);
-        Ref::map(frms, |frms| {
+        Ref::map_split(frms, |frms| {
             let frml = &frms.frame_lists[direction];
-            &frml.frames[frame_idx]
+            (frml, &frml.frames[frame_idx])
         })
+    }
+
+    fn frame<'a>(&self, frm_db: &'a FrmDb) -> Ref<'a, Frame> {
+        self.frame_list(frm_db).1
+    }
+
+    fn has_trans(&self) -> bool {
+        self.flags.intersects(
+            Flag::TransEnergy | Flag::TransGlass | Flag::TransRed | Flag::TransSteam |
+            Flag::TransWall | Flag::TransNone)
     }
 }
 
@@ -592,6 +656,73 @@ impl Objects {
         self.get(obj).borrow().bounds(&self.frm_db, tile_grid)
     }
 
+    pub fn hit_test(&self, p: EPoint, screen_rect: &Rect, tile_grid: &TileGrid,
+        egg: Option<Egg>) -> Vec<(Handle, Hit)>
+    {
+        let mut r = Vec::new();
+        let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
+        for y in (hex_rect.top..hex_rect.bottom).rev() {
+            for x in hex_rect.left..hex_rect.right {
+                let pos = EPoint {
+                    elevation: p.elevation,
+                    point: Point::new(x, y),
+                };
+                for &objh in self.at(pos).iter().rev() {
+                    let obj = self.get(objh).borrow();
+
+                    let mut hit = if let Some(hit) = obj.hit_test(p.point, &self.frm_db, tile_grid) {
+                        hit
+                    } else {
+                        continue;
+                    };
+
+                    if let Some(egg) = egg {
+                        if self.is_egg_hit(p.point, &*obj, egg, tile_grid) {
+                            hit.with_egg = true;
+                        }
+                    }
+
+                    r.push((objh, hit));
+                }
+            }
+        }
+        r
+    }
+
+    // obj_intersects_with()
+    #[must_use]
+    fn is_egg_hit(&self, p: Point, obj: &Object, egg: Egg, tile_grid: &TileGrid) -> bool {
+        if_chain! {
+            if let Some(obj_pos) = obj.pos;
+            let obj_pos = obj_pos.point;
+            if let Some(pid) = obj.pid;
+            if pid.kind() == EntityKind::Wall || pid.kind() == EntityKind::Scenery;
+            then {
+                if !egg.hit_test(p, tile_grid, &self.frm_db) {
+                    return false;
+                }
+
+                let proto = self.proto_db.proto(pid).unwrap();
+                let masked = if proto.flags_ext.intersects(
+                    FlagExt::WallEastOrWest | FlagExt::WallWestCorner)
+                {
+                    tile_grid.is_in_front_of(obj_pos, egg.pos)
+                } else if proto.flags_ext.contains(FlagExt::WallNorthCorner) {
+                    tile_grid.is_in_front_of(obj_pos, egg.pos) ||
+                        tile_grid.is_to_right_of(obj_pos, egg.pos)
+                } else if proto.flags_ext.contains(FlagExt::WallSouthCorner) {
+                    tile_grid.is_in_front_of(obj_pos, egg.pos) &&
+                        tile_grid.is_to_right_of(obj_pos, egg.pos)
+                } else {
+                    tile_grid.is_to_right_of(obj_pos, egg.pos)
+                };
+                masked
+            } else {
+                false
+            }
+        }
+    }
+
     fn get_render_hex_rect(screen_rect: &Rect, tile_grid: &TileGrid) -> Rect {
         tile_grid.from_screen_rect(&Rect {
             left: -320,
@@ -709,6 +840,61 @@ impl Objects {
         list.retain(|&hh| hh != h);
         old_pos
     }
+}
+
+#[derive(Debug)]
+pub enum SubObject {
+    Critter(Critter),
+}
+
+#[derive(Debug, Default)]
+pub struct Critter {
+    pub health: i32,
+    pub radiation: i32,
+    pub poison: i32,
+    pub combat: CritterCombat,
+}
+
+#[derive(Debug)]
+pub struct CritterCombat {
+    pub damage_flags: BitFlags<DamageFlag>,
+}
+
+impl Default for CritterCombat {
+    fn default() -> Self {
+        Self {
+            damage_flags: BitFlags::empty(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, EnumFlags, Primitive)]
+#[repr(u32)]
+pub enum DamageFlag {
+  KnockedOut = 0x1,
+  KnockedDown = 0x2,
+  CripLegLeft = 0x4,
+  CripLegRight = 0x8,
+  CripArmLeft = 0x10,
+  CripArmRight = 0x20,
+  Blind = 0x40,
+  Dead = 0x80,
+  Hit = 0x100,
+  Critical = 0x200,
+  OnFire = 0x400,
+  Bypass = 0x800,
+  Explode = 0x1000,
+  Destroy = 0x2000,
+  Drop = 0x4000,
+  LoseTurn = 0x8000,
+  HitSelf = 0x10000,
+  LoseAmmo = 0x20000,
+  Dud = 0x40000,
+  HurtSelf = 0x80000,
+  RandomHit = 0x100000,
+  CripRandom = 0x200000,
+  Backwash = 0x400000,
+  PerformReverse = 0x800000,
 }
 
 #[cfg(test)]

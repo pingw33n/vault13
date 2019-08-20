@@ -36,6 +36,25 @@ pub struct Frame {
     pub mask: Mask,
 }
 
+impl Frame {
+    pub fn size(&self) -> Point {
+        Point {
+            x: self.width,
+            y: self.height,
+        }
+    }
+
+    pub fn bounds_centered(&self, p: Point, center: Point) -> Rect {
+        let p = p + center;
+        Rect {
+            left: p.x - self.width / 2,
+            top: p.y - self.height + 1,
+            right: p.x + self.width / 2,
+            bottom: p.y + 1,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Mask {
     bitmask: Rc<[u8]>,
@@ -172,7 +191,7 @@ impl Sprite {
         let frm = &frml.frames[self.frame_idx];
 
         let bounds = if self.centered {
-            Self::bounds_centered(self.pos, frml.center, frm)
+            frm.bounds_centered(self.pos, frml.center)
         } else {
             Rect::with_size(self.pos.x, self.pos.y, frm.width, frm.height)
         };
@@ -193,7 +212,7 @@ impl Sprite {
                 let mask_frms = frm_db.get(mask_fid);
                 let mask_frml = &mask_frms.frame_lists[Direction::NE];
                 let mask_frm = &mask_frml.frames[0];
-                let mask_bounds = Self::bounds_centered(mask_pos, mask_frml.center, &mask_frm);
+                let mask_bounds = mask_frm.bounds_centered(mask_pos, mask_frml.center);
                 canvas.draw_masked(&frm.texture, bounds.left, bounds.top,
                     &mask_frm.texture, mask_bounds.left, mask_bounds.top,
                     self.light);
@@ -232,16 +251,6 @@ impl Sprite {
         }
 
         bounds
-    }
-
-    fn bounds_centered(p: Point, center: Point, frm: &Frame) -> Rect {
-        let p = p + center;
-        Rect {
-            left: p.x - frm.width / 2,
-            top: p.y - frm.height + 1,
-            right: p.x + frm.width / 2,
-            bottom: p.y + 1,
-        }
     }
 }
 

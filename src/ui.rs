@@ -37,6 +37,7 @@ pub enum Event {
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Cursor {
+    ActionArrow,
     Arrow,
     ArrowDown,
     ArrowUp,
@@ -47,6 +48,7 @@ impl Cursor {
     pub fn fid(self) -> Fid {
         use Cursor::*;
         match self {
+            ActionArrow => Fid::ACTARROW,
             Arrow => Fid::STDARROW,
             ArrowDown => Fid::SDNARROW,
             ArrowUp => Fid::SUPARROW,

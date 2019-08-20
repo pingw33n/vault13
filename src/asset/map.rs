@@ -1,6 +1,7 @@
 use byteorder::{BigEndian, ReadBytesExt};
 use enumflags::BitFlags;
 use log::*;
+use measure_time::*;
 use num_traits::FromPrimitive;
 use std::cmp;
 use std::io::{self, Error, ErrorKind, prelude::*};
@@ -59,6 +60,7 @@ pub struct MapReader<'a, R: 'a> {
 
 impl<'a, R: 'a + Read> MapReader<'a, R> {
     pub fn read(&mut self) -> io::Result<Map> {
+        debug_time!("MapReader::read()");
         // header
 
         let version = self.reader.read_u32::<BigEndian>()?;
@@ -311,19 +313,32 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         let updated_flags = self.reader.read_u32::<BigEndian>()?;
 
-        if pid.kind() == EntityKind::Critter {
+        let sub = if pid.kind() == EntityKind::Critter {
             // combat data
             let _damage_last_turn = self.reader.read_u32::<BigEndian>()?;
             let _combat_state = self.reader.read_u32::<BigEndian>()?;
             let _action_points = self.reader.read_u32::<BigEndian>()?;
-            let _damage_flags = self.reader.read_u32::<BigEndian>()?;
+
+            let damage_flags = self.reader.read_u32::<BigEndian>()?;
+            let damage_flags = BitFlags::from_bits(damage_flags)
+                .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                    format!("unknown damage flags: {:x}", damage_flags)))?;
+
             let _ai_packet = self.reader.read_u32::<BigEndian>()?;
             let _team_num = self.reader.read_u32::<BigEndian>()?;
             let _who_hit_me = self.reader.read_u32::<BigEndian>()?;
 
-            let _health = self.reader.read_i32::<BigEndian>()?;
-            let _radiation = self.reader.read_i32::<BigEndian>()?;
-            let _poison = self.reader.read_i32::<BigEndian>()?;
+            let health = self.reader.read_i32::<BigEndian>()?;
+            let radiation = self.reader.read_i32::<BigEndian>()?;
+            let poison = self.reader.read_i32::<BigEndian>()?;
+            Some(SubObject::Critter(Critter {
+                health,
+                radiation,
+                poison,
+                combat: CritterCombat {
+                    damage_flags,
+                },
+            }))
         } else {
             assert!(updated_flags != 0xcccccccc);
     //            let update_flags = if updated_flags == 0xcccccccc {
@@ -410,7 +425,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 }
                 _ => {}
             }
-        }
+            None
+        };
 
         // inventory
 
@@ -452,6 +468,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             outline,
             sequence: None,
             sid,
+            sub,
         })
     }
 

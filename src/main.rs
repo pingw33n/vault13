@@ -56,6 +56,8 @@ use crate::ui::{Ui, Cursor};
 use log::*;
 use crate::ui::message_panel::MessagePannel;
 use clap::ArgMatches;
+use bstring::BString;
+use measure_time::*;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -224,9 +226,12 @@ fn main() {
     let dude_objh = world.insert_object(dude_obj);
     world.set_dude_obj(dude_objh);
 
-    for obj in world.objects().iter() {
-        for fid in all_fids(world.objects().get(obj).borrow().fid) {
-            let _ = frm_db.get_or_load(fid, &texture_factory);
+    {
+        debug_time!("all fids");
+        for obj in world.objects().iter() {
+            for fid in all_fids(world.objects().get(obj).borrow().fid) {
+                let _ = frm_db.get_or_load(fid, &texture_factory);
+            }
         }
     }
 
@@ -297,6 +302,7 @@ fn main() {
     let ui = &mut Ui::new(frm_db.clone());
     ui.cursor = ui::Cursor::Arrow;
 
+    let message_panel;
     {
         use ui::button::Button;
         use graphics::sprite::Sprite;
@@ -304,22 +310,11 @@ fn main() {
         let main_hud = ui.new_window(Rect::with_size(0, 379, 640, 100), Some(Sprite::new(Fid::IFACE)));
 
         // Message panel.
-        let message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 165, 65), None, None,
+        message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 165, 65), None, None,
             MessagePannel::new(fonts.clone(),
                 FontKey::antialiased(1),
                 Rgb15::new(0, 31, 0),
                 100));
-
-        {
-            let mut mp = ui.widget(message_panel).borrow_mut();
-            let mp = mp.downcast_mut::<MessagePannel>().unwrap();
-            mp.push_message("You see a young man with bulging muscles and a very confident air about him.");
-            mp.push_message("He looks Unhurt");
-            mp.push_message("You see: Rocks.");
-            mp.push_message("You see: Test 1.");
-            mp.push_message("You see: Test 2.");
-            mp.push_message("You see: Test 3.");
-        }
 
         // Inventory button.
         // Original location is a bit off, at y=41.
@@ -362,6 +357,25 @@ fn main() {
     let mut mouse_sqr_pos = Point::new(0, 0);
     let mut draw_path_blocked = false;
     let mut draw_debug = true;
+
+    #[derive(Clone, Copy, Debug)]
+    enum LookAtState {
+        Idle,
+        Pending {
+            start: Instant,
+            pos: Point,
+        },
+    }
+    let mut look_at_state = LookAtState::Idle;
+    let mut look_at_obj = None;
+
+    #[derive(Clone, Copy, Debug)]
+    enum MouseControl {
+        HexMove,
+        Pick,
+    }
+    let mut mouse_control = MouseControl::HexMove;
+
     'running: loop {
         let now = Instant::now();
 
@@ -370,31 +384,65 @@ fn main() {
             if !handled {
             match event {
                 Event::MouseMotion { x, y, .. } => {
-                    ui.cursor = Cursor::Hidden;
-                    world.objects_mut().get(mouse_objh).borrow_mut().flags.remove(Flag::TurnedOff);
                     mouse_hex_pos = world.map_grid().hex().from_screen((x, y));
                     mouse_sqr_pos = world.map_grid().sqr().from_screen((x, y));
                     let new_pos = EPoint::new(world.elevation(), mouse_hex_pos);
                     world.set_object_pos(mouse_objh, new_pos);
-                    draw_path_blocked = world.path_for_object(dude_objh, mouse_hex_pos, true).is_none();
+
+                    match mouse_control {
+                        MouseControl::HexMove => {
+                            ui.cursor = Cursor::Hidden;
+                            world.objects_mut().get(mouse_objh).borrow_mut().flags.remove(Flag::TurnedOff);
+                            draw_path_blocked = world.path_for_object(dude_objh, mouse_hex_pos, true).is_none();
+                        }
+                        MouseControl::Pick => {
+                            ui.cursor = Cursor::ActionArrow;
+                            world.objects_mut().get(mouse_objh).borrow_mut().flags.insert(Flag::TurnedOff);
+                            look_at_state = LookAtState::Pending { start: now, pos: (x, y).into() };
+                        }
+                    }
                 }
                 Event::MouseButtonUp { x, y, mouse_btn, .. } => {
-                    if let Some(signal) = world.objects().get(dude_objh).borrow_mut().sequence.take() {
-                        signal.cancel();
-                    }
-
-                    let to = world.map_grid().hex().from_screen((x, y));
-                    if let Some(path) = world.path_for_object(dude_objh, to, true) {
-                        let anim = if mouse_btn == MouseButton::Left {
-                            CritterAnim::Running
-                        } else {
-                            CritterAnim::Walk
-                        };
-                        if !path.is_empty() {
-                            let (seq, signal) = Move::new(dude_objh, anim, path).cancellable();
-                            world.objects().get(dude_objh).borrow_mut().sequence = Some(signal);
-                            sequencer.start(seq.then(Stand::new(dude_objh)));
+                    match mouse_btn {
+                        MouseButton::Right => {
+                            mouse_control = match mouse_control {
+                                MouseControl::HexMove => {
+                                    ui.cursor = Cursor::ActionArrow;
+                                    world.objects_mut().get(mouse_objh).borrow_mut().flags.insert(Flag::TurnedOff);
+                                    MouseControl::Pick
+                                }
+                                MouseControl::Pick => {
+                                    ui.cursor = Cursor::Hidden;
+                                    world.objects_mut().get(mouse_objh).borrow_mut().flags.remove(Flag::TurnedOff);
+                                    MouseControl::HexMove
+                                }
+                            };
                         }
+                        MouseButton::Left => {
+                            match mouse_control {
+                                MouseControl::HexMove => {
+                                    if let Some(signal) = world.objects().get(dude_objh).borrow_mut().sequence.take() {
+                                        signal.cancel();
+                                    }
+
+                                    let to = world.map_grid().hex().from_screen((x, y));
+                                    if let Some(path) = world.path_for_object(dude_objh, to, true) {
+                                        let anim = if true {
+                                            CritterAnim::Running
+                                        } else {
+                                            CritterAnim::Walk
+                                        };
+                                        if !path.is_empty() {
+                                            let (seq, signal) = Move::new(dude_objh, anim, path).cancellable();
+                                            world.objects().get(dude_objh).borrow_mut().sequence = Some(signal);
+                                            sequencer.start(seq.then(Stand::new(dude_objh)));
+                                        }
+                                    }
+                                }
+                                MouseControl::Pick => {}
+                            }
+                        }
+                        _ => {}
                     }
                 }
                 Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
@@ -467,6 +515,39 @@ fn main() {
             } else {
                 ui.cursor = Cursor::Arrow;
                 world.objects_mut().get(mouse_objh).borrow_mut().flags.insert(Flag::TurnedOff);
+            }
+        }
+
+        match look_at_state {
+            LookAtState::Idle => {}
+            LookAtState::Pending { start, pos } => if now - start >= Duration::from_millis(500) {
+                if let Some(objh) = world.pick_object(pos, &visible_rect, true) {
+                    if Some(objh) != look_at_obj {
+                        look_at_obj = Some(objh);
+                        let obj = world.objects().get(objh).borrow();
+                        let name: Option<BString> = if let Some(pid) = obj.pid {
+                            if let Some(name) = proto_db.name(pid).unwrap() {
+                                Some(name.into())
+                            } else {
+                                None
+                            }
+                        } else if Some(objh) == world.dude_obj() {
+                            Some(b"[dude]"[..].into())
+                        } else {
+                            None
+                        };
+
+                        if let Some(name) = name {
+                            let mut mp = ui.widget(message_panel).borrow_mut();
+                            let mp = mp.downcast_mut::<MessagePannel>().unwrap();
+                            let mut m = BString::new();
+                            m.push_str("You see: ");
+                            m.push_str(name);
+                            mp.push_message(m);
+                        }
+                    }
+                }
+                look_at_state = LookAtState::Idle;
             }
         }
 
