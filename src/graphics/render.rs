@@ -64,6 +64,8 @@ pub trait Canvas {
 
     fn fonts(&self) -> &Rc<Fonts>;
 
+    fn clear(&mut self, color: Rgb15);
+
     fn draw(&mut self, tex: &TextureHandle, x: i32, y: i32, light: u32);
     fn draw_multi_light(&mut self, tex: &TextureHandle, x: i32, y: i32, lights: &[u32]);
 

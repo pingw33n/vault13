@@ -472,6 +472,19 @@ fn main() {
 
         ui.update(now);
 
+        sequencer.update(&mut sequence::Context {
+            time: now,
+            world: &mut world
+        });
+
+        fidget.update(now, &mut world, &visible_rect, &mut sequencer);
+
+        canvas.update(now);
+
+        // Render
+
+        canvas.clear(BLACK);
+
         world.render(canvas, &visible_rect, roof_visible);
 
         if draw_path_blocked {
@@ -510,15 +523,6 @@ fn main() {
                     .. Default::default()
                 });
         }
-
-        sequencer.update(&mut sequence::Context {
-            time: now,
-            world: &mut world
-        });
-
-        fidget.update(now, &mut world, &visible_rect, &mut sequencer);
-
-        canvas.update(now);
 
         canvas.present();
         canvas.cleanup();

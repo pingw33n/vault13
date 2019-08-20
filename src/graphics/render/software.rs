@@ -252,6 +252,13 @@ impl Canvas for CanvasImpl {
         &self.fonts
     }
 
+    fn clear(&mut self, color: Rgb15) {
+        let v = self.palette.color_idx(color);
+        for b in self.back_buf.data.iter_mut() {
+            *b = v;
+        }
+    }
+
     fn draw(&mut self, tex: &TextureHandle, x: i32, y: i32, light: u32) {
         let pal = &self.palette;
         let tex = self.textures.get(tex);
