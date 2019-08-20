@@ -376,6 +376,8 @@ fn main() {
     }
     let mut mouse_control = MouseControl::HexMove;
 
+    let mut shift_down = false;
+
     'running: loop {
         let now = Instant::now();
 
@@ -427,10 +429,10 @@ fn main() {
 
                                     let to = world.map_grid().hex().from_screen((x, y));
                                     if let Some(path) = world.path_for_object(dude_objh, to, true) {
-                                        let anim = if true {
-                                            CritterAnim::Running
-                                        } else {
+                                        let anim = if shift_down {
                                             CritterAnim::Walk
+                                        } else {
+                                            CritterAnim::Running
                                         };
                                         if !path.is_empty() {
                                             let (seq, signal) = Move::new(dude_objh, anim, path).cancellable();
@@ -507,6 +509,10 @@ fn main() {
                 Event::KeyDown { keycode: Some(Keycode::Backquote), .. } => {
                     draw_debug = !draw_debug;
                 }
+                Event::KeyDown { keycode: Some(Keycode::LShift), .. } |
+                Event::KeyDown { keycode: Some(Keycode::RShift), .. } => shift_down = true,
+                Event::KeyUp { keycode: Some(Keycode::LShift), .. } |
+                Event::KeyUp { keycode: Some(Keycode::RShift), .. } => shift_down = false,
                 Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'running
                 },
