@@ -245,11 +245,6 @@ impl Scripts {
         vars: &mut Vars,
         ctx: &mut Context)
     {
-        // FIXME
-//         #511 == animfrfv.int
-//        if script.program_id != 511 {
-//            return;
-//        }
         let vm_ctx = &mut vm::Context {
             local_vars: &mut script.local_vars,
             map_vars: &mut vars.map_vars,
