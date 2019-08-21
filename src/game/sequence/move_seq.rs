@@ -1,6 +1,6 @@
 use std::time::{Duration, Instant};
 
-use crate::asset::frm::CritterAnim;
+use crate::asset::CritterAnim;
 use crate::game::object::Handle;
 use crate::game::world::World;
 use crate::graphics::EPoint;

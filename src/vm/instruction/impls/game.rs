@@ -301,7 +301,7 @@ pub fn party_member_obj(ctx: Context) -> Result<()> {
 }
 
 pub fn reg_anim_animate_forever(ctx: Context) -> Result<()> {
-    use crate::asset::frm::CritterAnim;
+    use crate::asset::CritterAnim;
     use crate::game::sequence::frame_anim::*;
 
     let critter_anim = CritterAnim::from_i32(ctx.prg.data_stack.pop()?.into_int()?)

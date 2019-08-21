@@ -2,7 +2,7 @@ use enum_map_derive::Enum;
 use if_chain::if_chain;
 use std::time::{Duration, Instant};
 
-use crate::asset::frm::CritterAnim;
+use crate::asset::CritterAnim;
 use crate::game::object::Handle;
 use crate::game::world::World;
 use crate::sequence::*;

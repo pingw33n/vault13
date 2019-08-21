@@ -5,7 +5,7 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
 
 use super::*;
-use crate::asset::{EntityKind, LstEntry, read_lst, WeaponKind};
+use crate::asset::{CritterAnim, EntityKind, LstEntry, read_lst, WeaponKind};
 use crate::fs::FileSystem;
 use crate::graphics::sprite::FrameSet;
 use crate::util::EnumExt;
@@ -230,6 +230,7 @@ fn critter_anim_codes(weapon_kind: WeaponKind, anim: CritterAnim) -> Option<(cha
 #[cfg(test)]
 mod test {
     use super::*;
+    use num_traits::cast::FromPrimitive;
 
     #[test]
     fn critter_anim_codes_() {

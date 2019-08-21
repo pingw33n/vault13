@@ -2,8 +2,7 @@ use log::*;
 use std::cmp;
 use std::time::{Duration, Instant};
 
-use crate::asset::{Flag, EntityKind};
-use crate::asset::frm::CritterAnim;
+use crate::asset::{CritterAnim, EntityKind, Flag};
 use crate::game::sequence::frame_anim::{AnimDirection, FrameAnim};
 use crate::game::sequence::stand::Stand;
 use crate::game::world::World;
