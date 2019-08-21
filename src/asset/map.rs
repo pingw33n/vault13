@@ -7,7 +7,7 @@ use std::cmp;
 use std::io::{self, Error, ErrorKind, prelude::*};
 
 use crate::asset::*;
-use crate::asset::frame::{Fid, FrmDb};
+use crate::asset::frame::{FrameId, FrmDb};
 use crate::asset::proto::{ItemVariant, Pid, ProtoDb};
 use crate::asset::script::ProgramId;
 use crate::game::object::*;
@@ -282,7 +282,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let direction = Direction::from_u32(direction)
             .ok_or_else(|| Error::new(ErrorKind::InvalidData,
                 format!("invalid object direction: {}", direction)))?;
-        let fid = Fid::read(self.reader)?;
+        let fid = FrameId::read(self.reader)?;
         trace!("{:?}", fid);
 
         self.frm_db.get_or_load(fid, self.texture_factory)?;
@@ -537,7 +537,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
     fn make_map_script(&mut self, program_id: ProgramId) -> io::Result<()> {
         let sid = self.scripts.instantiate_map_script(program_id)?;
-        let mut obj = Object::new(Fid::MAPMK, None, Some(EPoint::new(0, (0, 0))));
+        let mut obj = Object::new(FrameId::MAPMK, None, Some(EPoint::new(0, (0, 0))));
         obj.flags = BitFlags::from(Flag::LightThru)
             | Flag::WalkThru
             | Flag::TurnedOff;

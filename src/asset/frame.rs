@@ -5,7 +5,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use enum_map::EnumMap;
 use std::io::{self, prelude::*};
 
-pub use id::Fid;
+pub use id::FrameId;
 pub use db::FrmDb;
 
 use crate::graphics::Point;

@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-use crate::asset::frame::{Fid, FrmDb};
+use crate::asset::frame::{FrameId, FrmDb};
 use crate::graphics::{Point, Rect};
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render::Canvas;
@@ -45,14 +45,14 @@ pub enum Cursor {
 }
 
 impl Cursor {
-    pub fn fid(self) -> Fid {
+    pub fn fid(self) -> FrameId {
         use Cursor::*;
         match self {
-            ActionArrow => Fid::ACTARROW,
-            Arrow => Fid::STDARROW,
-            ArrowDown => Fid::SDNARROW,
-            ArrowUp => Fid::SUPARROW,
-            Hidden => Fid::BLANK,
+            ActionArrow => FrameId::ACTARROW,
+            Arrow => FrameId::STDARROW,
+            ArrowDown => FrameId::SDNARROW,
+            ArrowUp => FrameId::SUPARROW,
+            Hidden => FrameId::BLANK,
         }
     }
 }

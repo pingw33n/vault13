@@ -127,7 +127,7 @@ impl ProtoDb {
     fn read_proto(rd: &mut impl Read) -> io::Result<Proto> {
         let pid = Pid::read(rd)?;
         let message_id = rd.read_i32::<BigEndian>()?;
-        let fid = Fid::read(rd)?;
+        let fid = FrameId::read(rd)?;
 
         let light_radius = rd.read_i32::<BigEndian>()?;
         let light_intensity = rd.read_i32::<BigEndian>()?;
@@ -195,7 +195,7 @@ impl ProtoDb {
         let size = rd.read_i32::<BigEndian>()?;
         let weight = rd.read_i32::<BigEndian>()?;
         let price = rd.read_i32::<BigEndian>()?;
-        let inventory_fid = Fid::read_opt(rd)?;
+        let inventory_fid = FrameId::read_opt(rd)?;
         let sound_id = rd.read_u8()?;
         let item = match item_kind {
             ItemKind::Armor => ItemVariant::Armor(Self::read_armor(rd)?),
@@ -240,8 +240,8 @@ impl ProtoDb {
             damage_threshold[dmg] = rd.read_i32::<BigEndian>()?;
         }
         let perk = read_opt_enum(rd, "invalid armor perk")?;
-        let male_fid = Fid::read(rd)?;
-        let female_fid = Fid::read(rd)?;
+        let male_fid = FrameId::read(rd)?;
+        let female_fid = FrameId::read(rd)?;
         Ok(Armor {
             armor_class,
             damage_resistance,
@@ -407,7 +407,7 @@ impl ProtoDb {
     }
 
     fn read_critter(rd: &mut impl Read) -> io::Result<Critter> {
-        let head_fid = Fid::read_opt(rd)?;
+        let head_fid = FrameId::read_opt(rd)?;
         let ai_packet = rd.read_u32::<BigEndian>()?;
         let team_id = rd.read_u32::<BigEndian>()?;
 

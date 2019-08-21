@@ -14,7 +14,7 @@ pub struct FrmDb {
     fs: Rc<FileSystem>,
     language: Option<String>,
     lst: EnumMap<EntityKind, Vec<LstEntry>>,
-    frms: RefCell<HashMap<Fid, FrameSet>>,
+    frms: RefCell<HashMap<FrameId, FrameSet>>,
 }
 
 impl FrmDb {
@@ -31,18 +31,18 @@ impl FrmDb {
 
     // art_get_name()
     /// Returns .frm or .frN file name without path.
-    pub fn name(&self, fid: Fid) -> Option<String> {
+    pub fn name(&self, fid: FrameId) -> Option<String> {
         let fid = self.normalize_fid(fid);
         self.name_no_normalize(fid)
     }
 
     //  art_exists()
-    pub fn exists(&self, fid: Fid) -> bool {
+    pub fn exists(&self, fid: FrameId) -> bool {
         let fid = self.normalize_fid(fid);
         self.read(fid).is_ok()
     }
 
-    pub fn get_or_load(&self, fid: Fid, texture_factory: &TextureFactory)
+    pub fn get_or_load(&self, fid: FrameId, texture_factory: &TextureFactory)
             -> io::Result<Ref<FrameSet>> {
         let fid = self.normalize_fid(fid);
         {
@@ -55,7 +55,7 @@ impl FrmDb {
         Ok(self.get(fid))
     }
 
-    pub fn get(&self, fid: Fid) -> Ref<FrameSet> {
+    pub fn get(&self, fid: FrameId) -> Ref<FrameSet> {
         let fid = self.normalize_fid(fid);
         Ref::map(self.frms.borrow(), |v| &v[&fid])
     }
@@ -75,8 +75,8 @@ impl FrmDb {
 
     // art_alias_fid()
     // art_id()
-    fn normalize_fid(&self, fid: Fid) -> Fid {
-        if let Fid::Critter(critter_fid) = fid {
+    fn normalize_fid(&self, fid: FrameId) -> FrameId {
+        if let FrameId::Critter(critter_fid) = fid {
             use self::CritterAnim::*;
 
             let anim = critter_fid.anim();
@@ -113,7 +113,7 @@ impl FrmDb {
         }
     }
 
-    fn read(&self, fid: Fid) -> io::Result<Box<BufRead + Send>> {
+    fn read(&self, fid: FrameId) -> io::Result<Box<BufRead + Send>> {
         let name = self.name_no_normalize(fid)
             .ok_or_else(|| Error::new(ErrorKind::NotFound,
                 format!("no name exists for FID: {:?}", fid)))?;
@@ -137,11 +137,11 @@ impl FrmDb {
         }
     }
 
-    fn name_no_normalize(&self, fid: Fid) -> Option<String> {
+    fn name_no_normalize(&self, fid: FrameId) -> Option<String> {
         let base_name = &self.lst[fid.kind()].get(fid.id() as usize)?.fields[0];
 
         Some(match fid {
-            Fid::Critter(fid) => {
+            FrameId::Critter(fid) => {
                 let wk = fid.weapon();
                 let anim = fid.anim();
                 let (c1, c2) = critter_anim_codes(wk, anim)?;
@@ -151,7 +151,7 @@ impl FrmDb {
                     format!("{}{}{}.frm", base_name, c1, c2)
                 }
             }
-            Fid::Head(fid) => {
+            FrameId::Head(fid) => {
                 static ANIM_TO_CODE1: &'static [u8] = b"gggnnnbbbgnb";
                 static ANIM_TO_CODE2: &'static [u8] = b"vfngfbnfvppp";
 
@@ -184,7 +184,7 @@ impl FrmDb {
         self.fs.reader(&path)
     }
 
-    fn exists_no_normalize(&self, fid: Fid) -> bool {
+    fn exists_no_normalize(&self, fid: FrameId) -> bool {
         if let Some(name) = self.name_no_normalize(fid) {
             self.read_by_name(fid.kind(), &name).is_ok()
         } else {

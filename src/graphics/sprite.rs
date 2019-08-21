@@ -2,7 +2,7 @@ use enum_map::EnumMap;
 use enum_map_derive::Enum;
 use std::rc::Rc;
 
-use crate::asset::frame::{Fid, FrmDb};
+use crate::asset::frame::{FrameId, FrmDb};
 use crate::graphics::color::*;
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::{Point, Rect};
@@ -153,7 +153,7 @@ pub enum Effect {
     Translucency(Translucency),
     Masked {
         mask_pos: Point,
-        mask_fid: Fid,
+        mask_fid: FrameId,
     },
     Outline {
         style: OutlineStyle,
@@ -165,7 +165,7 @@ pub enum Effect {
 pub struct Sprite {
     pub pos: Point,
     pub centered: bool,
-    pub fid: Fid,
+    pub fid: FrameId,
     pub frame_idx: usize,
     pub direction: Direction,
     pub light: u32,
@@ -173,7 +173,7 @@ pub struct Sprite {
 }
 
 impl Sprite {
-    pub fn new(fid: Fid) -> Self {
+    pub fn new(fid: FrameId) -> Self {
         Sprite {
             pos: Point::new(0, 0),
             centered: false,

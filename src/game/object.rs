@@ -9,7 +9,7 @@ use std::mem;
 use std::rc::Rc;
 
 use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, WeaponKind};
-use crate::asset::frame::{Fid, FrmDb};
+use crate::asset::frame::{FrameId, FrmDb};
 use crate::asset::proto::{self, CritterKillKind, Pid, ProtoDb};
 use crate::game::script::Sid;
 use crate::graphics::{EPoint, Point, Rect};
@@ -58,7 +58,7 @@ pub struct LightEmitter {
 #[derive(Clone, Copy, Debug)]
 pub struct Egg {
     pub pos: Point,
-    pub fid: Fid,
+    pub fid: FrameId,
 }
 
 impl Egg {
@@ -104,7 +104,7 @@ pub struct Object {
     pub pos: Option<EPoint>,
     pub screen_pos: Point,
     pub screen_shift: Point,
-    pub fid: Fid,
+    pub fid: FrameId,
     pub frame_idx: usize,
     pub direction: Direction,
     pub light_emitter: LightEmitter,
@@ -117,7 +117,7 @@ pub struct Object {
 }
 
 impl Object {
-    pub fn new(fid: Fid, pid: Option<Pid>, pos: Option<EPoint>) -> Self {
+    pub fn new(fid: FrameId, pid: Option<Pid>, pos: Option<EPoint>) -> Self {
         Self {
             pos,
             screen_pos: Point::new(0, 0),
@@ -529,7 +529,7 @@ impl Objects {
         let shift = {
             let mut obj = self.get(h).borrow_mut();
             let mut shift = Point::new(0, 0);
-            let fid = if let Fid::Critter(critter_fid) = obj.fid {
+            let fid = if let FrameId::Critter(critter_fid) = obj.fid {
                 if critter_fid.weapon() != WeaponKind::Unarmed {
                     let fid = critter_fid
                         .with_direction(Some(obj.direction))
@@ -907,7 +907,7 @@ mod test {
         let base = Point::new(2384, 468) + screen_shift;
 
         let tg = TileGrid::default();
-        let mut obj = Object::new(Fid::BLANK, None, Some(EPoint::new(0, (55, 66))));
+        let mut obj = Object::new(FrameId::BLANK, None, Some(EPoint::new(0, (55, 66))));
         obj.screen_shift = screen_shift;
         assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &tg),
             Rect::with_points((1, -51), (30, 12))

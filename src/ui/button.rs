@@ -15,7 +15,7 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn new(up: Fid, down: Fid) -> Self {
+    pub fn new(up: FrameId, down: FrameId) -> Self {
         Self {
             sprites: enum_map! {
                 State::Up => Sprite::new(up),

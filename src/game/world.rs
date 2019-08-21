@@ -2,7 +2,7 @@ use std::cmp;
 use std::rc::Rc;
 
 use crate::asset::EntityKind;
-use crate::asset::frame::{Fid, FrmDb};
+use crate::asset::frame::{FrameId, FrmDb};
 use crate::asset::proto::ProtoDb;
 use crate::game::GameTime;
 use crate::game::object::{self, DamageFlag, Egg, Object, Objects, SubObject};
@@ -178,7 +178,7 @@ impl World {
         let elevation = self.elevation();
         render_floor(canvas, self.map_grid.sqr(), rect,
             |num| {
-                let fid = Fid::new_generic(EntityKind::SqrTile,
+                let fid = FrameId::new_generic(EntityKind::SqrTile,
                     self.sqr_tiles[elevation as usize].as_ref().unwrap()[num as usize].0).unwrap();
                 Some(self.frm_db.get(fid).frame_lists[Direction::NE].frames[0].texture.clone())
             },
@@ -197,7 +197,7 @@ impl World {
 
         if draw_roof {
             render_roof(canvas, self.map_grid.sqr(), rect,
-                |num| Some(self.frm_db.get(Fid::new_generic(EntityKind::SqrTile,
+                |num| Some(self.frm_db.get(FrameId::new_generic(EntityKind::SqrTile,
                     self.sqr_tiles[elevation as usize].as_ref().unwrap()[num as usize].1).unwrap())
                         .first().texture.clone()));
         }
@@ -222,7 +222,7 @@ impl World {
         if let Some(dude_obj) = self.dude_obj {
             Some(Egg {
                 pos: self.objects().get(dude_obj).borrow().pos.unwrap().point,
-                fid: Fid::EGG,
+                fid: FrameId::EGG,
             })
         } else {
             None

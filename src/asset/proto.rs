@@ -11,7 +11,7 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 use std::ops::RangeInclusive;
 
 use super::*;
-use crate::asset::frame::Fid;
+use crate::asset::frame::FrameId;
 use crate::asset::EntityKind;
 use crate::util::{enum_iter, EnumIter};
 
@@ -151,7 +151,7 @@ impl fmt::Debug for Pid {
 pub struct Proto {
     pub pid: Pid,
     pub message_id: i32,
-    pub fid: Fid,
+    pub fid: FrameId,
     pub light_radius: i32,
     pub light_intensity: i32,
     pub flags: BitFlags<Flag>,
@@ -220,7 +220,7 @@ pub struct Item {
     pub size: i32,
     pub weight: i32,
     pub price: i32,
-    pub inventory_fid: Option<Fid>,
+    pub inventory_fid: Option<FrameId>,
     pub sound_id: u8,
     pub item: ItemVariant,
 }
@@ -257,8 +257,8 @@ pub struct Armor {
   pub damage_resistance: EnumMap<DamageKind, i32>,
   pub damage_threshold: EnumMap<DamageKind, i32>,
   pub perk: Option<Perk>,
-  pub male_fid: Fid,
-  pub female_fid: Fid,
+  pub male_fid: FrameId,
+  pub female_fid: FrameId,
 }
 
 #[derive(Debug)]
@@ -365,7 +365,7 @@ pub struct Critter {
     //proto.msg:1450
     pub kill_kind: CritterKillKind,
     pub damage_kind: DamageKind,
-    pub head_fid: Option<Fid>,
+    pub head_fid: Option<FrameId>,
     pub ai_packet: u32,
     pub team_id: u32,
 }

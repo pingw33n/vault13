@@ -10,16 +10,16 @@ use crate::asset::{EntityKind, CritterAnim, WeaponKind};
 use crate::graphics::geometry::hex::Direction;
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Ord, PartialOrd)]
-pub enum Fid {
-    Critter(CritterFid),
-    Head(HeadFid),
-    Generic(GenericFid),
+pub enum FrameId {
+    Critter(Critter),
+    Head(Head),
+    Generic(Generic),
 }
 
-impl Fid {
+impl FrameId {
     pub fn new(kind: EntityKind, direction: Option<Direction>, anim: u8, sub_anim: u8, id: u16)
             -> Option<Self> {
-        Self::from_packed(pack(FidParts {
+        Self::from_packed(pack(Parts {
             kind,
             direction,
             anim,
@@ -30,15 +30,15 @@ impl Fid {
 
     pub fn new_critter(direction: Option<Direction>, anim: CritterAnim, weapon: WeaponKind, id: u16)
             -> Option<Self> {
-        CritterFid::new(direction, anim, weapon, id).map(|v| Fid::Critter(v))
+        Critter::new(direction, anim, weapon, id).map(|v| FrameId::Critter(v))
     }
 
     pub fn new_head(anim: u8, sub_anim: u8, id: u16) -> Option<Self> {
-        HeadFid::new(anim, sub_anim, id).map(|v| Fid::Head(v))
+        Head::new(anim, sub_anim, id).map(|v| FrameId::Head(v))
     }
 
     pub fn new_generic(kind: EntityKind, id: u16) -> Option<Self> {
-        GenericFid::new(kind, id).map(|v| Fid::Generic(v))
+        Generic::new(kind, id).map(|v| FrameId::Generic(v))
     }
 
     pub fn read(rd: &mut impl Read) -> io::Result<Self> {
@@ -60,41 +60,41 @@ impl Fid {
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
-        let FidParts { kind, .. } = unpack(fid)?;
+        let Parts { kind, .. } = unpack(fid)?;
 
         match kind {
-            EntityKind::Critter => CritterFid::from_packed(fid).map(|v| v.into()),
-            EntityKind::Head => HeadFid::from_packed(fid).map(|v| v.into()),
-            _ => GenericFid::from_packed(fid).map(|v| v.into()),
+            EntityKind::Critter => Critter::from_packed(fid).map(|v| v.into()),
+            EntityKind::Head => Head::from_packed(fid).map(|v| v.into()),
+            _ => Generic::from_packed(fid).map(|v| v.into()),
         }
     }
 
     pub fn packed(self) -> u32 {
         match self {
-            Fid::Critter(v) => v.packed(),
-            Fid::Head(v) => v.packed(),
-            Fid::Generic(v) => v.packed(),
+            FrameId::Critter(v) => v.packed(),
+            FrameId::Head(v) => v.packed(),
+            FrameId::Generic(v) => v.packed(),
         }
     }
 
-    pub fn critter(self) -> Option<CritterFid> {
-        if let Fid::Critter(v) = self {
+    pub fn critter(self) -> Option<Critter> {
+        if let FrameId::Critter(v) = self {
             Some(v)
         } else {
             None
         }
     }
 
-    pub fn head(self) -> Option<HeadFid> {
-        if let Fid::Head(v) = self {
+    pub fn head(self) -> Option<Head> {
+        if let FrameId::Head(v) = self {
             Some(v)
         } else {
             None
         }
     }
 
-    pub fn generic(self) -> Option<GenericFid> {
-        if let Fid::Generic(v) = self {
+    pub fn generic(self) -> Option<Generic> {
+        if let FrameId::Generic(v) = self {
             Some(v)
         } else {
             None
@@ -103,68 +103,68 @@ impl Fid {
 
     pub fn kind(self) -> EntityKind {
         match self {
-            Fid::Critter(_) => EntityKind::Critter,
-            Fid::Head(_) => EntityKind::Head,
-            Fid::Generic(v) => v.kind(),
+            FrameId::Critter(_) => EntityKind::Critter,
+            FrameId::Head(_) => EntityKind::Head,
+            FrameId::Generic(v) => v.kind(),
         }
     }
 
     pub fn direction(self) -> Option<Direction> {
         match self {
-            Fid::Critter(v) => v.direction(),
-            Fid::Head(v) => v.direction(),
-            Fid::Generic(_) => None,
+            FrameId::Critter(v) => v.direction(),
+            FrameId::Head(v) => v.direction(),
+            FrameId::Generic(_) => None,
         }
     }
 
     pub fn anim(self) -> u8 {
         match self {
-            Fid::Critter(v) => v.anim() as u8,
-            Fid::Head(v) => v.anim(),
-            Fid::Generic(_) => 0,
+            FrameId::Critter(v) => v.anim() as u8,
+            FrameId::Head(v) => v.anim(),
+            FrameId::Generic(_) => 0,
         }
     }
 
     pub fn sub_anim(self) -> u8 {
         match self {
-            Fid::Critter(v) => v.weapon() as u8,
-            Fid::Head(v) => v.sub_anim(),
-            Fid::Generic(_) => 0,
+            FrameId::Critter(v) => v.weapon() as u8,
+            FrameId::Head(v) => v.sub_anim(),
+            FrameId::Generic(_) => 0,
         }
     }
 
     pub fn id(self) -> u16 {
         match self {
-            Fid::Critter(v) => v.id(),
-            Fid::Head(v) => v.id(),
-            Fid::Generic(v) => v.id(),
+            FrameId::Critter(v) => v.id(),
+            FrameId::Head(v) => v.id(),
+            FrameId::Generic(v) => v.id(),
         }
     }
 }
 
-impl fmt::Debug for Fid {
+impl fmt::Debug for FrameId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Fid(0x{:08x})", self.packed())
+        write!(f, "FrameId(0x{:08x})", self.packed())
     }
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Ord, PartialOrd)]
-pub struct CritterFid(u32);
+pub struct Critter(u32);
 
-impl CritterFid {
+impl Critter {
     pub fn new(direction: Option<Direction>, anim: CritterAnim, weapon: WeaponKind, id: u16)
             -> Option<Self> {
-        pack(FidParts {
+        pack(Parts {
             kind: EntityKind::Critter,
             direction,
             anim: anim as u8,
             sub_anim: weapon as u8,
             id
-        }).map(|v| CritterFid(v))
+        }).map(|v| Critter(v))
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
-        let FidParts {
+        let Parts {
             kind,
             anim,
             sub_anim,
@@ -177,7 +177,7 @@ impl CritterFid {
         CritterAnim::from_u8(anim)?;
         WeaponKind::from_u8(sub_anim)?;
 
-        Some(CritterFid(fid))
+        Some(Critter(fid))
     }
 
     pub fn packed(self) -> u32 {
@@ -185,80 +185,80 @@ impl CritterFid {
     }
 
     pub fn direction(self) -> Option<Direction> {
-        let FidParts { direction, .. } = unpack(self.0).unwrap();
+        let Parts { direction, .. } = unpack(self.0).unwrap();
         direction
     }
 
     pub fn anim(self) -> CritterAnim {
-        let FidParts { anim, .. } = unpack(self.0).unwrap();
+        let Parts { anim, .. } = unpack(self.0).unwrap();
         CritterAnim::from_u8(anim).unwrap()
     }
 
     pub fn weapon(self) -> WeaponKind {
-        let FidParts { sub_anim, .. } = unpack(self.0).unwrap();
+        let Parts { sub_anim, .. } = unpack(self.0).unwrap();
         WeaponKind::from_u8(sub_anim).unwrap()
     }
 
     pub fn id(self) -> u16 {
-        let FidParts { id, .. } = unpack(self.0).unwrap();
+        let Parts { id, .. } = unpack(self.0).unwrap();
         id
     }
 
     pub fn with_direction(self, direction: Option<Direction>) -> Self {
         let mut parts = unpack(self.packed()).unwrap();
         parts.direction = direction;
-        CritterFid(pack(parts).unwrap())
+        Critter(pack(parts).unwrap())
     }
 
     pub fn with_anim(self, anim: CritterAnim) -> Self {
         let mut parts = unpack(self.packed()).unwrap();
         parts.anim = anim as u8;
-        CritterFid(pack(parts).unwrap())
+        Critter(pack(parts).unwrap())
     }
 
     pub fn with_weapon(self, weapon: WeaponKind) -> Self {
         let mut parts = unpack(self.packed()).unwrap();
         parts.sub_anim = weapon as u8;
-        CritterFid(pack(parts).unwrap())
+        Critter(pack(parts).unwrap())
     }
 
     pub fn with_id(self, id: u16) -> Option<Self> {
         let mut parts = unpack(self.packed()).unwrap();
         parts.id = id;
-        pack(parts).map(|v| CritterFid(v))
+        pack(parts).map(|v| Critter(v))
     }
 }
 
-impl fmt::Debug for CritterFid {
+impl fmt::Debug for Critter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Fid(0x{:08x})", self.packed())
+        write!(f, "FrameId(0x{:08x})", self.packed())
     }
 }
 
-impl Into<Fid> for CritterFid {
-    fn into(self) -> Fid {
-        Fid::Critter(self)
+impl Into<FrameId> for Critter {
+    fn into(self) -> FrameId {
+        FrameId::Critter(self)
     }
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Ord, PartialOrd)]
-pub struct HeadFid(u32);
+pub struct Head(u32);
 
-impl HeadFid {
+impl Head {
     pub fn new(anim: u8, sub_anim: u8, id: u16) -> Option<Self> {
         assert!(anim <= 12);
         assert!(sub_anim <= 9);
-        pack(FidParts {
+        pack(Parts {
             kind: EntityKind::Head,
             direction: None,
             anim,
             sub_anim,
             id,
-        }).map(|v| HeadFid(v))
+        }).map(|v| Head(v))
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
-        let FidParts {
+        let Parts {
             kind,
             anim,
             sub_anim,
@@ -275,7 +275,7 @@ impl HeadFid {
             return None;
         }
 
-        Some(HeadFid(fid))
+        Some(Head(fid))
     }
 
     pub fn packed(self) -> u32 {
@@ -283,55 +283,55 @@ impl HeadFid {
     }
 
     pub fn direction(self) -> Option<Direction> {
-        let FidParts { direction, .. } = unpack(self.0).unwrap();
+        let Parts { direction, .. } = unpack(self.0).unwrap();
         direction
     }
 
     pub fn anim(self) -> u8 {
-        let FidParts { anim, .. } = unpack(self.0).unwrap();
+        let Parts { anim, .. } = unpack(self.0).unwrap();
         anim
     }
 
     pub fn sub_anim(self) -> u8 {
-        let FidParts { sub_anim, .. } = unpack(self.0).unwrap();
+        let Parts { sub_anim, .. } = unpack(self.0).unwrap();
         sub_anim
     }
 
     pub fn id(self) -> u16 {
-        let FidParts { id, .. } = unpack(self.0).unwrap();
+        let Parts { id, .. } = unpack(self.0).unwrap();
         id
     }
 }
 
-impl fmt::Debug for HeadFid {
+impl fmt::Debug for Head {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Fid(0x{:08x})", self.packed())
+        write!(f, "FrameId(0x{:08x})", self.packed())
     }
 }
 
-impl Into<Fid> for HeadFid {
-    fn into(self) -> Fid {
-        Fid::Head(self)
+impl Into<FrameId> for Head {
+    fn into(self) -> FrameId {
+        FrameId::Head(self)
     }
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Ord, PartialOrd)]
-pub struct GenericFid(u32);
+pub struct Generic(u32);
 
-impl GenericFid {
+impl Generic {
     pub fn new(kind: EntityKind, id: u16) -> Option<Self> {
         assert!(kind != EntityKind::Critter && kind != EntityKind::Head);
-        pack(FidParts {
+        pack(Parts {
             kind,
             direction: None,
             anim: 0,
             sub_anim: 0,
             id,
-        }).map(|v| GenericFid(v))
+        }).map(|v| Generic(v))
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
-        let FidParts {
+        let Parts {
             kind,
             direction,
             anim,
@@ -360,29 +360,29 @@ impl GenericFid {
     }
 
     pub fn kind(self) -> EntityKind {
-        let FidParts { kind, .. } = unpack(self.0).unwrap();
+        let Parts { kind, .. } = unpack(self.0).unwrap();
         kind
     }
 
     pub fn id(self) -> u16 {
-        let FidParts { id, .. } = unpack(self.0).unwrap();
+        let Parts { id, .. } = unpack(self.0).unwrap();
         id
     }
 }
 
-impl fmt::Debug for GenericFid {
+impl fmt::Debug for Generic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Fid(0x{:08x})", self.packed())
     }
 }
 
-impl Into<Fid> for GenericFid {
-    fn into(self) -> Fid {
-        Fid::Generic(self)
+impl Into<FrameId> for Generic {
+    fn into(self) -> FrameId {
+        FrameId::Generic(self)
     }
 }
 
-struct FidParts {
+struct Parts {
     kind: EntityKind,
     direction: Option<Direction>,
     anim: u8,
@@ -390,7 +390,7 @@ struct FidParts {
     id: u16,
 }
 
-fn pack(parts: FidParts) -> Option<u32> {
+fn pack(parts: Parts) -> Option<u32> {
     if parts.sub_anim > 15 {
         return None;
     }
@@ -404,7 +404,7 @@ fn pack(parts: FidParts) -> Option<u32> {
         | (parts.id as u32))
 }
 
-fn unpack(fid: u32) -> Option<FidParts> {
+fn unpack(fid: u32) -> Option<Parts> {
     let kind = EntityKind::from_u32((fid >> 24) & 0b1111)?;
 
     let direction = (fid >> 28) as u8 & 0b111;
@@ -418,7 +418,7 @@ fn unpack(fid: u32) -> Option<FidParts> {
     let sub_anim = (fid >> 12) as u8 & 0b1111;
     let id = fid as u16 & 0b1111_1111_1111;
 
-    Some(FidParts {
+    Some(Parts {
         kind,
         direction,
         anim,

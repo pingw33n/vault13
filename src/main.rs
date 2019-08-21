@@ -188,21 +188,21 @@ fn main() {
     for elev in &map.sqr_tiles {
         if let Some(ref elev) = elev {
             for &(floor, roof) in elev.as_slice() {
-                frm_db.get_or_load(Fid::new_generic(EntityKind::SqrTile, floor).unwrap(), &texture_factory).unwrap();
-                frm_db.get_or_load(Fid::new_generic(EntityKind::SqrTile, roof).unwrap(), &texture_factory).unwrap();
+                frm_db.get_or_load(FrameId::new_generic(EntityKind::SqrTile, floor).unwrap(), &texture_factory).unwrap();
+                frm_db.get_or_load(FrameId::new_generic(EntityKind::SqrTile, roof).unwrap(), &texture_factory).unwrap();
             }
         }
     }
 
-    fn all_fids(fid: Fid) -> Vec<Fid> {
+    fn all_fids(fid: FrameId) -> Vec<FrameId> {
         let mut r = vec![fid];
         match fid.kind() {
             EntityKind::Critter => {
                 for wk in WeaponKind::iter() {
                     for anim in CritterAnim::iter() {
-                        r.push(Fid::new_critter(None, anim, wk, fid.id()).unwrap());
+                        r.push(FrameId::new_critter(None, anim, wk, fid.id()).unwrap());
                         for direction in Direction::iter() {
-                            r.push(Fid::new_critter(Some(direction), anim, wk, fid.id()).unwrap());
+                            r.push(FrameId::new_critter(Some(direction), anim, wk, fid.id()).unwrap());
                         }
                     }
                 }
@@ -216,7 +216,7 @@ fn main() {
     world.game_time = START_GAME_TIME;
     world.rebuild_light_grid();
 
-    let dude_fid = Fid::from_packed(0x101600A).unwrap();
+    let dude_fid = FrameId::from_packed(0x101600A).unwrap();
     let mut dude_obj = Object::new(dude_fid, None, Some(map.entrance));
     dude_obj.direction = Direction::NE;
     dude_obj.light_emitter = LightEmitter {
@@ -236,7 +236,7 @@ fn main() {
     }
 
     world.make_object_standing(dude_objh);
-    frm_db.get_or_load(Fid::EGG, &texture_factory).unwrap();
+    frm_db.get_or_load(FrameId::EGG, &texture_factory).unwrap();
 
     world.map_grid_mut().center2(map.entrance.point);
 
@@ -275,7 +275,7 @@ fn main() {
         scripts.execute_map_procs(PredefinedProc::MapEnter, ctx);
     }
 
-    let mut mouse_obj = Object::new(Fid::MOUSE_HEX_OUTLINE, None, Some(map.entrance));
+    let mut mouse_obj = Object::new(FrameId::MOUSE_HEX_OUTLINE, None, Some(map.entrance));
     mouse_obj.flags = BitFlags::from_bits(0xA000041C).unwrap();
     mouse_obj.outline = Some(game::object::Outline {
         style: OutlineStyle::Red,
@@ -290,7 +290,7 @@ fn main() {
 
     // Load all interface frame sets.
     for id in 0.. {
-        let fid = Fid::new_generic(EntityKind::Interface, id).unwrap();
+        let fid = FrameId::new_generic(EntityKind::Interface, id).unwrap();
         if frm_db.name(fid).is_none() {
             break;
         }
@@ -307,7 +307,7 @@ fn main() {
         use ui::button::Button;
         use graphics::sprite::Sprite;
 
-        let main_hud = ui.new_window(Rect::with_size(0, 379, 640, 100), Some(Sprite::new(Fid::IFACE)));
+        let main_hud = ui.new_window(Rect::with_size(0, 379, 640, 100), Some(Sprite::new(FrameId::IFACE)));
 
         // Message panel.
         message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 165, 65), None, None,
@@ -319,36 +319,36 @@ fn main() {
         // Inventory button.
         // Original location is a bit off, at y=41.
         ui.new_widget(main_hud, Rect::with_size(211, 40, 32, 21), None, None,
-            Button::new(Fid::INVENTORY_BUTTON_UP, Fid::INVENTORY_BUTTON_DOWN));
+            Button::new(FrameId::INVENTORY_BUTTON_UP, FrameId::INVENTORY_BUTTON_DOWN));
 
         // Options button.
         ui.new_widget(main_hud, Rect::with_size(210, 62, 34, 34), None, None,
-            Button::new(Fid::OPTIONS_BUTTON_UP, Fid::OPTIONS_BUTTON_DOWN));
+            Button::new(FrameId::OPTIONS_BUTTON_UP, FrameId::OPTIONS_BUTTON_DOWN));
 
         // Single/burst switch button.
         ui.new_widget(main_hud, Rect::with_size(218, 6, 22, 21), None, None,
-            Button::new(Fid::BIG_RED_BUTTON_UP, Fid::BIG_RED_BUTTON_DOWN));
+            Button::new(FrameId::BIG_RED_BUTTON_UP, FrameId::BIG_RED_BUTTON_DOWN));
 
         // Skilldex button.
         ui.new_widget(main_hud, Rect::with_size(523, 6, 22, 21), None, None,
-            Button::new(Fid::BIG_RED_BUTTON_UP, Fid::BIG_RED_BUTTON_DOWN));
+            Button::new(FrameId::BIG_RED_BUTTON_UP, FrameId::BIG_RED_BUTTON_DOWN));
 
         // MAP button.
         ui.new_widget(main_hud, Rect::with_size(526, 40, 41, 19), None, None,
-            Button::new(Fid::MAP_BUTTON_UP, Fid::MAP_BUTTON_DOWN));
+            Button::new(FrameId::MAP_BUTTON_UP, FrameId::MAP_BUTTON_DOWN));
 
         // CHA button.
         ui.new_widget(main_hud, Rect::with_size(526, 59, 41, 19), None, None,
-            Button::new(Fid::CHARACTER_BUTTON_UP, Fid::CHARACTER_BUTTON_DOWN));
+            Button::new(FrameId::CHARACTER_BUTTON_UP, FrameId::CHARACTER_BUTTON_DOWN));
 
         // PIP button.
         ui.new_widget(main_hud, Rect::with_size(526, 78, 41, 19), None, None,
-            Button::new(Fid::PIP_BUTTON_UP, Fid::PIP_BUTTON_DOWN));
+            Button::new(FrameId::PIP_BUTTON_UP, FrameId::PIP_BUTTON_DOWN));
 
         // Attack button.
         // FIXME this should be a custom button with overlay text images.
         ui.new_widget(main_hud, Rect::with_size(267, 26, 188, 67), None, None,
-            Button::new(Fid::SINGLE_ATTACK_BUTTON_UP, Fid::SINGLE_ATTACK_BUTTON_DOWN));
+            Button::new(FrameId::SINGLE_ATTACK_BUTTON_UP, FrameId::SINGLE_ATTACK_BUTTON_DOWN));
     }
 
     let mut fidget = Fidget::new();
