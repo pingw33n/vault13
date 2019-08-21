@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-use crate::asset::frame::{FrameId, FrmDb};
+use crate::asset::frame::{FrameId, FrameDb};
 use crate::graphics::{Point, Rect};
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render::Canvas;
@@ -61,7 +61,7 @@ impl Cursor {
 pub struct Handle(SmKey);
 
 pub struct Ui {
-    frm_db: Rc<FrmDb>,
+    frm_db: Rc<FrameDb>,
     widget_handles: SlotMap<SmKey, ()>,
     widget_bases: SecondaryMap<SmKey, RefCell<Base>>,
     widgets: SecondaryMap<SmKey, RefCell<Box<Widget>>>,
@@ -73,7 +73,7 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new(frm_db: Rc<FrmDb>) -> Self {
+    pub fn new(frm_db: Rc<FrameDb>) -> Self {
         Self {
             frm_db,
             widget_handles: SlotMap::with_key(),
@@ -343,7 +343,7 @@ impl HandleEvent<'_> {
 }
 
 pub struct Render<'a> {
-    frm_db: &'a FrmDb,
+    frm_db: &'a FrameDb,
     canvas: &'a mut Canvas,
     base: Option<&'a Base>,
 }

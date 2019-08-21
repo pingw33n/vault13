@@ -7,7 +7,7 @@ use std::cmp;
 use std::io::{self, Error, ErrorKind, prelude::*};
 
 use crate::asset::*;
-use crate::asset::frame::{FrameId, FrmDb};
+use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::{ItemVariant, Pid, ProtoDb};
 use crate::asset::script::ProgramId;
 use crate::game::object::*;
@@ -52,7 +52,7 @@ pub struct MapReader<'a, R: 'a> {
     pub reader: &'a mut R,
     pub objects: &'a mut Objects,
     pub proto_db: &'a ProtoDb,
-    pub frm_db: &'a FrmDb,
+    pub frm_db: &'a FrameDb,
     pub tile_grid: &'a TileGrid,
     pub texture_factory: &'a TextureFactory,
     pub scripts: &'a mut Scripts,

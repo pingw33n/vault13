@@ -2,7 +2,7 @@ use enum_map::EnumMap;
 use enum_map_derive::Enum;
 use std::rc::Rc;
 
-use crate::asset::frame::{FrameId, FrmDb};
+use crate::asset::frame::{FrameId, FrameDb};
 use crate::graphics::color::*;
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::{Point, Rect};
@@ -185,7 +185,7 @@ impl Sprite {
         }
     }
 
-    pub fn render(&self, canvas: &mut Canvas, frm_db: &FrmDb) -> Rect {
+    pub fn render(&self, canvas: &mut Canvas, frm_db: &FrameDb) -> Rect {
         let frms = frm_db.get(self.fid);
         let frml = &frms.frame_lists[self.direction];
         let frm = &frml.frames[self.frame_idx];

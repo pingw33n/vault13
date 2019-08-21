@@ -9,7 +9,7 @@ use std::mem;
 use std::rc::Rc;
 
 use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, WeaponKind};
-use crate::asset::frame::{FrameId, FrmDb};
+use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::{self, CritterKillKind, Pid, ProtoDb};
 use crate::game::script::Sid;
 use crate::graphics::{EPoint, Point, Rect};
@@ -63,7 +63,7 @@ pub struct Egg {
 
 impl Egg {
     #[must_use]
-    pub fn hit_test(&self, p: Point, tile_grid: &TileGrid, frm_db: &FrmDb) -> bool {
+    pub fn hit_test(&self, p: Point, tile_grid: &TileGrid, frm_db: &FrameDb) -> bool {
         let screen_pos = tile_grid.to_screen(self.pos) + Point::new(16, 8);
         let frms = frm_db.get(self.fid);
         let frml = &frms.frame_lists[Direction::NE];
@@ -151,7 +151,7 @@ impl Object {
     }
 
     pub fn render(&mut self, canvas: &mut Canvas, light: u32,
-            frm_db: &FrmDb, proto_db: &ProtoDb, tile_grid: &TileGrid,
+            frm_db: &FrameDb, proto_db: &ProtoDb, tile_grid: &TileGrid,
             egg: Option<&Egg>) {
         if self.flags.contains(Flag::TurnedOff) {
             return;
@@ -169,7 +169,7 @@ impl Object {
         self.screen_pos = sprite.render(canvas, frm_db).top_left();
     }
 
-    pub fn render_outline(&self, canvas: &mut Canvas, frm_db: &FrmDb, tile_grid: &TileGrid) {
+    pub fn render_outline(&self, canvas: &mut Canvas, frm_db: &FrameDb, tile_grid: &TileGrid) {
         if self.flags.contains(Flag::TurnedOff) {
             return;
         }
@@ -187,7 +187,7 @@ impl Object {
     }
 
     // obj_bound()
-    pub fn bounds(&self, frm_db: &FrmDb, tile_grid: &TileGrid) -> Rect {
+    pub fn bounds(&self, frm_db: &FrameDb, tile_grid: &TileGrid) -> Rect {
         let (frame_list, frame) = self.frame_list(frm_db);
         self.bounds0(frame_list.center, frame.size(), tile_grid)
     }
@@ -200,7 +200,7 @@ impl Object {
 
     // obj_intersects_with
     #[must_use]
-    pub fn hit_test(&self, p: Point, frm_db: &FrmDb, tile_grid: &TileGrid) -> Option<Hit> {
+    pub fn hit_test(&self, p: Point, frm_db: &FrameDb, tile_grid: &TileGrid) -> Option<Hit> {
         if self.flags.contains(Flag::TurnedOff) {
             return None;
         }
@@ -327,7 +327,7 @@ impl Object {
         }.map(Effect::Translucency)
     }
 
-    fn frame_list<'a>(&self, frm_db: &'a FrmDb) -> (Ref<'a, FrameList>, Ref<'a, Frame>) {
+    fn frame_list<'a>(&self, frm_db: &'a FrameDb) -> (Ref<'a, FrameList>, Ref<'a, Frame>) {
         let direction = self.direction;
         let frame_idx = self.frame_idx;
         let frms = frm_db.get(self.fid);
@@ -337,7 +337,7 @@ impl Object {
         })
     }
 
-    fn frame<'a>(&self, frm_db: &'a FrmDb) -> Ref<'a, Frame> {
+    fn frame<'a>(&self, frm_db: &'a FrameDb) -> Ref<'a, Frame> {
         self.frame_list(frm_db).1
     }
 
@@ -351,7 +351,7 @@ impl Object {
 pub struct Objects {
     tile_grid: TileGrid,
     proto_db: Rc<ProtoDb>,
-    frm_db: Rc<FrmDb>,
+    frm_db: Rc<FrameDb>,
     handles: SlotMap<SmKey, ()>,
     objects: SecondaryMap<SmKey, RefCell<Object>>,
     // Objects attached to tile (Object::pos is Some).
@@ -364,7 +364,7 @@ pub struct Objects {
 
 impl Objects {
     pub fn new(tile_grid: TileGrid, elevation_count: u32, proto_db: Rc<ProtoDb>,
-            frm_db: Rc<FrmDb>) -> Self {
+            frm_db: Rc<FrameDb>) -> Self {
         let path_finder = RefCell::new(PathFinder::new(tile_grid.clone(), 5000));
         let by_pos = util::vec_with_func(elevation_count as usize,
             |_| Array2d::with_default(tile_grid.width() as usize, tile_grid.height() as usize))
@@ -525,7 +525,7 @@ impl Objects {
     }
 
     // dude_stand()
-    pub fn make_standing(&mut self, h: Handle, frm_db: &FrmDb) {
+    pub fn make_standing(&mut self, h: Handle, frm_db: &FrameDb) {
         let shift = {
             let mut obj = self.get(h).borrow_mut();
             let mut shift = Point::new(0, 0);

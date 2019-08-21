@@ -2,7 +2,7 @@ use std::cmp;
 use std::rc::Rc;
 
 use crate::asset::EntityKind;
-use crate::asset::frame::{FrameId, FrmDb};
+use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::ProtoDb;
 use crate::game::GameTime;
 use crate::game::object::{self, DamageFlag, Egg, Object, Objects, SubObject};
@@ -16,7 +16,7 @@ use crate::util::array2d::Array2d;
 
 pub struct World {
     proto_db: Rc<ProtoDb>,
-    frm_db: Rc<FrmDb>,
+    frm_db: Rc<FrameDb>,
     map_grid: MapGrid,
     sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
     objects: Objects,
@@ -29,7 +29,7 @@ pub struct World {
 impl World {
     pub fn new(
             proto_db: Rc<ProtoDb>,
-            frm_db: Rc<FrmDb>,
+            frm_db: Rc<FrameDb>,
             map_grid: MapGrid,
             sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
             objects: Objects) -> Self {
@@ -55,7 +55,7 @@ impl World {
         &self.proto_db
     }
 
-    pub fn frm_db(&self) -> &FrmDb {
+    pub fn frm_db(&self) -> &FrameDb {
         &self.frm_db
     }
 

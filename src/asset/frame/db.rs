@@ -10,14 +10,14 @@ use crate::fs::FileSystem;
 use crate::graphics::sprite::FrameSet;
 use crate::util::EnumExt;
 
-pub struct FrmDb {
+pub struct FrameDb {
     fs: Rc<FileSystem>,
     language: Option<String>,
     lst: EnumMap<EntityKind, Vec<LstEntry>>,
     frms: RefCell<HashMap<FrameId, FrameSet>>,
 }
 
-impl FrmDb {
+impl FrameDb {
     pub fn new(fs: Rc<FileSystem>, language: impl Into<String>) -> io::Result<Self> {
         let language = Some(language.into()).filter(|s| !s.eq_ignore_ascii_case("english"));
         let lst = Self::read_lst_files(&fs)?;

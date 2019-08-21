@@ -138,7 +138,7 @@ fn main() {
     let fs = Rc::new(fs);
 
     let ref proto_db = Rc::new(ProtoDb::new(fs.clone(), "english").unwrap());
-    let frm_db = Rc::new(FrmDb::new(fs.clone(), "english").unwrap());
+    let frm_db = Rc::new(FrameDb::new(fs.clone(), "english").unwrap());
     let pal = read_palette(&mut fs.reader("color.pal").unwrap()).unwrap();
 
     let sdl = sdl2::init().unwrap();

@@ -6,7 +6,7 @@ use enum_map::EnumMap;
 use std::io::{self, prelude::*};
 
 pub use id::FrameId;
-pub use db::FrmDb;
+pub use db::FrameDb;
 
 use crate::graphics::Point;
 use crate::graphics::geometry::hex::Direction;
