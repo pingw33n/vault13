@@ -8,11 +8,6 @@ pub struct TileGrid {
     // Tile at `pos` will be mapped to screen at screen_pos.
     screen_pos: Point,
 
-    // Position in rectangular XY coordinates.
-    // Rectangular coordinates span from top to bottom, left to right.
-    // Tile with this coordinates will be mapped to screen at screen_pos.
-    pos: Point,
-
     // Width in tiles.
     width: i32,
 
@@ -37,19 +32,6 @@ impl TileGrid {
         self.screen_pos = pos.into();
     }
 
-    pub fn pos(&self) -> Point {
-        self.pos
-    }
-
-    pub fn set_pos(&mut self, pos: impl Into<Point>) {
-        self.pos = pos.into();
-    }
-
-    pub fn set_pos_lin(&mut self, num: u32) {
-        let lin = self.from_linear_inv(num);
-        self.set_pos(lin);
-    }
-
     pub fn width(&self) -> i32 {
         self.width
     }
@@ -65,14 +47,14 @@ impl TileGrid {
         let abs_y = p.y - self.screen_pos.y - 12;
 
         let dx = 3 * abs_x - 4 * abs_y;
-        let square_x = self.pos.x + if dx >= 0  {
+        let square_x = if dx >= 0  {
             dx / 192
         } else {
             (dx + 1) / 192 - 1
         };
 
         let dy = 4 * abs_y + abs_x;
-        let square_y = self.pos.y + if dy >= 0 {
+        let square_y = if dy >= 0 {
             dy / 128
         } else {
             ((dy + 1) / 128) - 1
@@ -84,8 +66,8 @@ impl TileGrid {
     // square_coord_()
     pub fn to_screen(&self, p: impl Into<Point>) -> Point {
         let p = p.into();
-        let x = p.x - self.pos.x;
-        let y = p.y - self.pos.y;
+        let x = p.x;
+        let y = p.y;
         let screen_x = self.screen_pos.x + 48 * x + 32 * y;
         let screen_y = self.screen_pos.y - 12 * x + 24 * y;
         Point::new(screen_x, screen_y)
@@ -143,7 +125,6 @@ impl Default for TileGrid {
     fn default() -> Self {
         Self {
             screen_pos: Point::default(),
-            pos: Point::default(),
             width: 100,
             height: 100,
         }
@@ -158,15 +139,14 @@ mod test {
     fn from_screen1() {
         let t = TileGrid {
             screen_pos: Point::new(0xf0, 0xa8),
-            pos: Point::new(0x1a, 0x3e),
             .. Default::default()
         };
         let square_xy = |x, y| {
             let p = t.from_screen((x, y));
             Point::new(t.width - 1 - p.x, p.y)
         };
-        assert_eq!(square_xy(0, 0), Point::new(0x49, 0x36));
-        assert_eq!(square_xy(0x27f, 0x17b), Point::new(0x47, 0x47));
+        assert_eq!(square_xy(0, 0), Point::new(99, -8));
+        assert_eq!(square_xy(0x27f, 0x17b), Point::new(97, 9));
     }
 
     #[test]
@@ -183,10 +163,9 @@ mod test {
     fn to_screen1() {
         let t = TileGrid {
             screen_pos: Point::new(0x100, 0xb4),
-            pos: Point::new(0x31, 0x32),
             .. Default::default()
         };
-        assert_eq!(t.to_screen(t.from_linear_inv(0x1091)), Point::new(0x1b0, -120));
+        assert_eq!(t.to_screen(t.from_linear_inv(0x1091)), Point::new(4384, 492));
     }
 
     #[test]
