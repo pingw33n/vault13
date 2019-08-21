@@ -161,13 +161,13 @@ impl ProtoDb {
             }
         };
 
-        let proto = match kind {
-            EntityKind::Item => Variant::Item(Self::read_item(rd, &mut flags_ext)?),
-            EntityKind::Critter => Variant::Critter(Self::read_critter(rd)?),
-            EntityKind::Scenery => Variant::Scenery(Self::read_scenery(rd)?),
-            EntityKind::Wall => Variant::Wall(Self::read_wall(rd)?),
-            EntityKind::SqrTile => Variant::SqrTile(Self::read_sqr_tile(&mut flags_ext)?),
-            EntityKind::Misc => Variant::Misc,
+        let sub = match kind {
+            EntityKind::Item => SubProto::Item(Self::read_item(rd, &mut flags_ext)?),
+            EntityKind::Critter => SubProto::Critter(Self::read_critter(rd)?),
+            EntityKind::Scenery => SubProto::Scenery(Self::read_scenery(rd)?),
+            EntityKind::Wall => SubProto::Wall(Self::read_wall(rd)?),
+            EntityKind::SqrTile => SubProto::SqrTile(Self::read_sqr_tile(&mut flags_ext)?),
+            EntityKind::Misc => SubProto::Misc,
             | EntityKind::Interface
             | EntityKind::Inventory
             | EntityKind::Head
@@ -185,7 +185,7 @@ impl ProtoDb {
             flags,
             flags_ext,
             script_id,
-            proto,
+            sub,
         })
     }
 
@@ -197,14 +197,14 @@ impl ProtoDb {
         let price = rd.read_i32::<BigEndian>()?;
         let inventory_fid = FrameId::read_opt(rd)?;
         let sound_id = rd.read_u8()?;
-        let item = match item_kind {
-            ItemKind::Armor => ItemVariant::Armor(Self::read_armor(rd)?),
-            ItemKind::Container => ItemVariant::Container(Self::read_container(rd)?),
-            ItemKind::Drug => ItemVariant::Drug(Self::read_drug(rd)?),
-            ItemKind::Weapon => ItemVariant::Weapon(Self::read_weapon(rd, flags_ext)?),
-            ItemKind::Ammo => ItemVariant::Ammo(Self::read_ammo(rd)?),
-            ItemKind::Misc => ItemVariant::Misc(Self::read_misc_item(rd)?),
-            ItemKind::Key => ItemVariant::Key(Self::read_key(rd)?),
+        let sub = match item_kind {
+            ItemKind::Armor => SubItem::Armor(Self::read_armor(rd)?),
+            ItemKind::Container => SubItem::Container(Self::read_container(rd)?),
+            ItemKind::Drug => SubItem::Drug(Self::read_drug(rd)?),
+            ItemKind::Weapon => SubItem::Weapon(Self::read_weapon(rd, flags_ext)?),
+            ItemKind::Ammo => SubItem::Ammo(Self::read_ammo(rd)?),
+            ItemKind::Misc => SubItem::Misc(Self::read_misc_item(rd)?),
+            ItemKind::Key => SubItem::Key(Self::read_key(rd)?),
         };
         Ok(Item {
             material,
@@ -213,7 +213,7 @@ impl ProtoDb {
             price,
             inventory_fid,
             sound_id,
-            item,
+            sub,
         })
     }
 
@@ -452,11 +452,11 @@ impl ProtoDb {
         let kind = read_enum(rd, "invalid scenery kind")?;
         let material = read_enum(rd, "invalid material")?;
         let sound_id = rd.read_u8()?;
-        let scenery = match kind {
+        let sub = match kind {
             SceneryKind::Door => {
                 let flags = rd.read_u32::<BigEndian>()?;
                 let key_id = rd.read_u32::<BigEndian>()?;
-                SceneryVariant::Door(Door {
+                SubScenery::Door(Door {
                     flags,
                     key_id,
                 })
@@ -464,7 +464,7 @@ impl ProtoDb {
             SceneryKind::Stairs => {
                 let elevation_and_tile = rd.read_u32::<BigEndian>()?;
                 let map_id = rd.read_u32::<BigEndian>()?;
-                SceneryVariant::Stairs(Stairs {
+                SubScenery::Stairs(Stairs {
                     elevation_and_tile,
                     map_id,
                 })
@@ -472,7 +472,7 @@ impl ProtoDb {
             SceneryKind::Elevator => {
                 let kind = rd.read_u32::<BigEndian>()?;
                 let level = rd.read_u32::<BigEndian>()?;
-                SceneryVariant::Elevator(Elevator {
+                SubScenery::Elevator(Elevator {
                     kind,
                     level,
                 })
@@ -484,20 +484,20 @@ impl ProtoDb {
                     _ => unreachable!(),
                 };
                 let elevation_and_tile = rd.read_u32::<BigEndian>()?;
-                SceneryVariant::Ladder(Ladder {
+                SubScenery::Ladder(Ladder {
                     kind: ladder_kind,
                     elevation_and_tile,
                 })
             }
             SceneryKind::Misc => {
                 let _ = rd.read_u32::<BigEndian>()?;
-                SceneryVariant::Misc
+                SubScenery::Misc
             }
         };
         Ok(Scenery {
             material,
             sound_id,
-            scenery,
+            sub,
         })
     }
 

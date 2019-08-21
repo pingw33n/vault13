@@ -631,7 +631,7 @@ impl Objects {
                             .map(|pid| pid.is_radioactive_goo())
                             .unwrap_or(false));
                     let cost = if radioacive_goo {
-                        let gecko = if let proto::Variant::Critter(ref c) = proto_db.proto(pid).unwrap().proto {
+                        let gecko = if let proto::SubProto::Critter(ref c) = proto_db.proto(pid).unwrap().sub {
                             c.kill_kind == CritterKillKind::Gecko
                         } else {
                             false

@@ -23,17 +23,17 @@ pub struct Proto {
     pub flags: BitFlags<Flag>,
     pub flags_ext: BitFlags<FlagExt>,
     pub script_id: Option<u32>,
-    pub proto: Variant,
+    pub sub: SubProto,
 }
 
 impl Proto {
     pub fn kind(&self) -> ExactEntityKind {
-        self.proto.kind()
+        self.sub.kind()
     }
 }
 
 #[derive(Debug)]
-pub enum Variant {
+pub enum SubProto {
     Item(Item),
     Critter(Critter),
     Scenery(Scenery),
@@ -42,13 +42,13 @@ pub enum Variant {
     Misc,
 }
 
-impl Variant {
+impl SubProto {
     pub fn kind(&self) -> ExactEntityKind {
-        use self::Variant::*;
+        use self::SubProto::*;
         match self {
-            Item(ref v) => ExactEntityKind::Item(v.item.kind()),
+            Item(ref v) => ExactEntityKind::Item(v.sub.kind()),
             Critter(_) => ExactEntityKind::Critter,
-            Scenery(ref v) => ExactEntityKind::Scenery(v.scenery.kind()),
+            Scenery(ref v) => ExactEntityKind::Scenery(v.sub.kind()),
             Wall(_) => ExactEntityKind::Wall,
             SqrTile(_) => ExactEntityKind::SqrTile,
             Misc => ExactEntityKind::Misc,
@@ -56,27 +56,27 @@ impl Variant {
     }
 
     pub fn item(&self) -> Option<&Item> {
-        if let Variant::Item(ref v) = self { Some(v) } else { None }
+        if let SubProto::Item(ref v) = self { Some(v) } else { None }
     }
 
     pub fn critter(&self) -> Option<&Critter> {
-        if let Variant::Critter(ref v) = self { Some(v) } else { None }
+        if let SubProto::Critter(ref v) = self { Some(v) } else { None }
     }
 
     pub fn scenery(&self) -> Option<&Scenery> {
-        if let Variant::Scenery(ref v) = self { Some(v) } else { None }
+        if let SubProto::Scenery(ref v) = self { Some(v) } else { None }
     }
 
     pub fn wall(&self) -> Option<&Wall> {
-        if let Variant::Wall(ref v) = self { Some(v) } else { None }
+        if let SubProto::Wall(ref v) = self { Some(v) } else { None }
     }
 
     pub fn sqr_tile(&self) -> Option<&SqrTile> {
-        if let Variant::SqrTile(ref v) = self { Some(v) } else { None }
+        if let SubProto::SqrTile(ref v) = self { Some(v) } else { None }
     }
 
     pub fn is_misc(&self) -> bool {
-        if let Variant::Misc = self { true } else { false }
+        if let SubProto::Misc = self { true } else { false }
     }
 }
 
@@ -88,11 +88,11 @@ pub struct Item {
     pub price: i32,
     pub inventory_fid: Option<FrameId>,
     pub sound_id: u8,
-    pub item: ItemVariant,
+    pub sub: SubItem,
 }
 
 #[derive(Debug)]
-pub enum ItemVariant {
+pub enum SubItem {
     Armor(Armor),
     Container(Container),
     Drug(Drug),
@@ -102,9 +102,9 @@ pub enum ItemVariant {
     Key(Key),
 }
 
-impl ItemVariant {
+impl SubItem {
     pub fn kind(&self) -> ItemKind {
-        use self::ItemVariant::*;
+        use self::SubItem::*;
         match self {
             Armor(_)        => ItemKind::Armor,
             Container(_)    => ItemKind::Container,
@@ -279,11 +279,11 @@ pub enum CritterKillKind {
 pub struct Scenery {
     pub material: Material,
     pub sound_id: u8,
-    pub scenery: SceneryVariant,
+    pub sub: SubScenery,
 }
 
 #[derive(Debug)]
-pub enum SceneryVariant {
+pub enum SubScenery {
     Door(Door),
     Stairs(Stairs),
     Elevator(Elevator),
@@ -291,9 +291,9 @@ pub enum SceneryVariant {
     Misc,
 }
 
-impl SceneryVariant {
+impl SubScenery {
     pub fn kind(&self) -> SceneryKind {
-        use self::SceneryVariant::*;
+        use self::SubScenery::*;
         match self {
             Door(_) => SceneryKind::Door,
             Stairs(_) => SceneryKind::Stairs,

@@ -8,7 +8,7 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 
 use crate::asset::*;
 use crate::asset::frame::{FrameId, FrameDb};
-use crate::asset::proto::{ItemVariant, ProtoId, ProtoDb};
+use crate::asset::proto::{SubItem, ProtoId, ProtoDb};
 use crate::asset::script::ProgramId;
 use crate::game::object::*;
 use crate::game::script::*;
@@ -349,8 +349,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             match pid.kind() {
                 EntityKind::Item => {
                     let proto = self.proto_db.proto(pid).unwrap();
-                    match proto.proto.item().unwrap().item {
-                        ItemVariant::Weapon(ref proto) => {
+                    match proto.sub.item().unwrap().sub {
+                        SubItem::Weapon(ref proto) => {
                             let _charges = self.reader.read_i32::<BigEndian>()?;
                             let ammo_pid = ProtoId::from_packed(self.reader.read_u32::<BigEndian>()?);
 
@@ -362,10 +362,10 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                                 ammo_pid
                             };
                         }
-                        ItemVariant::Ammo(_) => {
+                        SubItem::Ammo(_) => {
                             let _charges = self.reader.read_i32::<BigEndian>()?;
                         }
-                        ItemVariant::Misc(ref proto) => {
+                        SubItem::Misc(ref proto) => {
                             let charges = self.reader.read_i32::<BigEndian>()?;
 
                             // object_fix_weapon_ammo()
@@ -375,7 +375,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                                 charges
                             };
                         }
-                        ItemVariant::Key(_) => {
+                        SubItem::Key(_) => {
                             let _key_code = self.reader.read_i32::<BigEndian>()?;
                         }
                         _ => {}
