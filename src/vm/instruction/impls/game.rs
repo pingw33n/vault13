@@ -5,7 +5,7 @@ use num_traits::FromPrimitive;
 use std::cmp;
 
 use super::*;
-use crate::asset::proto::Pid;
+use crate::asset::proto::ProtoId;
 use crate::game::object::Object;
 use crate::game::script::Sid;
 use crate::graphics::geometry::hex::Direction;
@@ -93,7 +93,7 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
     let tile_num = cmp::max(ctx.prg.data_stack.pop()?.into_int()?, 0) as u32;
 
     let pid = ctx.prg.data_stack.pop()?.into_int()?;
-    let pid = Pid::from_packed(pid as u32)
+    let pid = ProtoId::from_packed(pid as u32)
         .ok_or(Error::BadValue(BadValue::Content))?;
 
     // FIXME add proper impl
@@ -384,7 +384,7 @@ pub fn set_light_level(ctx: Context) -> Result<()> {
 
 pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
     let pid = ctx.prg.data_stack.pop()?.into_int()?;
-    let pid = Pid::from_packed(pid as u32)
+    let pid = ProtoId::from_packed(pid as u32)
         .ok_or(Error::BadValue(BadValue::Content))?;
 
     let elevation = ctx.prg.data_stack.pop()?.into_int()? as u32;

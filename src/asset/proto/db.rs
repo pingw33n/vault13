@@ -18,7 +18,7 @@ pub struct ProtoDb {
     fs: Rc<FileSystem>,
     lst: Lst,
     messages: EnumMap<EntityKind, Messages>,
-    protos: RefCell<HashMap<Pid, Proto>>,
+    protos: RefCell<HashMap<ProtoId, Proto>>,
 }
 
 impl ProtoDb {
@@ -38,16 +38,16 @@ impl ProtoDb {
     }
 
     // proto_name()
-    pub fn name(&self, pid: Pid) -> io::Result<Option<&bstr>> {
+    pub fn name(&self, pid: ProtoId) -> io::Result<Option<&bstr>> {
         self.msg(pid, 0)
     }
 
     // proto_description()
-    pub fn description(&self, pid: Pid) -> io::Result<Option<&bstr>> {
+    pub fn description(&self, pid: ProtoId) -> io::Result<Option<&bstr>> {
         self.msg(pid, 1)
     }
 
-    pub fn proto(&self, pid: Pid) -> io::Result<Ref<Proto>> {
+    pub fn proto(&self, pid: ProtoId) -> io::Result<Ref<Proto>> {
         {
             let mut protos = self.protos.borrow_mut();
             if !protos.contains_key(&pid) {
@@ -62,17 +62,17 @@ impl ProtoDb {
         Ok(Ref::map(self.protos.borrow(), |p| p.get(&pid).unwrap()))
     }
 
-    pub fn kind(&self, pid: Pid) -> ExactEntityKind {
+    pub fn kind(&self, pid: ProtoId) -> ExactEntityKind {
         // As in original item_get_type().
         // TODO maybe update the proto instead?
-        if pid == Pid::SHIV {
+        if pid == ProtoId::SHIV {
             return ExactEntityKind::Item(ItemKind::Misc);
         }
         self.proto(pid).unwrap().kind()
     }
 
     // proto_action_can_use()
-    pub fn can_use(&self, pid: Pid) -> bool {
+    pub fn can_use(&self, pid: ProtoId) -> bool {
         if let Ok(proto) = self.proto(pid) {
             proto.flags_ext.contains(FlagExt::CanUse) ||
                 proto.kind() == ExactEntityKind::Item(ItemKind::Container)
@@ -82,7 +82,7 @@ impl ProtoDb {
     }
 
     // proto_action_can_use_on()
-    pub fn can_use_on(&self, pid: Pid) -> bool {
+    pub fn can_use_on(&self, pid: ProtoId) -> bool {
         if let Ok(proto) = self.proto(pid) {
             proto.flags_ext.contains(FlagExt::CanUseOn) ||
                 proto.kind() == ExactEntityKind::Item(ItemKind::Drug)
@@ -92,7 +92,7 @@ impl ProtoDb {
     }
 
     // proto_action_can_talk_to()
-    pub fn can_talk_to(&self, pid: Pid) -> bool {
+    pub fn can_talk_to(&self, pid: ProtoId) -> bool {
         if let Ok(proto) = self.proto(pid) {
             proto.flags_ext.contains(FlagExt::CanTalk) ||
                 proto.kind() == ExactEntityKind::Critter
@@ -102,7 +102,7 @@ impl ProtoDb {
     }
 
     // proto_action_can_pick_up()
-    pub fn can_pick_up(&self, pid: Pid) -> bool {
+    pub fn can_pick_up(&self, pid: ProtoId) -> bool {
         if let Ok(proto) = self.proto(pid) {
             proto.flags_ext.contains(FlagExt::CanPickup) ||
                 proto.kind() == ExactEntityKind::Item(ItemKind::Container)
@@ -125,7 +125,7 @@ impl ProtoDb {
     }
 
     fn read_proto(rd: &mut impl Read) -> io::Result<Proto> {
-        let pid = Pid::read(rd)?;
+        let pid = ProtoId::read(rd)?;
         let message_id = rd.read_i32::<BigEndian>()?;
         let fid = FrameId::read(rd)?;
 
@@ -338,7 +338,7 @@ impl ProtoDb {
             primary: rd.read_i32::<BigEndian>()?,
             secondary: rd.read_i32::<BigEndian>()?,
         };
-        let projectile_pid = Pid::read_opt(rd)?;
+        let projectile_pid = ProtoId::read_opt(rd)?;
         let min_strength = rd.read_i32::<BigEndian>()?;
         let ap_cost =  Dual {
             primary: rd.read_i32::<BigEndian>()?,
@@ -348,7 +348,7 @@ impl ProtoDb {
         let perk = read_opt_enum(rd, "invalid weapon perk")?;
         let burst_bullet_count = rd.read_i32::<BigEndian>()?;
         let caliber = rd.read_i32::<BigEndian>()?;
-        let ammo_pid = Pid::read_opt(rd)?;
+        let ammo_pid = ProtoId::read_opt(rd)?;
         let max_ammo = rd.read_i32::<BigEndian>()?;
         let sound_id = rd.read_u8()?;
 
@@ -389,7 +389,7 @@ impl ProtoDb {
     }
 
     fn read_misc_item(rd: &mut impl Read) -> io::Result<MiscItem> {
-        let charge_pid = Pid::read_opt(rd)?;
+        let charge_pid = ProtoId::read_opt(rd)?;
         let charge_kind = rd.read_u32::<BigEndian>()?;
         let max_charges = cmp::max(rd.read_i32::<BigEndian>()?, 0);
         Ok(MiscItem {
@@ -516,7 +516,7 @@ impl ProtoDb {
         })
     }
 
-    fn msg(&self, pid: Pid, base: i32) -> io::Result<Option<&bstr>> {
+    fn msg(&self, pid: ProtoId, base: i32) -> io::Result<Option<&bstr>> {
         let proto = self.proto(pid)?;
         Ok(self.messages[pid.kind()].get(base + proto.message_id)
             .map(|m| m.text.as_ref()))
@@ -542,7 +542,7 @@ impl Lst {
         self.lst[kind].len()
     }
 
-    pub fn get(&self, pid: Pid) -> Option<&str> {
+    pub fn get(&self, pid: ProtoId) -> Option<&str> {
         if let Some(id) = pid.id() {
             self.lst[pid.kind()].get(id as usize).map(|e| e.fields[0].as_ref())
         } else {

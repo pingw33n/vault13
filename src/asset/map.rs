@@ -8,7 +8,7 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 
 use crate::asset::*;
 use crate::asset::frame::{FrameId, FrameDb};
-use crate::asset::proto::{ItemVariant, Pid, ProtoDb};
+use crate::asset::proto::{ItemVariant, ProtoId, ProtoDb};
 use crate::asset::script::ProgramId;
 use crate::game::object::*;
 use crate::game::script::*;
@@ -293,7 +293,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 format!("unknown object flags: {:x}", flags)))?;
 
         let elevation = self.reader.read_u32::<BigEndian>()?;
-        let pid = Pid::read(self.reader)?;
+        let pid = ProtoId::read(self.reader)?;
         trace!("{:?} {:?}", pid, self.proto_db.name(pid));
         let _cid = self.reader.read_u32::<BigEndian>()?;
         let light_emitter = LightEmitter {
@@ -352,7 +352,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                     match proto.proto.item().unwrap().item {
                         ItemVariant::Weapon(ref proto) => {
                             let _charges = self.reader.read_i32::<BigEndian>()?;
-                            let ammo_pid = Pid::from_packed(self.reader.read_u32::<BigEndian>()?);
+                            let ammo_pid = ProtoId::from_packed(self.reader.read_u32::<BigEndian>()?);
 
                             // object_fix_weapon_ammo()
                             let _charges = proto.max_ammo;

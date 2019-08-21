@@ -5,7 +5,7 @@ use enumflags::BitFlags;
 use enum_map::EnumMap;
 use std::ops::RangeInclusive;
 
-pub use id::Pid;
+pub use id::ProtoId;
 pub use db::ProtoDb;
 
 use super::*;
@@ -15,7 +15,7 @@ use crate::util::{enum_iter, EnumIter};
 
 #[derive(Debug)]
 pub struct Proto {
-    pub pid: Pid,
+    pub pid: ProtoId,
     pub message_id: i32,
     pub fid: FrameId,
     pub light_radius: i32,
@@ -179,7 +179,7 @@ pub struct Weapon {
     pub damage: RangeInclusive<i32>,
     pub damage_kind: DamageKind,
     pub max_range: Dual<i32>,
-    pub projectile_pid: Option<Pid>,
+    pub projectile_pid: Option<ProtoId>,
     pub min_strength: i32,
     pub ap_cost: Dual<i32>,
     pub crit_failure_table: i32,
@@ -188,7 +188,7 @@ pub struct Weapon {
     pub burst_bullet_count: i32,
     // proto.msg:300
     pub caliber: i32,
-    pub ammo_pid: Option<Pid>,
+    pub ammo_pid: Option<ProtoId>,
     /// Magazine capacity.
     pub max_ammo: i32,
     pub sound_id: u8,
@@ -206,7 +206,7 @@ pub struct Ammo {
 
 #[derive(Debug)]
 pub struct MiscItem {
-    pub charge_pid: Option<Pid>,
+    pub charge_pid: Option<ProtoId>,
     pub charge_kind: u32,
     pub max_charges: i32,
 }

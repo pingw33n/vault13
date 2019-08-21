@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, WeaponKind};
 use crate::asset::frame::{FrameId, FrameDb};
-use crate::asset::proto::{self, CritterKillKind, Pid, ProtoDb};
+use crate::asset::proto::{self, CritterKillKind, ProtoId, ProtoDb};
 use crate::game::script::Sid;
 use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::hex::*;
@@ -108,7 +108,7 @@ pub struct Object {
     pub frame_idx: usize,
     pub direction: Direction,
     pub light_emitter: LightEmitter,
-    pub pid: Option<Pid>,
+    pub pid: Option<ProtoId>,
     pub inventory: Inventory,
     pub outline: Option<Outline>,
     pub sequence: Option<Cancel>,
@@ -117,7 +117,7 @@ pub struct Object {
 }
 
 impl Object {
-    pub fn new(fid: FrameId, pid: Option<Pid>, pos: Option<EPoint>) -> Self {
+    pub fn new(fid: FrameId, pid: Option<ProtoId>, pos: Option<EPoint>) -> Self {
         Self {
             pos,
             screen_pos: Point::new(0, 0),

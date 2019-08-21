@@ -59,14 +59,14 @@ use crate::asset::EntityKind;
   PID_SCROLL_BLOCKER = 0x500000C,*/
 
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq, Ord, PartialOrd)]
-pub struct Pid(u32);
+pub struct ProtoId(u32);
 
-impl Pid {
-    pub const SHIV: Pid = Pid(0x17F);
-    pub const EXIT_AREA_FIRST: Pid = Pid(0x5000010);
-    pub const EXIT_AREA_LAST: Pid = Pid(0x5000017);
-    pub const RADIOACTIVE_GOO_FIRST: Pid = Pid(0x20003D9);
-    pub const RADIOACTIVE_GOO_LAST: Pid = Pid(0x20003DC);
+impl ProtoId {
+    pub const SHIV: ProtoId = ProtoId(0x17F);
+    pub const EXIT_AREA_FIRST: ProtoId = ProtoId(0x5000010);
+    pub const EXIT_AREA_LAST: ProtoId = ProtoId(0x5000017);
+    pub const RADIOACTIVE_GOO_FIRST: ProtoId = ProtoId(0x20003D9);
+    pub const RADIOACTIVE_GOO_LAST: ProtoId = ProtoId(0x20003DC);
 
     pub fn new(kind: EntityKind, id: Option<u32>) -> Self {
         let bits = if let Some(id) = id {
@@ -75,12 +75,12 @@ impl Pid {
         } else {
             0
         };
-        Pid((kind as u32) << 24 | bits)
+        ProtoId((kind as u32) << 24 | bits)
     }
 
     pub fn from_packed(v: u32) -> Option<Self> {
         EntityKind::from_u32(v >> 24)?;
-        Some(Pid(v))
+        Some(ProtoId(v))
     }
 
     pub fn pack(self) -> u32 {
@@ -131,7 +131,7 @@ impl Pid {
     }
 }
 
-impl fmt::Debug for Pid {
+impl fmt::Debug for ProtoId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Pid(0x{:08x})", self.0)
     }
@@ -143,15 +143,15 @@ mod test {
 
     #[test]
     fn pid_id() {
-        let pid = Pid::new(EntityKind::Critter, Some(0));
+        let pid = ProtoId::new(EntityKind::Critter, Some(0));
         assert_eq!(pid.id(), Some(0));
         assert_eq!(pid.pack(), 0x01_000001);
 
-        let pid = Pid::new(EntityKind::Skilldex, Some(1));
+        let pid = ProtoId::new(EntityKind::Skilldex, Some(1));
         assert_eq!(pid.id(), Some(1));
         assert_eq!(pid.pack(), 0x0a_000002);
 
-        let pid = Pid::new(EntityKind::Critter, None);
+        let pid = ProtoId::new(EntityKind::Critter, None);
         assert_eq!(pid.id(), None);
         assert_eq!(pid.pack(), 0x01_000000);
     }
