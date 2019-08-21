@@ -71,7 +71,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let entrance_pos_lin = self.reader.read_i32::<BigEndian>()?;
         let entrance_pos = self.tile_grid.from_linear_inv(entrance_pos_lin as u32);
         debug!("entrance_pos={} ({:?})", entrance_pos_lin, entrance_pos);
-        let entrance_elevation = self.reader.read_u32::<BigEndian>()? as usize;
+        let entrance_elevation = self.reader.read_u32::<BigEndian>()?;
         assert!(entrance_elevation <= ELEVATION_COUNT);
         let entrance_direction = Direction::from_u32(self.reader.read_u32::<BigEndian>()?)
             .ok_or_else(|| Error::new(ErrorKind::InvalidData, "invalid entrance direction"))?;
@@ -112,7 +112,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         // tiles
 
-        let mut sqr_tiles: Vec<Option<_>> = Vec::with_capacity(ELEVATION_COUNT);
+        let mut sqr_tiles: Vec<Option<_>> = Vec::with_capacity(ELEVATION_COUNT as usize);
 
         for i in 0..ELEVATION_COUNT {
             if flags & (1 << (i as u32 + 1)) != 0 {
@@ -292,7 +292,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             .ok_or_else(|| Error::new(ErrorKind::InvalidData,
                 format!("unknown object flags: {:x}", flags)))?;
 
-        let elevation = self.reader.read_u32::<BigEndian>()? as usize;
+        let elevation = self.reader.read_u32::<BigEndian>()?;
         let pid = Pid::read(self.reader)?;
         trace!("{:?} {:?}", pid, self.proto_db.name(pid));
         let _cid = self.reader.read_u32::<BigEndian>()?;

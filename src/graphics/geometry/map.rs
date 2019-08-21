@@ -3,7 +3,7 @@ use log::*;
 use super::{hex, sqr};
 use crate::graphics::Point;
 
-pub const ELEVATION_COUNT: usize = 3;
+pub const ELEVATION_COUNT: u32 = 3;
 
 pub struct MapGrid {
     hex: hex::TileGrid,

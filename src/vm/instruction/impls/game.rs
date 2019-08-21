@@ -89,7 +89,7 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
         None
     };
 
-    let elevation = ctx.prg.data_stack.pop()?.into_int()? as usize;
+    let elevation = ctx.prg.data_stack.pop()?.into_int()? as u32;
     let tile_num = cmp::max(ctx.prg.data_stack.pop()?.into_int()?, 0) as u32;
 
     let pid = ctx.prg.data_stack.pop()?.into_int()?;
@@ -270,7 +270,7 @@ pub fn override_map_start(ctx: Context) -> Result<()> {
     let direction = Direction::from_i32(direction)
         .ok_or(Error::BadValue(BadValue::Content))?;
 
-    let elevation = ctx.prg.data_stack.pop()?.into_int()? as usize;
+    let elevation = ctx.prg.data_stack.pop()?.into_int()? as u32;
     let y = ctx.prg.data_stack.pop()?.into_int()?;
 
     let world = &mut ctx.ext.world;
@@ -387,7 +387,7 @@ pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
     let pid = Pid::from_packed(pid as u32)
         .ok_or(Error::BadValue(BadValue::Content))?;
 
-    let elevation = ctx.prg.data_stack.pop()?.into_int()? as usize;
+    let elevation = ctx.prg.data_stack.pop()?.into_int()? as u32;
     let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
 
     let pos = ctx.ext.world.map_grid().hex().from_linear_inv(tile_num as u32)

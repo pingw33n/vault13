@@ -33,7 +33,7 @@ impl World {
             map_grid: MapGrid,
             sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
             objects: Objects) -> Self {
-        assert_eq!(sqr_tiles.len(), ELEVATION_COUNT);
+        assert_eq!(sqr_tiles.len(), ELEVATION_COUNT as usize);
         let light_grid = LightGrid::new(map_grid.hex(), ELEVATION_COUNT);
         let mut r = Self {
             proto_db,
@@ -97,14 +97,14 @@ impl World {
         self.dude_obj = Some(obj);
     }
 
-    pub fn elevation(&self) -> usize {
+    pub fn elevation(&self) -> u32 {
         self.objects.get(self.dude_obj.expect("no dude_obj")).borrow()
             .pos.expect("dude_obj has no pos")
             .elevation
     }
 
-    pub fn has_elevation(&self, elevation: usize) -> bool {
-        self.sqr_tiles[elevation].is_some()
+    pub fn has_elevation(&self, elevation: u32) -> bool {
+        self.sqr_tiles[elevation as usize].is_some()
     }
 
     pub fn set_object_pos(&mut self, h: object::Handle, pos: impl Into<EPoint>) {
@@ -179,7 +179,7 @@ impl World {
         render_floor(canvas, self.map_grid.sqr(), rect,
             |num| {
                 let fid = Fid::new_generic(EntityKind::SqrTile,
-                    self.sqr_tiles[elevation].as_ref().unwrap()[num as usize].0).unwrap();
+                    self.sqr_tiles[elevation as usize].as_ref().unwrap()[num as usize].0).unwrap();
                 Some(self.frm_db.get(fid).frame_lists[Direction::NE].frames[0].texture.clone())
             },
             |point| {
@@ -198,7 +198,7 @@ impl World {
         if draw_roof {
             render_roof(canvas, self.map_grid.sqr(), rect,
                 |num| Some(self.frm_db.get(Fid::new_generic(EntityKind::SqrTile,
-                    self.sqr_tiles[elevation].as_ref().unwrap()[num as usize].1).unwrap())
+                    self.sqr_tiles[elevation as usize].as_ref().unwrap()[num as usize].1).unwrap())
                         .first().texture.clone()));
         }
 

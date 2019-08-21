@@ -51,7 +51,7 @@ impl Point {
         (self.x, self.y)
     }
 
-    pub fn elevated(self, elevation: usize) -> EPoint {
+    pub fn elevated(self, elevation: u32) -> EPoint {
         EPoint {
             elevation,
             point: self,
@@ -118,12 +118,12 @@ impl From<(i32, i32)> for Point {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct EPoint {
-    pub elevation: usize,
+    pub elevation: u32,
     pub point: Point,
 }
 
 impl EPoint {
-    pub fn new(elevation: usize, point: impl Into<Point>) -> Self {
+    pub fn new(elevation: u32, point: impl Into<Point>) -> Self {
         Self {
             elevation,
             point: point.into(),
@@ -141,14 +141,14 @@ impl<'a> From<&'a EPoint> for EPoint {
     }
 }
 
-impl From<(usize, Point)> for EPoint {
-    fn from(v: (usize, Point)) -> Self {
+impl From<(u32, Point)> for EPoint {
+    fn from(v: (u32, Point)) -> Self {
         Self::new(v.0, v.1)
     }
 }
 
-impl From<(usize, (i32, i32))> for EPoint {
-    fn from(v: (usize, (i32, i32))) -> Self {
+impl From<(u32, (i32, i32))> for EPoint {
+    fn from(v: (u32, (i32, i32))) -> Self {
         Self::new(v.0, Point::from(v.1))
     }
 }

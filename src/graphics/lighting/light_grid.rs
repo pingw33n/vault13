@@ -46,10 +46,10 @@ pub struct LightGrid {
 }
 
 impl LightGrid {
-    pub fn new(tile_grid: &TileGrid, elevation_count: usize) -> Self {
+    pub fn new(tile_grid: &TileGrid, elevation_count: u32) -> Self {
         assert!(elevation_count > 0);
         let light_cones = LightCones::new(MAX_EMITTER_RADIUS, tile_grid);
-        let grid = vec_with_func(elevation_count,
+        let grid = vec_with_func(elevation_count as usize,
             |_| vec![DEFAULT_LIGHT_INTENSITY; tile_grid.len()].into_boxed_slice()).into_boxed_slice();
 
         Self {
@@ -73,7 +73,7 @@ impl LightGrid {
         assert!(radius <= MAX_EMITTER_RADIUS, "{}", radius);
 
         let p = p.into();
-        assert!(p.elevation < self.grid.len());
+        assert!((p.elevation as usize) < self.grid.len());
         assert!(p.point.x >= 0 && p.point.x < self.width);
         assert!(p.point.y >= 0 && p.point.y < self.grid[0].len() as i32 / self.width);
 
@@ -122,16 +122,16 @@ impl LightGrid {
 
     pub fn get(&self, p: impl Into<EPoint>) -> i32 {
         let p = p.into();
-        self.grid[p.elevation][(self.width * p.point.y + p.point.x) as usize]
+        self.grid[p.elevation as usize][(self.width * p.point.y + p.point.x) as usize]
     }
 
     pub fn get_clipped(&self, p: impl Into<EPoint>) -> u32 {
         clamp(self.get(p), 0, 0x10000) as u32
     }
 
-    fn update_at(grid: &mut Box<[Box<[i32]>]>, width: i32, elevation: usize, p: Point, delta: i32) {
+    fn update_at(grid: &mut Box<[Box<[i32]>]>, width: i32, elevation: u32, p: Point, delta: i32) {
         let i = (width * p.y + p.x) as usize;
-        grid[elevation][i] += delta;
+        grid[elevation as usize][i] += delta;
     }
 }
 
@@ -473,7 +473,7 @@ mod test {
             let input = include!("light_grid_input.in");
             let light_test = include!("light_grid_light_test.in");
 
-            const ELEVATION: usize = 1;
+            const ELEVATION: u32 = 1;
             let mut light_test_map = HashMap::new();
             for ((i, direction, (x, y)), (block, update)) in light_test {
                 let lt = LightTest {
@@ -497,7 +497,7 @@ mod test {
                     radius, intensity as i32, |lt| light_test_map[&lt]);
             }
 
-            assert_eq!(&actual.grid()[ELEVATION][..], &expected[0][..]);
+            assert_eq!(&actual.grid()[ELEVATION as usize][..], &expected[0][..]);
         }
 
         #[test]

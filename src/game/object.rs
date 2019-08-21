@@ -363,10 +363,10 @@ pub struct Objects {
 }
 
 impl Objects {
-    pub fn new(tile_grid: TileGrid, elevation_count: usize, proto_db: Rc<ProtoDb>,
+    pub fn new(tile_grid: TileGrid, elevation_count: u32, proto_db: Rc<ProtoDb>,
             frm_db: Rc<FrmDb>) -> Self {
         let path_finder = RefCell::new(PathFinder::new(tile_grid.clone(), 5000));
-        let by_pos = util::vec_with_func(elevation_count,
+        let by_pos = util::vec_with_func(elevation_count as usize,
             |_| Array2d::with_default(tile_grid.width() as usize, tile_grid.height() as usize))
             .into_boxed_slice();
         Self {
@@ -399,7 +399,7 @@ impl Objects {
     }
 
     pub fn at(&self, pos: EPoint) -> &Vec<Handle> {
-        self.by_pos[pos.elevation]
+        self.by_pos[pos.elevation as usize]
             .get(pos.point.x as usize, pos.point.y as usize)
             .unwrap()
     }
@@ -467,7 +467,7 @@ impl Objects {
         }
     }
 
-    pub fn render(&self, canvas: &mut Canvas, elevation: usize, screen_rect: &Rect,
+    pub fn render(&self, canvas: &mut Canvas, elevation: u32, screen_rect: &Rect,
             tile_grid: &TileGrid, egg: Option<&Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32) {
         let ref get_light = get_light;
@@ -475,7 +475,7 @@ impl Objects {
         self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, false);
     }
 
-    pub fn render_outlines(&self, canvas: &mut Canvas, elevation: usize, screen_rect: &Rect,
+    pub fn render_outlines(&self, canvas: &mut Canvas, elevation: u32, screen_rect: &Rect,
             tile_grid: &TileGrid) {
         let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
         for y in hex_rect.top..hex_rect.bottom {
@@ -732,7 +732,7 @@ impl Objects {
         }, false)
     }
 
-    fn render0(&self, canvas: &mut Canvas, elevation: usize,
+    fn render0(&self, canvas: &mut Canvas, elevation: u32,
             screen_rect: &Rect, tile_grid: &TileGrid, egg: Option<&Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32,
             flat: bool) {
@@ -759,7 +759,7 @@ impl Objects {
     }
 
     fn at_mut(&mut self, pos: EPoint) -> &mut Vec<Handle> {
-        self.by_pos[pos.elevation]
+        self.by_pos[pos.elevation as usize]
             .get_mut(pos.point.x as usize, pos.point.y as usize)
             .unwrap()
     }
