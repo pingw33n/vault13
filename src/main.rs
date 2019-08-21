@@ -21,7 +21,7 @@ use crate::graphics::color::PaletteOverlay;
 use crate::graphics::geometry::map::{ELEVATION_COUNT, MapGrid};
 use crate::graphics::render::software::*;
 use crate::asset::map::*;
-use crate::asset::frm::*;
+use crate::asset::frame::*;
 use crate::game::object::*;
 use enumflags::BitFlags;
 use crate::graphics::*;

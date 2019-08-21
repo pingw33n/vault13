@@ -7,7 +7,7 @@ use std::cmp;
 use std::io::{self, Error, ErrorKind, prelude::*};
 
 use crate::asset::*;
-use crate::asset::frm::{Fid, FrmDb};
+use crate::asset::frame::{Fid, FrmDb};
 use crate::asset::proto::{ItemVariant, Pid, ProtoDb};
 use crate::asset::script::ProgramId;
 use crate::game::object::*;

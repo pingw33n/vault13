@@ -11,7 +11,7 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 use std::ops::RangeInclusive;
 
 use super::*;
-use crate::asset::frm::Fid;
+use crate::asset::frame::Fid;
 use crate::asset::EntityKind;
 use crate::util::{enum_iter, EnumIter};
 

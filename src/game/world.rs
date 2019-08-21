@@ -2,7 +2,7 @@ use std::cmp;
 use std::rc::Rc;
 
 use crate::asset::EntityKind;
-use crate::asset::frm::{Fid, FrmDb};
+use crate::asset::frame::{Fid, FrmDb};
 use crate::asset::proto::ProtoDb;
 use crate::game::GameTime;
 use crate::game::object::{self, DamageFlag, Egg, Object, Objects, SubObject};

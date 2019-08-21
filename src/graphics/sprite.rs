@@ -2,7 +2,7 @@ use enum_map::EnumMap;
 use enum_map_derive::Enum;
 use std::rc::Rc;
 
-use crate::asset::frm::{Fid, FrmDb};
+use crate::asset::frame::{Fid, FrmDb};
 use crate::graphics::color::*;
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::{Point, Rect};

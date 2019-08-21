@@ -9,7 +9,7 @@ use std::mem;
 use std::rc::Rc;
 
 use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, WeaponKind};
-use crate::asset::frm::{Fid, FrmDb};
+use crate::asset::frame::{Fid, FrmDb};
 use crate::asset::proto::{self, CritterKillKind, Pid, ProtoDb};
 use crate::game::script::Sid;
 use crate::graphics::{EPoint, Point, Rect};

@@ -1,5 +1,5 @@
 pub mod font;
-pub mod frm;
+pub mod frame;
 pub mod map;
 pub mod message;
 pub mod palette;

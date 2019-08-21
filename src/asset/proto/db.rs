@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::str;
 
 use super::*;
-use crate::asset::frm::*;
+use crate::asset::frame::*;
 use crate::asset::message::Messages;
 use crate::fs::FileSystem;
 

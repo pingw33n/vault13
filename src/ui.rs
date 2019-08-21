@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::time::Instant;
 
-use crate::asset::frm::{Fid, FrmDb};
+use crate::asset::frame::{Fid, FrmDb};
 use crate::graphics::{Point, Rect};
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render::Canvas;
