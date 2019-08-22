@@ -2,6 +2,37 @@ use num_traits::clamp;
 
 use crate::graphics::{Point, Rect};
 
+// square_xy()
+pub fn from_screen(p: impl Into<Point>) -> Point {
+    let p = p.into();
+    let x = p.x;
+    let y = p.y - 12;
+
+    let dx = 3 * x - 4 * y;
+    let square_x = if dx >= 0  {
+        dx / 192
+    } else {
+        (dx + 1) / 192 - 1
+    };
+
+    let dy = 4 * y + x;
+    let square_y = if dy >= 0 {
+        dy / 128
+    } else {
+        ((dy + 1) / 128) - 1
+    };
+
+    Point::new(square_x, square_y)
+}
+
+// square_coord_()
+pub fn to_screen(p: impl Into<Point>) -> Point {
+    let p = p.into();
+    let screen_x = 48 * p.x + 32 * p.y;
+    let screen_y = -12 * p.x + 24 * p.y;
+    Point::new(screen_x, screen_y)
+}
+
 #[derive(Clone, Debug)]
 pub struct TileGrid {
     // Position in screen coordinates.
@@ -40,37 +71,13 @@ impl TileGrid {
         self.height
     }
 
-    // square_xy()
     pub fn from_screen(&self, p: impl Into<Point>) -> Point {
-        let p = p.into();
-        let abs_x = p.x - self.screen_pos.x;
-        let abs_y = p.y - self.screen_pos.y - 12;
-
-        let dx = 3 * abs_x - 4 * abs_y;
-        let square_x = if dx >= 0  {
-            dx / 192
-        } else {
-            (dx + 1) / 192 - 1
-        };
-
-        let dy = 4 * abs_y + abs_x;
-        let square_y = if dy >= 0 {
-            dy / 128
-        } else {
-            ((dy + 1) / 128) - 1
-        };
-
-        Point::new(square_x, square_y)
+        let p = p.into() - self.screen_pos;
+        from_screen(p)
     }
 
-    // square_coord_()
     pub fn to_screen(&self, p: impl Into<Point>) -> Point {
-        let p = p.into();
-        let x = p.x;
-        let y = p.y;
-        let screen_x = self.screen_pos.x + 48 * x + 32 * y;
-        let screen_y = self.screen_pos.y - 12 * x + 24 * y;
-        Point::new(screen_x, screen_y)
+        to_screen(p) + self.screen_pos
     }
 
     /// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
@@ -136,7 +143,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn from_screen1() {
+    fn tg_from_screen() {
         let t = TileGrid {
             screen_pos: Point::new(0xf0, 0xa8),
             .. Default::default()
@@ -150,17 +157,16 @@ mod test {
     }
 
     #[test]
-    fn from_screen2() {
-        let t = TileGrid::default();
-        assert_eq!(t.from_screen((0, 0)), Point::new(0, -1));
-        assert_eq!(t.from_screen((0, 12)), Point::new(0, 0));
-        assert_eq!(t.from_screen((0, 13)), Point::new(-1, 0));
-        assert_eq!(t.from_screen((79, 0)), Point::new(1, 0));
-        assert_eq!(t.from_screen((79, 25)), Point::new(0, 1));
+    fn from_screen_() {
+        assert_eq!(from_screen((0, 0)), Point::new(0, -1));
+        assert_eq!(from_screen((0, 12)), Point::new(0, 0));
+        assert_eq!(from_screen((0, 13)), Point::new(-1, 0));
+        assert_eq!(from_screen((79, 0)), Point::new(1, 0));
+        assert_eq!(from_screen((79, 25)), Point::new(0, 1));
     }
 
     #[test]
-    fn to_screen1() {
+    fn tg_to_screen() {
         let t = TileGrid {
             screen_pos: Point::new(0x100, 0xb4),
             .. Default::default()
@@ -169,12 +175,11 @@ mod test {
     }
 
     #[test]
-    fn to_screen2() {
-        let t = TileGrid::default();
-        assert_eq!(t.to_screen((0, 0)), Point::new(0, 0));
-        assert_eq!(t.to_screen((1, 0)), Point::new(48, -12));
-        assert_eq!(t.to_screen((0, 1)), Point::new(32, 24));
-        assert_eq!(t.to_screen((0, -1)), Point::new(-32, -24));
-        assert_eq!(t.to_screen((-1, 0)), Point::new(-48, 12));
+    fn to_screen_() {
+        assert_eq!(to_screen((0, 0)), Point::new(0, 0));
+        assert_eq!(to_screen((1, 0)), Point::new(48, -12));
+        assert_eq!(to_screen((0, 1)), Point::new(32, 24));
+        assert_eq!(to_screen((0, -1)), Point::new(-32, -24));
+        assert_eq!(to_screen((-1, 0)), Point::new(-48, 12));
     }
 }
