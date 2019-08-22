@@ -293,17 +293,23 @@ impl TileGrid {
         distance
     }
 
+    /// Casts line between two tile centers and returns coordinates of tile that is `n`-th distinct
+    /// intersection of line and tiles that lie beyond `to` if going from `from`,
+    /// where `n` is the `distance`. Clips the result to grid bounds.
     // tile_num_beyond()
     pub fn beyond(&self, from: impl Into<Point>, to: impl Into<Point>, distance: i32) -> Point {
+        let from = from.into();
+        let to = to.into();
+
+        assert_ne!(from, to);
         assert!(distance >= 0);
 
-        let from = from.into();
         if distance == 0 {
             return from;
         }
 
-        let froms = self.to_screen(from).add((16, 18));
-        let tos = self.to_screen(to.into()).add((16, 18));
+        let froms = self.to_screen(from).add((16, 8));
+        let tos = self.to_screen(to).add((16, 8));
 
         let delta_x = tos.x - froms.x;
         let abs_delta_x_mult_2 = 2 * delta_x.abs();
@@ -323,8 +329,8 @@ impl TileGrid {
                 let next = self.from_screen(curs);
                 if next != cur {
                     cur_distance += 1;
-                    if cur_distance == distance || !self.is_in_bounds(next) {
-                        return cur;
+                    if cur_distance == distance || self.is_on_edge(next) {
+                        return next;
                     }
                     cur = next;
                 }
@@ -333,7 +339,7 @@ impl TileGrid {
                     curs.y += y_inc;
                 }
                 j += abs_delta_y_mult_2;
-                curs.y += x_inc;
+                curs.x += x_inc;
             }
         }
 
@@ -342,8 +348,8 @@ impl TileGrid {
             let next = self.from_screen(curs);
             if next != cur {
                 cur_distance += 1;
-                if cur_distance == distance || !self.is_in_bounds(next) {
-                    return cur;
+                if cur_distance == distance || self.is_on_edge(next) {
+                    return next;
                 }
                 cur = next;
             }
@@ -793,6 +799,20 @@ mod test {
         assert_eq!(t.is_to_right_of((101, 100), (100, 100)), false);
         assert_eq!(t.is_to_right_of((101, 99), (100, 100)), false);
         assert_eq!(t.is_to_right_of((101, 101), (100, 100)), false);
+    }
+
+    #[test]
+    fn beyond() {
+        let t = TileGrid {
+            screen_pos: Point::new(0x130, 0xb6),
+            pos: Point::new(0x5c, 0x74),
+            .. Default::default()
+        };
+
+        assert_eq!(t.beyond(t.from_linear_inv(0x65f8), t.from_linear_inv(0x5b03), 0x19),
+            t.from_linear_inv(0x571a));
+        assert_eq!(t.beyond(t.from_linear_inv(0x65f8), t.from_linear_inv(0x5d67), 0x19),
+            t.from_linear_inv(0x5982));
     }
 
     enum TileStateFunc {
