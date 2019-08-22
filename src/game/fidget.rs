@@ -7,6 +7,7 @@ use crate::game::sequence::frame_anim::{AnimDirection, FrameAnim};
 use crate::game::sequence::stand::Stand;
 use crate::game::world::World;
 use crate::graphics::{EPoint, Rect};
+use crate::graphics::geometry::TileGridView;
 use crate::sequence::{Sequence, Sequencer};
 use crate::util::random::random;
 
@@ -39,7 +40,7 @@ impl Fidget {
             top: screen_rect.top - 190,
             right: screen_rect.width() + 320,
             bottom: screen_rect.height() + 190
-        }, false);
+        });
 
         let mut objs = Vec::new();
         for y in hex_rect.top..hex_rect.bottom {

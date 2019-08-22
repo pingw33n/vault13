@@ -8,6 +8,7 @@ use std::f64::consts::PI;
 
 use crate::graphics::{Point, Rect};
 use crate::util::EnumExt;
+use super::TileGridView;
 
 const TILE_WIDTH: i32 = 32;
 const TILE_HEIGHT: i32 = 16;
@@ -202,7 +203,7 @@ pub fn from_screen(p: impl Into<Point>) -> Point {
 
 /// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
 pub fn from_screen_rect(rect: &Rect) -> Rect {
-    super::from_screen_rect(rect, false, from_screen, |p| p)
+    super::from_screen_rect(rect, from_screen)
 }
 
 // tile_coord()
@@ -223,6 +224,30 @@ pub fn to_screen(p: impl Into<Point>) -> Point {
     r.y += 12 * dy;
 
     r
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct View {
+    pub origin: Point,
+}
+
+impl View {
+    pub fn new(origin: impl Into<Point>) -> Self {
+        Self {
+            origin: origin.into(),
+        }
+    }
+}
+
+impl TileGridView for View {
+    fn from_screen(&self, p: impl Into<Point>) -> Point {
+        let p = p.into() - self.origin;
+        from_screen(p)
+    }
+
+    fn to_screen(&self, p: impl Into<Point>) -> Point {
+        to_screen(p) + self.origin
+    }
 }
 
 // tile_dir()
@@ -363,22 +388,6 @@ impl TileGrid {
         go0(p, direction, distance, |next| self.is_in_bounds(next))
     }
 
-    /// Returns tile coordinates.
-    pub fn from_screen(&self, p: impl Into<Point>) -> Point {
-        let p = p.into() - self.screen_pos;
-        from_screen(p)
-    }
-
-    /// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
-    /// Clips the resulting rectangle if `clip` is `true`.
-    pub fn from_screen_rect(&self, rect: &Rect, clip: bool) -> Rect {
-        super::from_screen_rect(rect, clip, |p| self.from_screen(p), |p| self.clip(p))
-    }
-
-    pub fn to_screen(&self, p: impl Into<Point>) -> Point {
-        to_screen(p) + self.screen_pos
-    }
-
     /// Similar to top-level `beyond()` but also clips the result to grid bounds.
     pub fn beyond(&self, from: impl Into<Point>, to: impl Into<Point>, distance: u32) -> Point {
         let from = from.into();
@@ -445,6 +454,17 @@ impl TileGrid {
     /// Inverts `x` coordinate. 0 becomes `width - 1` and `width - 1` becomes 0.
     pub fn invert_x(&self, x: i32) -> i32 {
         self.width - 1 - x
+    }
+}
+
+impl TileGridView for TileGrid {
+    fn from_screen(&self, p: impl Into<Point>) -> Point {
+        let p = p.into() - self.screen_pos;
+        from_screen(p)
+    }
+
+    fn to_screen(&self, p: impl Into<Point>) -> Point {
+        to_screen(p) + self.screen_pos
     }
 }
 

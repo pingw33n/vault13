@@ -1,4 +1,4 @@
-use crate::graphics::geometry::{hex, sqr};
+use crate::graphics::geometry::{hex, sqr, TileGridView};
 use crate::graphics::lighting::light_map::{VERTEX_COUNT, VERTEX_HEXES};
 use crate::graphics::{Point, Rect};
 use crate::graphics::render::{Canvas, TextureHandle};
@@ -21,7 +21,7 @@ fn render_square_tiles(canvas: &mut Canvas, stg: &sqr::TileGrid, rect: &Rect,
         y_offset: i32,
         mut get_tex: impl FnMut(Point) -> Option<TextureHandle>,
         get_light: impl Fn(Point) -> u32) {
-    let sqr_rect = stg.from_screen_rect(rect, true);
+    let sqr_rect = stg.from_screen_rect(rect);
 
     let mut vertex_lights = [0; VERTEX_COUNT];
     for y in sqr_rect.top..sqr_rect.bottom {

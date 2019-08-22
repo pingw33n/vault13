@@ -58,6 +58,7 @@ use crate::ui::message_panel::MessagePannel;
 use clap::ArgMatches;
 use bstring::BString;
 use measure_time::*;
+use crate::graphics::geometry::TileGridView;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
