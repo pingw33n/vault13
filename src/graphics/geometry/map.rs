@@ -1,5 +1,6 @@
 use super::{hex, sqr};
 use crate::graphics::Point;
+use crate::graphics::geometry::TileGridView;
 
 pub const ELEVATION_COUNT: u32 = 3;
 

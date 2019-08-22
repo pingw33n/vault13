@@ -1,6 +1,7 @@
 use num_traits::clamp;
 
-use crate::graphics::{Point, Rect};
+use crate::graphics::Point;
+use crate::graphics::geometry::TileGridView;
 
 // square_xy()
 pub fn from_screen(p: impl Into<Point>) -> Point {
@@ -31,6 +32,29 @@ pub fn to_screen(p: impl Into<Point>) -> Point {
     let screen_x = 48 * p.x + 32 * p.y;
     let screen_y = -12 * p.x + 24 * p.y;
     Point::new(screen_x, screen_y)
+}
+
+pub struct View {
+    pub origin: Point,
+}
+
+impl View {
+    pub fn new(origin: impl Into<Point>) -> Self {
+        Self {
+            origin: origin.into(),
+        }
+    }
+}
+
+impl TileGridView for View {
+    fn from_screen(&self, p: impl Into<Point>) -> Point {
+        let p = p.into() - self.origin;
+        from_screen(p)
+    }
+
+    fn to_screen(&self, p: impl Into<Point>) -> Point {
+        to_screen(p) + self.origin
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -69,21 +93,6 @@ impl TileGrid {
 
     pub fn height(&self) -> i32 {
         self.height
-    }
-
-    pub fn from_screen(&self, p: impl Into<Point>) -> Point {
-        let p = p.into() - self.screen_pos;
-        from_screen(p)
-    }
-
-    pub fn to_screen(&self, p: impl Into<Point>) -> Point {
-        to_screen(p) + self.screen_pos
-    }
-
-    /// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
-    /// Clips the resulting rectangle if `clip` is `true`.
-    pub fn from_screen_rect(&self, rect: &Rect, clip: bool) -> Rect {
-        super::from_screen_rect(rect, clip, |p| self.from_screen(p), |p| self.clip(p))
     }
 
     /// Rectangular to linear coordinates with `x` axis inverted.
@@ -125,6 +134,17 @@ impl TileGrid {
     /// Inverts `x` coordinate. 0 becomes `width - 1` and `width - 1` becomes 0.
     pub fn invert_x(&self, x: i32) -> i32 {
         self.width - 1 - x
+    }
+}
+
+impl TileGridView for TileGrid {
+    fn from_screen(&self, p: impl Into<Point>) -> Point {
+        let p = p.into() - self.screen_pos;
+        from_screen(p)
+    }
+
+    fn to_screen(&self, p: impl Into<Point>) -> Point {
+        to_screen(p) + self.screen_pos
     }
 }
 

@@ -13,6 +13,7 @@ use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::{self, CritterKillKind, ProtoId, ProtoDb};
 use crate::game::script::Sid;
 use crate::graphics::{EPoint, Point, Rect};
+use crate::graphics::geometry::TileGridView;
 use crate::graphics::geometry::hex::{self, Direction, TileGrid};
 use crate::graphics::geometry::hex::path_finder::*;
 use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
@@ -730,7 +731,7 @@ impl Objects {
             top: -190,
             right: screen_rect.width() + 320,
             bottom: screen_rect.height() + 190
-        }, false)
+        })
     }
 
     fn render0(&self, canvas: &mut Canvas, elevation: u32,
