@@ -14,6 +14,7 @@ use crate::asset::proto::{self, CritterKillKind, ProtoId, ProtoDb};
 use crate::game::script::Sid;
 use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::hex::*;
+use crate::graphics::geometry::hex::path_finder::*;
 use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::*;
