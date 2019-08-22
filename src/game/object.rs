@@ -13,7 +13,7 @@ use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::{self, CritterKillKind, ProtoId, ProtoDb};
 use crate::game::script::Sid;
 use crate::graphics::{EPoint, Point, Rect};
-use crate::graphics::geometry::hex::*;
+use crate::graphics::geometry::hex::{self, Direction, TileGrid};
 use crate::graphics::geometry::hex::path_finder::*;
 use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
 use crate::graphics::render::Canvas;
@@ -293,17 +293,17 @@ impl Object {
 
         let with_egg = if proto_flags_ext.intersects(
                 FlagExt::WallEastOrWest | FlagExt::WallWestCorner) {
-            tile_grid.is_in_front_of(pos, egg.pos)
-                && (!tile_grid.is_to_right_of(egg.pos, pos)
+            hex::is_in_front_of(pos, egg.pos)
+                && (!hex::is_to_right_of(egg.pos, pos)
                     || !self.flags.contains(Flag::WallTransEnd))
         } else if proto_flags_ext.contains(FlagExt::WallNorthCorner) {
-            tile_grid.is_in_front_of(pos, egg.pos)
-                || tile_grid.is_to_right_of(pos, egg.pos)
+            hex::is_in_front_of(pos, egg.pos)
+                || hex::is_to_right_of(pos, egg.pos)
         } else if proto_flags_ext.contains(FlagExt::WallSouthCorner) {
-            tile_grid.is_in_front_of(pos, egg.pos)
-                && tile_grid.is_to_right_of(pos, egg.pos)
-        } else if tile_grid.is_to_right_of(pos, egg.pos) {
-            !tile_grid.is_in_front_of(egg.pos, pos)
+            hex::is_in_front_of(pos, egg.pos)
+                && hex::is_to_right_of(pos, egg.pos)
+        } else if hex::is_to_right_of(pos, egg.pos) {
+            !hex::is_in_front_of(egg.pos, pos)
                 && !self.flags.contains(Flag::WallTransEnd)
         } else {
             false
@@ -707,15 +707,15 @@ impl Objects {
                 let masked = if proto.flags_ext.intersects(
                     FlagExt::WallEastOrWest | FlagExt::WallWestCorner)
                 {
-                    tile_grid.is_in_front_of(obj_pos, egg.pos)
+                    hex::is_in_front_of(obj_pos, egg.pos)
                 } else if proto.flags_ext.contains(FlagExt::WallNorthCorner) {
-                    tile_grid.is_in_front_of(obj_pos, egg.pos) ||
-                        tile_grid.is_to_right_of(obj_pos, egg.pos)
+                    hex::is_in_front_of(obj_pos, egg.pos) ||
+                        hex::is_to_right_of(obj_pos, egg.pos)
                 } else if proto.flags_ext.contains(FlagExt::WallSouthCorner) {
-                    tile_grid.is_in_front_of(obj_pos, egg.pos) &&
-                        tile_grid.is_to_right_of(obj_pos, egg.pos)
+                    hex::is_in_front_of(obj_pos, egg.pos) &&
+                        hex::is_to_right_of(obj_pos, egg.pos)
                 } else {
-                    tile_grid.is_to_right_of(obj_pos, egg.pos)
+                    hex::is_to_right_of(obj_pos, egg.pos)
                 };
                 masked
             } else {
