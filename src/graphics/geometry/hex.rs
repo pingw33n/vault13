@@ -50,6 +50,230 @@ pub fn screen_offset(direction: Direction) -> Point {
     }.into()
 }
 
+pub fn go(p: impl Into<Point>, direction: Direction, distance: u32) -> Point {
+    go0(p, direction, distance, |_| true)
+}
+
+// tile_num_in_direction_()
+fn go0(p: impl Into<Point>, direction: Direction, distance: u32, is_in_bounds: impl Fn(Point) -> bool)
+    -> Point
+{
+    // Advance per each direction for even/odd hex.
+    static ADVANCE_MAP: [[(i32, i32); enum_len!(Direction)]; 2] = [
+        [(1, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (0, -1)],
+        [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (0, -1)],
+    ];
+    let mut p = p.into();
+    for _ in 0..distance {
+        let advance = ADVANCE_MAP[p.x as usize % 2][direction as usize].into();
+        let next = p + advance;
+        if !is_in_bounds(next) {
+            break;
+        }
+        p = next;
+    }
+    p
+}
+
+/// Casts line between two tile centers and returns coordinates of tile that is `n`-th distinct
+/// intersection of line and tiles that lie beyond and including `from`
+/// if going staight from `from` to `to`, where `n` is the `distance`.
+pub fn beyond(from: impl Into<Point>, to: impl Into<Point>, distance: u32) -> Point {
+    beyond0(from.into(), to.into(), distance, |_| false)
+}
+
+// tile_num_beyond()
+fn beyond0(from: Point, to: Point, distance: u32, is_on_edge: impl Fn(Point) -> bool) -> Point {
+    if distance == 0 {
+        return from;
+    }
+
+    let froms = to_screen(from).add((16, 8));
+    let tos = to_screen(to).add((16, 8));
+
+    let delta_x = tos.x - froms.x;
+    let abs_delta_x_mult_2 = 2 * delta_x.abs();
+    let x_inc = delta_x.signum();
+
+    let delta_y = tos.y - froms.y;
+    let abs_delta_y_mult_2 = 2 * delta_y.abs();
+    let y_inc = delta_y.signum();
+
+    let mut cur = from;
+    let mut curs = froms;
+    let mut cur_distance = 0;
+
+    if abs_delta_x_mult_2 > abs_delta_y_mult_2 {
+        let mut j = abs_delta_y_mult_2 - abs_delta_x_mult_2 / 2;
+        loop {
+            let next = from_screen(curs);
+            if next != cur {
+                cur_distance += 1;
+                if cur_distance == distance || is_on_edge(next) {
+                    return next;
+                }
+                cur = next;
+            }
+            if j >= 0 {
+                j -= abs_delta_x_mult_2;
+                curs.y += y_inc;
+            }
+            j += abs_delta_y_mult_2;
+            curs.x += x_inc;
+        }
+    }
+
+    let mut j = abs_delta_x_mult_2 - abs_delta_y_mult_2 / 2;
+    loop {
+        let next = from_screen(curs);
+        if next != cur {
+            cur_distance += 1;
+            if cur_distance == distance || is_on_edge(next) {
+                return next;
+            }
+            cur = next;
+        }
+        if j >= 0 {
+            j -= abs_delta_y_mult_2;
+            curs.x += x_inc;
+        }
+        j += abs_delta_x_mult_2;
+        curs.y += y_inc;
+    }
+}
+
+// tile_num()
+/// Returns tile coordinates.
+pub fn from_screen(p: impl Into<Point>) -> Point {
+    let p = p.into();
+
+    let abs_screen_y = p.y;
+
+    // 12 is vertical hex advance
+    let mut tile_y = if abs_screen_y >= 0 {
+        abs_screen_y / 12
+    } else {
+        (abs_screen_y + 1) / 12 - 1
+    };
+
+    // 16 is horizontal hex advance
+    let screen_x_in_tile_hrow = p.x - 16 * tile_y;
+
+    let screen_y_in_tile = abs_screen_y - 12 * tile_y;
+
+    let tile_hx = if screen_x_in_tile_hrow >= 0 {
+        screen_x_in_tile_hrow / 64
+    } else {
+        (screen_x_in_tile_hrow + 1) / 64 - 1
+    };
+
+    tile_y += tile_hx;
+    let mut screen_x_in_tile = screen_x_in_tile_hrow - tile_hx * 64;
+    let mut tile_x = 2 * tile_hx;
+    if screen_x_in_tile >= 32 {
+        screen_x_in_tile -= 32;
+        tile_x += 1;
+    }
+
+    match tile_hit_test((screen_x_in_tile, screen_y_in_tile)) {
+        TileHit::TopRight => {
+            tile_x += 1;
+            if tile_x % 2 == 1 {
+                tile_y -= 1;
+            }
+        }
+        TileHit::TopLeft => {
+            tile_y -= 1;
+        }
+        TileHit::BottomLeft => {
+            tile_x -= 1;
+            if tile_x % 2 == 0 {
+                tile_y += 1;
+            }
+        }
+        TileHit::BottomRight => {
+            tile_y += 1;
+        }
+        TileHit::Inside => {}
+    }
+
+    Point::new(tile_x, tile_y)
+}
+
+/// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
+pub fn from_screen_rect(rect: &Rect) -> Rect {
+    super::from_screen_rect(rect, false, from_screen, |p| p)
+}
+
+// tile_coord()
+pub fn to_screen(p: impl Into<Point>) -> Point {
+    let p = p.into();
+    let dx = p.x / 2;
+    let mut r = Point::new(48 * dx, 12 * -dx);
+    if p.x % 2 != 0 {
+        if p.x <= 0 {
+            r.x -= 16;
+            r.y += 12;
+        } else {
+            r.x += 32;
+        }
+    }
+    let dy = p.y;
+    r.x += 16 * dy;
+    r.y += 12 * dy;
+
+    r
+}
+
+// tile_dir()
+pub fn direction(from: impl Into<Point>, to: impl Into<Point>) -> Direction {
+    let from = from.into();
+    let to = to.into();
+    assert_ne!(from, to);
+    let from_scr = to_screen(from);
+    let to_scr = to_screen(to);
+    let d = to_scr - from_scr;
+    if d.x != 0 {
+        let angle_degrees = (-d.y as f64).atan2(d.x as f64) * 180.0 / PI;
+        let a = 90 - angle_degrees as i32;
+        let direction = cmp::min((a + 360) % 360 / 60, 5);
+        Direction::from_usize(direction as usize).unwrap()
+    } else if d.y < 0 {
+        Direction::NE
+    } else {
+        Direction::SE
+    }
+}
+
+// tile_dist()
+pub fn distance(p1: impl Into<Point>, p2: impl Into<Point>) -> i32 {
+    let mut p1 = p1.into();
+    let p2 = p2.into();
+    let mut distance = 0;
+    while p1 != p2 {
+        let dir = direction(p1, p2);
+        p1 = go(p1, dir, 1);
+        distance += 1;
+    }
+    distance
+}
+
+/// Is `p1` located in front of `p2` if looking in SE direction?
+// tile_in_front_of()
+pub fn is_in_front_of(p1: impl Into<Point>, p2: impl Into<Point>) -> bool {
+    let sp1 = to_screen(p1);
+    let sp2 = to_screen(p2);
+    sp2.x - sp1.x <= (sp2.y - sp1.y) * -4
+}
+
+/// Is `p1` located to right of `p2` if looking in SE direction?
+// tile_to_right_of()
+pub fn is_to_right_of(p1: impl Into<Point>, p2: impl Into<Point>) -> bool {
+    let sp1 = to_screen(p1);
+    let sp2_ = to_screen(p2);
+    sp1.x - sp2_.x <= (sp1.y - sp2_.y) * 32 / (12 * 2)
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum TileHit {
     Inside,
@@ -127,7 +351,7 @@ impl TileGrid {
     }
 
     pub fn go(&self, p: impl Into<Point>, direction: Direction, distance: u32) -> Option<Point> {
-        let p = self.go0(p, direction, distance, false);
+        let p = go0(p, direction, distance, |_| true);
         if self.is_in_bounds(p) {
             Some(p)
         } else {
@@ -135,70 +359,14 @@ impl TileGrid {
         }
     }
 
-    pub fn go_unbounded(&self, p: impl Into<Point>, direction: Direction, distance: u32) -> Point {
-        self.go0(p, direction, distance, false)
-    }
-
     pub fn go_clipped(&self, p: impl Into<Point>, direction: Direction, distance: u32) -> Point {
-        self.go0(p, direction, distance, true)
+        go0(p, direction, distance, |next| self.is_in_bounds(next))
     }
 
-    // tile_num()
     /// Returns tile coordinates.
     pub fn from_screen(&self, p: impl Into<Point>) -> Point {
-        let p = p.into();
-
-        let abs_screen_y = p.y - self.screen_pos.y;
-
-        // 12 is vertical hex advance
-        let mut tile_y = if abs_screen_y >= 0 {
-            abs_screen_y / 12
-        } else {
-            (abs_screen_y + 1) / 12 - 1
-        };
-
-        // 16 is horizontal hex advance
-        let screen_x_in_tile_hrow = p.x - self.screen_pos.x - 16 * tile_y;
-
-        let screen_y_in_tile = abs_screen_y - 12 * tile_y;
-
-        let tile_hx = if screen_x_in_tile_hrow >= 0 {
-            screen_x_in_tile_hrow / 64
-        } else {
-            (screen_x_in_tile_hrow + 1) / 64 - 1
-        };
-
-        tile_y += tile_hx;
-        let mut screen_x_in_tile = screen_x_in_tile_hrow - tile_hx * 64;
-        let mut tile_x = 2 * tile_hx;
-        if screen_x_in_tile >= 32 {
-            screen_x_in_tile -= 32;
-            tile_x += 1;
-        }
-
-        match tile_hit_test((screen_x_in_tile, screen_y_in_tile)) {
-            TileHit::TopRight => {
-                tile_x += 1;
-                if tile_x % 2 == 1 {
-                    tile_y -= 1;
-                }
-            }
-            TileHit::TopLeft => {
-                tile_y -= 1;
-            }
-            TileHit::BottomLeft => {
-                tile_x -= 1;
-                if tile_x % 2 == 0 {
-                    tile_y += 1;
-                }
-            }
-            TileHit::BottomRight => {
-                tile_y += 1;
-            }
-            TileHit::Inside => {}
-        }
-
-        Point::new(tile_x, tile_y)
+        let p = p.into() - self.screen_pos;
+        from_screen(p)
     }
 
     /// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
@@ -207,144 +375,16 @@ impl TileGrid {
         super::from_screen_rect(rect, clip, |p| self.from_screen(p), |p| self.clip(p))
     }
 
-    // tile_coord()
     pub fn to_screen(&self, p: impl Into<Point>) -> Point {
-        let p = p.into();
-        let mut r = self.screen_pos;
-        let dx = p.x / 2;
-        r.x += 48 * dx;
-        r.y += 12 * -dx;
-        if p.x % 2 != 0 {
-            if p.x <= 0 {
-                r.x -= 16;
-                r.y += 12;
-            } else {
-                r.x += 32;
-            }
-        }
-        let dy = p.y;
-        r.x += 16 * dy;
-        r.y += 12 * dy;
-
-        r
+        to_screen(p) + self.screen_pos
     }
 
-    // tile_dir()
-    pub fn direction(&self, from: impl Into<Point>, to: impl Into<Point>) -> Direction {
+    /// Similar to top-level `beyond()` but also clips the result to grid bounds.
+    pub fn beyond(&self, from: impl Into<Point>, to: impl Into<Point>, distance: u32) -> Point {
         let from = from.into();
         let to = to.into();
-        assert_ne!(from, to);
-        let from_scr = self.to_screen(from);
-        let to_scr = self.to_screen(to);
-        let d = to_scr - from_scr;
-        if d.x != 0 {
-            let angle_degrees = (-d.y as f64).atan2(d.x as f64) * 180.0 / PI;
-            let a = 90 - angle_degrees as i32;
-            let direction = cmp::min((a + 360) % 360 / 60, 5);
-            Direction::from_usize(direction as usize).unwrap()
-        } else if d.y < 0 {
-            Direction::NE
-        } else {
-            Direction::SE
-        }
-    }
-
-    // Is p1 located in front of p2 if looking in SE direction?
-    // tile_in_front_of()
-    pub fn is_in_front_of(&self, p1: impl Into<Point>, p2: impl Into<Point>) -> bool {
-        let sp1 = self.to_screen(p1);
-        let sp2 = self.to_screen(p2);
-        sp2.x - sp1.x <= (sp2.y - sp1.y) * -4
-    }
-
-    // Is p1 located to right of p2 if looking in SE direction?
-    // tile_to_right_of()
-    pub fn is_to_right_of(&self, p1: impl Into<Point>, p2: impl Into<Point>) -> bool {
-        let sp1 = self.to_screen(p1);
-        let sp2_ = self.to_screen(p2);
-        sp1.x - sp2_.x <= (sp1.y - sp2_.y) * 32 / (12 * 2)
-    }
-
-    // tile_dist()
-    pub fn distance(&self, p1: impl Into<Point>, p2: impl Into<Point>) -> i32 {
-        let mut p1 = p1.into();
-        let p2 = p2.into();
-        let mut distance = 0;
-        while p1 != p2 {
-            let dir = self.direction(p1, p2);
-            p1 = self.go_unbounded(p1, dir, 1);
-            distance += 1;
-        }
-        distance
-    }
-
-    /// Casts line between two tile centers and returns coordinates of tile that is `n`-th distinct
-    /// intersection of line and tiles that lie beyond `to` if going from `from`,
-    /// where `n` is the `distance`. Clips the result to grid bounds.
-    // tile_num_beyond()
-    pub fn beyond(&self, from: impl Into<Point>, to: impl Into<Point>, distance: i32) -> Point {
-        let from = from.into();
-        let to = to.into();
-
-        assert_ne!(from, to);
-        assert!(distance >= 0);
-
-        if distance == 0 {
-            return from;
-        }
-
-        let froms = self.to_screen(from).add((16, 8));
-        let tos = self.to_screen(to).add((16, 8));
-
-        let delta_x = tos.x - froms.x;
-        let abs_delta_x_mult_2 = 2 * delta_x.abs();
-        let x_inc = delta_x.signum();
-
-        let delta_y = tos.y - froms.y;
-        let abs_delta_y_mult_2 = 2 * delta_y.abs();
-        let y_inc = delta_y.signum();
-
-        let mut cur = from;
-        let mut curs = froms;
-        let mut cur_distance = 0;
-
-        if abs_delta_x_mult_2 > abs_delta_y_mult_2 {
-            let mut j = abs_delta_y_mult_2 - abs_delta_x_mult_2 / 2;
-            loop {
-                let next = self.from_screen(curs);
-                if next != cur {
-                    cur_distance += 1;
-                    if cur_distance == distance || self.is_on_edge(next) {
-                        return next;
-                    }
-                    cur = next;
-                }
-                if j >= 0 {
-                    j -= abs_delta_x_mult_2;
-                    curs.y += y_inc;
-                }
-                j += abs_delta_y_mult_2;
-                curs.x += x_inc;
-            }
-        }
-
-        let mut j = abs_delta_x_mult_2 - abs_delta_y_mult_2 / 2;
-        loop {
-            let next = self.from_screen(curs);
-            if next != cur {
-                cur_distance += 1;
-                if cur_distance == distance || self.is_on_edge(next) {
-                    return next;
-                }
-                cur = next;
-            }
-            if j >= 0 {
-                j -= abs_delta_y_mult_2;
-                curs.x += x_inc;
-            }
-            j += abs_delta_x_mult_2;
-            curs.y += y_inc;
-        }
+        assert!(self.is_in_bounds(from));
+        beyond0(from, to.into(), distance, |p| self.is_on_edge(p))
     }
 
     /// Linear to rectangular coordinates.
@@ -406,25 +446,6 @@ impl TileGrid {
     pub fn invert_x(&self, x: i32) -> i32 {
         self.width - 1 - x
     }
-
-    // tile_num_in_direction_()
-    fn go0(&self, p: impl Into<Point>, direction: Direction, distance: u32, clip: bool) -> Point {
-        // Advance per each direction for even/odd hex.
-        static ADVANCE_MAP: [[(i32, i32); enum_len!(Direction)]; 2] = [
-            [(1, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (0, -1)],
-            [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (0, -1)],
-        ];
-        let mut p = p.into();
-        for _ in 0..distance {
-            let advance = ADVANCE_MAP[p.x as usize % 2][direction as usize].into();
-            let next = p + advance;
-            if clip && !self.is_in_bounds(next) {
-                break;
-            }
-            p = next;
-        }
-        p
-    }
 }
 
 impl Default for TileGrid {
@@ -468,7 +489,7 @@ mod test {
     }
 
     #[test]
-    fn from_screen1() {
+    fn tg_from_screen1() {
         let t = TileGrid {
             screen_pos: Point::new(272, 182),
             .. Default::default()
@@ -479,7 +500,30 @@ mod test {
     }
 
     #[test]
-    fn from_screen2() {
+    fn from_screen_() {
+        let data = &[
+            ((-592, -422), (-1, -37)),
+            ((-592, 438), (-37, 17)),
+            ((-16, -424), (17, -28)),
+            ((0, 0), (0, -1)),
+            ((16, 0), (0, 0)),
+            ((48, 0), (1, 0)),
+            ((48, -1), (2, 0)),
+            ((0, 4), (0, 0)),
+        ];
+        for &(inp, exp) in data {
+            assert_eq!(from_screen(inp), Point::from(exp));
+        }
+    }
+
+    #[test]
+    fn to_screen_() {
+        assert_eq!(to_screen((0, 0)), Point::new(0, 0));
+        assert_eq!(to_screen((97, 63)), Point::new(3344, 180));
+    }
+
+    #[test]
+    fn tg_from_screen2() {
         let mut t = TileGrid::default();
 
         for spos in &[Point::new(0, 0), Point::new(100, 200)] {
@@ -493,15 +537,7 @@ mod test {
     }
 
     #[test]
-    fn to_screen() {
-        let t = TileGrid::default();
-
-        assert_eq!(t.to_screen((0, 0)), Point::new(0, 0));
-        assert_eq!(t.to_screen(t.from_linear_inv(12702)), Point::new(3344, 180));
-    }
-
-    #[test]
-    fn to_screen1() {
+    fn tg_to_screen1() {
         let t = TileGrid {
             screen_pos: Point::new(272, 182),
             .. Default::default()
@@ -511,82 +547,99 @@ mod test {
     }
 
     #[test]
-    fn to_screen2() {
+    fn tg_to_screen2() {
         let t = TileGrid::default();
         assert_eq!(t.to_screen((0, 0)), Point::new(0, 0));
     }
 
     #[test]
-    fn go() {
+    fn go_() {
         let t = TileGrid::default();
-        assert_eq!(t.go_unbounded((0, 0), Direction::W, 1), Point::new(-1, -1));
+        assert_eq!(go((0, 0), Direction::W, 1), Point::new(-1, -1));
         assert_eq!(t.go((0, 0), Direction::W, 1), None);
         assert_eq!(t.go_clipped((0, 0), Direction::W, 1), Point::new(0, 0));
-        assert_eq!(t.go_unbounded((22, 11), Direction::E, 0), Point::new(22, 11));
-        assert_eq!(t.go_unbounded((22, 11), Direction::E, 1), Point::new(23, 11));
+        assert_eq!(go((22, 11), Direction::E, 0), Point::new(22, 11));
+        assert_eq!(go((22, 11), Direction::E, 1), Point::new(23, 11));
     }
 
     #[test]
-    fn direction() {
-        let t = TileGrid::default();
-
+    fn direction_() {
         for dir in Direction::iter() {
             for dist in 1..=10 {
                 let from = (100, 100);
-                let to = t.go_unbounded(from, dir, dist);
-                assert_eq!(t.direction(from, to), dir);
+                let to = go(from, dir, dist);
+                assert_eq!(direction(from, to), dir);
             }
         }
 
-        assert_eq!(t.direction(t.from_linear_inv(21101), t.from_linear_inv(18488)), Direction::NE);
+        assert_eq!(direction((98, 105), (111, 92)), Direction::NE);
     }
 
     #[test]
-    fn distance() {
-        let t = TileGrid::default();
-        assert_eq!(t.distance((1234, -5678), (1234, -5678)), 0);
+    fn distance_() {
+        assert_eq!(distance((1234, -5678), (1234, -5678)), 0);
 
-        assert_eq!(t.distance(t.from_linear_inv(0x4838), t.from_linear_inv(0x526d)), 19);
-        assert_eq!(t.distance(t.from_linear_inv(0x526d), t.from_linear_inv(0x4838)), 19);
+        assert_eq!(distance((111, 92), (98, 105)), 19);
+        assert_eq!(distance((98, 105), (111, 92)), 19);
 
-        assert_eq!(t.distance(t.from_linear_inv(0x7023), t.from_linear_inv(0x5031)), 52);
-        assert_eq!(t.distance(t.from_linear_inv(0x5031), t.from_linear_inv(0x7023)), 52);
+        assert_eq!(distance((92, 143), (70, 102)), 52);
+        assert_eq!(distance((70, 102), (92, 143)), 52);
     }
 
     #[test]
-    fn is_in_front_of() {
-        let t = TileGrid::default();
-        assert_eq!(t.is_in_front_of(t.from_linear_inv(0x4450), t.from_linear_inv(0x3e10)), true);
-        assert_eq!(t.is_in_front_of((100, 100), (100, 100)), true);
-        assert_eq!(t.is_in_front_of((101, 100), (100, 100)), true);
-        assert_eq!(t.is_in_front_of((100, 101), (100, 100)), true);
-        assert_eq!(t.is_in_front_of((100, 99), (100, 100)), false);
+    fn is_in_front_of_() {
+        assert_eq!(is_in_front_of((111, 87), (111, 79)), true);
+        assert_eq!(is_in_front_of((100, 100), (100, 100)), true);
+        assert_eq!(is_in_front_of((101, 100), (100, 100)), true);
+        assert_eq!(is_in_front_of((100, 101), (100, 100)), true);
+        assert_eq!(is_in_front_of((100, 99), (100, 100)), false);
     }
 
     #[test]
-    fn is_to_right_of() {
-        let t = TileGrid::default();
-        assert_eq!(t.is_to_right_of((100, 100), (100, 100)), true);
-        assert_eq!(t.is_to_right_of((99, 100), (100, 100)), true);
-        assert_eq!(t.is_to_right_of((100, 99), (100, 100)), true);
-        assert_eq!(t.is_to_right_of((100, 101), (100, 100)), true);
-        assert_eq!(t.is_to_right_of((99, 99), (100, 100)), true);
+    fn is_to_right_of_() {
+        assert_eq!(is_to_right_of((100, 100), (100, 100)), true);
+        assert_eq!(is_to_right_of((99, 100), (100, 100)), true);
+        assert_eq!(is_to_right_of((100, 99), (100, 100)), true);
+        assert_eq!(is_to_right_of((100, 101), (100, 100)), true);
+        assert_eq!(is_to_right_of((99, 99), (100, 100)), true);
 
-        assert_eq!(t.is_to_right_of((101, 100), (100, 100)), false);
-        assert_eq!(t.is_to_right_of((101, 99), (100, 100)), false);
-        assert_eq!(t.is_to_right_of((101, 101), (100, 100)), false);
+        assert_eq!(is_to_right_of((101, 100), (100, 100)), false);
+        assert_eq!(is_to_right_of((101, 99), (100, 100)), false);
+        assert_eq!(is_to_right_of((101, 101), (100, 100)), false);
     }
 
     #[test]
-    fn beyond() {
-        let t = TileGrid {
-            screen_pos: Point::new(0x130, 0xb6),
-            .. Default::default()
-        };
+    fn beyond_() {
+        let data = &[
+            (((0, 0), (0, 0), 0), (0, 0)),
+            (((123, 456), (123, 456), 0), (123, 456)),
+            (((0, 0), (0, 1), 1), (0, 1)),
+            (((0, 0), (0, 5), 1), (0, 1)),
+            (((0, 0), (0, 5), 5), (0, 5)),
+            (((0, -1), (0, 5), 0), (0, -1)),
+            (((0, -1), (0, 5), 1), (0, 0)),
+            (((0, -1), (0, 5), 6), (0, 5)),
+            (((95, 130), (100, 116), 25), (101, 111)),
+            (((95, 130), (88, 119), 25), (85, 114)),
+        ];
 
-        assert_eq!(t.beyond(t.from_linear_inv(0x65f8), t.from_linear_inv(0x5b03), 0x19),
-            t.from_linear_inv(0x571a));
-        assert_eq!(t.beyond(t.from_linear_inv(0x65f8), t.from_linear_inv(0x5d67), 0x19),
-            t.from_linear_inv(0x5982));
+        for &((from, to, distance), exp) in data {
+            assert_eq!(beyond(from, to, distance), Point::from(exp));
+        }
+    }
+
+    #[test]
+    fn tg_beyond() {
+        let tg = TileGrid::default();
+
+        let data = &[
+            (((0, 1), (0, -1), 1), (0, 0)),
+            (((0, 1), (0, -1), 2), (0, 0)),
+            (((0, 1), (0, -1), 100), (0, 0)),
+        ];
+
+        for &((from, to, distance), exp) in data {
+            assert_eq!(tg.beyond(from, to, distance), Point::from(exp));
+        }
     }
 }

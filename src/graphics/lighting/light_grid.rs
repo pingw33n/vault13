@@ -1,7 +1,7 @@
 use enum_map::EnumMap;
 use num_traits::clamp;
 
-use crate::graphics::geometry::hex::{Direction, TileGrid};
+use crate::graphics::geometry::hex::{self, Direction, TileGrid};
 use crate::graphics::{EPoint, Point};
 use crate::util::{EnumExt, vec_with_func};
 
@@ -48,7 +48,7 @@ pub struct LightGrid {
 impl LightGrid {
     pub fn new(tile_grid: &TileGrid, elevation_count: u32) -> Self {
         assert!(elevation_count > 0);
-        let light_cones = LightCones::new(MAX_EMITTER_RADIUS, tile_grid);
+        let light_cones = LightCones::new(MAX_EMITTER_RADIUS);
         let grid = vec_with_func(elevation_count as usize,
             |_| vec![DEFAULT_LIGHT_INTENSITY; tile_grid.len()].into_boxed_slice()).into_boxed_slice();
 
@@ -142,12 +142,12 @@ struct LightCones {
 }
 
 impl LightCones {
-    pub fn new(radius: u32, tile_grid: &TileGrid) -> Self {
+    pub fn new(radius: u32) -> Self {
         let mut radiuses = Vec::with_capacity(radius as usize);
         let cones = [
-            EnumMap::from(|dir| Self::make(false, dir, radius, tile_grid,
+            EnumMap::from(|dir| Self::make(false, dir, radius,
                 |r| if dir == Direction::NE { radiuses.push(r) })),
-            EnumMap::from(|dir| Self::make(true, dir, radius, tile_grid, |_| {})),
+            EnumMap::from(|dir| Self::make(true, dir, radius, |_| {})),
         ];
         Self {
             cones,
@@ -167,15 +167,16 @@ impl LightCones {
         &self.radiuses
     }
 
-    fn make(odd: bool, direction: Direction, radius: u32, tile_grid: &TileGrid,
-            mut radius_out: impl FnMut(u32)) -> Box<[Point]> {
+    fn make(odd: bool, direction: Direction, radius: u32, mut radius_out: impl FnMut(u32))
+        -> Box<[Point]>
+    {
         let mut r = Vec::new();
         let origin = Point::new(odd as i32, 0);
         let next_dir = direction.rotate_cw();
         for start_dist in 0..radius {
-            let start = tile_grid.go_unbounded(origin, next_dir, start_dist);
+            let start = hex::go(origin, next_dir, start_dist);
             for dist in 1..=(radius - start_dist) {
-                let point = tile_grid.go_unbounded(start, direction, dist);
+                let point = hex::go(start, direction, dist);
                 r.push(point - origin);
                 radius_out(start_dist + dist);
             }
@@ -380,7 +381,7 @@ mod test {
 
     #[test]
     fn light_cones() {
-        let light_cones = LightCones::new(MAX_EMITTER_RADIUS, &TileGrid::default());
+        let light_cones = LightCones::new(MAX_EMITTER_RADIUS);
 
         assert_eq!(light_cones.len(), LIGHT_CONE_LEN);
         assert_eq!(light_cones.radiuses(), &[
