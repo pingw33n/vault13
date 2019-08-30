@@ -20,6 +20,10 @@ use crate::graphics::sprite::OutlineStyle;
 use crate::util::EnumExt;
 use crate::util::array2d::Array2d;
 
+fn tile_grid() -> TileGrid {
+    TileGrid::default()
+}
+
 struct ScriptInfo {
     sid: Sid,
     program_id: ProgramId,
@@ -53,7 +57,6 @@ pub struct MapReader<'a, R: 'a> {
     pub objects: &'a mut Objects,
     pub proto_db: &'a ProtoDb,
     pub frm_db: &'a FrameDb,
-    pub tile_grid: &'a TileGrid,
     pub texture_factory: &'a TextureFactory,
     pub scripts: &'a mut Scripts,
 }
@@ -69,7 +72,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         self.reader.read_exact(&mut name[..]).unwrap();
 
         let entrance_pos_lin = self.reader.read_i32::<BigEndian>()?;
-        let entrance_pos = self.tile_grid.from_linear_inv(entrance_pos_lin as u32);
+        let entrance_pos = tile_grid().from_linear_inv(entrance_pos_lin as u32);
         debug!("entrance_pos={} ({:?})", entrance_pos_lin, entrance_pos);
         let entrance_elevation = self.reader.read_u32::<BigEndian>()?;
         assert!(entrance_elevation <= ELEVATION_COUNT);
@@ -451,7 +454,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let pos = if pos >= 0 {
             Some(EPoint {
                 elevation,
-                point: self.tile_grid.from_linear_inv(pos as u32),
+                point: tile_grid().from_linear_inv(pos as u32),
             })
         } else {
             None
