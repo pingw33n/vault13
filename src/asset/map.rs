@@ -121,10 +121,12 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 continue;
             }
             let mut tiles = Array2d::with_default(100, 100);
-            for v in tiles.as_slice_mut() {
-                let roof_id = self.reader.read_u16::<BigEndian>()?;
-                let floor_id = self.reader.read_u16::<BigEndian>()?;
-                *v = (floor_id, roof_id);
+            for y in 0..tiles.height() {
+                for x in (0..tiles.width()).rev() {
+                    let roof_id = self.reader.read_u16::<BigEndian>()?;
+                    let floor_id = self.reader.read_u16::<BigEndian>()?;
+                    *tiles.get_mut(x, y).unwrap() = (floor_id, roof_id);
+                }
             }
             sqr_tiles.push(Some(tiles));
         }
