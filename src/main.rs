@@ -180,7 +180,6 @@ fn main() {
         objects: &mut objects,
         proto_db: &proto_db,
         frm_db: &frm_db,
-        tile_grid: map_grid.hex(),
         texture_factory: &texture_factory,
         scripts: &mut scripts,
 
