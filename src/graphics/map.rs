@@ -6,28 +6,27 @@ use crate::graphics::render::{Canvas, TextureHandle};
 const ROOF_HEIGHT: i32 = 96;
 
 pub fn render_floor<'a>(canvas: &mut Canvas, stg: &sqr::TileGrid, rect: &Rect,
-        num_to_tex: impl FnMut(u32) -> Option<TextureHandle>,
+        get_tex: impl FnMut(Point) -> Option<TextureHandle>,
         get_light: impl Fn(Point) -> u32) {
-    render_square_tiles(canvas, stg, rect, 0, num_to_tex, get_light);
+    render_square_tiles(canvas, stg, rect, 0, get_tex, get_light);
 }
 
 pub fn render_roof<'a>(canvas: &mut Canvas, stg: &sqr::TileGrid, rect: &Rect,
-        num_to_tex: impl FnMut(u32) -> Option<TextureHandle>) {
+        get_tex: impl FnMut(Point) -> Option<TextureHandle>) {
     let rect = Rect::with_size(rect.left, rect.top + ROOF_HEIGHT, rect.width(), rect.height());
-    render_square_tiles(canvas, stg, &rect, ROOF_HEIGHT, num_to_tex, |_| 0x10000);
+    render_square_tiles(canvas, stg, &rect, ROOF_HEIGHT, get_tex, |_| 0x10000);
 }
 
 fn render_square_tiles(canvas: &mut Canvas, stg: &sqr::TileGrid, rect: &Rect,
         y_offset: i32,
-        mut num_to_tex: impl FnMut(u32) -> Option<TextureHandle>,
+        mut get_tex: impl FnMut(Point) -> Option<TextureHandle>,
         get_light: impl Fn(Point) -> u32) {
     let sqr_rect = stg.from_screen_rect(rect, true);
 
     let mut vertex_lights = [0; VERTEX_COUNT];
     for y in sqr_rect.top..sqr_rect.bottom {
         for x in (sqr_rect.left..sqr_rect.right).rev() {
-            let num = stg.to_linear_inv((x, y)).unwrap();
-            if let Some(tex) = num_to_tex(num) {
+            if let Some(tex) = get_tex(Point::new(x, y)) {
                 let scr_pt = stg.to_screen((x, y)) - Point::new(0, y_offset);
 
                 let hex_pos = Point::new(x * 2, y * 2);

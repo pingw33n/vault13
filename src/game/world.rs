@@ -177,9 +177,9 @@ impl World {
     pub fn render(&self, canvas: &mut Canvas, rect: &Rect, draw_roof: bool) {
         let elevation = self.elevation();
         render_floor(canvas, self.map_grid.sqr(), rect,
-            |num| {
+            |p| {
                 let fid = FrameId::new_generic(EntityKind::SqrTile,
-                    self.sqr_tiles[elevation as usize].as_ref().unwrap()[num as usize].0).unwrap();
+                    self.sqr_tiles[elevation as usize].as_ref().unwrap().get(p.x as usize, p.y as usize).unwrap().0).unwrap();
                 Some(self.frm_db.get(fid).frame_lists[Direction::NE].frames[0].texture.clone())
             },
             |point| {
@@ -197,8 +197,8 @@ impl World {
 
         if draw_roof {
             render_roof(canvas, self.map_grid.sqr(), rect,
-                |num| Some(self.frm_db.get(FrameId::new_generic(EntityKind::SqrTile,
-                    self.sqr_tiles[elevation as usize].as_ref().unwrap()[num as usize].1).unwrap())
+                |p| Some(self.frm_db.get(FrameId::new_generic(EntityKind::SqrTile,
+                    self.sqr_tiles[elevation as usize].as_ref().unwrap().get(p.x as usize, p.y as usize).unwrap().1).unwrap())
                         .first().texture.clone()));
         }
 
