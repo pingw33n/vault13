@@ -15,10 +15,10 @@ mod vm;
 
 use std::rc::Rc;
 use crate::asset::*;
+use crate::asset::map::ELEVATION_COUNT;
 use crate::asset::palette::read_palette;
 use crate::asset::proto::*;
 use crate::graphics::color::PaletteOverlay;
-use crate::graphics::geometry::map::{ELEVATION_COUNT, MapGrid};
 use crate::graphics::render::software::*;
 use crate::asset::map::*;
 use crate::asset::frame::*;
@@ -58,7 +58,7 @@ use crate::ui::message_panel::MessagePannel;
 use clap::ArgMatches;
 use bstring::BString;
 use measure_time::*;
-use crate::graphics::geometry::TileGridView;
+use crate::graphics::geometry::{TileGridView, hex, sqr};
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -169,9 +169,10 @@ fn main() {
     let mut canvas = gfx_backend.into_canvas(fonts.clone());
     let canvas = canvas.as_mut();
 
-    let map_grid = MapGrid::new(640, 380);
+    let hex_grid = hex::TileGrid::default();
+    let sqr_grid = sqr::TileGrid::default();
 
-    let mut objects = Objects::new(map_grid.hex().clone(), ELEVATION_COUNT, proto_db.clone(), frm_db.clone());
+    let mut objects = Objects::new(hex_grid.clone(), ELEVATION_COUNT, proto_db.clone(), frm_db.clone());
 
     let mut scripts = Scripts::new(ScriptDb::new(fs.clone()).unwrap(), Vm::default());
 
@@ -212,7 +213,9 @@ fn main() {
         r
     }
 
-    let mut world = World::new(proto_db.clone(), frm_db.clone(), map_grid, map.sqr_tiles, objects);
+    let viewport = Rect::with_size(0, 0, 640, 380);
+    let mut world = World::new(proto_db.clone(), frm_db.clone(), hex_grid.clone(), viewport,
+        map.sqr_tiles, objects);
     world.game_time = START_GAME_TIME;
     world.rebuild_light_grid();
 
@@ -238,7 +241,7 @@ fn main() {
     world.make_object_standing(dude_objh);
     frm_db.get_or_load(FrameId::EGG, &texture_factory).unwrap();
 
-    world.map_grid_mut().center2(map.entrance.point);
+    world.camera_mut().look_at(map.entrance.point);
 
     let mut sequencer = Sequencer::new();
 
@@ -284,7 +287,6 @@ fn main() {
     });
     let mouse_objh = world.insert_object(mouse_obj);
 
-    let visible_rect = Rect::with_size(0, 0, 640, 380);
     let scroll_inc = 10;
     let mut roof_visible = false;
 
@@ -386,8 +388,8 @@ fn main() {
             if !handled {
             match event {
                 Event::MouseMotion { x, y, .. } => {
-                    mouse_hex_pos = world.map_grid().hex().from_screen((x, y));
-                    mouse_sqr_pos = world.map_grid().sqr().from_screen((x, y));
+                    mouse_hex_pos = world.camera().hex().from_screen((x, y));
+                    mouse_sqr_pos = world.camera().sqr().from_screen((x, y));
                     let new_pos = EPoint::new(world.elevation(), mouse_hex_pos);
                     world.set_object_pos(mouse_objh, new_pos);
 
@@ -427,7 +429,7 @@ fn main() {
                                         signal.cancel();
                                     }
 
-                                    let to = world.map_grid().hex().from_screen((x, y));
+                                    let to = world.camera().hex().from_screen((x, y));
                                     if let Some(path) = world.path_for_object(dude_objh, to, true) {
                                         let anim = if shift_down {
                                             CritterAnim::Walk
@@ -448,16 +450,16 @@ fn main() {
                     }
                 }
                 Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
-                    world.map_grid_mut().scroll((scroll_inc, 0));
+                    world.camera_mut().origin.x -= scroll_inc;
                 }
                 Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
-                    world.map_grid_mut().scroll((-scroll_inc, 0));
+                    world.camera_mut().origin.x += scroll_inc;
                 }
                 Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
-                    world.map_grid_mut().scroll((0, -scroll_inc));
+                    world.camera_mut().origin.y += scroll_inc;
                 }
                 Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
-                    world.map_grid_mut().scroll((0, scroll_inc));
+                    world.camera_mut().origin.y -= scroll_inc;
                 }
                 Event::KeyDown { keycode: Some(Keycode::Comma), .. } => {
                     let mut obj = world.objects().get(dude_objh).borrow_mut();
@@ -527,7 +529,7 @@ fn main() {
         match look_at_state {
             LookAtState::Idle => {}
             LookAtState::Pending { start, pos } => if now - start >= Duration::from_millis(500) {
-                if let Some(objh) = world.pick_object(pos, &visible_rect, true) {
+                if let Some(objh) = world.pick_object(pos, true) {
                     if Some(objh) != look_at_obj {
                         look_at_obj = Some(objh);
                         let obj = world.objects().get(objh).borrow();
@@ -564,7 +566,7 @@ fn main() {
             world: &mut world
         });
 
-        fidget.update(now, &mut world, &visible_rect, &mut sequencer);
+        fidget.update(now, &mut world, &mut sequencer);
 
         canvas.update(now);
 
@@ -572,10 +574,10 @@ fn main() {
 
         canvas.clear(BLACK);
 
-        world.render(canvas, &visible_rect, roof_visible);
+        world.render(canvas, roof_visible);
 
         if draw_path_blocked {
-            let center = world.map_grid().hex().to_screen(mouse_hex_pos) + Point::new(16, 8);
+            let center = world.camera().hex().to_screen(mouse_hex_pos) + Point::new(16, 8);
             canvas.draw_text(b"X".as_ref().into(), center.x, center.y, FontKey::antialiased(1),
                 RED, &DrawOptions {
                     horz_align: HorzAlign::Center,
@@ -596,11 +598,11 @@ fn main() {
                  dude hex: {}, {} ({})\n\
                  ambient: 0x{:x}",
                 mouse_hex_pos.x, mouse_hex_pos.y,
-                world.map_grid().hex().to_linear_inv(mouse_hex_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
+                hex_grid.to_linear_inv(mouse_hex_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 mouse_sqr_pos.x, mouse_sqr_pos.y,
-                world.map_grid().sqr().to_linear_inv(mouse_sqr_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
+                sqr_grid.to_linear_inv(mouse_sqr_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 dude_pos.x, dude_pos.y,
-                world.map_grid().hex().to_linear_inv(dude_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
+                hex_grid.to_linear_inv(dude_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 world.ambient_light,
             );
             canvas.draw_text(msg.as_bytes().into(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),

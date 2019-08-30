@@ -1,6 +1,5 @@
 pub mod camera;
 pub mod hex;
-pub mod map;
 pub mod sqr;
 
 use crate::graphics::{Point, Rect};
