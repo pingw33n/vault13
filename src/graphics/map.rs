@@ -42,9 +42,8 @@ fn render_square_tiles(canvas: &mut Canvas, stg: &impl TileGridView, rect: &Rect
 }
 
 // Whether scroll is restricted based on horz/vert distance from `dude_pos` to the new `pos`.
-pub fn is_scroll_limited(htg: &hex::TileGrid,
-                         pos: impl Into<Point>, dude_pos: impl Into<Point>) -> bool {
-    let dist = htg.to_screen(dude_pos) - htg.to_screen(pos);
+pub fn is_scroll_limited(pos: impl Into<Point>, dude_pos: impl Into<Point>) -> bool {
+    let dist = hex::to_screen(dude_pos) - hex::to_screen(pos);
     dist.x >= 480 || dist.y >= 400
 
     // There's also:

@@ -3,6 +3,7 @@ use measure_time::*;
 use std::cmp;
 
 use crate::graphics::Point;
+use crate::graphics::geometry::hex;
 use crate::util::EnumExt;
 use super::*;
 
@@ -206,8 +207,8 @@ impl PathFinder {
     }
 
     fn estimate(&self, from: Point, to: Point) -> u32 {
-        let from = self.tile_grid.to_screen(from);
-        let to = self.tile_grid.to_screen(to);
+        let from = hex::to_screen(from);
+        let to = hex::to_screen(to);
         let diff = (to - from).abs();
         let min = cmp::min(diff.x, diff.y);
         (diff.x + diff.y - min / 2) as u32
