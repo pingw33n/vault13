@@ -31,4 +31,4 @@ Controls that work in demo:
 * `r` - toggle roof drawing.
 * `` ` `` - toggle debug info display.
 
-![Screenshot](screenshot.png?2)
+![Screenshot](screenshot_20190830114533.png)
