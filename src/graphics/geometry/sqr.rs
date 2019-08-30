@@ -59,10 +59,6 @@ impl TileGridView for View {
 
 #[derive(Clone, Debug)]
 pub struct TileGrid {
-    // Position in screen coordinates.
-    // Tile at `pos` will be mapped to screen at screen_pos.
-    screen_pos: Point,
-
     // Width in tiles.
     width: i32,
 
@@ -73,18 +69,6 @@ pub struct TileGrid {
 impl TileGrid {
     pub fn len(&self) -> usize {
         (self.width * self.height) as usize
-    }
-
-    pub fn screen_pos(&self) -> Point {
-        self.screen_pos
-    }
-
-    pub fn screen_pos_mut(&mut self) -> &mut Point {
-        &mut self.screen_pos
-    }
-
-    pub fn set_screen_pos(&mut self, pos: impl Into<Point>) {
-        self.screen_pos = pos.into();
     }
 
     pub fn width(&self) -> i32 {
@@ -137,21 +121,9 @@ impl TileGrid {
     }
 }
 
-impl TileGridView for TileGrid {
-    fn from_screen(&self, p: impl Into<Point>) -> Point {
-        let p = p.into() - self.screen_pos;
-        from_screen(p)
-    }
-
-    fn to_screen(&self, p: impl Into<Point>) -> Point {
-        to_screen(p) + self.screen_pos
-    }
-}
-
 impl Default for TileGrid {
     fn default() -> Self {
         Self {
-            screen_pos: Point::default(),
             width: 100,
             height: 100,
         }
@@ -163,14 +135,11 @@ mod test {
     use super::*;
 
     #[test]
-    fn tg_from_screen() {
-        let t = TileGrid {
-            screen_pos: Point::new(0xf0, 0xa8),
-            .. Default::default()
-        };
+    fn view_from_screen() {
+        let t = View::new((0xf0, 0xa8));
         let square_xy = |x, y| {
             let p = t.from_screen((x, y));
-            Point::new(t.width - 1 - p.x, p.y)
+            Point::new(100 - 1 - p.x, p.y)
         };
         assert_eq!(square_xy(0, 0), Point::new(99, -8));
         assert_eq!(square_xy(0x27f, 0x17b), Point::new(97, 9));
@@ -186,12 +155,10 @@ mod test {
     }
 
     #[test]
-    fn tg_to_screen() {
-        let t = TileGrid {
-            screen_pos: Point::new(0x100, 0xb4),
-            .. Default::default()
-        };
-        assert_eq!(t.to_screen(t.from_linear_inv(0x1091)), Point::new(4384, 492));
+    fn view_to_screen() {
+        let t = TileGrid::default();
+        let v = View::new((0x100, 0xb4));
+        assert_eq!(v.to_screen(t.from_linear_inv(0x1091)), Point::new(4384, 492));
     }
 
     #[test]
