@@ -1,7 +1,7 @@
 use enum_map::EnumMap;
 use num_traits::clamp;
 
-use crate::graphics::geometry::hex::{self, Direction, TileGrid};
+use crate::graphics::geometry::hex::{self, Direction};
 use crate::graphics::{EPoint, Point};
 use crate::util::{EnumExt, vec_with_func};
 
@@ -46,14 +46,15 @@ pub struct LightGrid {
 }
 
 impl LightGrid {
-    pub fn new(tile_grid: &TileGrid, elevation_count: u32) -> Self {
+    pub fn new(width: i32, height: i32, elevation_count: u32) -> Self {
         assert!(elevation_count > 0);
         let light_cones = LightCones::new(MAX_EMITTER_RADIUS);
+        let len = (width * height) as usize;
         let grid = vec_with_func(elevation_count as usize,
-            |_| vec![DEFAULT_LIGHT_INTENSITY; tile_grid.len()].into_boxed_slice()).into_boxed_slice();
+            |_| vec![DEFAULT_LIGHT_INTENSITY; len].into_boxed_slice()).into_boxed_slice();
 
         Self {
-            width: tile_grid.width(),
+            width,
             light_cones,
             grid,
             block: LightBlock::new(),
@@ -435,14 +436,16 @@ mod test {
         use byteorder::{ByteOrder, LittleEndian};
         use flate2::bufread::GzDecoder;
         use std::io::Read;
-        use super::*;
         use std::collections::HashMap;
+
+        use super::*;
+        use crate::graphics::geometry::hex::TileGrid;
 
         #[test]
         fn reference_no_light_test() {
             let expected = read_light_grid_dump(&include_bytes!("light_grid_expected.bin.gz")[..]);
 
-            let mut actual = LightGrid::new(&TileGrid::default(), 1);
+            let mut actual = LightGrid::new(200, 200, 1);
             for (linp, radius, amount) in vec![
                 (0x3898, 8, 0x10000),
                 (0x3d49, 8, 0x10000),
@@ -492,7 +495,7 @@ mod test {
                 light_test_map.insert(lt, r);
             }
 
-            let mut actual = LightGrid::new(&TileGrid::default(), ELEVATION + 1);
+            let mut actual = LightGrid::new(200, 200, ELEVATION + 1);
             for (point, radius, intensity) in input {
                 actual.update(Point::from(point).elevated(ELEVATION),
                     radius, intensity as i32, |lt| light_test_map[&lt]);
@@ -503,7 +506,7 @@ mod test {
 
         #[test]
         fn flip() {
-            let mut lg = LightGrid::new(&TileGrid::default(), 2);
+            let mut lg = LightGrid::new(200, 200, 2);
 
             let expected = Vec::from(lg.grid().clone());
 

@@ -34,7 +34,10 @@ impl World {
             sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
             objects: Objects) -> Self {
         assert_eq!(sqr_tiles.len(), ELEVATION_COUNT as usize);
-        let light_grid = LightGrid::new(map_grid.hex(), ELEVATION_COUNT);
+        let light_grid = LightGrid::new(
+            map_grid.hex().width(),
+            map_grid.hex().height(),
+            ELEVATION_COUNT);
         let mut r = Self {
             proto_db,
             frm_db,
