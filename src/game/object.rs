@@ -902,16 +902,16 @@ pub enum DamageFlag {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::geometry::hex::View;
 
     #[test]
     fn bounds() {
         let screen_shift = Point::new(10, 20);
         let base = Point::new(2384, 468) + screen_shift;
 
-        let tg = TileGrid::default();
         let mut obj = Object::new(FrameId::BLANK, None, Some(EPoint::new(0, (55, 66))));
         obj.screen_shift = screen_shift;
-        assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &tg),
+        assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &View::default()),
             Rect::with_points((1, -51), (30, 12))
                 .translate(base.x, base.y));
     }

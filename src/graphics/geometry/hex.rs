@@ -331,10 +331,6 @@ fn tile_hit_test(p: impl Into<Point>) -> TileHit {
 
 #[derive(Clone, Debug)]
 pub struct TileGrid {
-    // Position in screen coordinates.
-    // Tile at `pos` will be mapped to screen at screen_pos.
-    screen_pos: Point,
-
     // Width in tiles.
     width: i32,
 
@@ -345,18 +341,6 @@ pub struct TileGrid {
 impl TileGrid {
     pub fn len(&self) -> usize {
         (self.width * self.height) as usize
-    }
-
-    pub fn screen_pos(&self) -> Point {
-        self.screen_pos
-    }
-
-    pub fn screen_pos_mut(&mut self) -> &mut Point {
-        &mut self.screen_pos
-    }
-
-    pub fn set_screen_pos(&mut self, pos: impl Into<Point>) {
-        self.screen_pos = pos.into();
     }
 
     pub fn width(&self) -> i32 {
@@ -457,21 +441,9 @@ impl TileGrid {
     }
 }
 
-impl TileGridView for TileGrid {
-    fn from_screen(&self, p: impl Into<Point>) -> Point {
-        let p = p.into() - self.screen_pos;
-        from_screen(p)
-    }
-
-    fn to_screen(&self, p: impl Into<Point>) -> Point {
-        to_screen(p) + self.screen_pos
-    }
-}
-
 impl Default for TileGrid {
     fn default() -> Self {
         Self {
-            screen_pos: Point::default(),
             width: 200,
             height: 200,
         }
@@ -509,11 +481,8 @@ mod test {
     }
 
     #[test]
-    fn tg_from_screen1() {
-        let t = TileGrid {
-            screen_pos: Point::new(272, 182),
-            .. Default::default()
-        };
+    fn view_from_screen() {
+        let t = View::new((272, 182));
         assert_eq!(t.from_screen((-320, -240)), Point::new(-1, -37));
         assert_eq!(t.from_screen((-320, 620)), Point::new(-37, 17));
         assert_eq!(t.from_screen((256, -242)), Point::new(17, -28));
@@ -543,32 +512,29 @@ mod test {
     }
 
     #[test]
-    fn tg_from_screen2() {
-        let mut t = TileGrid::default();
+    fn view_from_screen2() {
+        let mut t = View::default();
 
-        for spos in &[Point::new(0, 0), Point::new(100, 200)] {
-            t.set_screen_pos(spos);
-            assert_eq!(t.from_screen(spos.add((0, 0))), Point::new(0, -1));
-            assert_eq!(t.from_screen(spos.add((16, 0))), Point::new(0, 0));
-            assert_eq!(t.from_screen(spos.add((48, 0))), Point::new(1, 0));
-            assert_eq!(t.from_screen(spos.add((48, -1))), Point::new(2, 0));
-            assert_eq!(t.from_screen(spos.add((0, 4))), Point::new(0, 0));
+        for &o in &[Point::new(0, 0), Point::new(100, 200)] {
+            t.origin = o;
+            assert_eq!(t.from_screen(o.add((0, 0))), Point::new(0, -1));
+            assert_eq!(t.from_screen(o.add((16, 0))), Point::new(0, 0));
+            assert_eq!(t.from_screen(o.add((48, 0))), Point::new(1, 0));
+            assert_eq!(t.from_screen(o.add((48, -1))), Point::new(2, 0));
+            assert_eq!(t.from_screen(o.add((0, 4))), Point::new(0, 0));
         }
     }
 
     #[test]
-    fn tg_to_screen1() {
-        let t = TileGrid {
-            screen_pos: Point::new(272, 182),
-            .. Default::default()
-        };
-
-        assert_eq!(t.to_screen(t.from_linear_inv(12702)), Point::new(3616, 362));
+    fn view_to_screen1() {
+        let t = TileGrid::default();
+        let v = View::new((272, 182));
+        assert_eq!(v.to_screen(t.from_linear_inv(12702)), Point::new(3616, 362));
     }
 
     #[test]
-    fn tg_to_screen2() {
-        let t = TileGrid::default();
+    fn view_to_screen2() {
+        let t = View::default();
         assert_eq!(t.to_screen((0, 0)), Point::new(0, 0));
     }
 
