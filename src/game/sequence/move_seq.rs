@@ -104,7 +104,7 @@ impl Sequence for Move {
                     obj.screen_shift - next_hex_offset
                 };
                 let pos = pos.unwrap();
-                let pos_point = ctx.world.map_grid().hex().go(pos.point, dir, 1).unwrap();
+                let pos_point = ctx.world.hex_grid().go(pos.point, dir, 1).unwrap();
                 Some((EPoint::new(pos.elevation, pos_point), shift))
             } else {
                 None

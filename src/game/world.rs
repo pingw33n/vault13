@@ -3,12 +3,13 @@ use std::rc::Rc;
 
 use crate::asset::EntityKind;
 use crate::asset::frame::{FrameId, FrameDb};
+use crate::asset::map::ELEVATION_COUNT;
 use crate::asset::proto::ProtoDb;
 use crate::game::GameTime;
 use crate::game::object::{self, DamageFlag, Egg, Object, Objects, SubObject};
 use crate::graphics::{EPoint, Point, Rect};
-use crate::graphics::geometry::hex::Direction;
-use crate::graphics::geometry::map::{ELEVATION_COUNT, MapGrid};
+use crate::graphics::geometry::camera::Camera;
+use crate::graphics::geometry::hex::{self, Direction};
 use crate::graphics::lighting::light_grid::LightGrid;
 use crate::graphics::map::*;
 use crate::graphics::render::Canvas;
@@ -17,7 +18,8 @@ use crate::util::array2d::Array2d;
 pub struct World {
     proto_db: Rc<ProtoDb>,
     frm_db: Rc<FrameDb>,
-    map_grid: MapGrid,
+    hex_grid: hex::TileGrid,
+    camera: Camera,
     sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
     objects: Objects,
     light_grid: LightGrid,
@@ -30,18 +32,23 @@ impl World {
     pub fn new(
             proto_db: Rc<ProtoDb>,
             frm_db: Rc<FrameDb>,
-            map_grid: MapGrid,
+            hex_grid: hex::TileGrid,
+            viewport: Rect,
             sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
             objects: Objects) -> Self {
         assert_eq!(sqr_tiles.len(), ELEVATION_COUNT as usize);
         let light_grid = LightGrid::new(
-            map_grid.hex().width(),
-            map_grid.hex().height(),
+            hex_grid.width(),
+            hex_grid.height(),
             ELEVATION_COUNT);
         let mut r = Self {
             proto_db,
             frm_db,
-            map_grid,
+            hex_grid,
+            camera: Camera {
+                origin: Point::new(0, 0),
+                viewport,
+            },
             sqr_tiles,
             objects,
             light_grid,
@@ -62,12 +69,16 @@ impl World {
         &self.frm_db
     }
 
-    pub fn map_grid(&self) -> &MapGrid {
-        &self.map_grid
+    pub fn hex_grid(&self) -> &hex::TileGrid {
+        &self.hex_grid
     }
 
-    pub fn map_grid_mut(&mut self) -> &mut MapGrid {
-        &mut self.map_grid
+    pub fn camera(&self) -> &Camera {
+        &self.camera
+    }
+
+    pub fn camera_mut(&mut self) -> &mut Camera {
+        &mut self.camera
     }
 
     pub fn objects(&self) -> &Objects {
@@ -135,24 +146,20 @@ impl World {
     }
 
     pub fn object_bounds(&self, obj: object::Handle) -> Rect {
-        self.objects.bounds(obj, self.map_grid.hex())
+        self.objects.bounds(obj, &self.camera.hex())
     }
 
-    pub fn object_hit_test(&self, p: impl Into<Point>, rect: &Rect)
-        -> Vec<(object::Handle, object::Hit)>
-    {
-        self.objects.hit_test(p.into().elevated(self.elevation()), rect,
-            self.map_grid.hex(), self.egg())
+    pub fn object_hit_test(&self, p: impl Into<Point>) -> Vec<(object::Handle, object::Hit)> {
+        self.objects.hit_test(p.into().elevated(self.elevation()), &self.camera.viewport,
+            &self.camera.hex(), self.egg())
     }
 
     // object_under_mouse()
-    pub fn pick_object(&self, pos: impl Into<Point>, rect: &Rect, include_dude: bool)
-        -> Option<object::Handle>
-    {
+    pub fn pick_object(&self, pos: impl Into<Point>, include_dude: bool) -> Option<object::Handle> {
         let filter_dude = |oh: &&(object::Handle, object::Hit)| -> bool {
             include_dude || Some(oh.0) != self.dude_obj
         };
-        let hits = self.object_hit_test(pos, rect);
+        let hits = self.object_hit_test(pos);
         let r = hits
             .iter()
             .filter(filter_dude)
@@ -177,9 +184,9 @@ impl World {
         }
     }
 
-    pub fn render(&self, canvas: &mut Canvas, rect: &Rect, draw_roof: bool) {
+    pub fn render(&self, canvas: &mut Canvas, draw_roof: bool) {
         let elevation = self.elevation();
-        render_floor(canvas, self.map_grid.sqr(), rect,
+        render_floor(canvas, &self.camera.sqr(), &self.camera.viewport,
             |p| {
                 let fid = FrameId::new_generic(EntityKind::SqrTile,
                     self.sqr_tiles[elevation as usize].as_ref().unwrap().get(p.x as usize, p.y as usize).unwrap().0).unwrap();
@@ -191,7 +198,8 @@ impl World {
             }
         );
 
-        self.objects().render(canvas, elevation, rect, self.map_grid.hex(), self.egg().as_ref(),
+        self.objects().render(canvas, elevation, &self.camera.viewport, &self.camera.hex(),
+            self.egg().as_ref(),
             |pos| if let Some(pos) = pos {
                 cmp::max(self.light_grid().get_clipped(pos), self.ambient_light)
             } else {
@@ -199,13 +207,13 @@ impl World {
             });
 
         if draw_roof {
-            render_roof(canvas, self.map_grid.sqr(), rect,
+            render_roof(canvas, &self.camera.sqr(), &self.camera.viewport,
                 |p| Some(self.frm_db.get(FrameId::new_generic(EntityKind::SqrTile,
                     self.sqr_tiles[elevation as usize].as_ref().unwrap().get(p.x as usize, p.y as usize).unwrap().1).unwrap())
                         .first().texture.clone()));
         }
 
-        self.objects().render_outlines(canvas, elevation, rect, self.map_grid.hex());
+        self.objects().render_outlines(canvas, elevation, &self.camera.viewport, &self.camera.hex());
 
         // TODO render floating text objects.
     }

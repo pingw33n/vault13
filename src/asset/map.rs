@@ -14,11 +14,12 @@ use crate::game::object::*;
 use crate::game::script::*;
 use crate::graphics::{EPoint, Point};
 use crate::graphics::geometry::hex::{Direction, TileGrid};
-use crate::graphics::geometry::map::ELEVATION_COUNT;
 use crate::graphics::render::TextureFactory;
 use crate::graphics::sprite::OutlineStyle;
 use crate::util::EnumExt;
 use crate::util::array2d::Array2d;
+
+pub const ELEVATION_COUNT: u32 = 3;
 
 fn tile_grid() -> TileGrid {
     TileGrid::default()

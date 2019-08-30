@@ -98,7 +98,7 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
 
     // FIXME add proper impl
     let fid = ctx.ext.world.proto_db().proto(pid).unwrap().fid;
-    let pos = ctx.ext.world.map_grid().hex().from_linear_inv(tile_num);
+    let pos = ctx.ext.world.hex_grid().from_linear_inv(tile_num);
     let pos = pos.elevated(elevation);
     let obj = Object::new(fid, Some(pid), Some(pos));
     let objh = ctx.ext.world.insert_object(obj);
@@ -276,14 +276,14 @@ pub fn override_map_start(ctx: Context) -> Result<()> {
     let world = &mut ctx.ext.world;
 
     let x = ctx.prg.data_stack.pop()?.into_int()?;
-    let x = world.map_grid().hex().invert_x(x);
+    let x = world.hex_grid().invert_x(x);
 
     let obj = world.dude_obj().unwrap();
     let pos = EPoint::new(elevation, (x, y));
     world.set_object_pos(obj, pos);
     world.objects_mut().get(obj).borrow_mut().direction = direction;
 
-    world.map_grid_mut().center2(pos.point);
+    world.camera_mut().look_at(pos.point);
 
     log_a4!(ctx.prg, x, y, direction, elevation);
 
@@ -390,7 +390,7 @@ pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
     let elevation = ctx.prg.data_stack.pop()?.into_int()? as u32;
     let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
 
-    let pos = ctx.ext.world.map_grid().hex().from_linear_inv(tile_num as u32)
+    let pos = ctx.ext.world.hex_grid().from_linear_inv(tile_num as u32)
         .elevated(elevation);
 
     let r = ctx.ext.world.objects().at(pos).iter()
