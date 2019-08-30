@@ -65,7 +65,7 @@ pub struct Egg {
 
 impl Egg {
     #[must_use]
-    pub fn hit_test(&self, p: Point, tile_grid: &TileGrid, frm_db: &FrameDb) -> bool {
+    pub fn hit_test(&self, p: Point, tile_grid: &impl TileGridView, frm_db: &FrameDb) -> bool {
         let screen_pos = tile_grid.to_screen(self.pos) + Point::new(16, 8);
         let frms = frm_db.get(self.fid);
         let frml = &frms.frame_lists[Direction::NE];
@@ -153,7 +153,7 @@ impl Object {
     }
 
     pub fn render(&mut self, canvas: &mut Canvas, light: u32,
-            frm_db: &FrameDb, proto_db: &ProtoDb, tile_grid: &TileGrid,
+            frm_db: &FrameDb, proto_db: &ProtoDb, tile_grid: &impl TileGridView,
             egg: Option<&Egg>) {
         if self.flags.contains(Flag::TurnedOff) {
             return;
@@ -171,7 +171,7 @@ impl Object {
         self.screen_pos = sprite.render(canvas, frm_db).top_left();
     }
 
-    pub fn render_outline(&self, canvas: &mut Canvas, frm_db: &FrameDb, tile_grid: &TileGrid) {
+    pub fn render_outline(&self, canvas: &mut Canvas, frm_db: &FrameDb, tile_grid: &impl TileGridView) {
         if self.flags.contains(Flag::TurnedOff) {
             return;
         }
@@ -189,7 +189,7 @@ impl Object {
     }
 
     // obj_bound()
-    pub fn bounds(&self, frm_db: &FrameDb, tile_grid: &TileGrid) -> Rect {
+    pub fn bounds(&self, frm_db: &FrameDb, tile_grid: &impl TileGridView) -> Rect {
         let (frame_list, frame) = self.frame_list(frm_db);
         self.bounds0(frame_list.center, frame.size(), tile_grid)
     }
@@ -202,7 +202,7 @@ impl Object {
 
     // obj_intersects_with
     #[must_use]
-    pub fn hit_test(&self, p: Point, frm_db: &FrameDb, tile_grid: &TileGrid) -> Option<Hit> {
+    pub fn hit_test(&self, p: Point, frm_db: &FrameDb, tile_grid: &impl TileGridView) -> Option<Hit> {
         if self.flags.contains(Flag::TurnedOff) {
             return None;
         }
@@ -224,7 +224,7 @@ impl Object {
         })
     }
 
-    fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &TileGrid) -> Rect {
+    fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &impl TileGridView) -> Rect {
         let mut r = if let Some(pos) = self.pos {
             let top_left =
                 tile_grid.to_screen(pos.point)
@@ -250,7 +250,7 @@ impl Object {
         r
     }
 
-    fn create_sprite(&self, light: u32, effect: Option<Effect>, tile_grid: &TileGrid) -> Sprite {
+    fn create_sprite(&self, light: u32, effect: Option<Effect>, tile_grid: &impl TileGridView) -> Sprite {
         let (pos, centered) = if let Some(EPoint { point: hex_pos, .. }) = self.pos {
             (tile_grid.to_screen(hex_pos) + self.screen_shift + Point::new(16, 8), true)
         } else {
@@ -267,7 +267,7 @@ impl Object {
         }
     }
 
-    fn get_effect(&self, proto_db: &ProtoDb, tile_grid: &TileGrid, egg: Option<&Egg>)
+    fn get_effect(&self, proto_db: &ProtoDb, tile_grid: &impl TileGridView, egg: Option<&Egg>)
             -> Option<Effect> {
         let kind = self.fid.kind();
 
@@ -470,7 +470,7 @@ impl Objects {
     }
 
     pub fn render(&self, canvas: &mut Canvas, elevation: u32, screen_rect: &Rect,
-            tile_grid: &TileGrid, egg: Option<&Egg>,
+            tile_grid: &impl TileGridView, egg: Option<&Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32) {
         let ref get_light = get_light;
         self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, true);
@@ -478,7 +478,7 @@ impl Objects {
     }
 
     pub fn render_outlines(&self, canvas: &mut Canvas, elevation: u32, screen_rect: &Rect,
-            tile_grid: &TileGrid) {
+            tile_grid: &impl TileGridView) {
         let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
         for y in hex_rect.top..hex_rect.bottom {
             for x in (hex_rect.left..hex_rect.right).rev() {
@@ -654,11 +654,11 @@ impl Objects {
             })
     }
 
-    pub fn bounds(&self, obj: Handle, tile_grid: &TileGrid) -> Rect {
+    pub fn bounds(&self, obj: Handle, tile_grid: &impl TileGridView) -> Rect {
         self.get(obj).borrow().bounds(&self.frm_db, tile_grid)
     }
 
-    pub fn hit_test(&self, p: EPoint, screen_rect: &Rect, tile_grid: &TileGrid,
+    pub fn hit_test(&self, p: EPoint, screen_rect: &Rect, tile_grid: &impl TileGridView,
         egg: Option<Egg>) -> Vec<(Handle, Hit)>
     {
         let mut r = Vec::new();
@@ -693,7 +693,7 @@ impl Objects {
 
     // obj_intersects_with()
     #[must_use]
-    fn is_egg_hit(&self, p: Point, obj: &Object, egg: Egg, tile_grid: &TileGrid) -> bool {
+    fn is_egg_hit(&self, p: Point, obj: &Object, egg: Egg, tile_grid: &impl TileGridView) -> bool {
         if_chain! {
             if let Some(obj_pos) = obj.pos;
             let obj_pos = obj_pos.point;
@@ -725,7 +725,7 @@ impl Objects {
         }
     }
 
-    fn get_render_hex_rect(screen_rect: &Rect, tile_grid: &TileGrid) -> Rect {
+    fn get_render_hex_rect(screen_rect: &Rect, tile_grid: &impl TileGridView) -> Rect {
         tile_grid.from_screen_rect(&Rect {
             left: -320,
             top: -190,
@@ -735,7 +735,7 @@ impl Objects {
     }
 
     fn render0(&self, canvas: &mut Canvas, elevation: u32,
-            screen_rect: &Rect, tile_grid: &TileGrid, egg: Option<&Egg>,
+            screen_rect: &Rect, tile_grid: &impl TileGridView, egg: Option<&Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32,
             flat: bool) {
         let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
