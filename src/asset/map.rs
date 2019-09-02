@@ -14,7 +14,6 @@ use crate::game::object::*;
 use crate::game::script::*;
 use crate::graphics::{EPoint, Point};
 use crate::graphics::geometry::hex::{Direction, TileGrid};
-use crate::graphics::render::TextureFactory;
 use crate::graphics::sprite::OutlineStyle;
 use crate::util::EnumExt;
 use crate::util::array2d::Array2d;
@@ -58,7 +57,6 @@ pub struct MapReader<'a, R: 'a> {
     pub objects: &'a mut Objects,
     pub proto_db: &'a ProtoDb,
     pub frm_db: &'a FrameDb,
-    pub texture_factory: &'a TextureFactory,
     pub scripts: &'a mut Scripts,
 }
 
@@ -291,7 +289,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let fid = FrameId::read(self.reader)?;
         trace!("{:?}", fid);
 
-        self.frm_db.get_or_load(fid, self.texture_factory)?;
+        self.frm_db.get(fid)?;
 
         let flags = self.reader.read_u32::<BigEndian>()?;
         let flags = BitFlags::from_bits(flags)

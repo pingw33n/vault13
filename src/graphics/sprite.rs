@@ -186,7 +186,7 @@ impl Sprite {
     }
 
     pub fn render(&self, canvas: &mut Canvas, frm_db: &FrameDb) -> Rect {
-        let frms = frm_db.get(self.fid);
+        let frms = frm_db.get(self.fid).unwrap();
         let frml = &frms.frame_lists[self.direction];
         let frm = &frml.frames[self.frame_idx];
 
@@ -209,7 +209,7 @@ impl Sprite {
                     self.light);
             }
             Some(Effect::Masked { mask_pos, mask_fid }) => {
-                let mask_frms = frm_db.get(mask_fid);
+                let mask_frms = frm_db.get(mask_fid).unwrap();
                 let mask_frml = &mask_frms.frame_lists[Direction::NE];
                 let mask_frm = &mask_frml.frames[0];
                 let mask_bounds = mask_frm.bounds_centered(mask_pos, mask_frml.center);

@@ -117,6 +117,14 @@ impl FrameId {
         }
     }
 
+    pub fn with_direction(self, direction: Option<Direction>) -> Option<Self> {
+        match self {
+            FrameId::Critter(v) => Some(FrameId::Critter(v.with_direction(direction))),
+            FrameId::Head(v) => Some(FrameId::Head(v.with_direction(direction))),
+            FrameId::Generic(_) => None,
+        }
+    }
+
     pub fn anim(self) -> u8 {
         match self {
             FrameId::Critter(v) => v.anim() as u8,
@@ -285,6 +293,12 @@ impl Head {
     pub fn direction(self) -> Option<Direction> {
         let Parts { direction, .. } = unpack(self.0).unwrap();
         direction
+    }
+
+    pub fn with_direction(self, direction: Option<Direction>) -> Self {
+        let mut parts = unpack(self.packed()).unwrap();
+        parts.direction = direction;
+        Head(pack(parts).unwrap())
     }
 
     pub fn anim(self) -> u8 {

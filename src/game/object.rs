@@ -3,7 +3,7 @@ use enumflags_derive::EnumFlags;
 use enum_primitive_derive::Primitive;
 use if_chain::if_chain;
 use slotmap::{SecondaryMap, SlotMap};
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::cmp;
 use std::mem;
 use std::rc::Rc;
@@ -67,7 +67,7 @@ impl Egg {
     #[must_use]
     pub fn hit_test(&self, p: Point, tile_grid: &impl TileGridView, frm_db: &FrameDb) -> bool {
         let screen_pos = tile_grid.to_screen(self.pos) + Point::new(16, 8);
-        let frms = frm_db.get(self.fid);
+        let frms = frm_db.get(self.fid).unwrap();
         let frml = &frms.frame_lists[Direction::NE];
         let frm = &frml.frames[0];
 
@@ -190,8 +190,8 @@ impl Object {
 
     // obj_bound()
     pub fn bounds(&self, frm_db: &FrameDb, tile_grid: &impl TileGridView) -> Rect {
-        let (frame_list, frame) = self.frame_list(frm_db);
-        self.bounds0(frame_list.center, frame.size(), tile_grid)
+        self.do_with_frame_list(frm_db, |frml, frm|
+            self.bounds0(frml.center, frm.size(), tile_grid))
     }
 
     // critter_is_dead()
@@ -213,7 +213,7 @@ impl Object {
         }
 
         let p = p - bounds.top_left();
-        if !self.frame(frm_db).mask.test(p) {
+        if !self.do_with_frame(frm_db, |frm| frm.mask.test(p)) {
             return None;
         }
 
@@ -329,18 +329,21 @@ impl Object {
         }.map(Effect::Translucency)
     }
 
-    fn frame_list<'a>(&self, frm_db: &'a FrameDb) -> (Ref<'a, FrameList>, Ref<'a, Frame>) {
+    fn do_with_frame_list<F, R>(&self, frm_db: &FrameDb, f: F) -> R
+        where F: FnOnce(&FrameList, &Frame) -> R
+    {
         let direction = self.direction;
         let frame_idx = self.frame_idx;
-        let frms = frm_db.get(self.fid);
-        Ref::map_split(frms, |frms| {
-            let frml = &frms.frame_lists[direction];
-            (frml, &frml.frames[frame_idx])
-        })
+        let frms = frm_db.get(self.fid).unwrap();
+        let frml = &frms.frame_lists[direction];
+        let frm = &frml.frames[frame_idx];
+        f(frml, frm)
     }
 
-    fn frame<'a>(&self, frm_db: &'a FrameDb) -> Ref<'a, Frame> {
-        self.frame_list(frm_db).1
+    fn do_with_frame<F, R>(&self, frm_db: &FrameDb, f: F) -> R
+        where F: FnOnce(&Frame) -> R
+    {
+        self.do_with_frame_list(frm_db, |_, frm| f(frm))
     }
 
     fn has_trans(&self) -> bool {
@@ -537,7 +540,7 @@ impl Objects {
                         .with_direction(Some(obj.direction))
                         .with_anim(CritterAnim::TakeOut)
                         .into();
-                    let frame_set = frm_db.get(fid);
+                    let frame_set = frm_db.get(fid).unwrap();
                     for frame in &frame_set.frame_lists[obj.direction].frames {
                         shift += frame.shift;
                     }
@@ -547,7 +550,7 @@ impl Objects {
                         .with_anim(CritterAnim::Stand)
                         .with_weapon(WeaponKind::Unarmed)
                         .into();
-                    shift += frm_db.get(fid).frame_lists[obj.direction].center;
+                    shift += frm_db.get(fid).unwrap().frame_lists[obj.direction].center;
                 }
                 let anim = if critter_fid.anim() == CritterAnim::FireDance {
                     CritterAnim::FireDance
@@ -781,8 +784,8 @@ impl Objects {
         }
 
 
-        let shift = o1.screen_shift + o1.frame(&self.frm_db).shift;
-        let other_shift = o2.screen_shift + o2.frame(&self.frm_db).shift;
+        let shift = o1.screen_shift + o1.do_with_frame(&self.frm_db, |frm| frm.shift);
+        let other_shift = o2.screen_shift + o2.do_with_frame(&self.frm_db, |frm| frm.shift);
 
         // By shift_y, less first.
         if shift.y < other_shift.y {

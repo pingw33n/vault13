@@ -190,7 +190,8 @@ impl World {
             |p| {
                 let fid = FrameId::new_generic(EntityKind::SqrTile,
                     self.sqr_tiles[elevation as usize].as_ref().unwrap().get(p.x as usize, p.y as usize).unwrap().0).unwrap();
-                Some(self.frm_db.get(fid).frame_lists[Direction::NE].frames[0].texture.clone())
+                let frms = self.frm_db.get(fid).unwrap();
+                Some(frms.frame_lists[Direction::NE].frames[0].texture.clone())
             },
             |point| {
                 let l = self.light_grid().get_clipped(EPoint { elevation, point });
@@ -208,9 +209,12 @@ impl World {
 
         if draw_roof {
             render_roof(canvas, &self.camera.sqr(), &self.camera.viewport,
-                |p| Some(self.frm_db.get(FrameId::new_generic(EntityKind::SqrTile,
-                    self.sqr_tiles[elevation as usize].as_ref().unwrap().get(p.x as usize, p.y as usize).unwrap().1).unwrap())
-                        .first().texture.clone()));
+                |p| {
+                    let id = self.sqr_tiles[elevation as usize].as_ref().unwrap()
+                        .get(p.x as usize, p.y as usize).unwrap().1;
+                    let fid = FrameId::new_generic(EntityKind::SqrTile, id).unwrap();
+                    Some(self.frm_db.get(fid).unwrap().first().texture.clone())
+                });
         }
 
         self.objects().render_outlines(canvas, elevation, &self.camera.viewport, &self.camera.hex());

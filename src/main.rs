@@ -139,7 +139,6 @@ fn main() {
     let fs = Rc::new(fs);
 
     let ref proto_db = Rc::new(ProtoDb::new(fs.clone(), "english").unwrap());
-    let frm_db = Rc::new(FrameDb::new(fs.clone(), "english").unwrap());
     let pal = read_palette(&mut fs.reader("color.pal").unwrap()).unwrap();
 
     let sdl = sdl2::init().unwrap();
@@ -164,6 +163,8 @@ fn main() {
     let gfx_backend = Backend::new(canvas, Box::new(pal.clone()), PaletteOverlay::standard());
     let texture_factory = gfx_backend.new_texture_factory();
 
+    let frm_db = Rc::new(FrameDb::new(fs.clone(), "english", texture_factory.clone()).unwrap());
+
     let fonts = Rc::new(load_fonts(&fs, &texture_factory));
 
     let mut canvas = gfx_backend.into_canvas(fonts.clone());
@@ -181,7 +182,6 @@ fn main() {
         objects: &mut objects,
         proto_db: &proto_db,
         frm_db: &frm_db,
-        texture_factory: &texture_factory,
         scripts: &mut scripts,
 
     }.read().unwrap();
@@ -189,28 +189,18 @@ fn main() {
     for elev in &map.sqr_tiles {
         if let Some(ref elev) = elev {
             for &(floor, roof) in elev.as_slice() {
-                frm_db.get_or_load(FrameId::new_generic(EntityKind::SqrTile, floor).unwrap(), &texture_factory).unwrap();
-                frm_db.get_or_load(FrameId::new_generic(EntityKind::SqrTile, roof).unwrap(), &texture_factory).unwrap();
+                frm_db.get(FrameId::new_generic(EntityKind::SqrTile, floor).unwrap()).unwrap();
+                frm_db.get(FrameId::new_generic(EntityKind::SqrTile, roof).unwrap()).unwrap();
             }
         }
     }
 
-    fn all_fids(fid: FrameId) -> Vec<FrameId> {
-        let mut r = vec![fid];
-        match fid.kind() {
-            EntityKind::Critter => {
-                for wk in WeaponKind::iter() {
-                    for anim in CritterAnim::iter() {
-                        r.push(FrameId::new_critter(None, anim, wk, fid.id()).unwrap());
-                        for direction in Direction::iter() {
-                            r.push(FrameId::new_critter(Some(direction), anim, wk, fid.id()).unwrap());
-                        }
-                    }
-                }
+    fn for_each_direction(fid: FrameId, mut f: impl FnMut(FrameId)) {
+        for direction in Direction::iter() {
+            if let Some(fid) = fid.with_direction(Some(direction)) {
+                f(fid);
             }
-            _ => {}
         }
-        r
     }
 
     let viewport = Rect::with_size(0, 0, 640, 380);
@@ -230,16 +220,18 @@ fn main() {
     world.set_dude_obj(dude_objh);
 
     {
-        debug_time!("all fids");
+        debug_time!("preloading object FIDs");
         for obj in world.objects().iter() {
-            for fid in all_fids(world.objects().get(obj).borrow().fid) {
-                let _ = frm_db.get_or_load(fid, &texture_factory);
-            }
+            for_each_direction(world.objects().get(obj).borrow().fid, |fid| {
+                if let Err(e) = frm_db.get(fid) {
+                    warn!("error loading {:?}: {:?}", fid, e);
+                }
+            });
         }
     }
 
     world.make_object_standing(dude_objh);
-    frm_db.get_or_load(FrameId::EGG, &texture_factory).unwrap();
+    frm_db.get(FrameId::EGG).unwrap();
 
     world.camera_mut().look_at(map.entrance.point);
 
@@ -296,7 +288,7 @@ fn main() {
         if frm_db.name(fid).is_none() {
             break;
         }
-        if let Err(e) = frm_db.get_or_load(fid, &texture_factory) {
+        if let Err(e) = frm_db.get(fid) {
             warn!("couldn't load interface frame set {:?}: {}", fid, e);
         }
     }

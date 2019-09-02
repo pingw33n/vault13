@@ -62,13 +62,13 @@ impl FrameAnim {
         match self.direction {
             AnimDirection::Forward => obj.frame_idx = 0,
             AnimDirection::Backward => {
-                let frame_set = world.frm_db().get(obj.fid);
+                let frame_set = world.frm_db().get(obj.fid).unwrap();
                 let frames = &frame_set.frame_lists[obj.direction].frames;
                 obj.frame_idx = frames.len() - 1;
             }
         }
 
-        self.frame_len = Duration::from_millis(1000 / world.frm_db().get(obj.fid).fps as u64);
+        self.frame_len = Duration::from_millis(1000 / world.frm_db().get(obj.fid).unwrap().fps as u64);
     }
 }
 
@@ -89,7 +89,7 @@ impl Sequence for FrameAnim {
         let shift = {
             let mut obj = ctx.world.objects().get(self.obj).borrow_mut();
 
-            let frame_set = ctx.world.frm_db().get(obj.fid);
+            let frame_set = ctx.world.frm_db().get(obj.fid).unwrap();
             let frames = &frame_set.frame_lists[obj.direction].frames;
 
             if self.state != State::Started {

@@ -1,5 +1,5 @@
 use enum_map::EnumMap;
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
@@ -14,11 +14,14 @@ pub struct FrameDb {
     fs: Rc<FileSystem>,
     language: Option<String>,
     lst: EnumMap<EntityKind, Vec<LstEntry>>,
-    frms: RefCell<HashMap<FrameId, FrameSet>>,
+    frms: RefCell<HashMap<FrameId, Rc<FrameSet>>>,
+    texture_factory: TextureFactory,
 }
 
 impl FrameDb {
-    pub fn new(fs: Rc<FileSystem>, language: impl Into<String>) -> io::Result<Self> {
+    pub fn new(fs: Rc<FileSystem>, language: impl Into<String>, texture_factory: TextureFactory)
+        -> io::Result<Self>
+    {
         let language = Some(language.into()).filter(|s| !s.eq_ignore_ascii_case("english"));
         let lst = Self::read_lst_files(&fs)?;
         Ok(Self {
@@ -26,6 +29,7 @@ impl FrameDb {
             language,
             lst,
             frms: RefCell::new(HashMap::new()),
+            texture_factory,
         })
     }
 
@@ -42,22 +46,16 @@ impl FrameDb {
         self.read(fid).is_ok()
     }
 
-    pub fn get_or_load(&self, fid: FrameId, texture_factory: &TextureFactory)
-            -> io::Result<Ref<FrameSet>> {
+    pub fn get(&self, fid: FrameId) -> io::Result<Rc<FrameSet>> {
         let fid = self.normalize_fid(fid);
-        {
-            let mut frms = self.frms.borrow_mut();
-            if !frms.contains_key(&fid) {
-                let frm = read_frm(&mut self.read(fid)?, texture_factory)?;
-                frms.insert(fid, frm);
-            }
-        }
-        Ok(self.get(fid))
-    }
-
-    pub fn get(&self, fid: FrameId) -> Ref<FrameSet> {
-        let fid = self.normalize_fid(fid);
-        Ref::map(self.frms.borrow(), |v| &v[&fid])
+        let mut frms = self.frms.borrow_mut();
+        Ok(if frms.contains_key(&fid) {
+            frms[&fid].clone()
+        } else {
+            let frm = Rc::new(read_frm(&mut self.read(fid)?, &self.texture_factory)?);
+            frms.insert(fid, frm.clone());
+            frm
+        })
     }
 
     /// Looks for `base_name` and returns its ID if found.
