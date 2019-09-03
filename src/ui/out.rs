@@ -12,4 +12,12 @@ pub struct OutEvent {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OutEventData {
+    ObjectPick {
+        action: bool,
+        obj: object::Handle,
+    },
+    HexPick {
+        action: bool,
+        pos: EPoint,
+    },
 }

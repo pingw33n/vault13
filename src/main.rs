@@ -23,7 +23,6 @@ use crate::graphics::render::software::*;
 use crate::asset::map::*;
 use crate::asset::frame::*;
 use crate::game::object::*;
-use enumflags2::BitFlags;
 use crate::graphics::*;
 use crate::graphics::geometry::hex::Direction;
 use crate::game::object::LightEmitter;
@@ -32,14 +31,11 @@ use crate::game::world::World;
 use crate::sequence::{Sequence, Sequencer};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::mouse::MouseButton;
 use std::cmp;
-use crate::graphics::EPoint;
 use std::time::Instant;
 use std::time::Duration;
 use std::thread;
 use crate::util::EnumExt;
-use crate::graphics::sprite::OutlineStyle;
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
 use crate::asset::font::load_fonts;
@@ -52,13 +48,16 @@ use crate::game::script::ScriptKind;
 use std::path::{Path, PathBuf};
 use crate::game::START_GAME_TIME;
 use crate::game::fidget::Fidget;
-use crate::ui::{Ui, Cursor};
+use crate::ui::Ui;
 use log::*;
 use crate::ui::message_panel::MessagePannel;
 use clap::ArgMatches;
 use bstring::BString;
 use measure_time::*;
 use crate::graphics::geometry::{TileGridView, hex, sqr};
+use std::cell::RefCell;
+use crate::game::ui::playfield::{Playfield, HexCursorStyle};
+use crate::ui::out::OutEventData;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -270,17 +269,9 @@ fn main() {
         scripts.execute_map_procs(PredefinedProc::MapEnter, ctx);
     }
 
-    let mut mouse_obj = Object::new(FrameId::MOUSE_HEX_OUTLINE, None, Some(map.entrance));
-    mouse_obj.flags = BitFlags::from_bits(0xA000041C).unwrap();
-    mouse_obj.outline = Some(game::object::Outline {
-        style: OutlineStyle::Red,
-        translucent: true,
-        disabled: false,
-    });
-    let mouse_objh = world.insert_object(mouse_obj);
+    let world = Rc::new(RefCell::new(world));
 
     let scroll_inc = 10;
-    let mut roof_visible = false;
 
     // Load all interface frame sets.
     for id in 0.. {
@@ -295,6 +286,12 @@ fn main() {
 
     let ui = &mut Ui::new(frm_db.clone());
     ui.cursor = ui::Cursor::Arrow;
+
+    let playfield = {
+        let rect = world.borrow().camera().viewport.clone();
+        let win = ui.new_window(rect.clone(), None);
+        ui.new_widget(win, rect, None, None, Playfield::new(world.clone()))
+    };
 
     let message_panel;
     {
@@ -347,183 +344,106 @@ fn main() {
 
     let mut fidget = Fidget::new();
 
-    let mut mouse_hex_pos = Point::new(0, 0);
-    let mut mouse_sqr_pos = Point::new(0, 0);
-    let mut draw_path_blocked = false;
     let mut draw_debug = true;
 
-    #[derive(Clone, Copy, Debug)]
-    enum LookAtState {
-        Idle,
-        Pending {
-            start: Instant,
-            pos: Point,
-        },
-    }
-    let mut look_at_state = LookAtState::Idle;
-    let mut look_at_obj = None;
-
-    #[derive(Clone, Copy, Debug)]
-    enum MouseControl {
-        HexMove,
-        Pick,
-    }
-    let mut mouse_control = MouseControl::HexMove;
-
     let mut shift_down = false;
+
+    let ui_out_events = &mut Vec::new();
 
     'running: loop {
         let now = Instant::now();
 
         for event in event_pump.poll_iter() {
-            let handled = ui.handle_input(now, &event);
+            let handled = ui.handle_input(ui::HandleInput {
+                now,
+                event: &event,
+                out: ui_out_events,
+            });
             if !handled {
-            match event {
-                Event::MouseMotion { x, y, .. } => {
-                    mouse_hex_pos = world.camera().hex().from_screen((x, y));
-                    mouse_sqr_pos = world.camera().sqr().from_screen((x, y));
-                    let new_pos = EPoint::new(world.elevation(), mouse_hex_pos);
-                    world.set_object_pos(mouse_objh, new_pos);
-
-                    match mouse_control {
-                        MouseControl::HexMove => {
-                            ui.cursor = Cursor::Hidden;
-                            world.objects_mut().get(mouse_objh).borrow_mut().flags.remove(Flag::TurnedOff);
-                            draw_path_blocked = world.path_for_object(dude_objh, mouse_hex_pos, true).is_none();
-                        }
-                        MouseControl::Pick => {
-                            ui.cursor = Cursor::ActionArrow;
-                            world.objects_mut().get(mouse_objh).borrow_mut().flags.insert(Flag::TurnedOff);
-                            look_at_state = LookAtState::Pending { start: now, pos: (x, y).into() };
-                        }
+                let mut world = world.borrow_mut();
+                match event {
+                    Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
+                        world.camera_mut().origin.x -= scroll_inc;
                     }
-                }
-                Event::MouseButtonUp { x, y, mouse_btn, .. } => {
-                    match mouse_btn {
-                        MouseButton::Right => {
-                            mouse_control = match mouse_control {
-                                MouseControl::HexMove => {
-                                    ui.cursor = Cursor::ActionArrow;
-                                    world.objects_mut().get(mouse_objh).borrow_mut().flags.insert(Flag::TurnedOff);
-                                    MouseControl::Pick
-                                }
-                                MouseControl::Pick => {
-                                    ui.cursor = Cursor::Hidden;
-                                    world.objects_mut().get(mouse_objh).borrow_mut().flags.remove(Flag::TurnedOff);
-                                    MouseControl::HexMove
-                                }
-                            };
-                        }
-                        MouseButton::Left => {
-                            match mouse_control {
-                                MouseControl::HexMove => {
-                                    if let Some(signal) = world.objects().get(dude_objh).borrow_mut().sequence.take() {
-                                        signal.cancel();
-                                    }
-
-                                    let to = world.camera().hex().from_screen((x, y));
-                                    if let Some(path) = world.path_for_object(dude_objh, to, true) {
-                                        let anim = if shift_down {
-                                            CritterAnim::Walk
-                                        } else {
-                                            CritterAnim::Running
-                                        };
-                                        if !path.is_empty() {
-                                            let (seq, signal) = Move::new(dude_objh, anim, path).cancellable();
-                                            world.objects().get(dude_objh).borrow_mut().sequence = Some(signal);
-                                            sequencer.start(seq.then(Stand::new(dude_objh)));
-                                        }
-                                    }
-                                }
-                                MouseControl::Pick => {}
-                            }
-                        }
-                        _ => {}
+                    Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
+                        world.camera_mut().origin.x += scroll_inc;
                     }
-                }
-                Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
-                    world.camera_mut().origin.x -= scroll_inc;
-                }
-                Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
-                    world.camera_mut().origin.x += scroll_inc;
-                }
-                Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
-                    world.camera_mut().origin.y += scroll_inc;
-                }
-                Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
-                    world.camera_mut().origin.y -= scroll_inc;
-                }
-                Event::KeyDown { keycode: Some(Keycode::Comma), .. } => {
-                    let mut obj = world.objects().get(dude_objh).borrow_mut();
-                    obj.direction = obj.direction.rotate_ccw();
-                }
-                Event::KeyDown { keycode: Some(Keycode::Period), .. } => {
-                    let mut obj = world.objects().get(dude_objh).borrow_mut();
-                    obj.direction = obj.direction.rotate_cw();
-                }
-                Event::KeyDown { keycode: Some(Keycode::A), .. } => {
-                    let new_pos = {
-                        let obj = world.objects().get(dude_objh).borrow_mut();
-                        let mut new_pos = obj.pos.unwrap();
-                        new_pos.elevation += 1;
-                        while new_pos.elevation < ELEVATION_COUNT && !world.has_elevation(new_pos.elevation) {
+                    Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
+                        world.camera_mut().origin.y += scroll_inc;
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
+                        world.camera_mut().origin.y -= scroll_inc;
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::Comma), .. } => {
+                        let mut obj = world.objects().get(dude_objh).borrow_mut();
+                        obj.direction = obj.direction.rotate_ccw();
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::Period), .. } => {
+                        let mut obj = world.objects().get(dude_objh).borrow_mut();
+                        obj.direction = obj.direction.rotate_cw();
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::A), .. } => {
+                        let new_pos = {
+                            let obj = world.objects().get(dude_objh).borrow_mut();
+                            let mut new_pos = obj.pos.unwrap();
                             new_pos.elevation += 1;
-                        }
-                        new_pos
-                    };
-                    if new_pos.elevation < ELEVATION_COUNT && world.has_elevation(new_pos.elevation) {
-                        world.objects_mut().set_pos(dude_objh, new_pos);
-                    }
-                }
-                Event::KeyDown { keycode: Some(Keycode::Z), .. } => {
-                    let new_pos = {
-                        let obj = world.objects().get(dude_objh).borrow_mut();
-                        let mut new_pos = obj.pos.unwrap();
-                        if new_pos.elevation > 0 {
-                            new_pos.elevation -= 1;
-                            while new_pos.elevation > 0 && !world.has_elevation(new_pos.elevation) {
-                                new_pos.elevation -= 1;
+                            while new_pos.elevation < ELEVATION_COUNT && !world.has_elevation(new_pos.elevation) {
+                                new_pos.elevation += 1;
                             }
+                            new_pos
+                        };
+                        if new_pos.elevation < ELEVATION_COUNT && world.has_elevation(new_pos.elevation) {
+                            world.objects_mut().set_pos(dude_objh, new_pos);
                         }
-                        new_pos
-                    };
-                    if world.has_elevation(new_pos.elevation) {
-                        world.objects_mut().set_pos(dude_objh, new_pos);
                     }
+                    Event::KeyDown { keycode: Some(Keycode::Z), .. } => {
+                        let new_pos = {
+                            let obj = world.objects().get(dude_objh).borrow_mut();
+                            let mut new_pos = obj.pos.unwrap();
+                            if new_pos.elevation > 0 {
+                                new_pos.elevation -= 1;
+                                while new_pos.elevation > 0 && !world.has_elevation(new_pos.elevation) {
+                                    new_pos.elevation -= 1;
+                                }
+                            }
+                            new_pos
+                        };
+                        if world.has_elevation(new_pos.elevation) {
+                            world.objects_mut().set_pos(dude_objh, new_pos);
+                        }
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {
+                        world.ambient_light = cmp::max(world.ambient_light as i32 - 1000, 0) as u32;
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::RightBracket), .. } => {
+                        world.ambient_light = cmp::min(world.ambient_light + 1000, 0x10000);
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::R), .. } => {
+                        let mut pf = ui.widget_mut::<Playfield>(playfield);
+                        pf.roof_visible = pf.roof_visible;
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::Backquote), .. } => {
+                        draw_debug = !draw_debug;
+                    }
+                    Event::KeyDown { keycode: Some(Keycode::LShift), .. } |
+                    Event::KeyDown { keycode: Some(Keycode::RShift), .. } => shift_down = true,
+                    Event::KeyUp { keycode: Some(Keycode::LShift), .. } |
+                    Event::KeyUp { keycode: Some(Keycode::RShift), .. } => shift_down = false,
+                    Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        break 'running
+                    },
+                    _ => {}
                 }
-                Event::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {
-                    world.ambient_light = cmp::max(world.ambient_light as i32 - 1000, 0) as u32;
-                }
-                Event::KeyDown { keycode: Some(Keycode::RightBracket), .. } => {
-                    world.ambient_light = cmp::min(world.ambient_light + 1000, 0x10000);
-                }
-                Event::KeyDown { keycode: Some(Keycode::R), .. } => {
-                    roof_visible = !roof_visible;
-                }
-                Event::KeyDown { keycode: Some(Keycode::Backquote), .. } => {
-                    draw_debug = !draw_debug;
-                }
-                Event::KeyDown { keycode: Some(Keycode::LShift), .. } |
-                Event::KeyDown { keycode: Some(Keycode::RShift), .. } => shift_down = true,
-                Event::KeyUp { keycode: Some(Keycode::LShift), .. } |
-                Event::KeyUp { keycode: Some(Keycode::RShift), .. } => shift_down = false,
-                Event::Quit { .. } | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                    break 'running
-                },
-                _ => {}
-            }
-            } else {
-                ui.cursor = Cursor::Arrow;
-                world.objects_mut().get(mouse_objh).borrow_mut().flags.insert(Flag::TurnedOff);
             }
         }
 
-        match look_at_state {
-            LookAtState::Idle => {}
-            LookAtState::Pending { start, pos } => if now - start >= Duration::from_millis(500) {
-                if let Some(objh) = world.pick_object(pos, true) {
-                    if Some(objh) != look_at_obj {
-                        look_at_obj = Some(objh);
+        ui.update(now, ui_out_events);
+
+        for event in ui_out_events.drain(..) {
+            match event.data {
+                OutEventData::ObjectPick { action, obj: objh } => {
+                    if !action {
+                        let world = world.borrow();
                         let obj = world.objects().get(objh).borrow();
                         let name: Option<BString> = if let Some(pid) = obj.pid {
                             if let Some(name) = proto_db.name(pid).unwrap() {
@@ -546,18 +466,47 @@ fn main() {
                         }
                     }
                 }
-                look_at_state = LookAtState::Idle;
+                OutEventData::HexPick { action, pos } => {
+                    if action {
+                        let world = world.borrow();
+                        let dude_objh = world.dude_obj().unwrap();
+                        if let Some(signal) = world.objects().get(dude_objh).borrow_mut().sequence.take() {
+                            signal.cancel();
+                        }
+
+                        if let Some(path) = world.path_for_object(dude_objh, pos.point, true) {
+                            let anim = if shift_down {
+                                CritterAnim::Walk
+                            } else {
+                                CritterAnim::Running
+                            };
+                            if !path.is_empty() {
+                                let (seq, signal) = Move::new(dude_objh, anim, path).cancellable();
+                                world.objects().get(dude_objh).borrow_mut().sequence = Some(signal);
+                                sequencer.start(seq.then(Stand::new(dude_objh)));
+                            }
+                        }
+                    } else {
+                        let mut pf = ui.widget_mut::<Playfield>(playfield);
+                        pf.hex_cursor_style = if world.borrow().path_for_object(dude_objh, pos.point, true).is_some() {
+                            HexCursorStyle::Normal
+                        } else {
+                            HexCursorStyle::Blocked
+                        };
+                    }
+                }
             }
         }
 
-        ui.update(now);
+        {
+            let mut world = world.borrow_mut();
+            sequencer.update(&mut sequence::Context {
+                time: now,
+                world: &mut world
+            });
 
-        sequencer.update(&mut sequence::Context {
-            time: now,
-            world: &mut world
-        });
-
-        fidget.update(now, &mut world, &mut sequencer);
+            fidget.update(now, &mut world, &mut sequencer);
+        }
 
         canvas.update(now);
 
@@ -565,23 +514,17 @@ fn main() {
 
         canvas.clear(BLACK);
 
-        world.render(canvas, roof_visible);
-
-        if draw_path_blocked {
-            let center = world.camera().hex().to_screen(mouse_hex_pos) + Point::new(16, 8);
-            canvas.draw_text(b"X".as_ref().into(), center.x, center.y, FontKey::antialiased(1),
-                RED, &DrawOptions {
-                    horz_align: HorzAlign::Center,
-                    vert_align: VertAlign::Middle,
-                    dst_color: Some(BLACK),
-                    outline: Some(graphics::render::Outline::Fixed { color: BLACK, trans_color: None }),
-                    .. Default::default()
-                });
-        }
-
         ui.render(canvas);
 
         if draw_debug {
+            let world = world.borrow();
+            let pf = ui.widget_ref::<Playfield>(playfield);
+            let (mouse_hex_pos, mouse_sqr_pos) = if let Some(EPoint { point, .. }) = pf.hex_cursor_pos() {
+                (point, world.camera().sqr().from_screen(
+                    world.camera().hex().to_screen(point) + Point::new(16, 8)))
+            } else {
+                (Point::new(-1, -1), Point::new(-1, -1))
+            };
             let dude_pos = world.objects().get(dude_objh).borrow().pos.unwrap().point;
             let ref msg = format!(
                 "mouse hex: {}, {} ({})\n\

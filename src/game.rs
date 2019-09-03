@@ -2,6 +2,7 @@ pub mod fidget;
 pub mod object;
 pub mod script;
 pub mod sequence;
+pub mod ui;
 pub mod world;
 
 // As in scr_game_init()
