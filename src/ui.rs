@@ -247,6 +247,7 @@ impl Ui {
                 frm_db: &self.frm_db,
                 canvas,
                 base: None,
+                cursor_pos: self.cursor_pos,
             });
             let mut win = self.widgets[winh.0].borrow_mut();
             let win = win.downcast_mut::<Window>().unwrap();
@@ -254,17 +255,20 @@ impl Ui {
                 frm_db: &self.frm_db,
                 canvas,
                 base: Some(&self.widget_bases[winh.0].borrow()),
+                cursor_pos: self.cursor_pos,
             });
             for &widgh in &win.widgets {
                 self.widget_bases[widgh.0].borrow_mut().render(Render {
                     frm_db: &self.frm_db,
                     canvas,
                     base: Some(&self.widget_bases[winh.0].borrow()),
+                    cursor_pos: self.cursor_pos,
                 });
                 self.widgets[widgh.0].borrow_mut().render(Render {
                     frm_db: &self.frm_db,
                     canvas,
                     base: Some(&self.widget_bases[widgh.0].borrow()),
+                    cursor_pos: self.cursor_pos,
                 });
             }
         }
@@ -413,6 +417,7 @@ pub struct Render<'a> {
     pub frm_db: &'a FrameDb,
     pub canvas: &'a mut Canvas,
     pub base: Option<&'a Base>,
+    pub cursor_pos: Point,
 }
 
 pub struct Init<'a> {

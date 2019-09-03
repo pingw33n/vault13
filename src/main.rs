@@ -56,7 +56,7 @@ use bstring::BString;
 use measure_time::*;
 use crate::graphics::geometry::{TileGridView, hex, sqr};
 use std::cell::RefCell;
-use crate::game::ui::playfield::{Playfield, HexCursorStyle};
+use crate::game::ui::playfield::{Playfield, HexCursorStyle, ObjectActionIcon};
 use crate::ui::out::OutEventData;
 
 fn args() -> clap::App<'static, 'static> {
@@ -288,7 +288,7 @@ fn main() {
     ui.cursor = ui::Cursor::Arrow;
 
     let playfield = {
-        let rect = world.borrow().camera().viewport.clone();
+        let rect = Rect::with_size(0, 0, 640, 379);
         let win = ui.new_window(rect.clone(), None);
         ui.new_widget(win, rect, None, None, Playfield::new(world.clone()))
     };
@@ -349,6 +349,8 @@ fn main() {
     let mut shift_down = false;
 
     let ui_out_events = &mut Vec::new();
+
+    let mut last_picked_obj = None;
 
     'running: loop {
         let now = Instant::now();
@@ -444,25 +446,38 @@ fn main() {
                 OutEventData::ObjectPick { action, obj: objh } => {
                     if !action {
                         let world = world.borrow();
-                        let obj = world.objects().get(objh).borrow();
-                        let name: Option<BString> = if let Some(pid) = obj.pid {
-                            if let Some(name) = proto_db.name(pid).unwrap() {
-                                Some(name.into())
+
+                        let picked_dude = Some(objh) == world.dude_obj();
+
+                        ui.widget_mut::<Playfield>(playfield).object_action_icon = Some(if picked_dude {
+                            ObjectActionIcon::Rotate
+                        } else {
+                            ObjectActionIcon::Look
+                        });
+
+                        if last_picked_obj != Some(objh) {
+                            last_picked_obj = Some(objh);
+
+                            let obj = world.objects().get(objh).borrow();
+                            let name: Option<BString> = if let Some(pid) = obj.pid {
+                                if let Some(name) = proto_db.name(pid).unwrap() {
+                                    Some(name.into())
+                                } else {
+                                    None
+                                }
+                            } else if picked_dude {
+                                Some(b"[dude]"[..].into())
                             } else {
                                 None
-                            }
-                        } else if Some(objh) == world.dude_obj() {
-                            Some(b"[dude]"[..].into())
-                        } else {
-                            None
-                        };
+                            };
 
-                        if let Some(name) = name {
-                            let mut mp = ui.widget_mut::<MessagePannel>(message_panel);
-                            let mut m = BString::new();
-                            m.push_str("You see: ");
-                            m.push_str(name);
-                            mp.push_message(m);
+                            if let Some(name) = name {
+                                let mut mp = ui.widget_mut::<MessagePannel>(message_panel);
+                                let mut m = BString::new();
+                                m.push_str("You see: ");
+                                m.push_str(name);
+                                mp.push_message(m);
+                            }
                         }
                     }
                 }
