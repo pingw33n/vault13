@@ -538,8 +538,7 @@ fn main() {
                         };
 
                         if let Some(name) = name {
-                            let mut mp = ui.widget(message_panel).borrow_mut();
-                            let mp = mp.downcast_mut::<MessagePannel>().unwrap();
+                            let mut mp = ui.widget_mut::<MessagePannel>(message_panel);
                             let mut m = BString::new();
                             m.push_str("You see: ");
                             m.push_str(name);

@@ -7,7 +7,7 @@ use downcast_rs::{Downcast, impl_downcast};
 use enum_map_derive::Enum;
 use sdl2::event::{Event as SdlEvent};
 use slotmap::{SecondaryMap, SlotMap};
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 use std::time::Instant;
 
@@ -129,6 +129,14 @@ impl Ui {
 
     pub fn widget(&self, handle: Handle) -> &RefCell<Box<Widget>> {
         &self.widgets[handle.0]
+    }
+
+    pub fn widget_ref<T: Widget>(&self, handle: Handle) -> Ref<T> {
+        Ref::map(self.widget(handle).borrow(), |w| w.downcast_ref::<T>().unwrap())
+    }
+
+    pub fn widget_mut<T: Widget>(&self, handle: Handle) -> RefMut<T> {
+        RefMut::map(self.widget(handle).borrow_mut(), |w| w.downcast_mut::<T>().unwrap())
     }
 
     fn widget_handle_event(&mut self, now: Instant, target: Handle, event: Event) {
