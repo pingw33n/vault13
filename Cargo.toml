@@ -5,6 +5,9 @@ authors = ["Dmytro Lysai <d@emphased.net>"]
 license = "GPL-3.0"
 edition = "2018"
 
+[profile.release]
+debug = true
+
 [dependencies]
 atoi = "0.3"
 bit-vec = "0.5"
