@@ -26,7 +26,6 @@ Controls that work in demo:
     * Right button to toggle move/pick mode.
 * Arrows - scroll map.
 * Hold `SHIFT` to walk instead of run.
-* `<` and `>` - rotate the player character.
 * `[` and `]` - decrease/increase ambient light.
 * `r` - toggle roof drawing.
 * `` ` `` - toggle debug info display.

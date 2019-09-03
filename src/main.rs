@@ -376,14 +376,6 @@ fn main() {
                     Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
                         world.camera_mut().origin.y -= scroll_inc;
                     }
-                    Event::KeyDown { keycode: Some(Keycode::Comma), .. } => {
-                        let mut obj = world.objects().get(dude_objh).borrow_mut();
-                        obj.direction = obj.direction.rotate_ccw();
-                    }
-                    Event::KeyDown { keycode: Some(Keycode::Period), .. } => {
-                        let mut obj = world.objects().get(dude_objh).borrow_mut();
-                        obj.direction = obj.direction.rotate_cw();
-                    }
                     Event::KeyDown { keycode: Some(Keycode::A), .. } => {
                         let new_pos = {
                             let obj = world.objects().get(dude_objh).borrow_mut();
@@ -444,11 +436,17 @@ fn main() {
         for event in ui_out_events.drain(..) {
             match event.data {
                 OutEventData::ObjectPick { action, obj: objh } => {
-                    if !action {
-                        let world = world.borrow();
-
-                        let picked_dude = Some(objh) == world.dude_obj();
-
+                    let world = world.borrow();
+                    let picked_dude = Some(objh) == world.dude_obj();
+                    if action {
+                        if picked_dude {
+                            let mut obj = world.objects().get(dude_objh).borrow_mut();
+                            if let Some(signal) = obj.sequence.take() {
+                                signal.cancel();
+                            }
+                            obj.direction = obj.direction.rotate_cw();
+                        }
+                    } else {
                         ui.widget_mut::<Playfield>(playfield).object_action_icon = Some(if picked_dude {
                             ObjectActionIcon::Rotate
                         } else {
