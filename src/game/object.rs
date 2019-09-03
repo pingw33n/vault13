@@ -1,5 +1,5 @@
-use enumflags::BitFlags;
-use enumflags_derive::EnumFlags;
+use enumflags2::BitFlags;
+use enumflags2_derive::EnumFlags;
 use enum_primitive_derive::Primitive;
 use if_chain::if_chain;
 use slotmap::{SecondaryMap, SlotMap};

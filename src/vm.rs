@@ -91,8 +91,8 @@ mod stack;
 pub mod value;
 
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
-use enumflags::BitFlags;
-use enumflags_derive::EnumFlags;
+use enumflags2::BitFlags;
+use enumflags2_derive::EnumFlags;
 use log::*;
 use matches::matches;
 use slotmap::{SecondaryMap, SlotMap};

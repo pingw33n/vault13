@@ -23,7 +23,7 @@ use crate::graphics::render::software::*;
 use crate::asset::map::*;
 use crate::asset::frame::*;
 use crate::game::object::*;
-use enumflags::BitFlags;
+use enumflags2::BitFlags;
 use crate::graphics::*;
 use crate::graphics::geometry::hex::Direction;
 use crate::game::object::LightEmitter;

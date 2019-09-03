@@ -6,7 +6,7 @@ pub mod palette;
 pub mod proto;
 pub mod script;
 
-use enumflags_derive::EnumFlags;
+use enumflags2_derive::EnumFlags;
 use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
 use log::*;

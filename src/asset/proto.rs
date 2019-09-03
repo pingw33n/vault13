@@ -1,7 +1,7 @@
 mod db;
 mod id;
 
-use enumflags::BitFlags;
+use enumflags2::BitFlags;
 use enum_map::EnumMap;
 use std::ops::RangeInclusive;
 

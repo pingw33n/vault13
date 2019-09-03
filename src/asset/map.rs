@@ -1,5 +1,6 @@
 use byteorder::{BigEndian, ReadBytesExt};
-use enumflags::BitFlags;
+use enumflags2::BitFlags;
+use enumflags2_derive::EnumFlags;
 use log::*;
 use measure_time::*;
 use num_traits::FromPrimitive;
