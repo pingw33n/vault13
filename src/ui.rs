@@ -1,5 +1,6 @@
 pub mod button;
 pub mod message_panel;
+pub mod out;
 
 pub use sdl2::mouse::MouseButton;
 
@@ -60,6 +61,12 @@ impl Cursor {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Handle(SmKey);
+
+pub struct HandleInput<'a> {
+    pub now: Instant,
+    pub event: &'a SdlEvent,
+    pub out: &'a mut Vec<out::OutEvent>,
+}
 
 pub struct Ui {
     frm_db: Rc<FrameDb>,
@@ -139,18 +146,24 @@ impl Ui {
         RefMut::map(self.widget(handle).borrow_mut(), |w| w.downcast_mut::<T>().unwrap())
     }
 
-    fn widget_handle_event(&mut self, now: Instant, target: Handle, event: Event) {
+    fn widget_handle_event(&mut self,
+        now: Instant,
+        target: Handle,
+        event: Event,
+        out: &mut Vec<out::OutEvent>)
+    {
         self.widgets[target.0].borrow_mut().handle_event(HandleEvent {
             now,
             this: target,
             base: &mut self.widget_bases[target.0].borrow_mut(),
             event,
             capture: &mut self.capture,
+            out,
         });
     }
 
-    pub fn handle_input(&mut self, now: Instant, event: &SdlEvent) -> bool {
-        match event {
+    pub fn handle_input(&mut self, ctx: HandleInput) -> bool {
+        match ctx.event {
             SdlEvent::MouseButtonDown { x, y, mouse_btn, .. } => {
                 let pos = Point::new(*x, *y);
 
@@ -163,7 +176,8 @@ impl Ui {
                 } else {
                     return false;
                 };
-                self.widget_handle_event(now, target, Event::MouseDown { pos, button: *mouse_btn });
+                self.widget_handle_event(ctx.now, target,
+                    Event::MouseDown { pos, button: *mouse_btn }, ctx.out);
             }
             SdlEvent::MouseMotion { x, y, .. } => {
                 let pos = Point::new(*x, *y);
@@ -177,7 +191,7 @@ impl Ui {
                 } else {
                     return false;
                 };
-                self.widget_handle_event(now, target, Event::MouseMove { pos });
+                self.widget_handle_event(ctx.now, target, Event::MouseMove { pos }, ctx.out);
             }
             SdlEvent::MouseButtonUp { x, y, mouse_btn, .. } => {
                 let pos = Point::new(*x, *y);
@@ -191,18 +205,19 @@ impl Ui {
                 } else {
                     return false;
                 };
-                self.widget_handle_event(now, target, Event::MouseUp { pos, button: *mouse_btn });
+                self.widget_handle_event(ctx.now, target,
+                    Event::MouseUp { pos, button: *mouse_btn }, ctx.out);
             }
             _ => return false,
         }
         true
     }
 
-    pub fn update(&mut self, now: Instant) {
+    pub fn update(&mut self, now: Instant, out: &mut Vec<out::OutEvent>) {
         // FIXME avoid copy/allocation
         let handles: Vec<_> = self.widgets.keys().collect();
         for h in handles {
-            self.widget_handle_event(now, Handle(h), Event::Tick);
+            self.widget_handle_event(now, Handle(h), Event::Tick, out);
         }
     }
 
@@ -357,6 +372,7 @@ pub struct HandleEvent<'a> {
     pub base: &'a mut Base,
     pub event: Event,
     pub capture: &'a mut Option<Handle>,
+    pub out: &'a mut Vec<out::OutEvent>,
 }
 
 impl HandleEvent<'_> {
