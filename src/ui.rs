@@ -1,10 +1,11 @@
 pub mod button;
 pub mod message_panel;
 
+pub use sdl2::mouse::MouseButton;
+
 use downcast_rs::{Downcast, impl_downcast};
 use enum_map_derive::Enum;
 use sdl2::event::{Event as SdlEvent};
-use sdl2::mouse::MouseButton;
 use slotmap::{SecondaryMap, SlotMap};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -308,6 +309,28 @@ pub struct Base {
     background: Option<Sprite>,
 }
 
+impl Base {
+    pub fn rect(&self) -> &Rect {
+        &self.rect
+    }
+
+    pub fn cursor(&self) -> Option<Cursor> {
+        self.cursor
+    }
+
+    pub fn set_cursor(&mut self, cursor: Option<Cursor>) {
+        self.cursor = cursor;
+    }
+
+    pub fn background(&self) -> Option<&Sprite> {
+        self.background.as_ref()
+    }
+
+    pub fn background_mut(&mut self) -> Option<&mut Sprite> {
+        self.background.as_mut()
+    }
+}
+
 impl Widget for Base {
     fn handle_event(&mut self, _ctx: HandleEvent) {
     }
@@ -321,11 +344,11 @@ impl Widget for Base {
 }
 
 pub struct HandleEvent<'a> {
-    now: Instant,
-    this: Handle,
-    base: &'a mut Base,
-    event: Event,
-    capture: &'a mut Option<Handle>,
+    pub now: Instant,
+    pub this: Handle,
+    pub base: &'a mut Base,
+    pub event: Event,
+    pub capture: &'a mut Option<Handle>,
 }
 
 impl HandleEvent<'_> {
@@ -343,13 +366,13 @@ impl HandleEvent<'_> {
 }
 
 pub struct Render<'a> {
-    frm_db: &'a FrameDb,
-    canvas: &'a mut Canvas,
-    base: Option<&'a Base>,
+    pub frm_db: &'a FrameDb,
+    pub canvas: &'a mut Canvas,
+    pub base: Option<&'a Base>,
 }
 
 pub struct Init<'a> {
-    base: &'a mut Base,
+    pub base: &'a mut Base,
 }
 
 pub trait Widget: Downcast {
