@@ -20,4 +20,7 @@ pub enum OutEventData {
         action: bool,
         pos: EPoint,
     },
+
+    #[doc(hidden)]
+    __NonExhaustive,
 }
