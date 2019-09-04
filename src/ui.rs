@@ -86,7 +86,6 @@ pub struct Ui {
     widgets: SecondaryMap<SmKey, RefCell<Box<Widget>>>,
     windows_order: Vec<Handle>,
     cursor_pos: Point,
-    cursor_frozen: bool,
     pub cursor: Cursor,
     capture: Option<Handle>,
 }
@@ -100,7 +99,6 @@ impl Ui {
             widgets: SecondaryMap::new(),
             windows_order: Vec::new(),
             cursor_pos: Point::new(0, 0),
-            cursor_frozen: false,
             cursor: Cursor::Arrow,
             capture: None,
         }
@@ -178,7 +176,7 @@ impl Ui {
             SdlEvent::MouseButtonDown { x, y, mouse_btn, .. } => {
                 let pos = Point::new(*x, *y);
 
-                self.maybe_update_cursor_pos(pos);
+                self.update_cursor_pos(pos);
 
                 let target = if let Some(capture) = self.capture {
                     capture
@@ -193,7 +191,7 @@ impl Ui {
             SdlEvent::MouseMotion { x, y, .. } => {
                 let pos = Point::new(*x, *y);
 
-                self.maybe_update_cursor_pos(pos);
+                self.update_cursor_pos(pos);
 
                 let target = if let Some(capture) = self.capture {
                     capture
@@ -207,7 +205,7 @@ impl Ui {
             SdlEvent::MouseButtonUp { x, y, mouse_btn, .. } => {
                 let pos = Point::new(*x, *y);
 
-                self.maybe_update_cursor_pos(pos);
+                self.update_cursor_pos(pos);
 
                 let target = if let Some(capture) = self.capture {
                     capture
@@ -311,10 +309,8 @@ impl Ui {
         None
     }
 
-    fn maybe_update_cursor_pos(&mut self, pos: Point) {
-        if !self.cursor_frozen {
-            self.cursor_pos = pos;
-        }
+    fn update_cursor_pos(&mut self, pos: Point) {
+        self.cursor_pos = pos;
     }
 
     fn insert_widget(&mut self, window: Option<Handle>, base: Base, widget: Box<Widget>) -> Handle {
