@@ -232,6 +232,15 @@ impl Ui {
         }
     }
 
+    pub fn sync(&mut self) {
+        for (h, w) in &self.widgets {
+            w.borrow_mut().sync(Sync {
+                base: &mut self.widget_bases[h].borrow_mut(),
+                cursor_pos: self.cursor_pos,
+            });
+        }
+    }
+
     pub fn render(&mut self, canvas: &mut Canvas) {
         for &winh in &self.windows_order {
             self.widget_bases[winh.0].borrow_mut().render(Render {
@@ -410,10 +419,19 @@ pub struct Init<'a> {
     pub base: &'a mut Base,
 }
 
+pub struct Sync<'a> {
+    pub base: &'a mut Base,
+    pub cursor_pos: Point,
+}
+
 pub trait Widget: Downcast {
     fn init(&mut self, _ctx: Init) {}
 
     fn handle_event(&mut self, ctx: HandleEvent);
+
+    /// Called after `hanled_event()` and before `render()`.
+    /// Should be used to sync the directly altered widget state to the UI.
+    fn sync(&mut self, _ctx: Sync) {}
 
     fn render(&mut self, ctx: Render);
 }

@@ -498,6 +498,8 @@ fn main() {
             }
         }
 
+        ui.sync();
+
         {
             let mut world = world.borrow_mut();
             sequencer.update(&mut sequence::Context {
