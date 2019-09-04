@@ -391,7 +391,7 @@ pub struct HandleEvent<'a> {
     pub this: Handle,
     pub base: &'a mut Base,
     pub event: Event,
-    pub capture: &'a mut Option<Handle>,
+    capture: &'a mut Option<Handle>,
     pub out: &'a mut Vec<out::OutEvent>,
 }
 
