@@ -111,8 +111,78 @@ fn setup_file_system(fs: &mut fs::FileSystem, args: &ArgMatches) {
     for dat_file in dat_files.iter().rev() {
         fs.register_provider(fs::dat::v2::new_provider(dat_file).unwrap());
     }
+}
 
+struct Timer {
+    time: Instant,
+    last: Instant,
+}
 
+impl Timer {
+    pub fn new(time: Instant) -> Self {
+        Self {
+            time,
+            last: time,
+        }
+    }
+
+    pub fn time(&self) -> Instant {
+        self.time
+    }
+
+    pub fn delta(&self) -> Duration {
+        self.time - self.last
+    }
+
+    pub fn tick(&mut self, time: Instant) {
+        assert!(time >= self.time);
+        self.last = self.time;
+        self.time = time;
+    }
+}
+
+struct PausableTime {
+    time: Instant,
+    paused: bool,
+}
+
+impl PausableTime {
+    pub fn new(time: Instant) -> Self {
+        Self {
+            time,
+            paused: false,
+        }
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.paused
+    }
+
+    pub fn is_running(&self) -> bool {
+        !self.is_paused()
+    }
+
+    pub fn pause(&mut self) {
+        self.paused = true;
+    }
+
+    pub fn resume(&mut self) {
+        self.paused = false;
+    }
+
+    pub fn toggle(&mut self) {
+        self.paused = !self.paused;
+    }
+
+    pub fn update(&mut self, delta: Duration) {
+        if !self.paused {
+            self.time += delta;
+        }
+    }
+
+    pub fn time(&self) -> Instant {
+        self.time
+    }
 }
 
 fn main() {
@@ -352,12 +422,14 @@ fn main() {
 
     let mut last_picked_obj = None;
 
-    'running: loop {
-        let now = Instant::now();
+    let start = Instant::now();
+    let mut timer = Timer::new(start);
+    let mut game_update_time = PausableTime::new(start);
 
+    'running: loop {
         for event in event_pump.poll_iter() {
             let handled = ui.handle_input(ui::HandleInput {
-                now,
+                now: timer.time(),
                 event: &event,
                 out: ui_out_events,
             });
@@ -416,6 +488,9 @@ fn main() {
                         let mut pf = ui.widget_mut::<Playfield>(playfield);
                         pf.roof_visible = pf.roof_visible;
                     }
+                    Event::KeyDown { keycode: Some(Keycode::P), .. } => {
+                        game_update_time.toggle();
+                    }
                     Event::KeyDown { keycode: Some(Keycode::Backquote), .. } => {
                         draw_debug = !draw_debug;
                     }
@@ -431,7 +506,7 @@ fn main() {
             }
         }
 
-        ui.update(now, ui_out_events);
+        ui.update(timer.time(), ui_out_events);
 
         for event in ui_out_events.drain(..) {
             match event.data {
@@ -508,22 +583,23 @@ fn main() {
                         };
                     }
                 }
+                _ => {}
             }
         }
 
         ui.sync();
 
-        {
+        if game_update_time.is_running() {
             let mut world = world.borrow_mut();
             sequencer.update(&mut sequence::Context {
-                time: now,
+                time: game_update_time.time(),
                 world: &mut world
             });
 
-            fidget.update(now, &mut world, &mut sequencer);
+            fidget.update(game_update_time.time(), &mut world, &mut sequencer);
         }
 
-        canvas.update(now);
+        canvas.update(timer.time());
 
         // Render
 
@@ -545,7 +621,8 @@ fn main() {
                 "mouse hex: {}, {} ({})\n\
                  mouse sqr: {}, {} ({})\n\
                  dude hex: {}, {} ({})\n\
-                 ambient: 0x{:x}",
+                 ambient: 0x{:x}\n\
+                 paused: {}",
                 mouse_hex_pos.x, mouse_hex_pos.y,
                 hex_grid.to_linear_inv(mouse_hex_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 mouse_sqr_pos.x, mouse_sqr_pos.y,
@@ -553,6 +630,7 @@ fn main() {
                 dude_pos.x, dude_pos.y,
                 hex_grid.to_linear_inv(dude_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 world.ambient_light,
+                game_update_time.is_paused(),
             );
             canvas.draw_text(msg.as_bytes().into(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),
                 &DrawOptions {
@@ -566,5 +644,8 @@ fn main() {
         canvas.cleanup();
 
         thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+
+        timer.tick(Instant::now());
+        game_update_time.update(timer.delta());
     }
 }

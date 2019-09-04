@@ -29,5 +29,6 @@ Controls that work in demo:
 * `[` and `]` - decrease/increase ambient light.
 * `r` - toggle roof drawing.
 * `` ` `` - toggle debug info display.
+* `p` - toggle pause.
 
 ![Screenshot](screenshot_20190830114533.png)
