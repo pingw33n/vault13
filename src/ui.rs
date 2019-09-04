@@ -40,6 +40,7 @@ pub enum Event {
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Cursor {
     ActionArrow,
+    ActionArrowFlipped,
     Arrow,
     ArrowDown,
     ArrowUp,
@@ -51,11 +52,21 @@ impl Cursor {
         use Cursor::*;
         match self {
             ActionArrow => FrameId::ACTARROW,
+            ActionArrowFlipped => FrameId::ACTARROM,
             Arrow => FrameId::STDARROW,
             ArrowDown => FrameId::SDNARROW,
             ArrowUp => FrameId::SUPARROW,
             Hidden => FrameId::BLANK,
         }
+    }
+
+    fn offset(self) -> Point {
+        use Cursor::*;
+        match self {
+            // ACTARROM is not properly centered.
+            ActionArrowFlipped => (-14, 22),
+            _ => (0, 0)
+        }.into()
     }
 }
 
@@ -252,7 +263,7 @@ impl Ui {
         let cursor = self.effective_cursor();
         let fid = cursor.fid();
         Sprite {
-            pos: self.cursor_pos,
+            pos: self.cursor_pos + cursor.offset(),
             centered: true,
             fid,
             frame_idx: 0,
