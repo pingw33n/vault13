@@ -354,7 +354,7 @@ fn main() {
         }
     }
 
-    let ui = &mut Ui::new(frm_db.clone());
+    let ui = &mut Ui::new(frm_db.clone(), 640, 480);
     ui.cursor = ui::Cursor::Arrow;
 
     let playfield = {

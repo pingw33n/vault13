@@ -1,3 +1,4 @@
+use num_traits::clamp;
 use std::cmp;
 use std::ops;
 
@@ -56,6 +57,12 @@ impl Point {
             elevation,
             point: self,
         }
+    }
+
+    pub fn clamp_in_rect(self, rect: &Rect) -> Self {
+        Self::new(
+            clamp(self.x, rect.left, rect.right - 1),
+            clamp(self.y, rect.top, rect.bottom - 1))
     }
 }
 

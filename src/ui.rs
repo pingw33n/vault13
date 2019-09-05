@@ -86,12 +86,13 @@ pub struct Ui {
     widgets: SecondaryMap<SmKey, RefCell<Box<Widget>>>,
     windows_order: Vec<Handle>,
     cursor_pos: Point,
+    cursor_constraints: Vec<Rect>,
     pub cursor: Cursor,
     capture: Option<Handle>,
 }
 
 impl Ui {
-    pub fn new(frm_db: Rc<FrameDb>) -> Self {
+    pub fn new(frm_db: Rc<FrameDb>, width: i32, height: i32) -> Self {
         Self {
             frm_db,
             widget_handles: SlotMap::with_key(),
@@ -99,6 +100,7 @@ impl Ui {
             widgets: SecondaryMap::new(),
             windows_order: Vec::new(),
             cursor_pos: Point::new(0, 0),
+            cursor_constraints: vec![Rect::with_size(0, 0, width, height)],
             cursor: Cursor::Arrow,
             capture: None,
         }
@@ -173,10 +175,19 @@ impl Ui {
 
     pub fn handle_input(&mut self, ctx: HandleInput) -> bool {
         match ctx.event {
-            SdlEvent::MouseButtonDown { x, y, mouse_btn, .. } => {
-                let pos = Point::new(*x, *y);
-
-                self.update_cursor_pos(pos);
+            SdlEvent::MouseButtonDown { mouse_btn, .. } => {
+                let target = if let Some(capture) = self.capture {
+                    capture
+                } else if let Some(h) = self.widget_at(self.cursor_pos) {
+                    h
+                } else {
+                    return false;
+                };
+                self.widget_handle_event(ctx.now, target,
+                    Event::MouseDown { pos: self.cursor_pos, button: *mouse_btn }, ctx.out);
+            }
+            SdlEvent::MouseMotion { xrel, yrel, .. } => {
+                self.update_cursor_pos_rel(Point::new(*xrel, *yrel));
 
                 let target = if let Some(capture) = self.capture {
                     capture
@@ -186,27 +197,9 @@ impl Ui {
                     return false;
                 };
                 self.widget_handle_event(ctx.now, target,
-                    Event::MouseDown { pos, button: *mouse_btn }, ctx.out);
+                    Event::MouseMove { pos: self.cursor_pos }, ctx.out);
             }
-            SdlEvent::MouseMotion { x, y, .. } => {
-                let pos = Point::new(*x, *y);
-
-                self.update_cursor_pos(pos);
-
-                let target = if let Some(capture) = self.capture {
-                    capture
-                } else if let Some(h) = self.widget_at(self.cursor_pos) {
-                    h
-                } else {
-                    return false;
-                };
-                self.widget_handle_event(ctx.now, target, Event::MouseMove { pos }, ctx.out);
-            }
-            SdlEvent::MouseButtonUp { x, y, mouse_btn, .. } => {
-                let pos = Point::new(*x, *y);
-
-                self.update_cursor_pos(pos);
-
+            SdlEvent::MouseButtonUp { mouse_btn, .. } => {
                 let target = if let Some(capture) = self.capture {
                     capture
                 } else if let Some(h) = self.widget_at(self.cursor_pos) {
@@ -215,7 +208,7 @@ impl Ui {
                     return false;
                 };
                 self.widget_handle_event(ctx.now, target,
-                    Event::MouseUp { pos, button: *mouse_btn }, ctx.out);
+                    Event::MouseUp { pos: self.cursor_pos, button: *mouse_btn }, ctx.out);
             }
             _ => return false,
         }
@@ -309,8 +302,14 @@ impl Ui {
         None
     }
 
-    fn update_cursor_pos(&mut self, pos: Point) {
-        self.cursor_pos = pos;
+    fn update_cursor_pos_rel(&mut self, rel: Point) {
+        let abs = self.cursor_pos + rel;
+        self.update_cursor_pos_abs(abs);
+    }
+
+    fn update_cursor_pos_abs(&mut self, abs: Point) {
+        let rect = self.cursor_constraints.last().unwrap();
+        self.cursor_pos = abs.clamp_in_rect(&rect);
     }
 
     fn insert_widget(&mut self, window: Option<Handle>, base: Base, widget: Box<Widget>) -> Handle {
