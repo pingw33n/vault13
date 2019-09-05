@@ -292,7 +292,7 @@ impl Ui {
     }
 
     fn widget_at(&self, point: Point) -> Option<Handle> {
-        for &winh in &self.windows_order {
+        for &winh in self.windows_order.iter().rev() {
             let win_base = self.widget_bases[winh.0].borrow();
             if win_base.rect.contains(point.x, point.y) {
                 let mut win = self.widgets[winh.0].borrow_mut();
