@@ -7,17 +7,23 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
 
-pub fn vec_with_default<T: Default>(len: usize) -> Vec<T> {
-    vec_with_func(len, |_| T::default())
+pub trait VecExt<T> {
+    fn with_default(len: usize) -> Vec<T>
+        where T: Default
+    {
+        Self::from_fn(len, |_| T::default())
+    }
+
+    fn from_fn(len: usize, f: impl Fn(usize) -> T) -> Vec<T> {
+        let mut r = Vec::with_capacity(len);
+        for i in 0..len {
+            r.push(f(i));
+        }
+        r
+    }
 }
 
-pub fn vec_with_func<T>(len: usize, f: impl Fn(usize) -> T) -> Vec<T> {
-    let mut r = Vec::with_capacity(len);
-    for i in 0..len {
-        r.push(f(i));
-    }
-    r
-}
+impl<T> VecExt<T> for Vec<T> {}
 
 pub fn enum_iter<T: Enum<()> + Copy, R: RangeBounds<T>>(r: R) -> EnumIter<T> {
     use std::ops::Bound;

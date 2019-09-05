@@ -3,7 +3,7 @@ use num_traits::clamp;
 
 use crate::graphics::geometry::hex::{self, Direction};
 use crate::graphics::{EPoint, Point};
-use crate::util::{EnumExt, vec_with_func};
+use crate::util::{EnumExt, VecExt};
 
 const MAX_EMITTER_RADIUS: u32 = 8;
 /// Number of points inside the light cone of MAX_EMITTER_RADIUS.
@@ -50,7 +50,7 @@ impl LightGrid {
         assert!(elevation_count > 0);
         let light_cones = LightCones::new(MAX_EMITTER_RADIUS);
         let len = (width * height) as usize;
-        let grid = vec_with_func(elevation_count as usize,
+        let grid = Vec::from_fn(elevation_count as usize,
             |_| vec![DEFAULT_LIGHT_INTENSITY; len].into_boxed_slice()).into_boxed_slice();
 
         Self {

@@ -20,7 +20,7 @@ use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::*;
 use crate::sequence::cancellable::Cancel;
-use crate::util::{self, EnumExt, SmKey};
+use crate::util::{EnumExt, SmKey, VecExt};
 use crate::util::array2d::Array2d;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -371,7 +371,7 @@ impl Objects {
     pub fn new(tile_grid: TileGrid, elevation_count: u32, proto_db: Rc<ProtoDb>,
             frm_db: Rc<FrameDb>) -> Self {
         let path_finder = RefCell::new(PathFinder::new(tile_grid.clone(), 5000));
-        let by_pos = util::vec_with_func(elevation_count as usize,
+        let by_pos = Vec::from_fn(elevation_count as usize,
             |_| Array2d::with_default(tile_grid.width() as usize, tile_grid.height() as usize))
             .into_boxed_slice();
         Self {

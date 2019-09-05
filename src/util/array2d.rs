@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::util::vec_with_default;
+use crate::util::VecExt;
 
 pub struct Array2d<T> {
     arr: Box<[T]>,
@@ -54,7 +54,7 @@ impl<T> Array2d<T> {
 
 impl<T: Default> Array2d<T> {
     pub fn with_default(width: usize, height: usize) -> Self {
-        Self::new(vec_with_default(width * height).into_boxed_slice(), width)
+        Self::new(Vec::with_default(width * height).into_boxed_slice(), width)
     }
 }
 
