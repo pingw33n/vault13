@@ -21,7 +21,7 @@ pub enum OutEventData {
         pos: EPoint,
     },
     Action {
-        action: action_menu::Action,
+        action: crate::game::ui::action_menu::Action,
     },
 
     #[doc(hidden)]

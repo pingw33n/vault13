@@ -1,10 +1,12 @@
 use num_traits::clamp;
 use std::cmp;
 
-use super::*;
 use crate::asset::frame::FrameId;
+use crate::graphics::{Point, Rect};
+use crate::graphics::geometry::hex::Direction;
+use crate::graphics::sprite::Sprite;
+use crate::ui::*;
 use crate::ui::out::{OutEvent, OutEventData};
-
 
 pub fn show(actions: Vec<Action>, win: Handle, ui: &mut Ui) -> Handle {
     assert!(actions.len() > 0);
@@ -109,7 +111,7 @@ impl ActionMenu {
     }
 
     fn update_selection(&mut self, base: &Base, pos: Point) {
-        let rel = pos - base.rect.top_left();
+        let rel = pos - base.rect().top_left();
         self.selection = clamp(rel.y / Action::ICON_HEIGHT, 0, self.actions.len() as i32 - 1) as u32;
     }
 }

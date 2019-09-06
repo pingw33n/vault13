@@ -58,9 +58,9 @@ use crate::graphics::geometry::{TileGridView, hex, sqr};
 use std::cell::RefCell;
 use crate::game::ui::playfield::{Playfield, HexCursorStyle};
 use crate::ui::out::{OutEventData, ObjectPickKind};
-use crate::ui::action_menu;
+use crate::game::ui::action_menu;
 use crate::graphics::sprite::Sprite;
-use crate::ui::action_menu::Action;
+use crate::game::ui::action_menu::Action;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;

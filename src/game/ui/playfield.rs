@@ -14,8 +14,9 @@ use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render;
 use crate::graphics::sprite::{OutlineStyle, Sprite};
 use crate::ui::*;
-use crate::ui::action_menu::{Action, Placement};
 use crate::ui::out::{OutEvent, OutEventData, ObjectPickKind};
+
+use super::action_menu::{Action, Placement};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum PickMode {
