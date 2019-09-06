@@ -70,6 +70,7 @@ pub struct MessagePanel {
     layout: Option<Layout>,
     scroll_pos: i32,
     repeat_scroll: Repeat<Scroll>,
+    scrollable: bool,
     skew: i32,
 }
 
@@ -85,6 +86,7 @@ impl MessagePanel {
             layout: None,
             scroll_pos: 0,
             repeat_scroll: Repeat::new(Duration::from_millis(300)),
+            scrollable: true,
             skew: 0,
         }
     }
@@ -117,6 +119,14 @@ impl MessagePanel {
         assert!(capacity.is_none() || capacity.unwrap() > 0);
         self.capacity = capacity;
         self.ensure_capacity(0);
+    }
+
+    pub fn set_scrollable(&mut self, scrollable: bool) {
+        if scrollable != self.scrollable {
+            self.scrollable = scrollable;
+            self.scroll_pos = 0;
+            self.repeat_scroll.stop();
+        }
     }
 
     fn layout(&self) -> Layout {
@@ -179,19 +189,19 @@ impl Widget for MessagePanel {
         }
 
         match ctx.event {
-            Event::MouseDown { pos, .. } => {
+            Event::MouseDown { pos, .. } => if self.scrollable {
                 let scroll = scroll_intent(&ctx.base.rect, pos);
                 self.scroll(scroll);
                 update_cursor(&mut ctx, pos);
                 self.repeat_scroll.start(ctx.now, scroll);
                 ctx.capture();
             }
-            Event::MouseUp { pos, .. } => {
+            Event::MouseUp { pos, .. } => if self.scrollable {
                 update_cursor(&mut ctx, pos);
                 self.repeat_scroll.stop();
                 ctx.release();
             }
-            Event::MouseMove { pos } => {
+            Event::MouseMove { pos } => if self.scrollable {
                 update_cursor(&mut ctx, pos);
             }
             Event::Tick => {
