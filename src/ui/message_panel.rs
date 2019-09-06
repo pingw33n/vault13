@@ -60,7 +60,7 @@ impl<T> Repeat<T> {
     }
 }
 
-pub struct MessagePannel {
+pub struct MessagePanel {
     fonts: Rc<Fonts>,
     font: FontKey,
     color: Rgb15,
@@ -72,7 +72,7 @@ pub struct MessagePannel {
     repeat_scroll: Repeat<Scroll>,
 }
 
-impl MessagePannel {
+impl MessagePanel {
     pub fn new(fonts: Rc<Fonts>, font: FontKey, color: Rgb15, capacity: usize) -> Self {
         assert!(capacity > 0);
         Self {
@@ -133,7 +133,7 @@ enum Scroll {
     Down,
 }
 
-impl Widget for MessagePannel {
+impl Widget for MessagePanel {
     fn init(&mut self, ctx: Init) {
         let width = ctx.base.rect.width();
         let font = self.fonts.get(self.font);

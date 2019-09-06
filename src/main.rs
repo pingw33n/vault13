@@ -50,7 +50,7 @@ use crate::game::START_GAME_TIME;
 use crate::game::fidget::Fidget;
 use crate::ui::Ui;
 use log::*;
-use crate::ui::message_panel::MessagePannel;
+use crate::ui::message_panel::MessagePanel;
 use clap::ArgMatches;
 use bstring::BString;
 use measure_time::*;
@@ -374,7 +374,7 @@ fn main() {
 
         // Message panel.
         message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 165, 65), None, None,
-            MessagePannel::new(fonts.clone(),
+            MessagePanel::new(fonts.clone(),
                 FontKey::antialiased(1),
                 Rgb15::new(0, 31, 0),
                 100));
@@ -564,7 +564,7 @@ fn main() {
                                 };
 
                                 if let Some(name) = name {
-                                    let mut mp = ui.widget_mut::<MessagePannel>(message_panel);
+                                    let mut mp = ui.widget_mut::<MessagePanel>(message_panel);
                                     let mut m = BString::new();
                                     m.push_str("You see: ");
                                     m.push_str(name);
