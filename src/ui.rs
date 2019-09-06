@@ -1,6 +1,7 @@
 pub mod button;
 pub mod message_panel;
 pub mod out;
+pub mod panel;
 
 pub use sdl2::mouse::MouseButton;
 
