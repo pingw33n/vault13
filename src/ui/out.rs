@@ -13,14 +13,24 @@ pub struct OutEvent {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OutEventData {
     ObjectPick {
-        action: bool,
+        kind: ObjectPickKind,
         obj: object::Handle,
     },
     HexPick {
         action: bool,
         pos: EPoint,
     },
+    Action {
+        action: action_menu::Action,
+    },
 
     #[doc(hidden)]
     __NonExhaustive,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ObjectPickKind {
+    Hover,
+    DefaultAction,
+    ActionMenu,
 }

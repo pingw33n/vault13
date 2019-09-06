@@ -1,4 +1,3 @@
-use std::cmp;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
@@ -15,7 +14,8 @@ use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render;
 use crate::graphics::sprite::{OutlineStyle, Sprite};
 use crate::ui::*;
-use crate::ui::out::{OutEvent, OutEventData};
+use crate::ui::action_menu::{Action, Placement};
+use crate::ui::out::{OutEvent, OutEventData, ObjectPickKind};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum PickMode {
@@ -38,28 +38,6 @@ enum PickState {
     },
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ObjectActionIcon {
-    Look,
-    Rotate,
-    Talk,
-}
-
-impl ObjectActionIcon {
-    const OFFSET_X: i32 = 29;
-    const WIDTH: i32 = 40;
-    const HEIGHT: i32 = 40;
-
-    fn fid(&self) -> FrameId {
-        use ObjectActionIcon::*;
-        match self {
-            Look => FrameId::LOOKN,
-            Rotate => FrameId::ROTATEN,
-            Talk => FrameId::TALKN,
-        }
-    }
-}
-
 pub struct Playfield {
     world: Rc<RefCell<World>>,
     pick_mode: PickMode,
@@ -67,9 +45,10 @@ pub struct Playfield {
     pub hex_cursor_style: HexCursorStyle,
     pub roof_visible: bool,
     pick_state: PickState,
+    action_menu_state: Option<(Instant, object::Handle)>,
 
     /// Icon displayed near the cursor in object pick mode.
-    pub object_action_icon: Option<ObjectActionIcon>,
+    pub default_action_icon: Option<Action>,
 }
 
 impl Playfield {
@@ -92,7 +71,8 @@ impl Playfield {
             hex_cursor_style: HexCursorStyle::Normal,
             roof_visible: false,
             pick_state: PickState::Idle,
-            object_action_icon: None,
+            action_menu_state: None,
+            default_action_icon: None,
         }
     }
 
@@ -141,11 +121,20 @@ impl Widget for Playfield {
                     }
                     PickMode::Object => {
                         self.pick_state = PickState::Pending { start: ctx.now, pos };
-                        self.object_action_icon = None;
+                        self.default_action_icon = None;
+                    }
+                }
+            }
+            Event::MouseDown { pos, button } => {
+                if button == MouseButton::Left {
+                    let world = self.world.borrow();
+                    if let Some(obj) = world.pick_object(pos, true) {
+                        self.action_menu_state = Some((ctx.now, obj));
                     }
                 }
             }
             Event::MouseUp { pos, button } => {
+                self.action_menu_state = None;
                 match button {
                     MouseButton::Left => {
                         match self.pick_mode {
@@ -161,7 +150,10 @@ impl Widget for Playfield {
                                 if let Some(obj) = world.pick_object(pos, true) {
                                     ctx.out.push(OutEvent {
                                         source: ctx.this,
-                                        data: OutEventData::ObjectPick { action: true, obj },
+                                        data: OutEventData::ObjectPick {
+                                            kind: ObjectPickKind::DefaultAction,
+                                            obj,
+                                        },
                                     });
                                 }
                             }
@@ -193,11 +185,27 @@ impl Widget for Playfield {
                                 });
                             }
                         }
+                        self.default_action_icon = None;
                     }
                     _ => {}
                 }
             }
             Event::Tick => {
+                if let Some((time, obj)) = self.action_menu_state {
+                    if ctx.now - time >= Duration::from_millis(500) {
+                        self.action_menu_state = None;
+                        self.default_action_icon = None;
+
+                        ctx.out.push(OutEvent {
+                            source: ctx.this,
+                            data: OutEventData::ObjectPick {
+                                kind: ObjectPickKind::ActionMenu,
+                                obj,
+                            },
+                        });
+                    }
+                }
+
                 match self.pick_state {
                     PickState::Idle => {}
                     PickState::Pending { start, pos } => if ctx.now - start >= Duration::from_millis(500) {
@@ -205,7 +213,10 @@ impl Widget for Playfield {
                         if let Some(obj) = world.pick_object(pos, true) {
                             ctx.out.push(OutEvent {
                                 source: ctx.this,
-                                data: OutEventData::ObjectPick { action: false, obj },
+                                data: OutEventData::ObjectPick {
+                                    kind: ObjectPickKind::Hover,
+                                    obj,
+                                },
                             });
                         }
                         self.pick_state = PickState::Idle;
@@ -219,11 +230,8 @@ impl Widget for Playfield {
     fn sync(&mut self, ctx: Sync) {
         if ctx.base.cursor() != Some(Cursor::Hidden) {
             ctx.base.set_cursor(Some(
-                if self.object_action_icon.is_some() &&
-                    ctx.base.rect().right - ctx.cursor_pos.x <
-                        ObjectActionIcon::OFFSET_X + ObjectActionIcon::WIDTH
-                {
-                    Cursor::ActionArrowFlipped
+                if self.default_action_icon.is_some() {
+                    Placement::new(1, ctx.cursor_pos, ctx.base.rect()).cursor
                 } else {
                     Cursor::ActionArrow
                 }))
@@ -254,18 +262,11 @@ impl Widget for Playfield {
                         });
                 }
             }
-            PickMode::Object => if let Some(action_icon) = self.object_action_icon {
-                let fid = action_icon.fid();
-                // FIXME offset should be computed from the actual cursor/icon bounds.
-                let offset = Point::new(
-                    if ctx.base.unwrap().cursor() == Some(Cursor::ActionArrow) {
-                        ObjectActionIcon::OFFSET_X
-                    } else {
-                        - (ObjectActionIcon::OFFSET_X + ObjectActionIcon::WIDTH - 1)
-                    },
-                    cmp::min(ctx.base.unwrap().rect().bottom - ctx.cursor_pos.y - ObjectActionIcon::HEIGHT, 0));
+            PickMode::Object => if let Some(action) = self.default_action_icon {
+                let fid = action.icons().0;
+                let pos = Placement::new(1, ctx.cursor_pos, ctx.base.unwrap().rect()).rect.top_left();
                 Sprite {
-                    pos: ctx.cursor_pos + offset,
+                    pos,
                     centered: false,
                     fid,
                     frame_idx: 0,

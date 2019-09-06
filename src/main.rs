@@ -56,8 +56,11 @@ use bstring::BString;
 use measure_time::*;
 use crate::graphics::geometry::{TileGridView, hex, sqr};
 use std::cell::RefCell;
-use crate::game::ui::playfield::{Playfield, HexCursorStyle, ObjectActionIcon};
-use crate::ui::out::OutEventData;
+use crate::game::ui::playfield::{Playfield, HexCursorStyle};
+use crate::ui::out::{OutEventData, ObjectPickKind};
+use crate::ui::action_menu;
+use crate::graphics::sprite::Sprite;
+use crate::ui::action_menu::Action;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -366,7 +369,6 @@ fn main() {
     let message_panel;
     {
         use ui::button::Button;
-        use graphics::sprite::Sprite;
 
         let main_hud = ui.new_window(Rect::with_size(0, 379, 640, 100), Some(Sprite::new(FrameId::IFACE)));
 
@@ -421,6 +423,12 @@ fn main() {
     let ui_out_events = &mut Vec::new();
 
     let mut last_picked_obj = None;
+
+    struct ObjectAction {
+        menu: ui::Handle,
+        obj: Handle,
+    }
+    let mut object_action = None;
 
     let start = Instant::now();
     let mut timer = Timer::new(start);
@@ -508,50 +516,86 @@ fn main() {
 
         ui.update(timer.time(), ui_out_events);
 
+        fn handle_action(world: &World, obj: Handle, action: Action) {
+            match action {
+                Action::Rotate => {
+                    let mut obj = world.objects().get(obj).borrow_mut();
+                    if let Some(signal) = obj.sequence.take() {
+                        signal.cancel();
+                    }
+                    obj.direction = obj.direction.rotate_cw();
+                }
+                _ => {}
+            }
+        }
+
         for event in ui_out_events.drain(..) {
             match event.data {
-                OutEventData::ObjectPick { action, obj: objh } => {
+                OutEventData::ObjectPick { kind, obj: objh } => {
                     let world = world.borrow();
                     let picked_dude = Some(objh) == world.dude_obj();
-                    if action {
-                        if picked_dude {
-                            let mut obj = world.objects().get(dude_objh).borrow_mut();
-                            if let Some(signal) = obj.sequence.take() {
-                                signal.cancel();
-                            }
-                            obj.direction = obj.direction.rotate_cw();
-                        }
+                    let default_action = if picked_dude {
+                        Action::Rotate
                     } else {
-                        ui.widget_mut::<Playfield>(playfield).object_action_icon = Some(if picked_dude {
-                            ObjectActionIcon::Rotate
-                        } else {
-                            ObjectActionIcon::Look
-                        });
-
-                        if last_picked_obj != Some(objh) {
-                            last_picked_obj = Some(objh);
-
-                            let obj = world.objects().get(objh).borrow();
-                            let name: Option<BString> = if let Some(pid) = obj.pid {
-                                if let Some(name) = proto_db.name(pid).unwrap() {
-                                    Some(name.into())
-                                } else {
-                                    None
-                                }
-                            } else if picked_dude {
-                                Some(b"[dude]"[..].into())
-                            } else {
+                        Action::Look
+                    };
+                    match kind {
+                        ObjectPickKind::Hover => {
+                            ui.widget_mut::<Playfield>(playfield).default_action_icon = if object_action.is_none() {
+                                Some(default_action)
+                            }  else {
                                 None
                             };
 
-                            if let Some(name) = name {
-                                let mut mp = ui.widget_mut::<MessagePannel>(message_panel);
-                                let mut m = BString::new();
-                                m.push_str("You see: ");
-                                m.push_str(name);
-                                mp.push_message(m);
+                            if last_picked_obj != Some(objh) {
+                                last_picked_obj = Some(objh);
+
+                                let obj = world.objects().get(objh).borrow();
+                                let name: Option<BString> = if let Some(pid) = obj.pid {
+                                    if let Some(name) = proto_db.name(pid).unwrap() {
+                                        Some(name.into())
+                                    } else {
+                                        None
+                                    }
+                                } else if picked_dude {
+                                    Some(b"[dude]"[..].into())
+                                } else {
+                                    None
+                                };
+
+                                if let Some(name) = name {
+                                    let mut mp = ui.widget_mut::<MessagePannel>(message_panel);
+                                    let mut m = BString::new();
+                                    m.push_str("You see: ");
+                                    m.push_str(name);
+                                    mp.push_message(m);
+                                }
                             }
                         }
+                        ObjectPickKind::ActionMenu => {
+                            ui.widget_mut::<Playfield>(playfield).default_action_icon = None;
+
+                            let mut actions = Vec::new();
+                            actions.push(default_action);
+                            if !actions.contains(&Action::Look) {
+                                actions.push(Action::Look);
+                            }
+                            if !actions.contains(&Action::Talk) {
+                                actions.push(Action::Talk);
+                            }
+                            if !actions.contains(&Action::Cancel) {
+                                actions.push(Action::Cancel);
+                            }
+
+                            let playfield_win = ui.window_of(playfield).unwrap();
+                            object_action = Some(ObjectAction {
+                                menu: action_menu::show(actions, playfield_win, ui),
+                                obj: objh,
+                            });
+
+                            game_update_time.pause();
+                        }
+                        ObjectPickKind::DefaultAction => handle_action(&world, objh, default_action),
                     }
                 }
                 OutEventData::HexPick { action, pos } => {
@@ -582,6 +626,12 @@ fn main() {
                             HexCursorStyle::Blocked
                         };
                     }
+                }
+                OutEventData::Action { action } => {
+                    let object_action = object_action.take().unwrap();
+                    handle_action(&world.borrow(), object_action.obj, action);
+                    action_menu::hide(object_action.menu, ui);
+                    game_update_time.resume();
                 }
                 _ => {}
             }
