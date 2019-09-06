@@ -17,7 +17,7 @@ use crate::graphics::{Point, Rect};
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::Sprite;
-use crate::util::SmKey;
+use crate::util::{SmKey, VecExt};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
@@ -87,7 +87,8 @@ pub struct Ui {
     windows_order: Vec<Handle>,
     cursor_pos: Point,
     cursor_constraints: Vec<Rect>,
-    pub cursor: Cursor,
+    cursor_ghost: Option<(Point, Cursor)>,
+    cursor: Cursor,
     capture: Option<Handle>,
 }
 
@@ -101,6 +102,7 @@ impl Ui {
             windows_order: Vec::new(),
             cursor_pos: Point::new(0, 0),
             cursor_constraints: vec![Rect::with_size(0, 0, width, height)],
+            cursor_ghost: None,
             cursor: Cursor::Arrow,
             capture: None,
         }
@@ -116,6 +118,36 @@ impl Ui {
         }));
         self.windows_order.push(h);
         h
+    }
+
+    pub fn remove(&mut self, handle: Handle) -> bool {
+        let widg = if let Some(v) = self.widgets.remove(handle.0) {
+            v
+        } else {
+            return false;
+        };
+        if self.capture == Some(handle) {
+            self.capture = None;
+        }
+        self.widget_bases.remove(handle.0);
+
+        for &win in &self.windows_order {
+            let mut win = self.widgets[win.0].borrow_mut();
+            let win = win.downcast_mut::<Window>().unwrap();
+            if win.widgets.remove_first(&handle).is_some() {
+                break;
+            }
+        }
+
+        let widg = widg.borrow();
+        if let Some(win) = widg.downcast_ref::<Window>() {
+            self.windows_order.remove_first(&handle).unwrap();
+            for &w in &win.widgets {
+                self.remove(w);
+            }
+        }
+
+        true
     }
 
     pub fn new_widget(&mut self,
@@ -155,6 +187,68 @@ impl Ui {
 
     pub fn widget_mut<T: Widget>(&self, handle: Handle) -> RefMut<T> {
         RefMut::map(self.widget(handle).borrow_mut(), |w| w.downcast_mut::<T>().unwrap())
+    }
+
+    /// Creates "ghost" of the current cursor - a copy that will be drawn at the same position
+    /// beneath the real cursor until hidden. Only one cursor ghost is possible.
+    pub fn show_cursor_ghost(&mut self) {
+        self.cursor_ghost = Some((self.cursor_pos, self.effective_cursor()));
+    }
+
+    /// Hides cursor ghost shown by `show_cursor_ghost()`.
+    pub fn hide_cursor_ghost(&mut self) {
+        if let Some((pos, _)) = self.cursor_ghost.take() {
+            self.cursor_pos = pos;
+        }
+    }
+
+    #[must_use]
+    pub fn window_of(&self, handle: Handle) -> Option<Handle> {
+        for &winh in &self.windows_order {
+            let win = self.widget_ref::<Window>(winh);
+            if win.widgets.contains(&handle) {
+                return Some(winh);
+            }
+        }
+        None
+    }
+
+    pub fn cursor_pos(&self) -> Point {
+        self.cursor_pos
+    }
+
+    pub fn set_cursor_pos(&mut self, pos: Point) {
+        self.update_cursor_pos_abs(pos);
+    }
+
+    pub fn cursor(&self) -> Cursor {
+        self.cursor
+    }
+
+    pub fn set_cursor(&mut self, cursor: Cursor) {
+        self.cursor = cursor;
+    }
+
+    pub fn capture(&mut self, widget: Handle) {
+        self.capture = Some(widget);
+    }
+
+    pub fn release(&mut self) {
+        self.capture = None;
+    }
+
+    /// Limits cursor position to the specified `rect`.
+    pub fn set_cursor_constraint(&mut self, rect: Rect) {
+        if self.cursor_constraints.len() == 1 {
+            self.cursor_constraints.push(rect);
+        } else {
+            self.cursor_constraints[1] = rect;
+        }
+    }
+
+    /// Removes constraint set by `set_cursor_constraint()`.
+    pub fn clear_cursor_constraint(&mut self) {
+        self.cursor_constraints.truncate(1);
     }
 
     fn widget_handle_event(&mut self,
@@ -264,17 +358,12 @@ impl Ui {
             }
         }
 
+        if let Some((pos, cursor)) = self.cursor_ghost {
+            self.draw_cursor(cursor, pos, canvas);
+        }
+
         let cursor = self.effective_cursor();
-        let fid = cursor.fid();
-        Sprite {
-            pos: self.cursor_pos + cursor.offset(),
-            centered: true,
-            fid,
-            frame_idx: 0,
-            direction: Direction::NE,
-            light: 0x10000,
-            effect: None,
-        }.render(canvas, &self.frm_db);
+        self.draw_cursor(cursor, self.cursor_pos, canvas);
     }
 
     fn effective_cursor(&self) -> Cursor {
@@ -282,6 +371,19 @@ impl Ui {
             .or_else(|| self.widget_at(self.cursor_pos))
             .and_then(|h| self.widget_bases[h.0].borrow().cursor)
             .unwrap_or(self.cursor)
+    }
+
+    fn draw_cursor(&self, cursor: Cursor, pos: Point, canvas: &mut dyn Canvas) {
+        let fid = cursor.fid();
+        Sprite {
+            pos: pos + cursor.offset(),
+            centered: true,
+            fid,
+            frame_idx: 0,
+            direction: Direction::NE,
+            light: 0x10000,
+            effect: None,
+        }.render(canvas, &self.frm_db);
     }
 
     fn widget_at(&self, point: Point) -> Option<Handle> {

@@ -355,7 +355,7 @@ fn main() {
     }
 
     let ui = &mut Ui::new(frm_db.clone(), 640, 480);
-    ui.cursor = ui::Cursor::Arrow;
+    ui.set_cursor(ui::Cursor::Arrow);
 
     let playfield = {
         let rect = Rect::with_size(0, 0, 640, 379);

@@ -21,9 +21,19 @@ pub trait VecExt<T> {
         }
         r
     }
+
+    fn remove_first(&mut self, item: &T) -> Option<T>
+        where T: PartialEq<T>;
 }
 
-impl<T> VecExt<T> for Vec<T> {}
+impl<T> VecExt<T> for Vec<T> {
+    fn remove_first(&mut self, item: &T) -> Option<T>
+        where T: PartialEq<T>
+    {
+        self.iter().position(|v| v == item)
+            .map(|i| self.remove(i))
+    }
+}
 
 pub fn enum_iter<T: Enum<()> + Copy, R: RangeBounds<T>>(r: R) -> EnumIter<T> {
     use std::ops::Bound;
