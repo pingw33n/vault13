@@ -374,11 +374,12 @@ fn main() {
         let main_hud = ui.new_window(Rect::with_size(0, 379, 640, 100), Some(Sprite::new(FrameId::IFACE)));
 
         // Message panel.
-        message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 165, 65), None, None,
-            MessagePanel::new(fonts.clone(),
-                FontKey::antialiased(1),
-                Rgb15::new(0, 31, 0),
-                100));
+        let mut mp = MessagePanel::new(fonts.clone(),
+            FontKey::antialiased(1),
+            Rgb15::new(0, 31, 0),
+            100);
+        mp.set_skew(1);
+        message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 165, 65), None, None, mp);
 
         // Inventory button.
         // Original location is a bit off, at y=41.

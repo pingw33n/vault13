@@ -70,6 +70,7 @@ pub struct MessagePanel {
     layout: Option<Layout>,
     scroll_pos: i32,
     repeat_scroll: Repeat<Scroll>,
+    skew: i32,
 }
 
 impl MessagePanel {
@@ -85,6 +86,7 @@ impl MessagePanel {
             layout: None,
             scroll_pos: 0,
             repeat_scroll: Repeat::new(Duration::from_millis(300)),
+            skew: 0,
         }
     }
 
@@ -110,6 +112,11 @@ impl MessagePanel {
         for line in new_lines {
             self.lines.push_back(line);
         }
+    }
+
+    /// Horizontal offset added to each line.
+    pub fn set_skew(&mut self, skew: i32) {
+        self.skew = skew;
     }
 
     fn layout(&self) -> Layout {
@@ -205,7 +212,7 @@ impl Widget for MessagePanel {
                 ctx.canvas.draw_text(&self.lines[i as usize], x, y, self.font, self.color,
                     &font::DrawOptions::default());
             }
-            x += 1;
+            x += self.skew;
             y += vert_advance;
         }
     }
