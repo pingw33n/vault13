@@ -18,6 +18,7 @@ use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::Sprite;
 use crate::util::{SmKey, VecExt};
+use crate::ui::out::OutEvent;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
@@ -90,6 +91,9 @@ pub struct Ui {
     cursor_ghost: Option<(Point, Cursor)>,
     cursor: Cursor,
     capture: Option<Handle>,
+    /// If `true` the next `update()` will fire `MouseMove` to the `cursor_pos` unless
+    /// this event was seen on previous `handle_input()`.
+    simulate_mouse_move: bool,
 }
 
 impl Ui {
@@ -105,6 +109,7 @@ impl Ui {
             cursor_ghost: None,
             cursor: Cursor::Arrow,
             capture: None,
+            simulate_mouse_move: false,
         }
     }
 
@@ -199,6 +204,7 @@ impl Ui {
     pub fn hide_cursor_ghost(&mut self) {
         if let Some((pos, _)) = self.cursor_ghost.take() {
             self.cursor_pos = pos;
+            self.simulate_mouse_move = true;
         }
     }
 
@@ -270,9 +276,7 @@ impl Ui {
     pub fn handle_input(&mut self, ctx: HandleInput) -> bool {
         match ctx.event {
             SdlEvent::MouseButtonDown { mouse_btn, .. } => {
-                let target = if let Some(capture) = self.capture {
-                    capture
-                } else if let Some(h) = self.widget_at(self.cursor_pos) {
+                let target = if let Some(h) = self.find_mouse_event_target(self.cursor_pos) {
                     h
                 } else {
                     return false;
@@ -281,22 +285,15 @@ impl Ui {
                     Event::MouseDown { pos: self.cursor_pos, button: *mouse_btn }, ctx.out);
             }
             SdlEvent::MouseMotion { xrel, yrel, .. } => {
-                self.update_cursor_pos_rel(Point::new(*xrel, *yrel));
+                self.simulate_mouse_move = false;
 
-                let target = if let Some(capture) = self.capture {
-                    capture
-                } else if let Some(h) = self.widget_at(self.cursor_pos) {
-                    h
-                } else {
+                self.update_cursor_pos_rel(Point::new(*xrel, *yrel));
+                if !self.fire_mouse_move(ctx.now, ctx.out) {
                     return false;
-                };
-                self.widget_handle_event(ctx.now, target,
-                    Event::MouseMove { pos: self.cursor_pos }, ctx.out);
+                }
             }
             SdlEvent::MouseButtonUp { mouse_btn, .. } => {
-                let target = if let Some(capture) = self.capture {
-                    capture
-                } else if let Some(h) = self.widget_at(self.cursor_pos) {
+                let target = if let Some(h) = self.find_mouse_event_target(self.cursor_pos) {
                     h
                 } else {
                     return false;
@@ -310,6 +307,11 @@ impl Ui {
     }
 
     pub fn update(&mut self, now: Instant, out: &mut Vec<out::OutEvent>) {
+        if self.simulate_mouse_move {
+            self.simulate_mouse_move = false;
+            self.fire_mouse_move(now, out);
+        }
+
         // FIXME avoid copy/allocation
         let handles: Vec<_> = self.widgets.keys().collect();
         for h in handles {
@@ -402,6 +404,24 @@ impl Ui {
             }
         }
         None
+    }
+
+    fn find_mouse_event_target(&self, point: Point) -> Option<Handle> {
+        if self.capture.is_some() {
+            self.capture
+        } else {
+            self.widget_at(point)
+        }
+    }
+
+    fn fire_mouse_move(&mut self, now: Instant, out: &mut Vec<OutEvent>) -> bool {
+        if let Some(target) = self.find_mouse_event_target(self.cursor_pos) {
+            self.widget_handle_event(now, target,
+                Event::MouseMove { pos: self.cursor_pos }, out);
+            true
+        } else {
+            false
+        }
     }
 
     fn update_cursor_pos_rel(&mut self, rel: Point) {
