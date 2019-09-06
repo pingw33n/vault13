@@ -136,20 +136,18 @@ impl Ui {
         }
         self.widget_bases.remove(handle.0);
 
-        for &win in &self.windows_order {
-            let mut win = self.widgets[win.0].borrow_mut();
-            let win = win.downcast_mut::<Window>().unwrap();
-            if win.widgets.remove_first(&handle).is_some() {
-                break;
-            }
-        }
-
         let widg = widg.borrow();
         if let Some(win) = widg.downcast_ref::<Window>() {
             self.windows_order.remove_first(&handle).unwrap();
             for &w in &win.widgets {
                 self.remove(w);
             }
+        } else {
+            // Remove widget from its window.
+            let win = self.window_of(handle).unwrap();
+            let mut win = self.widgets[win.0].borrow_mut();
+            let win = win.downcast_mut::<Window>().unwrap();
+            win.widgets.remove_first(&handle).unwrap();
         }
 
         true
