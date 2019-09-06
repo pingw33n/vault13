@@ -66,7 +66,7 @@ pub struct MessagePanel {
     color: Rgb15,
     messages: VecDeque<(BString, u32)>,
     lines: VecDeque<BString>,
-    capacity: usize,
+    capacity: Option<usize>,
     layout: Option<Layout>,
     scroll_pos: i32,
     repeat_scroll: Repeat<Scroll>,
@@ -74,15 +74,14 @@ pub struct MessagePanel {
 }
 
 impl MessagePanel {
-    pub fn new(fonts: Rc<Fonts>, font: FontKey, color: Rgb15, capacity: usize) -> Self {
-        assert!(capacity > 0);
+    pub fn new(fonts: Rc<Fonts>, font: FontKey, color: Rgb15) -> Self {
         Self {
             fonts,
             font,
             color,
-            messages: VecDeque::with_capacity(capacity),
+            messages: VecDeque::new(),
             lines: VecDeque::new(),
-            capacity,
+            capacity: None,
             layout: None,
             scroll_pos: 0,
             repeat_scroll: Repeat::new(Duration::from_millis(300)),
@@ -91,12 +90,7 @@ impl MessagePanel {
     }
 
     pub fn push_message(&mut self, message: impl Into<BString>) {
-        while self.messages.len() >= self.capacity {
-            let line_count = self.messages.pop_front().unwrap().1;
-            for _ in 0..line_count {
-                self.lines.pop_front().unwrap();
-            }
-        }
+        self.ensure_capacity(1);
 
         let message = message.into();
 
@@ -119,6 +113,12 @@ impl MessagePanel {
         self.skew = skew;
     }
 
+    pub fn set_capacity(&mut self, capacity: Option<usize>) {
+        assert!(capacity.is_none() || capacity.unwrap() > 0);
+        self.capacity = capacity;
+        self.ensure_capacity(0);
+    }
+
     fn layout(&self) -> Layout {
         self.layout.expect("Widget::init() wasn't called")
     }
@@ -130,6 +130,17 @@ impl MessagePanel {
         };
         self.scroll_pos = cmp::max(cmp::min(self.scroll_pos, 0),
             self.layout().visible_line_count - self.lines.len() as i32);
+    }
+
+    fn ensure_capacity(&mut self, extra: usize) {
+        if let Some(capacity) = self.capacity {
+            while self.messages.len() >= capacity - extra {
+                let line_count = self.messages.pop_front().unwrap().1;
+                for _ in 0..line_count {
+                    self.lines.pop_front().unwrap();
+                }
+            }
+        }
     }
 }
 

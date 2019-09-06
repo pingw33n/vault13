@@ -376,9 +376,9 @@ fn main() {
         // Message panel.
         let mut mp = MessagePanel::new(fonts.clone(),
             FontKey::antialiased(1),
-            Rgb15::new(0, 31, 0),
-            100);
+            Rgb15::new(0, 31, 0));
         mp.set_skew(1);
+        mp.set_capacity(Some(100));
         message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 165, 65), None, None, mp);
 
         // Inventory button.
