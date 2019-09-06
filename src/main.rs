@@ -61,6 +61,7 @@ use crate::ui::out::{OutEventData, ObjectPickKind};
 use crate::game::ui::action_menu;
 use crate::graphics::sprite::Sprite;
 use crate::game::ui::action_menu::Action;
+use crate::asset::message::BULLET;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -566,6 +567,7 @@ fn main() {
                                 if let Some(name) = name {
                                     let mut mp = ui.widget_mut::<MessagePanel>(message_panel);
                                     let mut m = BString::new();
+                                    m.push(BULLET);
                                     m.push_str("You see: ");
                                     m.push_str(name);
                                     mp.push_message(m);

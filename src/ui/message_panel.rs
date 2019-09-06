@@ -96,8 +96,7 @@ impl MessagePanel {
             }
         }
 
-        let mut message = message.into();
-        message.insert(0, b'\x95');
+        let message = message.into();
 
         let font = self.fonts.get(self.font);
         let new_lines: VecDeque<_> = font.lines(&message, Some(font::Overflow {

@@ -6,6 +6,9 @@ use std::collections::HashMap;
 
 use crate::fs::FileSystem;
 
+/// Bullet character used in message panel.
+pub const BULLET: u8 = b'\x95';
+
 #[derive(Debug, Default)]
 pub struct Messages {
     map: HashMap<i32, Message>,
