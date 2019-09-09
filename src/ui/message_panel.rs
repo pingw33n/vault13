@@ -152,6 +152,38 @@ impl MessagePanel {
             }
         }
     }
+
+    fn scroll_intent(&self, rect: &Rect, cursor_pos: Point) -> Option<Scroll> {
+        if !self.scrollable {
+            return None;
+        }
+        let half_y = rect.top + rect.height() / 2;
+        if cursor_pos.y < half_y {
+            if self.scroll_pos > self.layout().visible_line_count - self.lines.len() as i32 {
+                Some(Scroll::Up)
+            } else {
+                None
+            }
+        } else {
+            if self.scroll_pos < 0 {
+                Some(Scroll::Down)
+            } else {
+                None
+            }
+        }
+    }
+
+    fn cursor(&self, scroll: Option<Scroll>) -> Option<Cursor> {
+        scroll.map(|s| match s {
+            Scroll::Up => Cursor::ArrowUp,
+            Scroll::Down => Cursor::ArrowDown,
+        })
+    }
+
+    fn update_cursor(&self, ctx: &mut HandleEvent) {
+        let scroll = self.scroll_intent(&ctx.base.rect, ctx.cursor_pos);
+        ctx.base.cursor = self.cursor(scroll);
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -172,41 +204,26 @@ impl Widget for MessagePanel {
     }
 
     fn handle_event(&mut self, mut ctx: HandleEvent) {
-        fn scroll_intent(rect: &Rect, pos: Point) -> Scroll {
-            let half_y = rect.top + rect.height() / 2;
-            if pos.y < half_y {
-                Scroll::Up
-            } else {
-                Scroll::Down
-            }
-        }
-
-        fn update_cursor(ctx: &mut HandleEvent, pos: Point) {
-            ctx.base.cursor = Some(match scroll_intent(&ctx.base.rect, pos) {
-                Scroll::Up => Cursor::ArrowUp,
-                Scroll::Down => Cursor::ArrowDown,
-            });
-        }
-
         match ctx.event {
-            Event::MouseDown { pos, .. } => if self.scrollable {
-                let scroll = scroll_intent(&ctx.base.rect, pos);
-                self.scroll(scroll);
-                update_cursor(&mut ctx, pos);
-                self.repeat_scroll.start(ctx.now, scroll);
-                ctx.capture();
+            Event::MouseDown { .. } => {
+                if let Some(scroll) = self.scroll_intent(&ctx.base.rect, ctx.cursor_pos) {
+                    self.scroll(scroll);
+                    self.update_cursor(&mut ctx);
+                    self.repeat_scroll.start(ctx.now, scroll);
+                    ctx.capture();
+                }
             }
-            Event::MouseUp { pos, .. } => if self.scrollable {
-                update_cursor(&mut ctx, pos);
+            Event::MouseUp { .. } => if self.scrollable {
                 self.repeat_scroll.stop();
                 ctx.release();
             }
-            Event::MouseMove { pos } => if self.scrollable {
-                update_cursor(&mut ctx, pos);
+            Event::MouseMove { .. } => if self.scrollable {
+                self.update_cursor(&mut ctx);
             }
             Event::Tick => {
                 if let Some(&scroll) = self.repeat_scroll.update_if_running(ctx.now) {
                     self.scroll(scroll);
+                    self.update_cursor(&mut ctx);
                 }
             }
             _ => {}

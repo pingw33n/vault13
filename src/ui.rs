@@ -269,6 +269,7 @@ impl Ui {
             event,
             capture: &mut self.capture,
             out,
+            cursor_pos: self.cursor_pos,
         });
     }
 
@@ -513,6 +514,7 @@ pub struct HandleEvent<'a> {
     pub event: Event,
     capture: &'a mut Option<Handle>,
     pub out: &'a mut Vec<out::OutEvent>,
+    pub cursor_pos: Point,
 }
 
 impl HandleEvent<'_> {
