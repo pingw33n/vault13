@@ -1,4 +1,5 @@
 use bstring::BString;
+use num_traits::clamp;
 use std::cmp;
 use std::collections::VecDeque;
 use std::time::Duration;
@@ -60,6 +61,15 @@ impl<T> Repeat<T> {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Anchor {
+    /// Lines are anchored to the top.
+    Top,
+
+    /// Lines are anchored to the bottom.
+    Bottom,
+}
+
 pub struct MessagePanel {
     fonts: Rc<Fonts>,
     font: FontKey,
@@ -68,10 +78,13 @@ pub struct MessagePanel {
     lines: VecDeque<BString>,
     capacity: Option<usize>,
     layout: Option<Layout>,
+    /// Scrolling position. It's the number of lines scrolled up or down from the origin (0).
+    /// Can be negative if in `Anchor::Bottom` mode.
     scroll_pos: i32,
     repeat_scroll: Repeat<Scroll>,
     scrollable: bool,
     skew: i32,
+    anchor: Anchor,
 }
 
 impl MessagePanel {
@@ -88,6 +101,7 @@ impl MessagePanel {
             repeat_scroll: Repeat::new(Duration::from_millis(300)),
             scrollable: true,
             skew: 0,
+            anchor: Anchor::Top,
         }
     }
 
@@ -129,8 +143,19 @@ impl MessagePanel {
         }
     }
 
+    pub fn set_anchor(&mut self, anchor: Anchor) {
+        assert!(self.messages.is_empty(), "not supported");
+        self.anchor = anchor;
+    }
+
     fn layout(&self) -> Layout {
         self.layout.expect("Widget::init() wasn't called")
+    }
+
+    /// Index of the first line of the last page. Can be negative if number of lines is less
+    /// than the page len.
+    fn last_page(&self) -> i32 {
+        self.lines.len() as i32 - self.layout().visible_line_count
     }
 
     fn scroll(&mut self, scroll: Scroll) {
@@ -138,8 +163,10 @@ impl MessagePanel {
             Scroll::Up => -1,
             Scroll::Down => 1,
         };
-        self.scroll_pos = cmp::max(cmp::min(self.scroll_pos, 0),
-            self.layout().visible_line_count - self.lines.len() as i32);
+        self.scroll_pos = match self.anchor {
+            Anchor::Top => clamp(self.scroll_pos, 0, self.last_page()),
+            Anchor::Bottom => clamp(self.scroll_pos, -self.last_page(), 0),
+        };
     }
 
     fn ensure_capacity(&mut self, extra: usize) {
@@ -153,22 +180,30 @@ impl MessagePanel {
         }
     }
 
-    fn scroll_intent(&self, rect: &Rect, cursor_pos: Point) -> Option<Scroll> {
+    fn scroll_for_cursor(&self, rect: &Rect, cursor_pos: Point) -> Option<Scroll> {
         if !self.scrollable {
             return None;
         }
         let half_y = rect.top + rect.height() / 2;
         if cursor_pos.y < half_y {
-            if self.scroll_pos > self.layout().visible_line_count - self.lines.len() as i32 {
-                Some(Scroll::Up)
-            } else {
-                None
+            match self.anchor {
+                Anchor::Top if self.scroll_pos > 0 => {
+                    Some(Scroll::Up)
+                }
+                Anchor::Bottom if self.scroll_pos > -self.last_page() => {
+                    Some(Scroll::Up)
+                }
+                _ => None
             }
         } else {
-            if self.scroll_pos < 0 {
-                Some(Scroll::Down)
-            } else {
-                None
+            match self.anchor {
+                Anchor::Top if self.scroll_pos < self.last_page() => {
+                    Some(Scroll::Down)
+                }
+                Anchor::Bottom if self.scroll_pos < 0 => {
+                    Some(Scroll::Down)
+                }
+                _ => None
             }
         }
     }
@@ -181,7 +216,7 @@ impl MessagePanel {
     }
 
     fn update_cursor(&self, ctx: &mut HandleEvent) {
-        let scroll = self.scroll_intent(&ctx.base.rect, ctx.cursor_pos);
+        let scroll = self.scroll_for_cursor(&ctx.base.rect, ctx.cursor_pos);
         ctx.base.cursor = self.cursor(scroll);
     }
 }
@@ -206,7 +241,7 @@ impl Widget for MessagePanel {
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
             Event::MouseDown { .. } => {
-                if let Some(scroll) = self.scroll_intent(&ctx.base.rect, ctx.cursor_pos) {
+                if let Some(scroll) = self.scroll_for_cursor(&ctx.base.rect, ctx.cursor_pos) {
                     self.scroll(scroll);
                     self.update_cursor(&mut ctx);
                     self.repeat_scroll.start(ctx.now, scroll);
@@ -240,7 +275,10 @@ impl Widget for MessagePanel {
         let mut x = base.rect.left;
         let mut y = base.rect.top;
 
-        let end_i = self.lines.len() as i32 + self.scroll_pos;
+        let end_i = self.scroll_pos + match self.anchor {
+            Anchor::Top => layout.visible_line_count,
+            Anchor::Bottom => self.lines.len() as i32,
+        };
 
         for i in end_i - layout.visible_line_count..end_i {
             if i >= self.lines.len() as i32 {

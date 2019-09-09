@@ -50,7 +50,7 @@ use crate::game::START_GAME_TIME;
 use crate::game::fidget::Fidget;
 use crate::ui::Ui;
 use log::*;
-use crate::ui::message_panel::MessagePanel;
+use crate::ui::message_panel::{MessagePanel, Anchor};
 use clap::ArgMatches;
 use bstring::BString;
 use measure_time::*;
@@ -379,6 +379,7 @@ fn main() {
             Rgb15::new(0, 31, 0));
         mp.set_skew(1);
         mp.set_capacity(Some(100));
+        mp.set_anchor(Anchor::Bottom);
         message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 165, 65), None, None, mp);
 
         // Inventory button.
