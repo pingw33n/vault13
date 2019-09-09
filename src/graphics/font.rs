@@ -1,6 +1,7 @@
 use bstring::bstr;
 use enum_map_derive::Enum;
 use std::collections::HashMap;
+use std::ops::Range;
 
 use crate::graphics::color::Rgb15;
 use crate::graphics::render::{Canvas, Outline, TextureHandle};
@@ -106,15 +107,14 @@ impl Font {
         self.height + self.vert_spacing
     }
 
-    pub fn lines<'a, 'b>(&'a self, text: &'b bstr, horz_overflow: Option<Overflow>)
-        -> Lines<'a, 'b>
+    pub fn line_ranges<'a>(&'a self, text: &'a bstr, horz_overflow: Option<Overflow>) -> LineRanges
     {
-        Lines {
-            font: self,
-            text,
-            horz_overflow,
-            i: 0,
-        }
+        LineRanges(LineRanges0::new(self, text, horz_overflow))
+    }
+
+    pub fn lines<'a, 'b>(&'a self, text: &'b bstr, horz_overflow: Option<Overflow>) -> Lines<'a, 'b>
+    {
+        Lines(LineRanges0::new(self, text, horz_overflow))
     }
 
     pub fn draw(&self, canvas: &mut Canvas, text: &bstr, x: i32, y: i32, color: Rgb15,
@@ -147,15 +147,26 @@ impl Font {
     }
 }
 
-pub struct Lines<'a, 'b> {
+struct LineRanges0<'a, 'b> {
     font: &'a Font,
     text: &'b bstr,
     horz_overflow: Option<Overflow>,
     i: usize,
 }
 
-impl<'a, 'b> Iterator for Lines<'a, 'b> {
-    type Item = &'b bstr;
+impl<'a, 'b> LineRanges0<'a, 'b> {
+    pub fn new(font: &'a Font, text: &'b bstr, horz_overflow: Option<Overflow>) -> Self {
+        Self {
+            font,
+            text,
+            horz_overflow,
+            i: 0,
+        }
+    }
+}
+
+impl Iterator for LineRanges0<'_, '_> {
+    type Item = Range<usize>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut cur_width = 0;
@@ -211,10 +222,30 @@ impl<'a, 'b> Iterator for Lines<'a, 'b> {
             }
         }
         if start < self.text.len() {
-            Some(&self.text[start..end])
+            Some(Range { start, end })
         } else {
             None
         }
+    }
+}
+
+pub struct LineRanges<'a>(LineRanges0<'a, 'a>);
+
+impl Iterator for LineRanges<'_> {
+    type Item = Range<usize>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
+    }
+}
+
+pub struct Lines<'a, 'b>(LineRanges0<'a, 'b>);
+
+impl<'a, 'b> Iterator for Lines<'a, 'b> {
+    type Item = &'b bstr;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(|r| &self.0.text[r])
     }
 }
 

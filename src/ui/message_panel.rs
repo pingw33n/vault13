@@ -1,7 +1,8 @@
-use bstring::BString;
+use bstring::{bstr, BString};
 use num_traits::clamp;
 use std::cmp;
 use std::collections::VecDeque;
+use std::ops::Range;
 use std::time::Duration;
 
 use super::*;
@@ -74,8 +75,8 @@ pub struct MessagePanel {
     fonts: Rc<Fonts>,
     font: FontKey,
     color: Rgb15,
-    messages: VecDeque<(BString, u32)>,
-    lines: VecDeque<BString>,
+    messages: VecDeque<Message>,
+    lines: VecDeque<Line>,
     capacity: Option<usize>,
     layout: Option<Layout>,
     /// Scrolling position. It's the number of lines scrolled up or down from the origin (0).
@@ -111,16 +112,22 @@ impl MessagePanel {
         let message = message.into();
 
         let font = self.fonts.get(self.font);
-        let new_lines: VecDeque<_> = font.lines(&message, Some(font::Overflow {
+        let new_lines: VecDeque<_> = font.line_ranges(&message, Some(font::Overflow {
                 size: self.layout().width,
                 mode: font::OverflowMode::WordWrap,
             }))
             .map(|s| s.to_owned())
             .collect();
 
-        self.messages.push_back((message, new_lines.len() as u32));
-        for line in new_lines {
-            self.lines.push_back(line);
+        self.messages.push_back(Message {
+            text: message,
+            line: new_lines.len(),
+        });
+        for range in new_lines {
+            self.lines.push_back(Line {
+                message: self.messages.len() - 1,
+                range,
+            });
         }
     }
 
@@ -172,7 +179,7 @@ impl MessagePanel {
     fn ensure_capacity(&mut self, extra: usize) {
         if let Some(capacity) = self.capacity {
             while self.messages.len() >= capacity - extra {
-                let line_count = self.messages.pop_front().unwrap().1;
+                let line_count = self.messages.pop_front().unwrap().line;
                 for _ in 0..line_count {
                     self.lines.pop_front().unwrap();
                 }
@@ -219,6 +226,22 @@ impl MessagePanel {
         let scroll = self.scroll_for_cursor(&ctx.base.rect, ctx.cursor_pos);
         ctx.base.cursor = self.cursor(scroll);
     }
+}
+
+struct Line {
+    message: usize,
+    range: Range<usize>,
+}
+
+impl Line {
+    pub fn message_str<'a>(&self, messages: &'a VecDeque<Message>) -> &'a bstr {
+        &messages[self.message].text[self.range.clone()]
+    }
+}
+
+struct Message {
+    text: BString,
+    line: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -285,7 +308,9 @@ impl Widget for MessagePanel {
                 break;
             }
             if i >= 0 {
-                ctx.canvas.draw_text(&self.lines[i as usize], x, y, self.font, self.color,
+                let line = &self.lines[i as usize];
+                let s = line.message_str(&self.messages);
+                ctx.canvas.draw_text(s, x, y, self.font, self.color,
                     &font::DrawOptions::default());
             }
             x += self.skew;
