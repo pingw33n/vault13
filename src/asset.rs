@@ -406,6 +406,26 @@ pub enum Skill {
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+pub enum Trait {
+    FastMetabolism = 0,
+    Bruiser = 1,
+    SmallFrame = 2,
+    OneHanded = 3,
+    Finesse = 4,
+    Kamikaze = 5,
+    HeavyHanded = 6,
+    FastShot = 7,
+    BloodyMess = 8,
+    Jinxed = 9,
+    GoodNatured = 10,
+    ChemReliant = 11,
+    ChemResistant = 12,
+    SexAppeal = 13,
+    Skilled = 14,
+    Gifted = 15,
+}
+
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
 pub enum WeaponKind {
     Unarmed     = 0,
     Knife       = 1,

@@ -5,6 +5,7 @@ use num_traits::FromPrimitive;
 use std::cmp;
 
 use super::*;
+use crate::asset::{Perk, Stat, Trait};
 use crate::asset::proto::ProtoId;
 use crate::game::object::Object;
 use crate::game::script::Sid;
@@ -161,6 +162,17 @@ pub fn game_time_in_seconds(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn get_critter_stat(ctx: Context) -> Result<()> {
+    let stat = Stat::from_i32(ctx.prg.data_stack.pop()?.coerce_into_int()?)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let r = 5;
+    ctx.prg.data_stack.push(Value::Int(r))?;
+    log_a2r1!(ctx.prg, obj, stat, r);
+    log_stub!(ctx.prg);
+    Ok(())
+}
+
 pub fn get_day(ctx: Context) -> Result<()> {
     let r = ctx.ext.world.game_time.day();
     ctx.prg.data_stack.push(Value::Int(r as i32))?;
@@ -172,6 +184,56 @@ pub fn get_month(ctx: Context) -> Result<()> {
     let r = ctx.ext.world.game_time.month();
     ctx.prg.data_stack.push(Value::Int(r as i32))?;
     log_r1!(ctx.prg, r);
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+enum TraitFamilyKind {
+    Perk = 0,
+    Object = 1,
+    Trait = 2,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum TraitFamily {
+    Perk(Perk),
+    PerkUnknown(i32),
+    Object(ObjectTrait),
+    ObjectUnknown(i32),
+    Trait(Trait),
+    TraitUnknown(i32),
+    Unknown(i32),
+}
+
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+enum ObjectTrait {
+    AiPacket = 5,
+    TeamNum = 6,
+    Direction = 10,
+    IsTurnedOff = 666,
+    ItemTotalWeight = 669,
+}
+
+pub fn has_trait(ctx: Context) -> Result<()> {
+    let kind = ctx.prg.data_stack.pop()?.coerce_into_int()?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let family_kind = ctx.prg.data_stack.pop()?.coerce_into_int()?;
+    let family = match TraitFamilyKind::from_i32(family_kind) {
+        Some(TraitFamilyKind::Perk) => Perk::from_i32(kind)
+            .map(TraitFamily::Perk)
+            .unwrap_or(TraitFamily::PerkUnknown(kind)),
+        Some(TraitFamilyKind::Object) => ObjectTrait::from_i32(kind)
+            .map(TraitFamily::Object)
+            .unwrap_or(TraitFamily::ObjectUnknown(kind)),
+        Some(TraitFamilyKind::Trait) => Trait::from_i32(kind)
+            .map(TraitFamily::Trait)
+            .unwrap_or(TraitFamily::TraitUnknown(kind)),
+        None => TraitFamily::Unknown(family_kind),
+    };
+    let r = 0;
+    ctx.prg.data_stack.push(Value::Int(r))?;
+    log_a2r1!(ctx.prg, family, obj, r);
+    log_stub!(ctx.prg);
     Ok(())
 }
 
@@ -265,6 +327,18 @@ pub fn metarule3(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn obj_art_fid(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    let r = ctx.ext.world.objects().get(obj).borrow().fid;
+
+    ctx.prg.data_stack.push(Value::Int(r.packed() as i32))?;
+    log_a1r1!(ctx.prg, obj, r);
+
+    Ok(())
+}
+
 pub fn override_map_start(ctx: Context) -> Result<()> {
     let direction = ctx.prg.data_stack.pop()?.into_int()?;
     let direction = Direction::from_i32(direction)
@@ -289,7 +363,6 @@ pub fn override_map_start(ctx: Context) -> Result<()> {
 
     Ok(())
 }
-
 
 pub fn party_member_obj(ctx: Context) -> Result<()> {
     let pid = ctx.prg.data_stack.pop()?.into_int()?;
