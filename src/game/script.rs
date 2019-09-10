@@ -1,3 +1,4 @@
+use bstring::BString;
 use byteorder::{BigEndian, ReadBytesExt};
 use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
@@ -87,7 +88,7 @@ pub struct Context<'a> {
 pub struct Vars {
     pub map_vars: Box<[i32]>,
     pub global_vars: Box<[i32]>,
-    pub external_vars: HashMap<Rc<String>, Option<Value>>,
+    pub external_vars: HashMap<Rc<BString>, Option<Value>>,
 }
 
 impl Vars {

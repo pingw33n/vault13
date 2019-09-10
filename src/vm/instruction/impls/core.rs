@@ -148,7 +148,7 @@ pub fn const_string(ctx: Context) -> Result<()> {
 pub fn debug_msg(ctx: Context) -> Result<()> {
     let s = ctx.prg.data_stack.pop()?.into_string(ctx.prg.strings())?;
     log_a1!(ctx.prg, s);
-    info!(target: "vault13::vm::debug", "{}", s);
+    info!(target: "vault13::vm::debug", "{}", s.display());
     Ok(())
 }
 
@@ -200,7 +200,7 @@ pub fn export_var(ctx: Context) -> Result<()> {
         ctx.ext.external_vars.insert(name, None);
         Ok(())
     } else {
-        Err(Error::Misc(format!("external variable `{}` already exists", name).into()))
+        Err(Error::Misc(format!("external variable `{}` already exists", name.display()).into()))
     }
 }
 
@@ -395,7 +395,8 @@ pub fn store_external(ctx: Context) -> Result<()> {
     let value = ctx.prg.data_stack.pop()?;
     let name = name.into_string(&ctx.prg.names())?;
     let v = ctx.ext.external_vars.get_mut(&name)
-        .ok_or_else(|| Error::Misc(format!("external variable `{}` doesn't exist", name).into()))?;
+        .ok_or_else(|| Error::Misc(format!("external variable `{}` doesn't exist",
+            name.display()).into()))?;
     *v = Some(value);
     log_a2!(ctx.prg, &name, v);
     Ok(())

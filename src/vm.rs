@@ -90,6 +90,7 @@ mod instruction;
 mod stack;
 pub mod value;
 
+use bstring::BString;
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use enumflags2::BitFlags;
 use enumflags2_derive::EnumFlags;
@@ -99,7 +100,6 @@ use slotmap::{SecondaryMap, SlotMap};
 use std::collections::HashMap;
 use std::fmt;
 use std::io::{self, Cursor};
-use std::result::{Result as StdResult};
 use std::rc::Rc;
 use std::str;
 use std::time::Duration;
@@ -148,7 +148,7 @@ pub struct Context<'a> {
     pub global_vars: &'a mut [i32],
 
     /// External variables.
-    pub external_vars: &'a mut HashMap<Rc<String>, Option<Value>>,
+    pub external_vars: &'a mut HashMap<Rc<BString>, Option<Value>>,
 
     pub self_obj: Option<object::Handle>,
     pub world: &'a mut crate::game::world::World,
@@ -176,33 +176,22 @@ impl Default for VmConfig {
 }
 
 pub struct StringMap {
-    vec: Vec<(usize, Rc<String>)>,
+    map: HashMap<usize, Rc<BString>>,
 }
 
 impl StringMap {
     pub fn new() -> Self {
         Self {
-            vec: Vec::new(),
+            map: HashMap::new(),
         }
     }
 
-    pub fn insert(&mut self, id: usize, s: Rc<String>) {
-        let entry = (id, s);
-        match self.find_idx(id) {
-            Ok(i) => self.vec[i] = entry,
-            Err(i) => self.vec.insert(i, entry),
-        }
+    pub fn insert(&mut self, id: usize, s: Rc<BString>) {
+        self.map.insert(id, s);
     }
 
-    pub fn get(&self, id: usize) -> Option<&Rc<String>> {
-        match self.find_idx(id) {
-            Ok(i) => Some(&self.vec[i].1),
-            Err(_) => None,
-        }
-    }
-
-    fn find_idx(&self, id: usize) -> StdResult<usize, usize> {
-        self.vec.binary_search_by_key(&id, |e| e.0)
+    pub fn get(&self, id: usize) -> Option<&Rc<BString>> {
+        self.map.get(&id)
     }
 }
 
@@ -218,7 +207,7 @@ pub enum ProcedureFlag {
 
 #[derive(Debug)]
 pub struct Procedure {
-    name: Rc<String>,
+    name: Rc<BString>,
     flags: BitFlags<ProcedureFlag>,
     delay: Duration,
     condition_pos: usize,
@@ -232,7 +221,7 @@ pub struct Program {
     names: StringMap,
     strings: StringMap,
     procs: Vec<Procedure>,
-    proc_by_name: HashMap<Rc<String>, u32>,
+    proc_by_name: HashMap<Rc<BString>, u32>,
 }
 
 impl Program {
@@ -275,7 +264,7 @@ impl Program {
         self.procs.get(id as usize)
     }
 
-    pub fn proc_by_name(&self, name: &Rc<String>) -> Option<&Procedure> {
+    pub fn proc_by_name(&self, name: &Rc<BString>) -> Option<&Procedure> {
         self.proc_by_name.get(name).map(|&i| &self.procs[i as usize])
     }
 
@@ -308,11 +297,9 @@ impl Program {
                     return Err(io::Error::new(io::ErrorKind::InvalidData,
                         "name or string table: string is not null-terminated"));
                 };
-                let s = str::from_utf8(s)
-                    .map_err(|_| io::Error::new(io::ErrorKind::InvalidData,
-                        "name or string table: string is not valid UTF-8 sequence"))?;
-                debug!("string {}: \"{}\"", start, s);
-                r.insert(start, Rc::new(s.to_owned()));
+                let s = BString::from(s);
+                debug!("string {}: \"{}\"", start, s.display());
+                r.insert(start, Rc::new(s));
 
                 rd.set_position(end as u64);
             }
@@ -325,7 +312,7 @@ impl Program {
     }
 
     fn read_proc_table(buf: &[u8], names: &StringMap)
-        -> Result<(Vec<Procedure>, HashMap<Rc<String>, u32>)>
+        -> Result<(Vec<Procedure>, HashMap<Rc<BString>, u32>)>
     {
         let mut rd = Cursor::new(buf);
         let mut read = || -> io::Result<Vec<Procedure>> {
@@ -353,7 +340,7 @@ impl Program {
                     body_pos,
                     arg_count,
                 };
-                debug!("procedure {} {}({}): {:#?}", i, proc.name,
+                debug!("procedure {} {}({}): {:#?}", i, proc.name.display(),
                     if proc.arg_count > 0 { "..." } else { "" },
                     proc);
 
@@ -366,7 +353,7 @@ impl Program {
         for (i, proc) in procs.iter().enumerate() {
             if proc_by_name.contains_key(&proc.name) {
                 return Self::map_io_err(Err(io::Error::new(io::ErrorKind::InvalidData,
-                    format!("duplicate procedure name: {}", proc.name))));
+                    format!("duplicate procedure name: {}", proc.name.display()))));
             }
             proc_by_name.insert(proc.name.clone(), i as u32);
         }
@@ -433,7 +420,7 @@ impl ProgramState {
         }
     }
 
-    pub fn execute_proc(&mut self, name: &Rc<String>, ctx: &mut Context) -> Result<()> {
+    pub fn execute_proc(&mut self, name: &Rc<BString>, ctx: &mut Context) -> Result<()> {
         let proc_pos = self.program.proc_by_name(name)
             .ok_or_else(|| Error::BadProcedure(name.clone()))?
             .body_pos;
@@ -609,7 +596,7 @@ impl Vm {
        self.program(program).run(ctx)
     }
 
-    pub fn execute_proc(&mut self, program: Handle, name: &Rc<String>, ctx: &mut Context)
+    pub fn execute_proc(&mut self, program: Handle, name: &Rc<BString>, ctx: &mut Context)
         -> Result<()>
     {
         self.program(program).execute_proc(name, ctx)
@@ -618,7 +605,7 @@ impl Vm {
     pub fn execute_predefined_proc(&mut self, program: Handle, proc: PredefinedProc, ctx: &mut Context)
         -> Result<()>
     {
-        self.execute_proc(program, &Rc::new(proc.to_string()), ctx)
+        self.execute_proc(program, &Rc::new(proc.name().into()), ctx)
     }
 
     fn program(&mut self, program: Handle) -> &mut ProgramState {

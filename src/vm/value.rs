@@ -1,3 +1,5 @@
+use bstring::BString;
+use bstring::bfmt::ToBString;
 use std::cmp::Ordering;
 use std::rc::Rc;
 
@@ -54,7 +56,7 @@ impl Value {
         }
     }
 
-    pub fn into_string(self, strings: &StringMap) -> Result<Rc<String>> {
+    pub fn into_string(self, strings: &StringMap) -> Result<Rc<BString>> {
         self.into_string_value()?.resolve(strings)
     }
 
@@ -86,10 +88,10 @@ impl Value {
         })
     }
 
-    pub fn coerce_into_string(self, strings: &StringMap) -> Result<Rc<String>> {
+    pub fn coerce_into_string(self, strings: &StringMap) -> Result<Rc<BString>> {
         Ok(match self {
-            Value::Int(v) => Rc::new(v.to_string()),
-            Value::Float(v) => Rc::new(format!("{:.5}", v)),
+            Value::Int(v) => Rc::new(v.to_bstring()),
+            Value::Float(v) => Rc::new(format!("{:.5}", v).into()),
             Value::String(v) => v.resolve(strings)?,
             Value::Object(_) => return Err(Error::BadValue(BadValue::Type)),
         })
@@ -174,7 +176,7 @@ impl Value {
         self.coerce_into_same_kind_and(other, strings,
             |l, r| Ok((l + r).into()),
             |l, r| Ok((l + r).into()),
-            |l, r| Ok(format!("{}{}", l, r).into()),
+            |l, r| Ok(BString::concat(&[l.as_bstr(), r.as_bstr()]).into()),
             |_, _| Err(Error::BadValue(BadValue::Type)),
         )
     }
@@ -287,7 +289,7 @@ impl Value {
         where
             Ints    : FnOnce(i32, i32)                          -> Result<T>,
             Floats  : FnOnce(f32, f32)                          -> Result<T>,
-            Strings : FnOnce(Rc<String>, Rc<String>)            -> Result<T>,
+            Strings : FnOnce(Rc<BString>, Rc<BString>)            -> Result<T>,
             Objects : FnOnce(Option<Handle>, Option<Handle>)    -> Result<T>,
     {
         let (left, right) = self.coerce_into_same_kind(other, string_map)?;
@@ -319,21 +321,21 @@ impl From<f32> for Value {
     }
 }
 
-impl From<Rc<String>> for Value {
-    fn from(v: Rc<String>) -> Self {
+impl From<Rc<BString>> for Value {
+    fn from(v: Rc<BString>) -> Self {
         Value::String(StringValue::Direct(v))
     }
 }
 
-impl From<String> for Value {
-    fn from(v: String) -> Self {
+impl From<BString> for Value {
+    fn from(v: BString) -> Self {
         Value::String(StringValue::Direct(Rc::new(v)))
     }
 }
 
 impl<'a> From<&'a str> for Value {
     fn from(v: &'a str) -> Self {
-        Self::from(v.to_string())
+        Self::from(v.to_bstring())
     }
 }
 
@@ -346,11 +348,11 @@ impl From<Option<Handle>> for Value {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StringValue {
     Indirect(usize),
-    Direct(Rc<String>),
+    Direct(Rc<BString>),
 }
 
 impl StringValue {
-    pub fn resolve(self, strings: &StringMap) -> Result<Rc<String>> {
+    pub fn resolve(self, strings: &StringMap) -> Result<Rc<BString>> {
         Ok(self.resolved(strings)?.into_direct().unwrap())
 
     }
@@ -362,7 +364,7 @@ impl StringValue {
         })
     }
 
-    pub fn into_direct(self) -> Option<Rc<String>> {
+    pub fn into_direct(self) -> Option<Rc<BString>> {
         if let StringValue::Direct(v) = self {
             Some(v)
         } else {

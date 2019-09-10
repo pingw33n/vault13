@@ -1,3 +1,4 @@
+use bstring::BString;
 use std::borrow::Cow;
 use std::rc::Rc;
 
@@ -12,7 +13,7 @@ pub enum Error {
     BadInstruction,
     BadMetadata(Cow<'static, str>),
     BadOpcode(u16),
-    BadProcedure(Rc<String>),
+    BadProcedure(Rc<BString>),
     BadProcedureId(u32),
     BadState(Cow<'static, str>),
     BadValue(BadValue),
