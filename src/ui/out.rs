@@ -23,6 +23,9 @@ pub enum OutEventData {
     Action {
         action: crate::game::ui::action_menu::Action,
     },
+    Pick {
+        id: u32,
+    },
 
     #[doc(hidden)]
     __NonExhaustive,
