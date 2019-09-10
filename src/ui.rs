@@ -394,7 +394,7 @@ impl Ui {
             if win_base.rect.contains(point.x, point.y) {
                 let mut win = self.widgets[winh.0].borrow_mut();
                 let win = win.downcast_mut::<Window>().unwrap();
-                for &widgh in &win.widgets {
+                for &widgh in win.widgets.iter().rev() {
                     let widg_base = self.widget_bases[widgh.0].borrow();
                     if widg_base.rect.contains(point.x, point.y) {
                         return Some(widgh);
