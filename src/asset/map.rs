@@ -183,9 +183,9 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
             for _ in 0..obj_count {
                 let obj = self.read_obj(version != 19)?;
-                let sid = obj.sid;
+                let script = obj.script;
                 let objh = self.objects.insert(obj);
-                if let Some(sid) = sid {
+                if let Some((sid, _)) = script {
                     self.scripts.attach_to_object(sid, objh);
                 }
             }
@@ -299,7 +299,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let outline = self.read_outline()?;
         trace!("outline: {:?}", outline);
 
-        let sid = self.read_obj_script()?;
+        let script = self.read_obj_script()?;
 
         // proto update data
 
@@ -463,12 +463,12 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             inventory,
             outline,
             sequence: None,
-            sid,
+            script,
             sub,
         })
     }
 
-    fn read_obj_script(&mut self) -> io::Result<Option<Sid>> {
+    fn read_obj_script(&mut self) -> io::Result<Option<(Sid, ProgramId)>> {
         let sid = Sid::read_opt(self.reader)?;
         trace!("sid: {:?}", sid);
 
@@ -480,11 +480,11 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             return Ok(None);
         }
 
-        if let (Some(sid), Some(_)) = (sid, program_id) {
-            Ok(Some(sid))
+        Ok(if let (Some(sid), Some(program_id)) = (sid, program_id) {
+            Some((sid, program_id))
         } else {
-            Ok(None)
-        }
+            None
+        })
     }
 
     fn read_outline(&mut self) -> io::Result<Option<Outline>> {

@@ -61,7 +61,7 @@ use crate::ui::out::{OutEventData, ObjectPickKind};
 use crate::game::ui::action_menu;
 use crate::graphics::sprite::Sprite;
 use crate::game::ui::action_menu::Action;
-use crate::asset::message::BULLET;
+use crate::asset::message::{BULLET, Messages};
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -209,9 +209,14 @@ fn main() {
         };
     }
 
+    let language = "english";
+
     let fs = Rc::new(fs);
 
-    let ref proto_db = Rc::new(ProtoDb::new(fs.clone(), "english").unwrap());
+    let ref proto_db = Rc::new(ProtoDb::new(fs.clone(), language).unwrap());
+
+    let critter_names = Messages::read_file(&fs, language, "game/scrname.msg").unwrap();
+
     let pal = read_palette(&mut fs.reader("color.pal").unwrap()).unwrap();
 
     let sdl = sdl2::init().unwrap();
@@ -236,7 +241,7 @@ fn main() {
     let gfx_backend = Backend::new(canvas, Box::new(pal.clone()), PaletteOverlay::standard());
     let texture_factory = gfx_backend.new_texture_factory();
 
-    let frm_db = Rc::new(FrameDb::new(fs.clone(), "english", texture_factory.clone()).unwrap());
+    let frm_db = Rc::new(FrameDb::new(fs.clone(), language, texture_factory.clone()).unwrap());
 
     let fonts = Rc::new(load_fonts(&fs, &texture_factory));
 
@@ -277,8 +282,14 @@ fn main() {
     }
 
     let viewport = Rect::with_size(0, 0, 640, 380);
-    let mut world = World::new(proto_db.clone(), frm_db.clone(), hex_grid.clone(), viewport,
-        map.sqr_tiles, objects);
+    let mut world = World::new(
+        proto_db.clone(),
+        frm_db.clone(),
+        critter_names,
+        hex_grid.clone(),
+        viewport,
+        map.sqr_tiles,
+        objects);
     world.game_time = START_GAME_TIME;
     world.rebuild_light_grid();
 
@@ -291,6 +302,7 @@ fn main() {
     };
     let dude_objh = world.insert_object(dude_obj);
     world.set_dude_obj(dude_objh);
+    world.dude_name = "Narg".into();
 
     {
         debug_time!("preloading object FIDs");
@@ -553,20 +565,7 @@ fn main() {
                             if last_picked_obj != Some(objh) {
                                 last_picked_obj = Some(objh);
 
-                                let obj = world.objects().get(objh).borrow();
-                                let name: Option<BString> = if let Some(pid) = obj.pid {
-                                    if let Some(name) = proto_db.name(pid).unwrap() {
-                                        Some(name.into())
-                                    } else {
-                                        None
-                                    }
-                                } else if picked_dude {
-                                    Some(b"[dude]"[..].into())
-                                } else {
-                                    None
-                                };
-
-                                if let Some(name) = name {
+                                if let Some(name) = world.object_name(objh) {
                                     let mut mp = ui.widget_mut::<MessagePanel>(message_panel);
                                     let mut m = BString::new();
                                     m.push(BULLET);

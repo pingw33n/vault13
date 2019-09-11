@@ -1,9 +1,12 @@
+use bstring::BString;
+use if_chain::if_chain;
 use std::cmp;
 use std::rc::Rc;
 
 use crate::asset::EntityKind;
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::map::ELEVATION_COUNT;
+use crate::asset::message::Messages;
 use crate::asset::proto::ProtoDb;
 use crate::game::GameTime;
 use crate::game::object::{self, DamageFlag, Egg, Object, Objects, SubObject};
@@ -18,12 +21,14 @@ use crate::util::array2d::Array2d;
 pub struct World {
     proto_db: Rc<ProtoDb>,
     frm_db: Rc<FrameDb>,
+    critter_names: Messages,
     hex_grid: hex::TileGrid,
     camera: Camera,
     sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
     objects: Objects,
     light_grid: LightGrid,
     dude_obj: Option<object::Handle>,
+    pub dude_name: BString,
     pub game_time: GameTime,
     pub ambient_light: u32,
 }
@@ -32,6 +37,7 @@ impl World {
     pub fn new(
             proto_db: Rc<ProtoDb>,
             frm_db: Rc<FrameDb>,
+            critter_names: Messages,
             hex_grid: hex::TileGrid,
             viewport: Rect,
             sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
@@ -44,6 +50,7 @@ impl World {
         let mut r = Self {
             proto_db,
             frm_db,
+            critter_names,
             hex_grid,
             camera: Camera {
                 origin: Point::new(0, 0),
@@ -53,6 +60,7 @@ impl World {
             objects,
             light_grid,
             dude_obj: None,
+            dude_name: BString::new(),
             game_time: GameTime::from_decis(0),
             ambient_light: 0x10000,
         };
@@ -181,6 +189,30 @@ impl World {
                 .next()
         } else {
             r
+        }
+    }
+
+    // object_name()
+    pub fn object_name(&self, obj: object::Handle) -> Option<BString> {
+        if Some(obj) == self.dude_obj {
+            Some(self.dude_name.clone())
+        } else {
+            let obj = self.objects.get(obj).borrow();
+            if_chain! {
+                if obj.kind() == EntityKind::Critter;
+                if let Some((_, prg_id)) = obj.script;
+                if let Some(msg) = self.critter_names.get(prg_id.index() as i32 + 101);
+                then {
+                    Some(msg.text.clone())
+                } else {
+                    if let Some(pid) = obj.pid {
+                        self.proto_db.name(pid).unwrap()
+                            .map(|v| v.to_owned())
+                    } else {
+                        None
+                    }
+                }
+            }
         }
     }
 

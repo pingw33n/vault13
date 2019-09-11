@@ -11,6 +11,7 @@ use std::rc::Rc;
 use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, WeaponKind};
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::{self, CritterKillKind, ProtoId, ProtoDb};
+use crate::asset::script::ProgramId;
 use crate::game::script::Sid;
 use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::TileGridView;
@@ -114,7 +115,7 @@ pub struct Object {
     pub inventory: Inventory,
     pub outline: Option<Outline>,
     pub sequence: Option<Cancel>,
-    pub sid: Option<Sid>,
+    pub script: Option<(Sid, ProgramId)>,
     pub sub: Option<SubObject>,
 }
 
@@ -136,7 +137,7 @@ impl Object {
             },
             outline: None,
             sequence: None,
-            sid: None,
+            script: None,
             sub: match fid.kind() {
                 EntityKind::Critter => Some(SubObject::Critter(Default::default())),
                 _ => None,
