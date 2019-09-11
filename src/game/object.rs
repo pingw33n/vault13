@@ -537,7 +537,6 @@ impl Objects {
             let fid = if let FrameId::Critter(critter_fid) = obj.fid {
                 if critter_fid.weapon() != WeaponKind::Unarmed {
                     let fid = critter_fid
-                        .with_direction(Some(obj.direction))
                         .with_anim(CritterAnim::TakeOut)
                         .into();
                     let frame_set = frm_db.get(fid).unwrap();
@@ -546,7 +545,6 @@ impl Objects {
                     }
 
                     let fid = critter_fid
-                        .with_direction(Some(obj.direction))
                         .with_anim(CritterAnim::Stand)
                         .with_weapon(WeaponKind::Unarmed)
                         .into();
@@ -558,7 +556,6 @@ impl Objects {
                     CritterAnim::Stand
                 };
                 critter_fid
-                    .with_direction(Some(obj.direction))
                     .with_anim(anim)
                     .into()
             } else {

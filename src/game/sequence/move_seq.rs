@@ -47,7 +47,6 @@ impl Move {
         obj.fid = obj.fid
             .critter()
             .unwrap()
-            .with_direction(Some(obj.direction))
             .with_anim(self.anim)
             .into();
 
