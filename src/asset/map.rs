@@ -18,6 +18,7 @@ use crate::graphics::geometry::hex::{Direction, TileGrid};
 use crate::graphics::sprite::OutlineStyle;
 use crate::util::EnumExt;
 use crate::util::array2d::Array2d;
+use std::convert::TryInto;
 
 pub const ELEVATION_COUNT: u32 = 3;
 
@@ -80,12 +81,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             .ok_or_else(|| Error::new(ErrorKind::InvalidData, "invalid entrance direction"))?;
         let local_var_count = cmp::max(self.reader.read_i32::<BigEndian>()?, 0) as usize;
 
-        let program_id = self.reader.read_i32::<BigEndian>()?;
-        let program_id = if program_id > 0 {
-            Some(program_id as u32 - 1)
-        } else {
-            None
-        };
+        let program_id = self.read_program_id(0)?;
         debug!("map program_id: {:?}", program_id);
 
         let flags = self.reader.read_u32::<BigEndian>()?;
@@ -237,12 +233,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         let _flags = self.reader.read_i32::<BigEndian>()?;
 
-        let program_id = self.reader.read_i32::<BigEndian>()?;
-        let program_id = if program_id > 0 {
-            Some(program_id as u32)
-        } else {
-            None
-        };
+        let program_id = self.read_program_id(1)?;
         trace!("program_id: {:?}", program_id);
 
         let _ = self.reader.read_i32::<BigEndian>()?;
@@ -481,12 +472,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let sid = Sid::read_opt(self.reader)?;
         trace!("sid: {:?}", sid);
 
-        let program_id = self.reader.read_i32::<BigEndian>()?;
-        let program_id = if program_id > 0 {
-            Some(program_id as u32)
-        } else {
-            None
-        };
+        let program_id = self.read_program_id(1)?;
         trace!("program_id: {:?}", program_id);
 
         if sid.is_some() != program_id.is_some() {
@@ -549,6 +535,13 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let objh = self.objects.insert(obj);
         self.scripts.attach_to_object(sid, objh);
         Ok(())
+    }
+
+    fn read_program_id(&mut self, offset: i32) -> io::Result<Option<ProgramId>> {
+        Ok(self.reader.read_i32::<BigEndian>()?
+            .checked_add(offset)
+            .and_then(|v| v.try_into().ok())
+            .and_then(ProgramId::new))
     }
 }
 

@@ -113,7 +113,7 @@ pub struct Script {
 pub struct Scripts {
     db: ScriptDb,
     vm: Vm,
-    programs: HashMap<u32, Rc<vm::Program>>,
+    programs: HashMap<ProgramId, Rc<vm::Program>>,
     scripts: HashMap<Sid, Script>,
     map_sid: Option<Sid>,
     pub vars: Vars,
@@ -146,10 +146,10 @@ impl Scripts {
                 let program = Rc::new(self.vm.load(code)
                     .map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
                         format!("error loading program {} ({}): {:?}",
-                        info.name, program_id, e)))?);
+                        info.name, program_id.val(), e)))?);
                 e.insert(program.clone());
                 debug!("loaded `{}` #{} local_var_count={} as {:?}",
-                    info.name, program_id, info.local_var_count, sid);
+                    info.name, program_id.val(), info.local_var_count, sid);
                 program
             },
         };
@@ -171,7 +171,8 @@ impl Scripts {
             object: None,
         });
         if let Some(existing) = existing {
-            panic!("{:?} #{} duplicates existing #{}", sid, program_id, existing.program_id);
+            panic!("{:?} #{} duplicates existing #{}",
+                sid, program_id.val(), existing.program_id.val());
         }
         Ok(())
     }
@@ -256,12 +257,12 @@ impl Scripts {
             sequencer: ctx.sequencer,
         };
         if !script.inited {
-            debug!("[{:?}#{}] running program initialization code", sid, script.program_id);
+            debug!("[{:?}#{}] running program initialization code", sid, script.program_id.val());
             vm.run(script.program, vm_ctx).unwrap();
             script.inited = true;
         }
         vm_ctx.self_obj = script.object;
-        debug!("[{:?}#{}] executing predefined proc {:?}", sid, script.program_id, proc);
+        debug!("[{:?}#{}] executing predefined proc {:?}", sid, script.program_id.val(), proc);
         vm.execute_predefined_proc(script.program, proc, vm_ctx).unwrap();
     }
 

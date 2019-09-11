@@ -26,13 +26,13 @@ impl ScriptDb {
     }
 
     pub fn info(&self, program_id: ProgramId) -> Option<&ScriptInfo> {
-        self.infos.get(program_id as usize)
+        self.infos.get(program_id.index())
     }
 
     pub fn load(&self, program_id: ProgramId) -> io::Result<(Box<[u8]>, &ScriptInfo)> {
         let info = self.info(program_id)
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput,
-                format!("program id {} doesn't exist", program_id)))?;
+                format!("program id {} doesn't exist", program_id.val())))?;
         let path = format!("scripts/{}.int", info.name);
         let mut code = Vec::new();
         self.fs.reader(&path)?.read_to_end(&mut code)?;
