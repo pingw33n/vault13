@@ -2,6 +2,8 @@ use bstring::BString;
 use std::borrow::Cow;
 use std::rc::Rc;
 
+use super::ProcedureId;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BadValue {
     Type,
@@ -14,7 +16,7 @@ pub enum Error {
     BadMetadata(Cow<'static, str>),
     BadOpcode(u16),
     BadProcedure(Rc<BString>),
-    BadProcedureId(u32),
+    BadProcedureId(ProcedureId),
     BadState(Cow<'static, str>),
     BadValue(BadValue),
     Halted,

@@ -13,7 +13,7 @@ use std::rc::Rc;
 use crate::asset::script::ProgramId;
 use crate::asset::script::db::ScriptDb;
 use crate::game::object;
-use crate::vm::{self, PredefinedProc, Vm};
+use crate::vm::{self, PredefinedProc, ProcedureId, Vm};
 use crate::vm::value::Value;
 use crate::vm::suspend::Suspend;
 
@@ -195,14 +195,51 @@ impl Scripts {
     }
 
     #[must_use]
+    pub fn execute_proc(&mut self, sid: Sid, proc_id: ProcedureId,
+        ctx: &mut Context)-> Option<Suspend>
+    {
+        let script = self.scripts.get_mut(&sid).unwrap();
+        Self::execute_proc0(
+            script,
+            &mut self.vm,
+            sid,
+            proc_id,
+            &mut self.vars,
+            ctx)
+    }
+
+    #[must_use]
+    pub fn execute_proc_name(&mut self, sid: Sid, proc: &Rc<BString>,
+        ctx: &mut Context)-> Option<Suspend>
+    {
+        let script = self.scripts.get_mut(&sid).unwrap();
+        let proc_id = self.vm.program_state(script.program)
+            .program()
+            .proc_id(proc)
+            .unwrap();
+        Self::execute_proc0(
+            script,
+            &mut self.vm,
+            sid,
+            proc_id,
+            &mut self.vars,
+            ctx)
+    }
+
+    #[must_use]
     pub fn execute_predefined_proc(&mut self, sid: Sid, proc: PredefinedProc,
         ctx: &mut Context)-> Option<Suspend>
     {
-        Self::execute_predefined_proc0(
-            self.scripts.get_mut(&sid).unwrap(),
+        let script = self.scripts.get_mut(&sid).unwrap();
+        let proc_id = self.vm.program_state(script.program)
+            .program()
+            .predefined_proc_id(proc)
+            .unwrap();
+        Self::execute_proc0(
+            script,
             &mut self.vm,
             sid,
-            proc,
+            proc_id,
             &mut self.vars,
             ctx)
     }
@@ -212,11 +249,15 @@ impl Scripts {
     {
         for (&sid, script) in self.scripts.iter_mut() {
             if filter(sid) {
-                let r = Self::execute_predefined_proc0(
+                let proc_id = self.vm.program_state(script.program)
+                    .program()
+                    .predefined_proc_id(proc)
+                    .unwrap();
+                let r = Self::execute_proc0(
                     script,
                     &mut self.vm,
                     sid,
-                    proc,
+                    proc_id,
                     &mut self.vars,
                     ctx);
                 assert!(r.is_none(), "can't suspend in {:?}", proc);
@@ -244,11 +285,11 @@ impl Scripts {
     }
 
     #[must_use]
-    fn execute_predefined_proc0(
+    fn execute_proc0(
         script: &mut Script,
         vm: &mut Vm,
         sid: Sid,
-        proc: PredefinedProc,
+        proc_id: u32,
         vars: &mut Vars,
         ctx: &mut Context)
         -> Option<Suspend>
@@ -268,8 +309,10 @@ impl Scripts {
             script.inited = true;
         }
         vm_ctx.self_obj = script.object;
-        debug!("[{:?}#{}] executing predefined proc {:?}", sid, script.program_id.val(), proc);
-        vm.execute_predefined_proc(script.program, proc, vm_ctx).unwrap()
+        let prg = vm.program_state_mut(script.program);
+        debug!("[{:?}#{}] executing proc {:?} ({:?})", sid, script.program_id.val(), proc_id,
+            prg.program().proc(proc_id).map(|p| p.name()));
+        prg.execute_proc(proc_id, vm_ctx).unwrap()
     }
 
     fn next_sid(&self, kind: ScriptKind) -> Sid {

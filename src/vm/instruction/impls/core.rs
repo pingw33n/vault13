@@ -102,7 +102,7 @@ pub fn bwxor(ctx: Context) -> Result<()> {
 }
 
 pub fn call(ctx: Context) -> Result<()> {
-    let proc_id = ctx.prg.data_stack.pop()?.into_int()? as u32;
+    let proc_id = ctx.prg.data_stack.pop()?.into_int()? as ProcedureId;
     let body_pos = {
         let proc = ctx.prg.program.proc(proc_id)
             .ok_or_else(|| Error::BadProcedureId(proc_id))?;

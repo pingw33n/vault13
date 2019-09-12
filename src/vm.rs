@@ -91,7 +91,7 @@ mod stack;
 pub mod suspend;
 pub mod value;
 
-use bstring::BString;
+use bstring::{bstr, BString};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
 use enumflags2::BitFlags;
 use enumflags2_derive::EnumFlags;
@@ -197,6 +197,8 @@ impl StringMap {
     }
 }
 
+pub type ProcedureId = u32;
+
 #[derive(Clone, Copy, Debug, EnumFlags, Eq, PartialEq)]
 #[repr(u32)]
 pub enum ProcedureFlag {
@@ -217,13 +219,19 @@ pub struct Procedure {
     arg_count: usize,
 }
 
+impl Procedure {
+    pub fn name(&self) -> &bstr {
+        self.name.as_bstr()
+    }
+}
+
 pub struct Program {
     config: Rc<VmConfig>,
     code: Box<[u8]>,
     names: StringMap,
     strings: StringMap,
     procs: Vec<Procedure>,
-    proc_by_name: HashMap<Rc<BString>, u32>,
+    proc_by_name: HashMap<Rc<BString>, ProcedureId>,
 }
 
 impl Program {
@@ -262,12 +270,16 @@ impl Program {
         })
     }
 
-    pub fn proc(&self, id: u32) -> Option<&Procedure> {
+    pub fn proc(&self, id: ProcedureId) -> Option<&Procedure> {
         self.procs.get(id as usize)
     }
 
-    pub fn proc_by_name(&self, name: &Rc<BString>) -> Option<&Procedure> {
-        self.proc_by_name.get(name).map(|&i| &self.procs[i as usize])
+    pub fn proc_id(&self, name: &Rc<BString>) -> Option<ProcedureId> {
+        self.proc_by_name.get(name).cloned()
+    }
+
+    pub fn predefined_proc_id(&self, proc: PredefinedProc) -> Option<ProcedureId> {
+        self.proc_id(&Rc::new(proc.name().into()))
     }
 
     fn read_string_table(buf: &[u8]) -> Result<(StringMap, usize)> {
@@ -314,7 +326,7 @@ impl Program {
     }
 
     fn read_proc_table(buf: &[u8], names: &StringMap)
-        -> Result<(Vec<Procedure>, HashMap<Rc<BString>, u32>)>
+        -> Result<(Vec<Procedure>, HashMap<Rc<BString>, ProcedureId>)>
     {
         let mut rd = Cursor::new(buf);
         let mut read = || -> io::Result<Vec<Procedure>> {
@@ -357,7 +369,7 @@ impl Program {
                 return Self::map_io_err(Err(io::Error::new(io::ErrorKind::InvalidData,
                     format!("duplicate procedure name: {}", proc.name.display()))));
             }
-            proc_by_name.insert(proc.name.clone(), i as u32);
+            proc_by_name.insert(proc.name.clone(), i as ProcedureId);
         }
         Ok((procs, proc_by_name))
     }
@@ -430,9 +442,13 @@ impl ProgramState {
         }
     }
 
-    pub fn execute_proc(&mut self, name: &Rc<BString>, ctx: &mut Context) -> Result<Option<Suspend>> {
-        let proc_pos = self.program.proc_by_name(name)
-            .ok_or_else(|| Error::BadProcedure(name.clone()))?
+    pub fn program(&self) -> &Program {
+        &self.program
+    }
+
+    pub fn execute_proc(&mut self, id: ProcedureId, ctx: &mut Context) -> Result<Option<Suspend>> {
+        let proc_pos = self.program.proc(id)
+            .ok_or_else(|| Error::BadProcedureId(id))?
             .body_pos;
 
         // setupCallWithReturnVal()
@@ -582,13 +598,14 @@ impl StackId for ReturnStackId {
     const VALUE: &'static str = "return";
 }
 
+/// Program state handle.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Handle(SmKey);
 
 pub struct Vm {
     config: Rc<VmConfig>,
     program_handles: SlotMap<SmKey, ()>,
-    programs: SecondaryMap<SmKey, ProgramState>,
+    program_states: SecondaryMap<SmKey, ProgramState>,
 }
 
 impl Vm {
@@ -596,7 +613,7 @@ impl Vm {
         Self {
             config,
             program_handles: SlotMap::with_key(),
-            programs: SecondaryMap::new(),
+            program_states: SecondaryMap::new(),
         }
     }
 
@@ -607,28 +624,21 @@ impl Vm {
     pub fn insert(&mut self, program: Rc<Program>) -> Handle {
         let program_state = ProgramState::new(program);
         let k = self.program_handles.insert(());
-        self.programs.insert(k, program_state);
+        self.program_states.insert(k, program_state);
         Handle(k)
     }
 
     pub fn run(&mut self, program: Handle, ctx: &mut Context) -> Result<Option<Suspend>> {
-       self.program(program).run(ctx)
+       self.program_state_mut(program).run(ctx)
     }
 
-    pub fn execute_proc(&mut self, program: Handle, name: &Rc<BString>, ctx: &mut Context)
-        -> Result<Option<Suspend>>
-    {
-        self.program(program).execute_proc(name, ctx)
+    pub fn program_state(&self, handle: Handle) -> &ProgramState {
+         self.program_states.get(handle.0)
+            .expect("invalid program handle")
     }
 
-    pub fn execute_predefined_proc(&mut self, program: Handle, proc: PredefinedProc, ctx: &mut Context)
-        -> Result<Option<Suspend>>
-    {
-        self.execute_proc(program, &Rc::new(proc.name().into()), ctx)
-    }
-
-    fn program(&mut self, program: Handle) -> &mut ProgramState {
-         self.programs.get_mut(program.0)
+    pub fn program_state_mut(&mut self, handle: Handle) -> &mut ProgramState {
+         self.program_states.get_mut(handle.0)
             .expect("invalid program handle")
     }
 }
