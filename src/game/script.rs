@@ -15,6 +15,7 @@ use crate::asset::script::db::ScriptDb;
 use crate::game::object;
 use crate::vm::{self, PredefinedProc, Vm};
 use crate::vm::value::Value;
+use crate::vm::suspend::Suspend;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum ScriptKind {
@@ -193,8 +194,9 @@ impl Scripts {
         self.scripts.get_mut(&sid).unwrap().object = Some(obj);
     }
 
+    #[must_use]
     pub fn execute_predefined_proc(&mut self, sid: Sid, proc: PredefinedProc,
-        ctx: &mut Context)
+        ctx: &mut Context)-> Option<Suspend>
     {
         Self::execute_predefined_proc0(
             self.scripts.get_mut(&sid).unwrap(),
@@ -210,13 +212,14 @@ impl Scripts {
     {
         for (&sid, script) in self.scripts.iter_mut() {
             if filter(sid) {
-                Self::execute_predefined_proc0(
+                let r = Self::execute_predefined_proc0(
                     script,
                     &mut self.vm,
                     sid,
                     proc,
                     &mut self.vars,
                     ctx);
+                assert!(r.is_none(), "can't suspend in {:?}", proc);
             }
         }
     }
@@ -230,7 +233,8 @@ impl Scripts {
         // MapEnter is ignored since it's executed separately immediately after map loaded.
         if proc != PredefinedProc::MapEnter {
             if let Some(sid) = self.map_sid {
-                self.execute_predefined_proc(sid, proc, ctx);
+                assert!(self.execute_predefined_proc(sid, proc, ctx).is_none()
+                    "can't suspend in MapEnter");
             }
         }
 
@@ -239,6 +243,7 @@ impl Scripts {
         self.execute_procs(proc, ctx, |sid| Some(sid) != map_sid);
     }
 
+    #[must_use]
     fn execute_predefined_proc0(
         script: &mut Script,
         vm: &mut Vm,
@@ -246,6 +251,7 @@ impl Scripts {
         proc: PredefinedProc,
         vars: &mut Vars,
         ctx: &mut Context)
+        -> Option<Suspend>
     {
         let vm_ctx = &mut vm::Context {
             local_vars: &mut script.local_vars,
@@ -263,7 +269,7 @@ impl Scripts {
         }
         vm_ctx.self_obj = script.object;
         debug!("[{:?}#{}] executing predefined proc {:?}", sid, script.program_id.val(), proc);
-        vm.execute_predefined_proc(script.program, proc, vm_ctx).unwrap();
+        vm.execute_predefined_proc(script.program, proc, vm_ctx).unwrap()
     }
 
     fn next_sid(&self, kind: ScriptKind) -> Sid {

@@ -5,6 +5,7 @@ use enum_primitive_derive::Primitive;
 use std::collections::HashMap;
 
 use super::*;
+use super::suspend::Suspend;
 use crate::game::object;
 use crate::sequence::chain::Chain;
 
@@ -377,9 +378,18 @@ impl Opcode {
     pub const SIZE: usize = 2;
 }
 
+macro_rules! is {
+    ($opcode:expr, $handler:expr) => {
+        Instruction {
+            opcode: $opcode,
+            handler: $handler
+        }
+    };
+}
+
 macro_rules! i {
     ($opcode:expr, $handler:expr) => {
-        Instruction { opcode: $opcode, handler: $handler }
+        is!($opcode, |ctx| { $handler(ctx).map(|_| None) })
     };
 }
 
@@ -743,7 +753,7 @@ pub fn instruction_map() -> HashMap<u16, Instruction> {
     map
 }
 
-pub type Handler = fn(Context) -> Result<()>;
+pub type Handler = fn(Context) -> Result<Option<Suspend>>;
 
 #[derive(Clone, Copy)]
 pub struct Instruction {
@@ -756,7 +766,7 @@ impl Instruction {
         self.opcode
     }
 
-    pub fn execute(&self, ctx: Context) -> Result<()> {
+    pub fn execute(&self, ctx: Context) -> Result<Option<Suspend>> {
         (self.handler)(ctx)
     }
 }

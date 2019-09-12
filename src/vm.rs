@@ -88,6 +88,7 @@
 mod error;
 mod instruction;
 mod stack;
+pub mod suspend;
 pub mod value;
 
 use bstring::BString;
@@ -107,6 +108,7 @@ use std::time::Duration;
 pub use error::*;
 use instruction::{Instruction, instruction_map, Opcode};
 use stack::{Stack, StackId};
+use suspend::Suspend;
 use value::Value;
 use crate::game::object;
 use crate::util::SmKey;
@@ -379,6 +381,8 @@ pub struct ProgramState {
     /// Base offset in `data_stack` of program global variables.
     global_base: Option<usize>,
     instr_state: instruction::State,
+    /// Stack of code positions where suspend requested.
+    suspend_stack: Vec<usize>,
 }
 
 impl ProgramState {
@@ -395,6 +399,7 @@ impl ProgramState {
             base: None,
             global_base: None,
             instr_state: instruction::State::new(),
+            suspend_stack: Vec::new(),
         }
     }
 
@@ -410,17 +415,22 @@ impl ProgramState {
         &self.program.strings
     }
 
-    fn run(&mut self, ctx: &mut Context) -> Result<()> {
+    fn run(&mut self, ctx: &mut Context) -> Result<Option<Suspend>> {
         loop {
             match self.step(ctx) {
-                Ok(_) => {},
-                Err(ref e) if matches!(e, Error::Halted) => break Ok(()),
+                Ok(None) => {}
+                Ok(Some(s)) => {
+                    debug!("suspending at 0x{:x}: {:?}", self.code_pos, s);
+                    self.suspend_stack.push(self.code_pos);
+                    break Ok(Some(s));
+                }
+                Err(ref e) if matches!(e, Error::Halted) => break Ok(None),
                 Err(e) => break Err(e),
             }
         }
     }
 
-    pub fn execute_proc(&mut self, name: &Rc<BString>, ctx: &mut Context) -> Result<()> {
+    pub fn execute_proc(&mut self, name: &Rc<BString>, ctx: &mut Context) -> Result<Option<Suspend>> {
         let proc_pos = self.program.proc_by_name(name)
             .ok_or_else(|| Error::BadProcedure(name.clone()))?
             .body_pos;
@@ -440,7 +450,16 @@ impl ProgramState {
         self.run(ctx)
     }
 
-    fn step(&mut self, ctx: &mut Context) -> Result<()> {
+    pub fn can_resume(&self) -> bool {
+        self.suspend_stack.len() > 0
+    }
+
+    pub fn resume(&mut self, ctx: &mut Context) -> Result<Option<Suspend>> {
+        self.code_pos = self.suspend_stack.pop().unwrap();
+        self.run(ctx)
+    }
+
+    fn step(&mut self, ctx: &mut Context) -> Result<Option<Suspend>> {
         trace!("code_pos: 0x{:04x}", self.code_pos);
         let opcode_pos = self.code_pos;
         let instr = self.next_instruction()?;
@@ -592,18 +611,18 @@ impl Vm {
         Handle(k)
     }
 
-    pub fn run(&mut self, program: Handle, ctx: &mut Context) -> Result<()> {
+    pub fn run(&mut self, program: Handle, ctx: &mut Context) -> Result<Option<Suspend>> {
        self.program(program).run(ctx)
     }
 
     pub fn execute_proc(&mut self, program: Handle, name: &Rc<BString>, ctx: &mut Context)
-        -> Result<()>
+        -> Result<Option<Suspend>>
     {
         self.program(program).execute_proc(name, ctx)
     }
 
     pub fn execute_predefined_proc(&mut self, program: Handle, proc: PredefinedProc, ctx: &mut Context)
-        -> Result<()>
+        -> Result<Option<Suspend>>
     {
         self.execute_proc(program, &Rc::new(proc.name().into()), ctx)
     }

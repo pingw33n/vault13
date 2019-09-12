@@ -349,7 +349,8 @@ fn main() {
         // PredefinedProc::Start for map script is never called.
         // MapEnter in map script is called before anything else.
         if let Some(sid) = scripts.map_sid() {
-            scripts.execute_predefined_proc(sid, PredefinedProc::MapEnter, ctx);
+            assert!(scripts.execute_predefined_proc(sid, PredefinedProc::MapEnter, ctx).is_none(),
+                "can't suspend in MapEnter");
         }
 
         scripts.execute_procs(PredefinedProc::Start, ctx, |sid| sid.kind() != ScriptKind::System);
