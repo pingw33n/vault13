@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 #![allow(proc_macro_derive_resolution_fallback)]
 #![deny(non_snake_case)]
+#![deny(unused_must_use)]
 
 #[macro_use] mod macros;
 
