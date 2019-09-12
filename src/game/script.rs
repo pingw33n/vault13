@@ -199,13 +199,25 @@ impl Scripts {
         ctx: &mut Context)-> Option<Suspend>
     {
         let script = self.scripts.get_mut(&sid).unwrap();
-        Self::execute_proc0(
-            script,
-            &mut self.vm,
-            sid,
-            proc_id,
-            &mut self.vars,
-            ctx)
+        let vm_ctx = &mut vm::Context {
+            local_vars: &mut script.local_vars,
+            map_vars: &mut self.vars.map_vars,
+            global_vars: &mut self.vars.global_vars,
+            external_vars: &mut self.vars.external_vars,
+            self_obj: None,
+            world: ctx.world,
+            sequencer: ctx.sequencer,
+        };
+        if !script.inited {
+            debug!("[{:?}#{}] running program initialization code", sid, script.program_id.val());
+            self.vm.run(script.program, vm_ctx).unwrap();
+            script.inited = true;
+        }
+        vm_ctx.self_obj = script.object;
+        let prg = self.vm.program_state_mut(script.program);
+        debug!("[{:?}#{}] executing proc {:?} ({:?})", sid, script.program_id.val(), proc_id,
+            prg.program().proc(proc_id).map(|p| p.name()));
+        prg.execute_proc(proc_id, vm_ctx).unwrap()
     }
 
     #[must_use]
@@ -217,13 +229,7 @@ impl Scripts {
             .program()
             .proc_id(proc)
             .unwrap();
-        Self::execute_proc0(
-            script,
-            &mut self.vm,
-            sid,
-            proc_id,
-            &mut self.vars,
-            ctx)
+        self.execute_proc(sid, proc_id, ctx)
     }
 
     #[must_use]
@@ -235,31 +241,22 @@ impl Scripts {
             .program()
             .predefined_proc_id(proc)
             .unwrap();
-        Self::execute_proc0(
-            script,
-            &mut self.vm,
-            sid,
-            proc_id,
-            &mut self.vars,
-            ctx)
+        self.execute_proc(sid, proc_id, ctx)
     }
 
     pub fn execute_procs(&mut self, proc: PredefinedProc, ctx: &mut Context,
         filter: impl Fn(Sid) -> bool)
     {
-        for (&sid, script) in self.scripts.iter_mut() {
+        // TODO avoid allocation
+        let sids: Vec<_> = self.scripts.keys().cloned().collect();
+        for sid in sids {
             if filter(sid) {
-                let proc_id = self.vm.program_state(script.program)
+                let program = self.scripts[&sid].program;
+                let proc_id = self.vm.program_state(program)
                     .program()
                     .predefined_proc_id(proc)
                     .unwrap();
-                let r = Self::execute_proc0(
-                    script,
-                    &mut self.vm,
-                    sid,
-                    proc_id,
-                    &mut self.vars,
-                    ctx);
+                let r = self.execute_proc(sid, proc_id, ctx);
                 assert!(r.is_none(), "can't suspend in {:?}", proc);
             }
         }
@@ -282,37 +279,6 @@ impl Scripts {
         // Execute other non-map scripts.
         let map_sid = self.map_sid;
         self.execute_procs(proc, ctx, |sid| Some(sid) != map_sid);
-    }
-
-    #[must_use]
-    fn execute_proc0(
-        script: &mut Script,
-        vm: &mut Vm,
-        sid: Sid,
-        proc_id: u32,
-        vars: &mut Vars,
-        ctx: &mut Context)
-        -> Option<Suspend>
-    {
-        let vm_ctx = &mut vm::Context {
-            local_vars: &mut script.local_vars,
-            map_vars: &mut vars.map_vars,
-            global_vars: &mut vars.global_vars,
-            external_vars: &mut vars.external_vars,
-            self_obj: None,
-            world: ctx.world,
-            sequencer: ctx.sequencer,
-        };
-        if !script.inited {
-            debug!("[{:?}#{}] running program initialization code", sid, script.program_id.val());
-            vm.run(script.program, vm_ctx).unwrap();
-            script.inited = true;
-        }
-        vm_ctx.self_obj = script.object;
-        let prg = vm.program_state_mut(script.program);
-        debug!("[{:?}#{}] executing proc {:?} ({:?})", sid, script.program_id.val(), proc_id,
-            prg.program().proc(proc_id).map(|p| p.name()));
-        prg.execute_proc(proc_id, vm_ctx).unwrap()
     }
 
     fn next_sid(&self, kind: ScriptKind) -> Sid {
