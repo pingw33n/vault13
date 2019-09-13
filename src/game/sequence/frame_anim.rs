@@ -51,9 +51,7 @@ impl FrameAnim {
             if let Some(anim) = self.anim;
             if let Some(fid) = obj.fid.critter();
             then {
-                fid.with_direction(Some(obj.direction))
-                    .with_anim(anim)
-                    .into()
+                fid.with_anim(anim).into()
             } else {
                 obj.fid
             }
