@@ -10,6 +10,7 @@ use std::fmt;
 use std::io::{self, prelude::*};
 use std::rc::Rc;
 
+use crate::asset::proto::ProtoDb;
 use crate::asset::script::ProgramId;
 use crate::asset::script::db::ScriptDb;
 use crate::game::object;
@@ -26,7 +27,7 @@ pub enum ScriptKind {
     Critter = 0x4,
 }
 
-/// Script ID carries different semantics than other identifiers (`Fid`, `Pid`). It is a unique
+/// Script ID carries different semantics than other identifiers (`FrameId`, `ProtoId`). It is a unique
 /// identifier of a program instance within a single map, while the aforementioned identifiers
 /// refer to static assets. For the reference to the script bytecode file there's another
 /// identifier - program ID that maps to file name in `scripts.lst`.
@@ -82,8 +83,10 @@ impl fmt::Debug for Sid {
 }
 
 pub struct Context<'a> {
+    pub ui: &'a mut crate::ui::Ui,
     pub world: &'a mut crate::game::world::World,
     pub sequencer: &'a mut crate::sequence::Sequencer,
+    pub dialog: &'a mut Option<crate::game::dialog::Dialog>,
 }
 
 pub struct Vars {
@@ -112,6 +115,7 @@ pub struct Script {
 }
 
 pub struct Scripts {
+    proto_db: Rc<ProtoDb>,
     db: ScriptDb,
     vm: Vm,
     programs: HashMap<ProgramId, Rc<vm::Program>>,
@@ -122,8 +126,9 @@ pub struct Scripts {
 }
 
 impl Scripts {
-    pub fn new(db: ScriptDb, vm: Vm) -> Self {
+    pub fn new(proto_db: Rc<ProtoDb>, db: ScriptDb, vm: Vm) -> Self {
         Self {
+            proto_db,
             db,
             vm,
             programs: HashMap::new(),
@@ -204,6 +209,8 @@ impl Scripts {
         let vm_ctx = &mut Self::make_vm_ctx(
             &mut script.local_vars,
             &mut self.vars,
+            &mut self.db,
+            &self.proto_db,
             ctx);
         if !script.inited {
             debug!("[{:?}#{}] running program initialization code", sid, script.program_id.val());
@@ -292,6 +299,8 @@ impl Scripts {
         let vm_ctx = &mut Self::make_vm_ctx(
             &mut script.local_vars,
             &mut self.vars,
+            &mut self.db,
+            &self.proto_db,
             ctx);
         self.vm.program_state_mut(script.program).resume(vm_ctx).unwrap()
     }
@@ -311,6 +320,8 @@ impl Scripts {
     fn make_vm_ctx<'a>(
         local_vars: &'a mut [i32],
         vars: &'a mut Vars,
+        script_db: &'a mut ScriptDb,
+        proto_db: &'a ProtoDb,
         ctx: &'a mut Context,
     ) -> vm::Context<'a> {
         vm::Context {
@@ -320,8 +331,12 @@ impl Scripts {
             external_vars: &mut vars.external_vars,
             self_obj: None,
 
+            ui: ctx.ui,
             world: ctx.world,
             sequencer: ctx.sequencer,
+            dialog: ctx.dialog,
+            script_db,
+            proto_db,
         }
     }
 }

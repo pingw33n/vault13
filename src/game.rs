@@ -1,3 +1,4 @@
+pub mod dialog;
 pub mod fidget;
 pub mod object;
 pub mod script;

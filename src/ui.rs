@@ -20,6 +20,7 @@ use crate::graphics::render::Canvas;
 use crate::graphics::sprite::Sprite;
 use crate::util::{SmKey, VecExt};
 use crate::ui::out::OutEvent;
+use crate::graphics::font::Fonts;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
@@ -83,6 +84,7 @@ pub struct HandleInput<'a> {
 
 pub struct Ui {
     frm_db: Rc<FrameDb>,
+    fonts: Rc<Fonts>,
     widget_handles: SlotMap<SmKey, ()>,
     widget_bases: SecondaryMap<SmKey, RefCell<Base>>,
     widgets: SecondaryMap<SmKey, RefCell<Box<Widget>>>,
@@ -98,9 +100,10 @@ pub struct Ui {
 }
 
 impl Ui {
-    pub fn new(frm_db: Rc<FrameDb>, width: i32, height: i32) -> Self {
+    pub fn new(frm_db: Rc<FrameDb>, fonts: Rc<Fonts>, width: i32, height: i32) -> Self {
         Self {
             frm_db,
+            fonts,
             widget_handles: SlotMap::with_key(),
             widget_bases: SecondaryMap::new(),
             widgets: SecondaryMap::new(),
@@ -112,6 +115,10 @@ impl Ui {
             capture: None,
             simulate_mouse_move: false,
         }
+    }
+
+    pub fn fonts(&self) -> &Rc<Fonts> {
+        &self.fonts
     }
 
     pub fn new_window(&mut self, rect: Rect, background: Option<Sprite>) -> Handle {
@@ -143,9 +150,8 @@ impl Ui {
             for &w in &win.widgets {
                 self.remove(w);
             }
-        } else {
+        } else if let Some(win) = self.window_of(handle) {
             // Remove widget from its window.
-            let win = self.window_of(handle).unwrap();
             let mut win = self.widgets[win.0].borrow_mut();
             let win = win.downcast_mut::<Window>().unwrap();
             win.widgets.remove_first(&handle).unwrap();

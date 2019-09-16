@@ -3,16 +3,39 @@ use enum_primitive_derive::Primitive;
 use log::*;
 use num_traits::FromPrimitive;
 use std::cmp;
+use std::convert::TryInto;
 
 use super::*;
 use crate::asset::{Perk, Stat, Trait};
 use crate::asset::proto::ProtoId;
+use crate::asset::script::ProgramId;
+use crate::game::dialog::Dialog;
 use crate::game::object::Object;
 use crate::game::script::Sid;
 use crate::graphics::geometry::hex::Direction;
 use crate::sequence::Sequence;
 use crate::sequence::chain::Chain;
 use crate::graphics::EPoint;
+
+fn pop_program_id(ctx: &mut Context) -> Result<ProgramId> {
+    ctx.prg.data_stack.pop()?.into_int()?
+        .try_into().ok()
+        .and_then(ProgramId::new)
+        .ok_or(Error::BadValue(BadValue::Content))
+}
+
+fn resolve_script_msg(msg: Value, program_id: ProgramId, ctx: &mut Context) -> Result<Rc<BString>> {
+    Ok(match msg {
+        Value::Int(msg_id) => {
+            let msgs = ctx.ext.script_db.messages(program_id).unwrap();
+            Rc::new(msgs.get(msg_id).unwrap().text.clone())
+        }
+        Value::String(msg) => {
+            msg.resolve(ctx.prg.strings())?
+        }
+        _ => return Err(Error::BadValue(BadValue::Content)),
+    })
+}
 
 #[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 enum Metarule {
@@ -140,6 +163,13 @@ pub fn dude_obj(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn end_dialogue(ctx: Context) -> Result<()> {
+    ctx.ext.dialog.as_mut().unwrap().hide(ctx.ext.ui);
+    *ctx.ext.dialog = None;
+    log_!(ctx.prg);
+    Ok(())
+}
+
 pub fn game_time(ctx: Context) -> Result<()> {
     let r = ctx.ext.world.game_time.as_decis();
     ctx.prg.data_stack.push(Value::Int(r as i32))?;
@@ -187,6 +217,94 @@ pub fn get_month(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn giq_option(mut ctx: Context) -> Result<()> {
+    // FIXME display reaction with Empathy perk.
+    let reaction = ctx.prg.data_stack.pop()?.into_int()?;
+    let proc = ctx.prg.data_stack.pop()?;
+    let msg = ctx.prg.data_stack.pop()?;
+    let program_id = pop_program_id(&mut ctx)?;
+    let min_or_max_iq = ctx.prg.data_stack.pop()?.into_int()?;
+
+    let msg = resolve_script_msg(msg, program_id, &mut ctx)?;
+
+    let iq = 5_i32; // FIXME stat_level_(g_obj_dude, STAT_INT);
+    let smooth_talker = 0; // FIXME perk_level_(g_obj_dude, PERK_smooth_talker);
+    let iq = iq + smooth_talker;
+
+    // FIXME proc can also be a string
+    let proc_id = proc.into_int()?;
+
+    assert!(ctx.ext.dialog.is_some());
+
+    // If negative it defines upper bound, otherwise it's the lower bound.
+    if min_or_max_iq < 0 && -iq >= min_or_max_iq || min_or_max_iq >= 0 && iq >= min_or_max_iq {
+        let dialog = ctx.ext.dialog.as_mut().unwrap();
+        dialog.add_option(ctx.ext.ui, &*msg, Some(proc_id as u32));
+    }
+
+    log_a5!(ctx.prg, min_or_max_iq, program_id, msg, proc_id, reaction);
+
+    Ok(())
+}
+
+pub fn gsay_message(mut ctx: Context) -> Result<()> {
+    // FIXME display reaction with Empathy perk.
+    let reaction = ctx.prg.data_stack.pop()?.into_int()?;
+    let msg = ctx.prg.data_stack.pop()?;
+    let program_id = pop_program_id(&mut ctx)?;
+
+    let reply = resolve_script_msg(msg, program_id, &mut ctx)?;
+    let option = &ctx.ext.proto_db.messages().get(650).unwrap().text;
+
+    assert!(ctx.ext.dialog.is_some());
+
+    let dialog = ctx.ext.dialog.as_mut().unwrap();
+    dialog.set_reply(ctx.ext.ui, &*reply);
+    dialog.clear_options(ctx.ext.ui);
+    dialog.add_option(ctx.ext.ui, option, None);
+
+    log_a3!(ctx.prg, program_id, reply, reaction);
+
+    Ok(())
+}
+
+pub fn gsay_end(ctx: Context) -> Result<Option<Suspend>> {
+    let dialog = ctx.ext.dialog.as_mut().unwrap();
+    assert!(!dialog.running);
+    dialog.running = true;
+    log_!(ctx.prg);
+    Ok(Some(Suspend::GsayEnd))
+}
+
+pub fn gsay_start(ctx: Context) -> Result<()> {
+    assert!(ctx.ext.dialog.is_some());
+    log_!(ctx.prg);
+    Ok(())
+}
+
+pub fn gsay_reply(mut ctx: Context) -> Result<()> {
+    let reply = ctx.prg.data_stack.pop()?;
+    let program_id = pop_program_id(&mut ctx)?;
+
+    let reply_str = match reply {
+        Value::Int(msg_id) => {
+            let msgs = ctx.ext.script_db.messages(program_id).unwrap();
+            Rc::new(msgs.get(msg_id).unwrap().text.clone())
+        },
+        Value::String(s) => s.resolve(ctx.prg.strings())?.clone(),
+        _ => return Err(Error::BadValue(BadValue::Content)),
+    };
+
+    assert!(ctx.ext.dialog.is_some());
+    let dialog = ctx.ext.dialog.as_mut().unwrap();
+    dialog.set_reply(ctx.ext.ui, &*reply_str);
+    dialog.clear_options(ctx.ext.ui);
+
+    log_a2!(ctx.prg, reply_str, program_id);
+
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
 enum TraitFamilyKind {
     Perk = 0,
@@ -215,7 +333,7 @@ enum ObjectTrait {
 }
 
 pub fn has_trait(ctx: Context) -> Result<()> {
-    let kind = ctx.prg.data_stack.pop()?.coerce_into_int()?;
+    let kind = ctx.prg.data_stack.pop()?.into_int()?;
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
     let family_kind = ctx.prg.data_stack.pop()?.coerce_into_int()?;
     let family = match TraitFamilyKind::from_i32(family_kind) {
@@ -234,6 +352,19 @@ pub fn has_trait(ctx: Context) -> Result<()> {
     ctx.prg.data_stack.push(Value::Int(r))?;
     log_a2r1!(ctx.prg, family, obj, r);
     log_stub!(ctx.prg);
+    Ok(())
+}
+
+pub fn message_str(mut ctx: Context) -> Result<()> {
+    let msg_id = ctx.prg.data_stack.pop()?.into_int()?;
+    let program_id = pop_program_id(&mut ctx)?;
+
+    let msgs = ctx.ext.script_db.messages(program_id).unwrap();
+    let msg = Rc::new(msgs.get(msg_id).unwrap().text.clone());
+
+    ctx.prg.data_stack.push(msg.clone().into())?;
+    log_a2r1!(ctx.prg, program_id, msg_id, msg);
+
     Ok(())
 }
 
@@ -334,6 +465,18 @@ pub fn obj_art_fid(ctx: Context) -> Result<()> {
     let r = ctx.ext.world.objects().get(obj).borrow().fid;
 
     ctx.prg.data_stack.push(Value::Int(r.packed() as i32))?;
+    log_a1r1!(ctx.prg, obj, r);
+
+    Ok(())
+}
+
+pub fn obj_name(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    let r = Rc::new(ctx.ext.world.object_name(obj).unwrap_or_default());
+
+    ctx.prg.data_stack.push(r.clone().into())?;
     log_a1r1!(ctx.prg, obj, r);
 
     Ok(())
@@ -451,6 +594,26 @@ pub fn set_light_level(ctx: Context) -> Result<()> {
     ctx.ext.world.ambient_light = light;
 
     log_a1!(ctx.prg, v);
+
+    Ok(())
+}
+
+pub fn start_gdialog(mut ctx: Context) -> Result<()> {
+    let background = ctx.prg.data_stack.pop()?.into_int()?;
+    let head_id = ctx.prg.data_stack.pop()?.into_int()?;
+    let reaction = ctx.prg.data_stack.pop()?.into_int()?;
+    let objh = ctx.prg.data_stack.pop()?.coerce_into_object()?.unwrap();
+    let program_id = pop_program_id(&mut ctx)?;
+
+    // TODO disallow in combat state
+    // TODO handle head_id
+
+    assert!(ctx.ext.dialog.is_none());
+    let obj = ctx.ext.world.objects().get(objh).borrow();
+    let (sid, _) = obj.script.unwrap();
+    *ctx.ext.dialog = Some(Dialog::show(ctx.ext.ui, sid));
+
+    log_a5!(ctx.prg, program_id, objh, reaction, head_id, background);
 
     Ok(())
 }

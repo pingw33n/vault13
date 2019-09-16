@@ -21,6 +21,8 @@ pub const TRANS_RED     : Rgb15 = rgb!(31, 0, 1);
 pub const RED           : Rgb15 = rgb!(31, 0, 0);
 pub const WHITE         : Rgb15 = rgb!(31, 31, 31);
 pub const BLACK         : Rgb15 = rgb!(0, 0, 0);
+pub const GREEN         : Rgb15 = rgb!(0, 31, 0);
+pub const BLUE          : Rgb15 = rgb!(0, 0, 31);
 
 pub const GLOWING_RED_OUTLINE : Outline = Outline::Cycled {
     start: SLIME_PALETTE_START, len: SLIME_LEN as u8 };

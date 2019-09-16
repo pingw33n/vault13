@@ -62,7 +62,9 @@ use crate::ui::out::{OutEventData, ObjectPickKind};
 use crate::game::ui::action_menu;
 use crate::graphics::sprite::Sprite;
 use crate::game::ui::action_menu::Action;
+use crate::game::dialog::Dialog;
 use crate::asset::message::{BULLET, Messages};
+use crate::vm::suspend::Suspend;
 
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
@@ -167,12 +169,8 @@ impl PausableTime {
         !self.is_paused()
     }
 
-    pub fn pause(&mut self) {
-        self.paused = true;
-    }
-
-    pub fn resume(&mut self) {
-        self.paused = false;
+    pub fn set_paused(&mut self, paused: bool) {
+        self.paused = paused;
     }
 
     pub fn toggle(&mut self) {
@@ -254,7 +252,10 @@ fn main() {
 
     let mut objects = Objects::new(hex_grid.clone(), ELEVATION_COUNT, proto_db.clone(), frm_db.clone());
 
-    let mut scripts = Scripts::new(ScriptDb::new(fs.clone(), language).unwrap(), Vm::default());
+    let mut scripts = Scripts::new(
+        proto_db.clone(),
+        ScriptDb::new(fs.clone(), language).unwrap(),
+        Vm::default());
 
     let map = MapReader {
         reader: &mut fs.reader(&format!("maps/{}.map", map_name)).unwrap(),
@@ -294,7 +295,8 @@ fn main() {
     world.game_time = START_GAME_TIME;
     world.rebuild_light_grid();
 
-    let dude_fid = FrameId::from_packed(0x101600A).unwrap();
+    let dude_fid = FrameId::from_packed(0x100003E).unwrap();
+//    let dude_fid = FrameId::from_packed(0x101600A).unwrap();
     let mut dude_obj = Object::new(dude_fid, None, Some(map.entrance));
     dude_obj.direction = Direction::NE;
     dude_obj.light_emitter = LightEmitter {
@@ -302,6 +304,7 @@ fn main() {
         radius: 4,
     };
     let dude_objh = world.insert_object(dude_obj);
+    debug!("dude obj: {:?}", dude_objh);
     world.set_dude_obj(dude_objh);
     world.dude_name = "Narg".into();
 
@@ -322,6 +325,11 @@ fn main() {
     world.camera_mut().look_at(map.entrance.point);
 
     let mut sequencer = Sequencer::new();
+
+    let ui = &mut Ui::new(frm_db.clone(), fonts.clone(), 640, 480);
+    ui.set_cursor(ui::Cursor::Arrow);
+
+    let mut dialog: Option<Dialog> = None;
 
     scripts.vars.global_vars = if map.savegame {
         unimplemented!("read save.dat")
@@ -344,6 +352,8 @@ fn main() {
         let ctx = &mut game::script::Context {
             world: &mut world,
             sequencer: &mut sequencer,
+            dialog: &mut dialog,
+            ui,
         };
 
         // PredefinedProc::Start for map script is never called.
@@ -372,9 +382,6 @@ fn main() {
         }
     }
 
-    let ui = &mut Ui::new(frm_db.clone(), 640, 480);
-    ui.set_cursor(ui::Cursor::Arrow);
-
     let playfield = {
         let rect = Rect::with_size(0, 0, 640, 379);
         let win = ui.new_window(rect.clone(), None);
@@ -388,9 +395,7 @@ fn main() {
         let main_hud = ui.new_window(Rect::with_size(0, 379, 640, 100), Some(Sprite::new(FrameId::IFACE)));
 
         // Message panel.
-        let mut mp = MessagePanel::new(fonts.clone(),
-            FontKey::antialiased(1),
-            Rgb15::new(0, 31, 0));
+        let mut mp = MessagePanel::new(fonts.clone(), FontKey::antialiased(1), GREEN);
         mp.set_skew(1);
         mp.set_capacity(Some(100));
         mp.set_anchor(Anchor::Bottom);
@@ -446,6 +451,8 @@ fn main() {
         obj: Handle,
     }
     let mut object_action = None;
+
+    let mut paused = false;
 
     let start = Instant::now();
     let mut timer = Timer::new(start);
@@ -514,7 +521,7 @@ fn main() {
                         pf.roof_visible = pf.roof_visible;
                     }
                     Event::KeyDown { keycode: Some(Keycode::P), .. } => {
-                        game_update_time.toggle();
+                        paused = !paused;
                     }
                     Event::KeyDown { keycode: Some(Keycode::Backquote), .. } => {
                         draw_debug = !draw_debug;
@@ -533,7 +540,13 @@ fn main() {
 
         ui.update(timer.time(), ui_out_events);
 
-        fn handle_action(world: &World, obj: Handle, action: Action) {
+        fn handle_action(world: &mut World, scripts: &mut Scripts,
+            sequencer: &mut Sequencer,
+            dialog: &mut Option<Dialog>,
+            ui: &mut Ui,
+            obj: Handle,
+            action: Action)
+        {
             match action {
                 Action::Rotate => {
                     let mut obj = world.objects().get(obj).borrow_mut();
@@ -542,6 +555,21 @@ fn main() {
                     }
                     obj.direction = obj.direction.rotate_cw();
                 }
+                Action::Talk => {
+                    let script = world.objects().get(obj).borrow().script;
+                    if let Some((sid, _)) = script {
+                        match scripts.execute_predefined_proc(sid, PredefinedProc::Talk,
+                            &mut game::script::Context {
+                                world,
+                                sequencer,
+                                dialog,
+                                ui,
+                            })
+                        {
+                            None | Some(Suspend::GsayEnd) => {}
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -549,12 +577,12 @@ fn main() {
         for event in ui_out_events.drain(..) {
             match event.data {
                 OutEventData::ObjectPick { kind, obj: objh } => {
-                    let world = world.borrow();
+                    let mut world = world.borrow_mut();
                     let picked_dude = Some(objh) == world.dude_obj();
                     let default_action = if picked_dude {
                         Action::Rotate
                     } else {
-                        Action::Look
+                        Action::Talk
                     };
                     match kind {
                         ObjectPickKind::Hover => {
@@ -598,9 +626,9 @@ fn main() {
                                 obj: objh,
                             });
 
-                            game_update_time.pause();
+                            game_update_time.set_paused(true);
                         }
-                        ObjectPickKind::DefaultAction => handle_action(&world, objh, default_action),
+                        ObjectPickKind::DefaultAction => handle_action(&mut world, &mut scripts, &mut sequencer, &mut dialog, ui, objh, default_action),
                     }
                 }
                 OutEventData::HexPick { action, pos } => {
@@ -634,15 +662,51 @@ fn main() {
                 }
                 OutEventData::Action { action } => {
                     let object_action = object_action.take().unwrap();
-                    handle_action(&world.borrow(), object_action.obj, action);
+                    handle_action(&mut world.borrow_mut(), &mut scripts, &mut sequencer, &mut dialog, ui, object_action.obj, action);
                     action_menu::hide(object_action.menu, ui);
-                    game_update_time.resume();
+                    game_update_time.set_paused(false);
+                }
+                OutEventData::Pick { id } => {
+                    let (sid, proc_id) = {
+                        let dialog = dialog.as_mut().unwrap();
+
+                        assert!(dialog.is(event.source));
+                        let proc_id = dialog.option(id).proc_id;
+                        dialog.clear_options(ui);
+
+                        (dialog.sid(), proc_id)
+                    };
+                    let finished = if let Some(proc_id) = proc_id {
+                        assert!(scripts.execute_proc(sid, proc_id,
+                            &mut game::script::Context {
+                                ui,
+                                world: &mut world.borrow_mut(),
+                                sequencer: &mut sequencer,
+                                dialog: &mut dialog,
+                            }).is_none());
+                        // No dialog options means the dialog is finished.
+                        dialog.as_ref().unwrap().is_empty()
+                    } else {
+                        true
+                    };
+                    if finished {
+                        scripts.resume(&mut game::script::Context {
+                            ui,
+                            world: &mut world.borrow_mut(),
+                            sequencer: &mut sequencer,
+                            dialog: &mut dialog,
+                        });
+                        assert!(!scripts.can_resume());
+                    }
+
                 }
                 _ => {}
             }
         }
 
         ui.sync();
+
+        game_update_time.set_paused(paused || scripts.can_resume());
 
         if game_update_time.is_running() {
             let mut world = world.borrow_mut();
@@ -687,7 +751,7 @@ fn main() {
                 world.ambient_light,
                 game_update_time.is_paused(),
             );
-            canvas.draw_text(msg.as_bytes().into(), 2, 1, FontKey::antialiased(1), Rgb15::new(0, 31, 0),
+            canvas.draw_text(msg.as_bytes().into(), 2, 1, FontKey::antialiased(1), GREEN,
                 &DrawOptions {
                     dst_color: Some(BLACK),
                     outline: Some(graphics::render::Outline::Fixed { color: BLACK, trans_color: None }),

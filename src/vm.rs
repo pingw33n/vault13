@@ -119,6 +119,7 @@ pub enum PredefinedProc {
     MapUpdate,
     MapExit,
     Start,
+    Talk,
 }
 
 impl PredefinedProc {
@@ -129,6 +130,7 @@ impl PredefinedProc {
             MapUpdate => "map_update_p_proc",
             MapExit => "map_exit_p_proc",
             Start => "start",
+            Talk => "talk_p_proc",
         }
     }
 }
@@ -153,8 +155,12 @@ pub struct Context<'a> {
     pub external_vars: &'a mut HashMap<Rc<BString>, Option<Value>>,
 
     pub self_obj: Option<object::Handle>,
+    pub ui: &'a mut crate::ui::Ui,
     pub world: &'a mut crate::game::world::World,
     pub sequencer: &'a mut crate::sequence::Sequencer,
+    pub dialog: &'a mut Option<crate::game::dialog::Dialog>,
+    pub script_db: &'a mut crate::asset::script::db::ScriptDb,
+    pub proto_db: &'a crate::asset::proto::ProtoDb,
 }
 
 impl Context<'_> {

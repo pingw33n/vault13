@@ -147,6 +147,14 @@ impl MessagePanel {
         }
     }
 
+    pub fn clear_messages(&mut self) {
+        self.messages.clear();
+        self.lines.clear();
+        self.scroll_pos = 0;
+        self.highlighted = None;
+        self.repeat_scroll.stop();
+    }
+
     /// Horizontal offset added to each line.
     pub fn set_skew(&mut self, skew: i32) {
         self.skew = skew;
