@@ -254,7 +254,7 @@ fn main() {
 
     let mut objects = Objects::new(hex_grid.clone(), ELEVATION_COUNT, proto_db.clone(), frm_db.clone());
 
-    let mut scripts = Scripts::new(ScriptDb::new(fs.clone()).unwrap(), Vm::default());
+    let mut scripts = Scripts::new(ScriptDb::new(fs.clone(), language).unwrap(), Vm::default());
 
     let map = MapReader {
         reader: &mut fs.reader(&format!("maps/{}.map", map_name)).unwrap(),

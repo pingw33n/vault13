@@ -1,8 +1,10 @@
 use atoi::atoi;
+use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
 
 use super::ProgramId;
+use crate::asset::message::Messages;
 use crate::fs::FileSystem;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -14,14 +16,18 @@ pub struct ScriptInfo {
 pub struct ScriptDb {
     fs: Rc<FileSystem>,
     infos: Vec<ScriptInfo>,
+    messages: HashMap<ProgramId, Messages>,
+    language: String,
 }
 
 impl ScriptDb {
-    pub fn new(fs: Rc<FileSystem>) -> io::Result<Self> {
+    pub fn new(fs: Rc<FileSystem>, language: impl Into<String>) -> io::Result<Self> {
         let infos = read_lst(&mut fs.reader("scripts/scripts.lst")?)?;
         Ok(Self {
             fs,
             infos,
+            messages: HashMap::new(),
+            language: language.into(),
         })
     }
 
@@ -30,13 +36,31 @@ impl ScriptDb {
     }
 
     pub fn load(&self, program_id: ProgramId) -> io::Result<(Box<[u8]>, &ScriptInfo)> {
-        let info = self.info(program_id)
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput,
-                format!("program id {} doesn't exist", program_id.val())))?;
+        let info = self.info_ok(program_id)?;
         let path = format!("scripts/{}.int", info.name);
         let mut code = Vec::new();
         self.fs.reader(&path)?.read_to_end(&mut code)?;
         Ok((code.into(), info))
+    }
+
+    pub fn messages(&mut self, program_id: ProgramId) -> io::Result<&Messages> {
+        if !self.messages.contains_key(&program_id) {
+            let msgs = self.load_messages(program_id)?;
+            self.messages.insert(program_id, msgs);
+        }
+
+        Ok(&self.messages[&program_id])
+    }
+
+    fn load_messages(&self, program_id: ProgramId) -> io::Result<Messages> {
+        let info = self.info_ok(program_id)?;
+        Messages::read_file(&self.fs, &self.language, &format!("dialog/{}.msg", info.name))
+    }
+
+    fn info_ok(&self, program_id: ProgramId) -> io::Result<&ScriptInfo> {
+        self.info(program_id)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput,
+                format!("program id {} doesn't exist", program_id.val())))
     }
 }
 
