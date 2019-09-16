@@ -434,12 +434,11 @@ mod test {
 
     mod light_grid {
         use byteorder::{ByteOrder, LittleEndian};
-        use flate2::bufread::GzDecoder;
-        use std::io::Read;
         use std::collections::HashMap;
 
         use super::*;
         use crate::graphics::geometry::hex::TileGrid;
+        use crate::util::test::ungz;
 
         #[test]
         fn reference_no_light_test() {
@@ -519,10 +518,7 @@ mod test {
         }
 
         fn read_light_grid_dump(bytes: &[u8]) -> Box<[Box<[i32]>]> {
-            let mut expected = Vec::new();
-            GzDecoder::new(bytes)
-                .read_to_end(&mut expected).unwrap();
-            let mut expected: Vec<_> = expected.chunks(4).map(LittleEndian::read_i32).collect();
+            let mut expected: Vec<_> = ungz(bytes).chunks(4).map(LittleEndian::read_i32).collect();
             for c in expected.chunks_mut(200) {
                 c.reverse();
             }
