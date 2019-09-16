@@ -32,3 +32,4 @@ Controls that work in demo:
 * `p` - toggle pause.
 
 ![Screenshot](screenshot_20190830114533.png)
+![Dialog](screenshot_20190917010852.png)
