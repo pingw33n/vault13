@@ -118,6 +118,7 @@ pub struct Scripts {
     scripts: HashMap<Sid, Script>,
     map_sid: Option<Sid>,
     pub vars: Vars,
+    suspend_stack: Vec<Sid>,
 }
 
 impl Scripts {
@@ -129,6 +130,7 @@ impl Scripts {
             scripts: HashMap::new(),
             map_sid: None,
             vars: Vars::new(),
+            suspend_stack: Vec::new(),
         }
     }
 
@@ -199,15 +201,10 @@ impl Scripts {
         ctx: &mut Context)-> Option<Suspend>
     {
         let script = self.scripts.get_mut(&sid).unwrap();
-        let vm_ctx = &mut vm::Context {
-            local_vars: &mut script.local_vars,
-            map_vars: &mut self.vars.map_vars,
-            global_vars: &mut self.vars.global_vars,
-            external_vars: &mut self.vars.external_vars,
-            self_obj: None,
-            world: ctx.world,
-            sequencer: ctx.sequencer,
-        };
+        let vm_ctx = &mut Self::make_vm_ctx(
+            &mut script.local_vars,
+            &mut self.vars,
+            ctx);
         if !script.inited {
             debug!("[{:?}#{}] running program initialization code", sid, script.program_id.val());
             self.vm.run(script.program, vm_ctx).unwrap();
@@ -217,7 +214,11 @@ impl Scripts {
         let prg = self.vm.program_state_mut(script.program);
         debug!("[{:?}#{}] executing proc {:?} ({:?})", sid, script.program_id.val(), proc_id,
             prg.program().proc(proc_id).map(|p| p.name()));
-        prg.execute_proc(proc_id, vm_ctx).unwrap()
+        let r = prg.execute_proc(proc_id, vm_ctx).unwrap();
+        if r.is_some() {
+            self.suspend_stack.push(sid);
+        }
+        r
     }
 
     #[must_use]
@@ -281,6 +282,20 @@ impl Scripts {
         self.execute_procs(proc, ctx, |sid| Some(sid) != map_sid);
     }
 
+    pub fn can_resume(&self) -> bool {
+        self.suspend_stack.len() > 0
+    }
+
+    pub fn resume(&mut self, ctx: &mut Context) -> Option<Suspend> {
+        let sid = self.suspend_stack.pop().unwrap();
+        let script = self.scripts.get_mut(&sid).unwrap();
+        let vm_ctx = &mut Self::make_vm_ctx(
+            &mut script.local_vars,
+            &mut self.vars,
+            ctx);
+        self.vm.program_state_mut(script.program).resume(vm_ctx).unwrap()
+    }
+
     fn next_sid(&self, kind: ScriptKind) -> Sid {
         let id = self.scripts.keys()
             .cloned()
@@ -290,5 +305,23 @@ impl Scripts {
             .map(|v| v + 1)
             .unwrap_or(0);
         Sid::new(kind, id)
+    }
+
+    #[inline]
+    fn make_vm_ctx<'a>(
+        local_vars: &'a mut [i32],
+        vars: &'a mut Vars,
+        ctx: &'a mut Context,
+    ) -> vm::Context<'a> {
+        vm::Context {
+            local_vars,
+            map_vars: &mut vars.map_vars,
+            global_vars: &mut vars.global_vars,
+            external_vars: &mut vars.external_vars,
+            self_obj: None,
+
+            world: ctx.world,
+            sequencer: ctx.sequencer,
+        }
     }
 }
