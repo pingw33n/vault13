@@ -98,6 +98,7 @@ pub struct MessagePanel {
     mouse_control: MouseControl,
     skew: i32,
     anchor: Anchor,
+    message_spacing: i32,
 }
 
 impl MessagePanel {
@@ -117,6 +118,7 @@ impl MessagePanel {
             mouse_control: MouseControl::Scroll,
             skew: 0,
             anchor: Anchor::Top,
+            message_spacing: 0,
         }
     }
 
@@ -169,6 +171,12 @@ impl MessagePanel {
         self.highlight_color = color;
     }
 
+    /// Vertical spacing between messages. Will not work with `Anchor::Bottom` or
+    /// in scrollable mode.
+    pub fn set_message_spacing(&mut self, message_spacing: i32) {
+        self.message_spacing = message_spacing;
+    }
+
     fn layout(&self) -> Layout {
         self.layout.expect("Widget::init() wasn't called")
     }
@@ -197,6 +205,11 @@ impl MessagePanel {
                 for _ in 0..line_count {
                     self.lines.pop_front().unwrap();
                 }
+                self.highlighted = self.highlighted.and_then(|v| if v == 0 {
+                    None
+                } else {
+                    Some(v - 1)
+                });
             }
         }
     }
@@ -268,7 +281,8 @@ impl Widget for MessagePanel {
     fn init(&mut self, ctx: Init) {
         let width = ctx.base.rect.width();
         let font = self.fonts.get(self.font);
-        let visible_line_count = cmp::max(ctx.base.rect.height() / font.vert_advance(), 1);
+        let adv = font.vert_advance();
+        let visible_line_count = cmp::max(ctx.base.rect.height() / adv, 1);
         self.layout = Some(Layout {
             width,
             visible_line_count,
@@ -344,6 +358,7 @@ impl Widget for MessagePanel {
             Anchor::Bottom => self.lines.len() as i32,
         };
 
+        let mut last_message = None;
         for i in end_i - layout.visible_line_count..end_i {
             if i >= self.lines.len() as i32 {
                 break;
@@ -356,6 +371,12 @@ impl Widget for MessagePanel {
                 } else {
                     self.color
                 };
+
+                if last_message.is_some() && Some(line.message) != last_message {
+                    y += self.message_spacing;
+                }
+                last_message = Some(line.message);
+
                 ctx.canvas.draw_text(s, x, y, self.font, color,
                     &font::DrawOptions::default());
             }
