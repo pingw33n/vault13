@@ -6,7 +6,9 @@ use std::rc::Rc;
 use std::cell::{Ref, RefCell};
 
 use super::*;
-use crate::graphics::color::{Color8, Palette, PaletteOverlay};
+use crate::graphics::color::Color8;
+use crate::graphics::color::palette::Palette;
+use crate::graphics::color::palette::overlay::PaletteOverlay;
 use crate::graphics::font::{self, FontKey, Fonts};
 use crate::graphics::lighting::light_map::{self, LightMap};
 use crate::graphics::Rect;

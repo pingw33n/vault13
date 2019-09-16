@@ -19,7 +19,7 @@ use crate::asset::*;
 use crate::asset::map::ELEVATION_COUNT;
 use crate::asset::palette::read_palette;
 use crate::asset::proto::*;
-use crate::graphics::color::PaletteOverlay;
+use crate::graphics::color::palette::overlay::PaletteOverlay;
 use crate::graphics::render::software::*;
 use crate::asset::map::*;
 use crate::asset::frame::*;
