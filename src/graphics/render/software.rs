@@ -347,6 +347,23 @@ impl Canvas for CanvasImpl {
         );
     }
 
+    fn draw_highlight(&mut self, color: Rgb15, x: i32, y: i32, mask: &TextureHandle) {
+        let mask = self.textures.get(mask);
+        let pal = &self.palette;
+        let color_idx = pal.color_idx(color);
+
+        Self::do_draw(&mut self.back_buf, x, y, &mask, &self.clip_rect,
+            |dst, _, _, _, _, src| {
+                let x = if src != 0 {
+                    ((256 - src as u32) >> 4) as u8
+                } else {
+                    0
+                };
+                *dst = pal.blend_lookup(color_idx, *dst, x);
+            }
+        );
+    }
+
     fn draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32) {
         self.do_draw_translucent(tex, x, y, color, light, Rgb15::grayscale)
     }

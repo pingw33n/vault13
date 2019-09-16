@@ -155,6 +155,9 @@ pub enum Effect {
         mask_pos: Point,
         mask_fid: FrameId,
     },
+    Highlight {
+        color: Rgb15,
+    },
     Outline {
         style: OutlineStyle,
         translucent: bool,
@@ -216,6 +219,9 @@ impl Sprite {
                 canvas.draw_masked(&frm.texture, bounds.left, bounds.top,
                     &mask_frm.texture, mask_bounds.left, mask_bounds.top,
                     self.light);
+            }
+            Some(Effect::Highlight { color }) => {
+                canvas.draw_highlight(color, bounds.left, bounds.top, &frm.texture);
             }
             Some(Effect::Outline { style, translucent }) => {
                 use self::OutlineStyle::*;

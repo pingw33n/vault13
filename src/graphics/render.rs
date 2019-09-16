@@ -83,6 +83,10 @@ pub trait Canvas {
     fn draw_masked_color(&mut self, src: Rgb15, dst: Option<Rgb15>, x: i32, y: i32,
                          mask: &TextureHandle);
 
+    /// Similar to `draw_masked_color()` but the `mask` specifies combined alpha and lightening
+    /// values. This is used for drawing screen glare effect in dialog window.
+    fn draw_highlight(&mut self, color: Rgb15, x: i32, y: i32, mask: &TextureHandle);
+
     fn draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
     fn draw_translucent_dark(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
     fn draw_outline(&mut self, tex: &TextureHandle, x: i32, y: i32, outline: Outline);
