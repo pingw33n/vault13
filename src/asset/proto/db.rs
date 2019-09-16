@@ -17,24 +17,31 @@ use crate::fs::FileSystem;
 pub struct ProtoDb {
     fs: Rc<FileSystem>,
     lst: Lst,
-    messages: EnumMap<EntityKind, Messages>,
+    messages: Messages,
+    entity_messages: EnumMap<EntityKind, Messages>,
     protos: RefCell<HashMap<ProtoId, Proto>>,
 }
 
 impl ProtoDb {
     pub fn new(fs: Rc<FileSystem>, language: &str) -> io::Result<Self> {
         let lst = Lst::read(&fs)?;
-        let messages = Self::read_messages(&fs, language)?;
+        let messages = Messages::read_file(&fs, language, "game/proto.msg")?;
+        let entity_messages = Self::read_entity_messages(&fs, language)?;
         Ok(Self {
             fs,
             lst,
             messages,
+            entity_messages,
             protos: RefCell::new(HashMap::new()),
         })
     }
 
     pub fn len(&self, kind: EntityKind) -> usize {
         self.lst.len(kind)
+    }
+
+    pub fn messages(&self) -> &Messages {
+        &self.messages
     }
 
     // proto_name()
@@ -111,7 +118,9 @@ impl ProtoDb {
         }
     }
 
-    fn read_messages(fs: &FileSystem, language: &str) -> io::Result<EnumMap<EntityKind, Messages>> {
+    fn read_entity_messages(fs: &FileSystem, language: &str)
+        -> io::Result<EnumMap<EntityKind, Messages>>
+    {
         let mut map = EnumMap::new();
         for k in proto_entity_kinds() {
             let path = format!("game/pro_{}.msg", &k.dir()[..4]);
@@ -518,7 +527,7 @@ impl ProtoDb {
 
     fn msg(&self, pid: ProtoId, base: i32) -> io::Result<Option<&bstr>> {
         let proto = self.proto(pid)?;
-        Ok(self.messages[pid.kind()].get(base + proto.message_id)
+        Ok(self.entity_messages[pid.kind()].get(base + proto.message_id)
             .map(|m| m.text.as_ref()))
     }
 }
