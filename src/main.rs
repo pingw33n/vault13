@@ -329,6 +329,13 @@ fn main() {
     let ui = &mut Ui::new(frm_db.clone(), fonts.clone(), 640, 480);
     ui.set_cursor(ui::Cursor::Arrow);
 
+    let world = Rc::new(RefCell::new(world));
+    let playfield = {
+        let rect = Rect::with_size(0, 0, 640, 379);
+        let win = ui.new_window(rect.clone(), None);
+        ui.new_widget(win, rect, None, None, Playfield::new(world.clone()))
+    };
+
     let message_panel;
     {
         use ui::button::Button;
@@ -398,7 +405,7 @@ fn main() {
     // Init scripts.
     {
         let ctx = &mut game::script::Context {
-            world: &mut world,
+            world: &mut world.borrow_mut(),
             sequencer: &mut sequencer,
             dialog: &mut dialog,
             message_panel,
@@ -416,8 +423,6 @@ fn main() {
         scripts.execute_map_procs(PredefinedProc::MapEnter, ctx);
     }
 
-    let world = Rc::new(RefCell::new(world));
-
     let scroll_inc = 10;
 
     // Load all interface frame sets.
@@ -430,12 +435,6 @@ fn main() {
             warn!("couldn't load interface frame set {:?}: {}", fid, e);
         }
     }
-
-    let playfield = {
-        let rect = Rect::with_size(0, 0, 640, 379);
-        let win = ui.new_window(rect.clone(), None);
-        ui.new_widget(win, rect, None, None, Playfield::new(world.clone()))
-    };
 
     let mut fidget = Fidget::new();
 
