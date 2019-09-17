@@ -410,6 +410,7 @@ fn main() {
             dialog: &mut dialog,
             message_panel,
             ui,
+            map_id: map.id,
         };
 
         // PredefinedProc::Start for map script is never called.
@@ -546,7 +547,8 @@ fn main() {
             ui: &mut Ui,
             obj: Handle,
             action: Action,
-            message_panel: ui::Handle)
+            message_panel: ui::Handle,
+            map_id: i32)
         {
             match action {
                 Action::Rotate => {
@@ -573,6 +575,7 @@ fn main() {
                                 dialog,
                                 ui,
                                 message_panel,
+                                map_id,
                             })
                         {
                             None | Some(Suspend::GsayEnd) => {}
@@ -637,7 +640,7 @@ fn main() {
 
                             game_update_time.set_paused(true);
                         }
-                        ObjectPickKind::DefaultAction => handle_action(&mut world, &mut scripts, &mut sequencer, &mut dialog, ui, objh, default_action, message_panel),
+                        ObjectPickKind::DefaultAction => handle_action(&mut world, &mut scripts, &mut sequencer, &mut dialog, ui, objh, default_action, message_panel, map.id),
                     }
                 }
                 OutEventData::HexPick { action, pos } => {
@@ -671,7 +674,7 @@ fn main() {
                 }
                 OutEventData::Action { action } => {
                     let object_action = object_action.take().unwrap();
-                    handle_action(&mut world.borrow_mut(), &mut scripts, &mut sequencer, &mut dialog, ui, object_action.obj, action, message_panel);
+                    handle_action(&mut world.borrow_mut(), &mut scripts, &mut sequencer, &mut dialog, ui, object_action.obj, action, message_panel, map.id);
                     action_menu::hide(object_action.menu, ui);
                     game_update_time.set_paused(false);
                 }
@@ -693,6 +696,7 @@ fn main() {
                                 sequencer: &mut sequencer,
                                 dialog: &mut dialog,
                                 message_panel,
+                                map_id: map.id,
                             }).is_none());
                         // No dialog options means the dialog is finished.
                         dialog.as_ref().unwrap().is_empty()
@@ -706,6 +710,7 @@ fn main() {
                             sequencer: &mut sequencer,
                             dialog: &mut dialog,
                             message_panel,
+                            map_id: map.id,
                         });
                         assert!(!scripts.can_resume());
                     }

@@ -88,6 +88,7 @@ pub struct Context<'a> {
     pub sequencer: &'a mut crate::sequence::Sequencer,
     pub dialog: &'a mut Option<crate::game::dialog::Dialog>,
     pub message_panel: crate::ui::Handle,
+    pub map_id: i32,
 }
 
 pub struct Vars {
@@ -336,8 +337,8 @@ impl Scripts {
             map_vars: &mut vars.map_vars,
             global_vars: &mut vars.global_vars,
             external_vars: &mut vars.external_vars,
-            self_obj: None,
 
+            self_obj: None,
             ui: ctx.ui,
             world: ctx.world,
             sequencer: ctx.sequencer,
@@ -345,6 +346,7 @@ impl Scripts {
             message_panel: ctx.message_panel,
             script_db,
             proto_db,
+            map_id: ctx.map_id,
         }
     }
 }

@@ -16,6 +16,7 @@ use crate::graphics::EPoint;
 use crate::graphics::geometry::hex::Direction;
 use crate::sequence::Sequence;
 use crate::sequence::chain::Chain;
+use crate::util::random::{random as rand};
 
 fn pop_program_id(ctx: &mut Context) -> Result<ProgramId> {
     ctx.prg.data_stack.pop()?.into_int()?
@@ -104,6 +105,18 @@ pub fn add_mult_objs_to_inven(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn add_timer_event(ctx: Context) -> Result<()> {
+    let flags = ctx.prg.data_stack.pop()?.into_int()?;
+    let ticks = ctx.prg.data_stack.pop()?.into_int()?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    log_a3!(ctx.prg, obj, ticks, flags);
+    log_stub!(ctx.prg);
+
+    Ok(())
+}
+
 pub fn create_object_sid(ctx: Context) -> Result<()> {
     let sid = ctx.prg.data_stack.pop()?.into_int()?;
     let sid = if sid >= 0 {
@@ -146,6 +159,13 @@ pub fn critter_add_trait(ctx: Context) -> Result<()> {
 
     log_a4r1!(ctx.prg, obj, kind, sub_kind, value, r);
     log_stub!(ctx.prg);
+    Ok(())
+}
+
+pub fn cur_map_index(ctx: Context) -> Result<()> {
+    let r = ctx.ext.map_id;
+    ctx.prg.data_stack.push(r.into())?;
+    log_r1!(ctx.prg, r);
     Ok(())
 }
 
@@ -196,6 +216,7 @@ pub fn game_ticks(ctx: Context) -> Result<()> {
     let v = ctx.prg.data_stack.pop()?.into_int()?;
 
     let r = cmp::max(v, 0) * 10;
+    ctx.prg.data_stack.push(r.into())?;
 
     log_a1r1!(ctx.prg, v, r);
 
@@ -502,6 +523,20 @@ pub fn obj_art_fid(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn obj_is_carrying_obj_pid(ctx: Context) -> Result<()> {
+    let pid = ctx.prg.data_stack.pop()?.into_int()?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    let r = 0;
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a2r1!(ctx.prg, obj, pid, r);
+    log_stub!(ctx.prg);
+
+    Ok(())
+}
+
 pub fn obj_lock(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
@@ -565,6 +600,20 @@ pub fn party_member_obj(ctx: Context) -> Result<()> {
     ctx.prg.data_stack.push(r)?;
     log_a1r1!(ctx.prg, pid, ctx.prg.data_stack.top().unwrap());
     log_stub!(ctx.prg);
+    Ok(())
+}
+
+pub fn random(ctx: Context) -> Result<()> {
+    let to_incl = ctx.prg.data_stack.pop()?.into_int()?;
+    let from_incl = ctx.prg.data_stack.pop()?.into_int()?;
+
+    // TODO check if vcr_status() == 2 condition in orginal is important.
+
+    let r = rand(from_incl, to_incl);
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a2r1!(ctx.prg, from_incl, to_incl, r);
+
     Ok(())
 }
 
@@ -650,6 +699,17 @@ pub fn set_light_level(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn set_obj_visibility(ctx: Context) -> Result<()> {
+    let visible = ctx.prg.data_stack.pop()?.into_int()?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    log_a2!(ctx.prg, obj, visible);
+    log_stub!(ctx.prg);
+
+    Ok(())
+}
+
 pub fn start_gdialog(mut ctx: Context) -> Result<()> {
     let background = ctx.prg.data_stack.pop()?.into_int()?;
     let head_id = ctx.prg.data_stack.pop()?.into_int()?;
@@ -686,6 +746,22 @@ pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
     ctx.prg.data_stack.push(r.into())?;
 
     log_a3r1!(ctx.prg, tile_num, elevation, pid, ctx.prg.data_stack.top().unwrap());
+
+    Ok(())
+}
+
+pub fn tile_in_tile_rect(ctx: Context) -> Result<()> {
+    let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
+    let right = ctx.prg.data_stack.pop()?.into_int()?;
+    let bottom = ctx.prg.data_stack.pop()?.into_int()?;
+    let top = ctx.prg.data_stack.pop()?.into_int()?;
+    let left = ctx.prg.data_stack.pop()?.into_int()?;
+
+    let r = 0;
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a5r1!(ctx.prg, left, top, bottom, right, tile_num, r);
+    log_stub!(ctx.prg);
 
     Ok(())
 }
