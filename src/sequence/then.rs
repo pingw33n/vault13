@@ -15,7 +15,7 @@ impl<U: Sequence, V: Sequence> Then<U, V> {
 }
 
 impl<U: Sequence, V: Sequence> Sequence for Then<U, V> {
-    fn update(&mut self, ctx: &mut Context) -> Result {
+    fn update(&mut self, ctx: &mut Update) -> Result {
         loop {
             break if self.first.is_some() {
                 let r = self.first.as_mut().unwrap().update(ctx);

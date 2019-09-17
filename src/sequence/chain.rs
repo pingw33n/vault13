@@ -89,7 +89,7 @@ impl Chain {
 }
 
 impl Sequence for Chain {
-    fn update(&mut self, ctx: &mut Context) -> Result {
+    fn update(&mut self, ctx: &mut Update) -> Result {
         self.control.apply(&mut self.sequences);
         loop {
             let r = match self.sequences.first_mut().map(|seq| seq.update(ctx)) {

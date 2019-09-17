@@ -71,7 +71,7 @@ impl FrameAnim {
 }
 
 impl Sequence for FrameAnim {
-    fn update(&mut self, ctx: &mut Context) -> Result {
+    fn update(&mut self, ctx: &mut Update) -> Result {
         match self.state {
             State::Started => {
                 self.init(ctx.world);

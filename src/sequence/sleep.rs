@@ -24,7 +24,7 @@ impl Sleep {
 }
 
 impl Sequence for Sleep {
-    fn update(&mut self, ctx: &mut Context) -> Result {
+    fn update(&mut self, ctx: &mut Update) -> Result {
         match self.state {
             State::Started => self.state = State::Running(ctx.time),
             State::Running(start_time) => {

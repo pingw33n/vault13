@@ -153,6 +153,12 @@ impl Object {
         self.sequence.as_ref().map(|seq| seq.is_running()).unwrap_or(false)
     }
 
+    pub fn cancel_sequence(&mut self) {
+        if let Some(signal) = self.sequence.take() {
+            signal.cancel();
+        }
+    }
+
     pub fn render(&mut self, canvas: &mut Canvas, light: u32,
             frm_db: &FrameDb, proto_db: &ProtoDb, tile_grid: &impl TileGridView,
             egg: Option<&Egg>) {

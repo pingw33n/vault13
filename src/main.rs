@@ -556,6 +556,7 @@ fn main() {
                     obj.direction = obj.direction.rotate_cw();
                 }
                 Action::Talk => {
+                    world.get_dude_obj().unwrap().borrow_mut().cancel_sequence();
                     let script = world.objects().get(obj).borrow().script;
                     if let Some((sid, _)) = script {
                         match scripts.execute_predefined_proc(sid, PredefinedProc::Talk,
@@ -710,12 +711,16 @@ fn main() {
 
         if game_update_time.is_running() {
             let mut world = world.borrow_mut();
-            sequencer.update(&mut sequence::Context {
+            sequencer.update(&mut sequence::Update {
                 time: game_update_time.time(),
                 world: &mut world
             });
 
             fidget.update(game_update_time.time(), &mut world, &mut sequencer);
+        } else {
+            sequencer.cleanup(&mut sequence::Cleanup {
+                world: &mut world.borrow_mut(),
+            });
         }
 
         canvas.update(timer.time());

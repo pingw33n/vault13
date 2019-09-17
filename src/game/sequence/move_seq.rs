@@ -60,7 +60,7 @@ impl Move {
 
 impl Sequence for Move {
     // object_move()
-    fn update(&mut self, ctx: &mut Context) -> Result {
+    fn update(&mut self, ctx: &mut Update) -> Result {
         match self.state {
             State::Started => {
                 self.init_step(ctx.world);

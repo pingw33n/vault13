@@ -15,7 +15,7 @@ impl<T: Sequence, F: FnMut() -> T> Repeat<T, F> {
 }
 
 impl<T: Sequence, F: FnMut() -> T> Sequence for Repeat<T, F> {
-    fn update(&mut self, ctx: &mut Context) -> Result {
+    fn update(&mut self, ctx: &mut Update) -> Result {
         const MAX_ITERS: usize = 10;
         for _ in 0..MAX_ITERS {
             if self.seq.is_none() {

@@ -31,13 +31,13 @@ pub enum Result {
     Done,
 }
 
-pub struct Context<'a> {
+pub struct Update<'a> {
     pub time: Instant,
     pub world: &'a mut World,
 }
 
 pub trait Sequence {
-    fn update(&mut self, ctx: &mut Context) -> Result;
+    fn update(&mut self, ctx: &mut Update) -> Result;
 
     fn then<T: Sequence>(self, seq: T) -> then::Then<Self, T>
         where Self: Sized
@@ -53,18 +53,24 @@ pub trait Sequence {
 }
 
 impl<T: Sequence + ?Sized> Sequence for Box<T> {
-    fn update(&mut self, ctx: &mut Context) -> Result {
+    fn update(&mut self, ctx: &mut Update) -> Result {
         (**self).update(ctx)
     }
 }
 
+pub struct Cleanup<'a> {
+    pub world: &'a mut World,
+}
+
 pub struct Sequencer {
+    last_time: Instant,
     sequences: Vec<Box<Sequence>>,
 }
 
 impl Sequencer {
     pub fn new() -> Self {
         Self {
+            last_time: Instant::now(),
             sequences: Vec::new(),
         }
     }
@@ -81,7 +87,9 @@ impl Sequencer {
         self.sequences.clear();
     }
 
-    pub fn update(&mut self, ctx: &mut Context) {
+    pub fn update(&mut self, ctx: &mut Update) {
+        assert!(self.last_time <= ctx.time);
+        self.last_time = ctx.time;
         let mut i = 0;
         while i < self.sequences.len() {
             let done = {
@@ -95,6 +103,14 @@ impl Sequencer {
             }
         }
     }
+
+    /// Executes a no-advance update so the cancelled sequenced can get cleaned up.
+    pub fn cleanup(&mut self, ctx: &mut Cleanup) {
+        self.update(&mut Update {
+            time: self.last_time,
+            world: ctx.world,
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -103,7 +119,7 @@ enum NoLagResult {
     Done,
 }
 
-fn update_while_lagging(mut seq: impl AsMut<Sequence>, ctx: &mut Context) -> NoLagResult {
+fn update_while_lagging(mut seq: impl AsMut<Sequence>, ctx: &mut Update) -> NoLagResult {
     loop {
         break match seq.as_mut().update(ctx) {
             Result::Running(Running::Lagging) => continue,

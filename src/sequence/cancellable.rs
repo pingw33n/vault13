@@ -48,7 +48,7 @@ impl<T: Sequence> Cancellable<T> {
 }
 
 impl<T: Sequence> Sequence for Cancellable<T> {
-    fn update(&mut self, ctx: &mut Context) -> Result {
+    fn update(&mut self, ctx: &mut Update) -> Result {
         if self.cancel.is_done() {
             Result::Done
         } else {

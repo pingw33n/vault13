@@ -9,7 +9,7 @@ impl Noop {
 }
 
 impl Sequence for Noop {
-    fn update(&mut self, _ctx: &mut Context) -> Result {
+    fn update(&mut self, _ctx: &mut Update) -> Result {
         Result::Done
     }
 }

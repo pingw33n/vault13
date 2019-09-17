@@ -1,5 +1,6 @@
 use bstring::BString;
 use if_chain::if_chain;
+use std::cell::RefCell;
 use std::cmp;
 use std::rc::Rc;
 
@@ -117,6 +118,10 @@ impl World {
         assert!(self.objects.contains(obj));
         assert!(self.dude_obj.is_none());
         self.dude_obj = Some(obj);
+    }
+
+    pub fn get_dude_obj(&self) -> Option<&RefCell<Object>> {
+        self.dude_obj.map(|h| self.objects.get(h))
     }
 
     pub fn elevation(&self) -> u32 {

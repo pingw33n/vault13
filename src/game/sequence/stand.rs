@@ -16,7 +16,7 @@ impl Stand {
 }
 
 impl Sequence for Stand {
-    fn update(&mut self, ctx: &mut Context) -> Result {
+    fn update(&mut self, ctx: &mut Update) -> Result {
         if self.done {
             Result::Done
         } else {
