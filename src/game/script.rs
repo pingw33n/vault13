@@ -261,12 +261,18 @@ impl Scripts {
         for sid in sids {
             if filter(sid) {
                 let program = self.scripts[&sid].program;
-                let proc_id = self.vm.program_state(program)
+                debug!("[{:?}#{}:{}] Executing {}",
+                    sid,
+                    self.scripts[&sid].program_id.val(),
+                    self.db.info(self.scripts[&sid].program_id).unwrap().name,
+                    proc);
+                if let Some(proc_id) = self.vm.program_state(program)
                     .program()
                     .predefined_proc_id(proc)
-                    .unwrap();
-                let r = self.execute_proc(sid, proc_id, ctx);
-                assert!(r.is_none(), "can't suspend in {:?}", proc);
+                {
+                    let r = self.execute_proc(sid, proc_id, ctx);
+                    assert!(r.is_none(), "can't suspend in {:?}", proc);
+                }
             }
         }
     }
