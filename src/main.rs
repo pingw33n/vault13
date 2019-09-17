@@ -389,14 +389,15 @@ fn main() {
     scripts.vars.global_vars = if map.savegame {
         unimplemented!("read save.dat")
     } else {
-        asset::read_game_global_vars(&mut fs.reader("maps/vault13.gam").unwrap()).unwrap().into()
+        asset::read_game_global_vars(&mut fs.reader("data/vault13.gam").unwrap()).unwrap().into()
     };
+    dbg!(&scripts.vars.global_vars);
     scripts.vars.map_vars = if map.savegame {
         map.map_vars.clone()
     } else {
         let path = format!("maps/{}.gam", map_name);
         if fs.exists(&path) {
-            asset::read_game_global_vars(&mut fs.reader(&path).unwrap()).unwrap().into()
+            asset::read_map_global_vars(&mut fs.reader(&path).unwrap()).unwrap().into()
         } else {
             Vec::new().into()
         }

@@ -600,3 +600,45 @@ pub fn read_game_global_vars(rd: &mut impl BufRead) -> io::Result<Vec<i32>> {
 pub fn read_map_global_vars(rd: &mut impl BufRead) -> io::Result<Vec<i32>> {
     read_gam(rd, "MAP_GLOBAL_VARS:")
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::io::{Cursor, BufReader};
+
+    #[test]
+    fn read_game_global_vars_() {
+        let s = "
+
+
+ // Comments
+
+//MAP_GLOBAL_VARS:
+GAME_GLOBAL_VARS:
+//GLOBAL                                                NUMBER
+
+GVAR_0                  :=0;    //      (0)
+ \t  GVAR_1             :=100;  //      (1)
+GVAR_2                    :=   123;    //      (2) blah blah blah";
+        assert_eq!(read_game_global_vars(&mut BufReader::new(Cursor::new(s))).unwrap(),
+            [0, 100, 123]);
+    }
+
+    #[test]
+    fn read_map_global_vars_() {
+        let s = "
+
+
+ // Comments
+
+//MAP_GLOBAL_VARS:
+MAP_GLOBAL_VARS:
+//GLOBAL                                NUMBER
+
+MVAR_0                  :=123;    //      (0) blah blah blah
+MVAR_1             :=0;  //      (1)
+MVAR_2:=456;    //      (2)";
+        assert_eq!(read_map_global_vars(&mut BufReader::new(Cursor::new(s))).unwrap(),
+            [123, 0, 456]);
+    }
+}
