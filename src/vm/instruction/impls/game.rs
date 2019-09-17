@@ -182,7 +182,7 @@ pub fn display_msg(ctx: Context) -> Result<()> {
     let msg = ctx.prg.data_stack.pop()?.into_string(ctx.prg.strings())?;
 
     ctx.ext.ui.widget_mut::<MessagePanel>(ctx.ext.message_panel)
-        .push_message(&*msg);
+        .push_message(BString::concat(&[crate::asset::message::BULLET_STR, msg.as_bytes()]));
 
     log_a1!(ctx.prg, msg);
     Ok(())

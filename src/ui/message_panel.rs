@@ -128,7 +128,7 @@ impl MessagePanel {
         let message = message.as_ref();
 
         let font = self.fonts.get(self.font);
-        let new_lines: VecDeque<_> = font.line_ranges(message, Some(font::Overflow {
+        let new_lines: Vec<_> = font.line_ranges(message, Some(font::Overflow {
                 size: self.layout().width,
                 mode: font::OverflowMode::WordWrap,
             }))

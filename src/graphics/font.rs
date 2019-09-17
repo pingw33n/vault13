@@ -208,10 +208,6 @@ impl Iterator for LineRanges0<'_, '_> {
                             {
                                 end = i;
                                 self.i = i + 1;
-                                // Trim trailing whitespace.
-                                while end > start + 1 && self.text[end - 1] == b' ' {
-                                    end -= 1;
-                                }
                             } else {
                                 self.i -= 1;
                             }
@@ -222,6 +218,15 @@ impl Iterator for LineRanges0<'_, '_> {
             }
         }
         if start < self.text.len() {
+            let mut start = start;
+            // Trim leading whitespace if this is not the first line.
+            while start > 0 && start < end && self.text[start] == b' ' {
+                start += 1;
+            }
+            // Trim trailing whitespace.
+            while end > start + 1 && self.text[end - 1] == b' ' {
+                end -= 1;
+            }
             Some(Range { start, end })
         } else {
             None

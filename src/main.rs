@@ -347,7 +347,7 @@ fn main() {
         mp.set_skew(1);
         mp.set_capacity(Some(100));
         mp.set_anchor(Anchor::Bottom);
-        message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 165, 65), None, None, mp);
+        message_panel = ui.new_widget(main_hud, Rect::with_size(23, 26, 166, 65), None, None, mp);
 
         // Inventory button.
         // Original location is a bit off, at y=41.
