@@ -329,65 +329,6 @@ fn main() {
     let ui = &mut Ui::new(frm_db.clone(), fonts.clone(), 640, 480);
     ui.set_cursor(ui::Cursor::Arrow);
 
-    let mut dialog: Option<Dialog> = None;
-
-    scripts.vars.global_vars = if map.savegame {
-        unimplemented!("read save.dat")
-    } else {
-        asset::read_game_global_vars(&mut fs.reader("maps/vault13.gam").unwrap()).unwrap().into()
-    };
-    scripts.vars.map_vars = if map.savegame {
-        map.map_vars.clone()
-    } else {
-        let path = format!("maps/{}.gam", map_name);
-        if fs.exists(&path) {
-            asset::read_game_global_vars(&mut fs.reader(&path).unwrap()).unwrap().into()
-        } else {
-            Vec::new().into()
-        }
-    };
-
-    // Init scripts.
-    {
-        let ctx = &mut game::script::Context {
-            world: &mut world,
-            sequencer: &mut sequencer,
-            dialog: &mut dialog,
-            ui,
-        };
-
-        // PredefinedProc::Start for map script is never called.
-        // MapEnter in map script is called before anything else.
-        if let Some(sid) = scripts.map_sid() {
-            assert!(scripts.execute_predefined_proc(sid, PredefinedProc::MapEnter, ctx).is_none(),
-                "can't suspend in MapEnter");
-        }
-
-        scripts.execute_procs(PredefinedProc::Start, ctx, |sid| sid.kind() != ScriptKind::System);
-        scripts.execute_map_procs(PredefinedProc::MapEnter, ctx);
-    }
-
-    let world = Rc::new(RefCell::new(world));
-
-    let scroll_inc = 10;
-
-    // Load all interface frame sets.
-    for id in 0.. {
-        let fid = FrameId::new_generic(EntityKind::Interface, id).unwrap();
-        if frm_db.name(fid).is_none() {
-            break;
-        }
-        if let Err(e) = frm_db.get(fid) {
-            warn!("couldn't load interface frame set {:?}: {}", fid, e);
-        }
-    }
-
-    let playfield = {
-        let rect = Rect::with_size(0, 0, 640, 379);
-        let win = ui.new_window(rect.clone(), None);
-        ui.new_widget(win, rect, None, None, Playfield::new(world.clone()))
-    };
-
     let message_panel;
     {
         use ui::button::Button;
@@ -435,6 +376,66 @@ fn main() {
         ui.new_widget(main_hud, Rect::with_size(267, 26, 188, 67), None, None,
             Button::new(FrameId::SINGLE_ATTACK_BUTTON_UP, FrameId::SINGLE_ATTACK_BUTTON_DOWN));
     }
+
+    let mut dialog: Option<Dialog> = None;
+
+    scripts.vars.global_vars = if map.savegame {
+        unimplemented!("read save.dat")
+    } else {
+        asset::read_game_global_vars(&mut fs.reader("maps/vault13.gam").unwrap()).unwrap().into()
+    };
+    scripts.vars.map_vars = if map.savegame {
+        map.map_vars.clone()
+    } else {
+        let path = format!("maps/{}.gam", map_name);
+        if fs.exists(&path) {
+            asset::read_game_global_vars(&mut fs.reader(&path).unwrap()).unwrap().into()
+        } else {
+            Vec::new().into()
+        }
+    };
+
+    // Init scripts.
+    {
+        let ctx = &mut game::script::Context {
+            world: &mut world,
+            sequencer: &mut sequencer,
+            dialog: &mut dialog,
+            message_panel,
+            ui,
+        };
+
+        // PredefinedProc::Start for map script is never called.
+        // MapEnter in map script is called before anything else.
+        if let Some(sid) = scripts.map_sid() {
+            assert!(scripts.execute_predefined_proc(sid, PredefinedProc::MapEnter, ctx).is_none(),
+                "can't suspend in MapEnter");
+        }
+
+        scripts.execute_procs(PredefinedProc::Start, ctx, |sid| sid.kind() != ScriptKind::System);
+        scripts.execute_map_procs(PredefinedProc::MapEnter, ctx);
+    }
+
+    let world = Rc::new(RefCell::new(world));
+
+    let scroll_inc = 10;
+
+    // Load all interface frame sets.
+    for id in 0.. {
+        let fid = FrameId::new_generic(EntityKind::Interface, id).unwrap();
+        if frm_db.name(fid).is_none() {
+            break;
+        }
+        if let Err(e) = frm_db.get(fid) {
+            warn!("couldn't load interface frame set {:?}: {}", fid, e);
+        }
+    }
+
+    let playfield = {
+        let rect = Rect::with_size(0, 0, 640, 379);
+        let win = ui.new_window(rect.clone(), None);
+        ui.new_widget(win, rect, None, None, Playfield::new(world.clone()))
+    };
 
     let mut fidget = Fidget::new();
 
@@ -545,7 +546,8 @@ fn main() {
             dialog: &mut Option<Dialog>,
             ui: &mut Ui,
             obj: Handle,
-            action: Action)
+            action: Action,
+            message_panel: ui::Handle)
         {
             match action {
                 Action::Rotate => {
@@ -571,6 +573,7 @@ fn main() {
                                 sequencer,
                                 dialog,
                                 ui,
+                                message_panel,
                             })
                         {
                             None | Some(Suspend::GsayEnd) => {}
@@ -635,7 +638,7 @@ fn main() {
 
                             game_update_time.set_paused(true);
                         }
-                        ObjectPickKind::DefaultAction => handle_action(&mut world, &mut scripts, &mut sequencer, &mut dialog, ui, objh, default_action),
+                        ObjectPickKind::DefaultAction => handle_action(&mut world, &mut scripts, &mut sequencer, &mut dialog, ui, objh, default_action, message_panel),
                     }
                 }
                 OutEventData::HexPick { action, pos } => {
@@ -669,7 +672,7 @@ fn main() {
                 }
                 OutEventData::Action { action } => {
                     let object_action = object_action.take().unwrap();
-                    handle_action(&mut world.borrow_mut(), &mut scripts, &mut sequencer, &mut dialog, ui, object_action.obj, action);
+                    handle_action(&mut world.borrow_mut(), &mut scripts, &mut sequencer, &mut dialog, ui, object_action.obj, action, message_panel);
                     action_menu::hide(object_action.menu, ui);
                     game_update_time.set_paused(false);
                 }
@@ -690,6 +693,7 @@ fn main() {
                                 world: &mut world.borrow_mut(),
                                 sequencer: &mut sequencer,
                                 dialog: &mut dialog,
+                                message_panel,
                             }).is_none());
                         // No dialog options means the dialog is finished.
                         dialog.as_ref().unwrap().is_empty()
@@ -702,6 +706,7 @@ fn main() {
                             world: &mut world.borrow_mut(),
                             sequencer: &mut sequencer,
                             dialog: &mut dialog,
+                            message_panel,
                         });
                         assert!(!scripts.can_resume());
                     }

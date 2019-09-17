@@ -12,10 +12,10 @@ use crate::asset::script::ProgramId;
 use crate::game::dialog::Dialog;
 use crate::game::object::Object;
 use crate::game::script::Sid;
+use crate::graphics::EPoint;
 use crate::graphics::geometry::hex::Direction;
 use crate::sequence::Sequence;
 use crate::sequence::chain::Chain;
-use crate::graphics::EPoint;
 
 fn pop_program_id(ctx: &mut Context) -> Result<ProgramId> {
     ctx.prg.data_stack.pop()?.into_int()?
@@ -153,6 +153,18 @@ pub fn destroy_object(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
     log_a1!(ctx.prg, obj);
     log_stub!(ctx.prg);
+    Ok(())
+}
+
+pub fn display_msg(ctx: Context) -> Result<()> {
+    use crate::ui::message_panel::MessagePanel;
+
+    let msg = ctx.prg.data_stack.pop()?.into_string(ctx.prg.strings())?;
+
+    ctx.ext.ui.widget_mut::<MessagePanel>(ctx.ext.message_panel)
+        .push_message(&*msg);
+
+    log_a1!(ctx.prg, msg);
     Ok(())
 }
 

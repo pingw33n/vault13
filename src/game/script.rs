@@ -87,6 +87,7 @@ pub struct Context<'a> {
     pub world: &'a mut crate::game::world::World,
     pub sequencer: &'a mut crate::sequence::Sequencer,
     pub dialog: &'a mut Option<crate::game::dialog::Dialog>,
+    pub message_panel: crate::ui::Handle,
 }
 
 pub struct Vars {
@@ -335,6 +336,7 @@ impl Scripts {
             world: ctx.world,
             sequencer: ctx.sequencer,
             dialog: ctx.dialog,
+            message_panel: ctx.message_panel,
             script_db,
             proto_db,
         }

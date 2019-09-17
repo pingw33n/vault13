@@ -482,7 +482,7 @@ pub(in super) mod instructions {
         i!(DifficultyLevel,             unimplemented),
         i!(Display,                     unimplemented),
         i!(Displaygfx,                  unimplemented),
-        i!(DisplayMsg,                  unimplemented),
+        i!(DisplayMsg,                  display_msg),
         i!(Displayraw,                  unimplemented),
         i!(Div,                         div),
         i!(DoCheck,                     unimplemented),
