@@ -175,10 +175,30 @@ pub fn dude_obj(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn elevation(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    let pos = ctx.ext.world.objects().get(obj).borrow().pos;
+    let r = pos.map(|p| p.elevation as i32).unwrap();
+    ctx.prg.data_stack.push(r.into())?;
+    log_a1r1!(ctx.prg, obj, r);
+    Ok(())
+}
+
 pub fn end_dialogue(ctx: Context) -> Result<()> {
     ctx.ext.dialog.as_mut().unwrap().hide(ctx.ext.ui);
     *ctx.ext.dialog = None;
     log_!(ctx.prg);
+    Ok(())
+}
+
+pub fn game_ticks(ctx: Context) -> Result<()> {
+    let v = ctx.prg.data_stack.pop()?.into_int()?;
+
+    let r = cmp::max(v, 0) * 10;
+
+    log_a1r1!(ctx.prg, v, r);
+
     Ok(())
 }
 
@@ -482,6 +502,16 @@ pub fn obj_art_fid(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn obj_lock(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    log_a1!(ctx.prg, obj);
+    log_stub!(ctx.prg);
+
+    Ok(())
+}
+
 pub fn obj_name(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
@@ -490,6 +520,16 @@ pub fn obj_name(ctx: Context) -> Result<()> {
 
     ctx.prg.data_stack.push(r.clone().into())?;
     log_a1r1!(ctx.prg, obj, r);
+
+    Ok(())
+}
+
+pub fn obj_unlock(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    log_a1!(ctx.prg, obj);
+    log_stub!(ctx.prg);
 
     Ok(())
 }
@@ -647,6 +687,21 @@ pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
 
     log_a3r1!(ctx.prg, tile_num, elevation, pid, ctx.prg.data_stack.top().unwrap());
 
+    Ok(())
+}
+
+pub fn tile_num(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    let pos = ctx.ext.world.objects().get(obj).borrow().pos;
+    let r = pos.map(|p| {
+        // FIXME clean up this
+        use crate::graphics::geometry::hex::TileGrid;
+        let hex = TileGrid::default();
+        hex.to_linear_inv(p.point).unwrap() as i32
+    }).unwrap();
+    ctx.prg.data_stack.push(r.into())?;
+    log_a1r1!(ctx.prg, obj, r);
     Ok(())
 }
 
