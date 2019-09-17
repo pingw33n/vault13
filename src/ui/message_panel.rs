@@ -122,13 +122,13 @@ impl MessagePanel {
         }
     }
 
-    pub fn push_message(&mut self, message: impl Into<BString>) {
+    pub fn push_message(&mut self, message: impl AsRef<bstr>) {
         self.ensure_capacity(1);
 
-        let message = message.into();
+        let message = message.as_ref();
 
         let font = self.fonts.get(self.font);
-        let new_lines: VecDeque<_> = font.line_ranges(&message, Some(font::Overflow {
+        let new_lines: VecDeque<_> = font.line_ranges(message, Some(font::Overflow {
                 size: self.layout().width,
                 mode: font::OverflowMode::WordWrap,
             }))
@@ -136,7 +136,7 @@ impl MessagePanel {
             .collect();
 
         self.messages.push_back(Message {
-            text: message,
+            text: message.into(),
             line: new_lines.len(),
         });
         for range in new_lines {
