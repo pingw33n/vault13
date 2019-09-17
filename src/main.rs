@@ -556,7 +556,10 @@ fn main() {
                     obj.direction = obj.direction.rotate_cw();
                 }
                 Action::Talk => {
-                    world.get_dude_obj().unwrap().borrow_mut().cancel_sequence();
+                    // TODO optimize this.
+                    for obj in world.objects().iter() {
+                        world.objects().get(obj).borrow_mut().cancel_sequence();
+                    }
                     sequencer.cleanup(&mut sequence::Cleanup {
                         world,
                     });
