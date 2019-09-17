@@ -100,6 +100,17 @@ impl Playfield {
         };
         (pos, changed)
     }
+
+    fn update_hex_cursor_visibility(&mut self, force_visible: Option<bool>) {
+        let mut world = self.world.borrow_mut();
+        let mut cursor = world.objects_mut().get(self.hex_cursor).borrow_mut();
+        let visible = force_visible.unwrap_or(self.pick_mode == PickMode::Hex);
+        if visible {
+            cursor.flags.remove(Flag::TurnedOff);
+        } else {
+            cursor.flags.insert(Flag::TurnedOff);
+        }
+    }
 }
 
 impl Widget for Playfield {
@@ -125,6 +136,7 @@ impl Widget for Playfield {
                         self.default_action_icon = None;
                     }
                 }
+                self.update_hex_cursor_visibility(None);
             }
             Event::MouseDown { pos, button } => {
                 if button == MouseButton::Left {
@@ -161,35 +173,34 @@ impl Widget for Playfield {
                         }
                     }
                     MouseButton::Right => {
-                        {
-                            let mut world = self.world.borrow_mut();
-                            let mut cursor = world.objects_mut().get(self.hex_cursor).borrow_mut();
-                            self.pick_mode = match self.pick_mode {
-                                PickMode::Hex => {
-                                    ctx.base.set_cursor(Some(Cursor::ActionArrow));
-                                    cursor.flags.insert(Flag::TurnedOff);
-                                    PickMode::Object
-                                }
-                                PickMode::Object => {
-                                    ctx.base.set_cursor(Some(Cursor::Hidden));
-                                    cursor.flags.remove(Flag::TurnedOff);
-                                    PickMode::Hex
-                                }
-                            };
-                        }
-                        if self.pick_mode == PickMode::Hex {
-                            let (pos, changed) = self.update_hex_cursor_pos(pos);
-                            if changed {
-                                ctx.out.push(OutEvent {
-                                    source: ctx.this,
-                                    data: OutEventData::HexPick { action: false, pos },
-                                });
+                        self.pick_mode = match self.pick_mode {
+                            PickMode::Hex => {
+                                ctx.base.set_cursor(Some(Cursor::ActionArrow));
+                                PickMode::Object
                             }
-                        }
+                            PickMode::Object => {
+                                ctx.base.set_cursor(Some(Cursor::Hidden));
+                                let (pos, changed) = self.update_hex_cursor_pos(pos);
+                                if changed {
+                                    ctx.out.push(OutEvent {
+                                        source: ctx.this,
+                                        data: OutEventData::HexPick { action: false, pos },
+                                    });
+                                }
+                                PickMode::Hex
+                            }
+                        };
+                        self.update_hex_cursor_visibility(None);
                         self.default_action_icon = None;
                     }
                     _ => {}
                 }
+            }
+            Event::MouseLeave => {
+                self.update_hex_cursor_visibility(Some(false));
+                self.action_menu_state = None;
+                self.default_action_icon = None;
+                self.pick_state = PickState::Idle;
             }
             Event::Tick => {
                 if let Some((time, obj)) = self.action_menu_state {

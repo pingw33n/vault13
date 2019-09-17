@@ -341,6 +341,9 @@ impl Widget for MessagePanel {
                     };
                 }
             }
+            Event::MouseLeave => {
+                self.highlighted = None;
+            }
             Event::Tick => {
                 if let Some(&scroll) = self.repeat_scroll.update_if_running(ctx.now) {
                     self.scroll(scroll);

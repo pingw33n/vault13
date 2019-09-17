@@ -28,6 +28,7 @@ pub enum Event {
         pos: Point,
         button: MouseButton,
     },
+    MouseLeave,
     MouseMove {
         pos: Point,
     },
@@ -97,6 +98,7 @@ pub struct Ui {
     /// If `true` the next `update()` will fire `MouseMove` to the `cursor_pos` unless
     /// this event was seen on previous `handle_input()`.
     simulate_mouse_move: bool,
+    mouse_focus: Option<Handle>,
 }
 
 impl Ui {
@@ -114,6 +116,7 @@ impl Ui {
             cursor: Cursor::Arrow,
             capture: None,
             simulate_mouse_move: false,
+            mouse_focus: None,
         }
     }
 
@@ -130,6 +133,9 @@ impl Ui {
             widgets: Vec::new(),
         }));
         self.windows_order.push(h);
+
+        self.simulate_mouse_move = true;
+
         h
     }
 
@@ -141,6 +147,9 @@ impl Ui {
         };
         if self.capture == Some(handle) {
             self.capture = None;
+        }
+        if self.mouse_focus == Some(handle) {
+            self.mouse_focus = None;
         }
         self.widget_bases.remove(handle.0);
 
@@ -156,6 +165,8 @@ impl Ui {
             let win = win.downcast_mut::<Window>().unwrap();
             win.widgets.remove_first(&handle).unwrap();
         }
+
+        self.simulate_mouse_move = true;
 
         true
     }
@@ -179,6 +190,8 @@ impl Ui {
             cursor,
             background,
         }, Box::new(widget));
+
+        self.simulate_mouse_move = true;
 
         h
     }
@@ -282,7 +295,7 @@ impl Ui {
     pub fn handle_input(&mut self, ctx: HandleInput) -> bool {
         match ctx.event {
             SdlEvent::MouseButtonDown { mouse_btn, .. } => {
-                let target = if let Some(h) = self.find_mouse_event_target(self.cursor_pos) {
+                let target = if let Some(h) = self.update_mouse_focus(ctx.now, ctx.out) {
                     h
                 } else {
                     return false;
@@ -299,7 +312,7 @@ impl Ui {
                 }
             }
             SdlEvent::MouseButtonUp { mouse_btn, .. } => {
-                let target = if let Some(h) = self.find_mouse_event_target(self.cursor_pos) {
+                let target = if let Some(h) = self.update_mouse_focus(ctx.now, ctx.out) {
                     h
                 } else {
                     return false;
@@ -336,32 +349,39 @@ impl Ui {
 
     pub fn render(&mut self, canvas: &mut Canvas) {
         for &winh in &self.windows_order {
+            let mut win = self.widgets[winh.0].borrow_mut();
+            let win = win.downcast_mut::<Window>().unwrap();
+            let has_mouse_focus = self.mouse_focus.is_some() &&
+                win.widgets.contains(&self.mouse_focus.unwrap());
             self.widget_bases[winh.0].borrow_mut().render(Render {
                 frm_db: &self.frm_db,
                 canvas,
                 base: None,
                 cursor_pos: self.cursor_pos,
+                has_mouse_focus,
             });
-            let mut win = self.widgets[winh.0].borrow_mut();
-            let win = win.downcast_mut::<Window>().unwrap();
             win.render(Render {
                 frm_db: &self.frm_db,
                 canvas,
                 base: Some(&self.widget_bases[winh.0].borrow()),
                 cursor_pos: self.cursor_pos,
+                has_mouse_focus,
             });
             for &widgh in &win.widgets {
+                let has_mouse_focus = self.mouse_focus == Some(widgh);
                 self.widget_bases[widgh.0].borrow_mut().render(Render {
                     frm_db: &self.frm_db,
                     canvas,
                     base: Some(&self.widget_bases[winh.0].borrow()),
                     cursor_pos: self.cursor_pos,
+                    has_mouse_focus,
                 });
                 self.widgets[widgh.0].borrow_mut().render(Render {
                     frm_db: &self.frm_db,
                     canvas,
                     base: Some(&self.widget_bases[widgh.0].borrow()),
                     cursor_pos: self.cursor_pos,
+                    has_mouse_focus,
                 });
             }
         }
@@ -412,16 +432,27 @@ impl Ui {
         None
     }
 
-    fn find_mouse_event_target(&self, point: Point) -> Option<Handle> {
+    fn find_mouse_event_target(&self) -> Option<Handle> {
         if self.capture.is_some() {
             self.capture
         } else {
-            self.widget_at(point)
+            self.widget_at(self.cursor_pos)
         }
     }
 
+    fn update_mouse_focus(&mut self, now: Instant, out: &mut Vec<OutEvent>)
+        -> Option<Handle>
+    {
+        let target = self.find_mouse_event_target()?;
+        if self.mouse_focus.is_some() && self.mouse_focus != Some(target) {
+            self.widget_handle_event(now, self.mouse_focus.unwrap(), Event::MouseLeave, out);
+        }
+        self.mouse_focus = Some(target);
+        Some(target)
+    }
+
     fn fire_mouse_move(&mut self, now: Instant, out: &mut Vec<OutEvent>) -> bool {
-        if let Some(target) = self.find_mouse_event_target(self.cursor_pos) {
+        if let Some(target) = self.update_mouse_focus(now, out) {
             self.widget_handle_event(now, target,
                 Event::MouseMove { pos: self.cursor_pos }, out);
             true
@@ -542,6 +573,7 @@ pub struct Render<'a> {
     pub canvas: &'a mut Canvas,
     pub base: Option<&'a Base>,
     pub cursor_pos: Point,
+    pub has_mouse_focus: bool,
 }
 
 pub struct Init<'a> {
