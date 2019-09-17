@@ -288,7 +288,7 @@ impl Scripts {
         if proc != PredefinedProc::MapEnter {
             if let Some(sid) = self.map_sid {
                 assert!(self.execute_predefined_proc(sid, proc, ctx).is_none()
-                    "can't suspend in MapEnter");
+                    "can't suspend in {:?}", proc);
             }
         }
 
