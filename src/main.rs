@@ -557,6 +557,9 @@ fn main() {
                 }
                 Action::Talk => {
                     world.get_dude_obj().unwrap().borrow_mut().cancel_sequence();
+                    sequencer.cleanup(&mut sequence::Cleanup {
+                        world,
+                    });
                     let script = world.objects().get(obj).borrow().script;
                     if let Some((sid, _)) = script {
                         match scripts.execute_predefined_proc(sid, PredefinedProc::Talk,
