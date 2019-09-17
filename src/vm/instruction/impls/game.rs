@@ -401,7 +401,7 @@ pub fn message_str(mut ctx: Context) -> Result<()> {
 }
 
 pub fn metarule(ctx: Context) -> Result<()> {
-    let value = ctx.prg.data_stack.pop()?.into_int()?;
+    let arg = ctx.prg.data_stack.pop()?;
     let id = ctx.prg.data_stack.pop()?.into_int()?;
 
     use self::Metarule::*;
@@ -441,9 +441,9 @@ pub fn metarule(ctx: Context) -> Result<()> {
     ctx.prg.data_stack.push(Value::Int(r))?;
 
     if let Some(mr) = mr {
-        log_a2r1!(ctx.prg, mr, value, ctx.prg.data_stack.top().unwrap());
+        log_a2r1!(ctx.prg, mr, arg, ctx.prg.data_stack.top().unwrap());
     } else {
-        log_a2r1!(ctx.prg, id, value, ctx.prg.data_stack.top().unwrap());
+        log_a2r1!(ctx.prg, id, arg, ctx.prg.data_stack.top().unwrap());
     }
     log_stub!(ctx.prg);
 
