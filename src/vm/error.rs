@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use std::rc::Rc;
 
 use super::ProcedureId;
+use crate::vm::instruction::Opcode;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BadValue {
@@ -22,7 +23,7 @@ pub enum Error {
     BadExternalVar(Rc<BString>),
     Halted,
     Misc(Cow<'static, str>),
-    UnimplementedOpcode,
+    UnimplementedOpcode(Opcode),
     StackOverflow,
     StackUnderflow,
     UnexpectedEof,

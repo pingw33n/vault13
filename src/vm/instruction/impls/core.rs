@@ -439,8 +439,8 @@ pub fn swapa(ctx: Context) -> Result<()> {
     Ok(())
 }
 
-pub fn unimplemented(_ctx: Context) -> Result<()> {
-    Err(Error::UnimplementedOpcode)
+pub fn unimplemented(ctx: Context) -> Result<()> {
+    Err(Error::UnimplementedOpcode(ctx.prg.opcode.unwrap().0))
 }
 
 pub fn while_(ctx: Context) -> Result<()> {
