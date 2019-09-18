@@ -137,7 +137,7 @@ impl MessagePanel {
 
         self.messages.push_back(Message {
             text: message.into(),
-            line: new_lines.len(),
+            line_count: new_lines.len(),
         });
         for range in new_lines {
             self.lines.push_back(Line {
@@ -209,7 +209,7 @@ impl MessagePanel {
     fn ensure_capacity(&mut self, extra: usize) {
         if let Some(capacity) = self.capacity {
             while self.messages.len() >= capacity - extra {
-                let line_count = self.messages.pop_front().unwrap().line;
+                let line_count = self.messages.pop_front().unwrap().line_count;
                 for _ in 0..line_count {
                     self.lines.pop_front().unwrap();
                 }
@@ -276,7 +276,7 @@ impl Line {
 
 struct Message {
     text: BString,
-    line: usize,
+    line_count: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -327,14 +327,32 @@ impl Widget for MessagePanel {
                 MouseControl::Scroll => self.update_cursor(&mut ctx),
                 MouseControl::Pick => {
                     assert_eq!(self.scroll_pos, 0);
+                    assert_eq!(self.anchor, Anchor::Top);
                     self.highlighted = if ctx.base.rect.contains(ctx.cursor_pos.x, ctx.cursor_pos.y) {
-                        let font = self.fonts.get(self.font);
-                        let i = (ctx.cursor_pos.y - ctx.base.rect.top) / font.vert_advance()
-                            + if self.anchor == Anchor::Bottom { self.last_page() } else { 0 };
-                        if i >= 0 && i < self.lines.len() as i32 {
-                            Some(self.lines[i as usize].message)
-                        } else {
-                            None
+                        let line_advance = self.fonts.get(self.font).vert_advance();
+
+                        let mut msgs = self.messages.iter().map(|m| m.line_count).peekable();
+                        let cursor_y = ctx.cursor_pos.y - ctx.base.rect.top;
+                        let mut y = 0;
+                        let mut message = 0;
+                        loop {
+                            if y > cursor_y {
+                                break None;
+                            }
+                            let line_count = if let Some(v) = msgs.next() {
+                                v
+                            } else {
+                                break None;
+                            };
+
+                            let height = line_advance * line_count as i32 +
+                                // Don't add spacing on the last message
+                                if msgs.peek().is_none() { self.message_spacing } else { 0 };
+                            if cursor_y >= y && cursor_y < y + height {
+                                break Some(message);
+                            }
+                            y += height;
+                            message += 1;
                         }
                     } else {
                         None
