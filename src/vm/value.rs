@@ -40,6 +40,10 @@ impl Value {
         }
     }
 
+    pub fn into_bool(self) -> Result<bool> {
+        self.into_int().map(|v| v != 0)
+    }
+
     pub fn into_float(self) -> Result<f32> {
         if let Value::Float(v) = self {
             Ok(v)

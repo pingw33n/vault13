@@ -182,6 +182,11 @@ impl World {
         self.objects.bounds(obj, &self.camera.hex())
     }
 
+    pub fn is_object_in_camera(&self, obj: object::Handle) -> bool {
+        let bounds = self.object_bounds(obj);
+        self.camera.viewport.intersects(&bounds)
+    }
+
     pub fn object_hit_test(&self, p: impl Into<Point>) -> Vec<(object::Handle, object::Hit)> {
         self.objects.hit_test(p.into().elevated(self.elevation()), &self.camera.viewport,
             &self.camera.hex(), self.egg())

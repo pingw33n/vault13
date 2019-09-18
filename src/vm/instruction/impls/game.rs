@@ -559,6 +559,18 @@ pub fn obj_name(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn obj_on_screen(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    let r = ctx.ext.world.is_object_in_camera(obj);
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a1r1!(ctx.prg, obj, r);
+
+    Ok(())
+}
+
 pub fn obj_unlock(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
@@ -700,7 +712,7 @@ pub fn set_light_level(ctx: Context) -> Result<()> {
 }
 
 pub fn set_obj_visibility(ctx: Context) -> Result<()> {
-    let visible = ctx.prg.data_stack.pop()?.into_int()?;
+    let visible = ctx.prg.data_stack.pop()?.into_bool()?;
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
 

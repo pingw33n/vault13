@@ -593,7 +593,7 @@ pub(in super) mod instructions {
         i!(ObjItemSubtype,              unimplemented),
         i!(ObjLock,                     obj_lock),
         i!(ObjName,                     obj_name),
-        i!(ObjOnScreen,                 unimplemented),
+        i!(ObjOnScreen,                 obj_on_screen),
         i!(ObjOpen,                     unimplemented),
         i!(ObjPid,                      unimplemented),
         i!(ObjSetLightLevel,            unimplemented),
