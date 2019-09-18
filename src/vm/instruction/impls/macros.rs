@@ -119,3 +119,9 @@ macro_rules! log_stub {
         log::warn!("called {:?} which is a noop stub!", ($vm_state).opcode.unwrap().0);
     }
 }
+
+macro_rules! log_error {
+    ($vm_state:expr, $msg:expr) => {
+        log::error!("[{:?}] {}", ($vm_state).opcode.unwrap().0, $msg);
+    }
+}

@@ -111,8 +111,7 @@ pub fn add_mult_objs_to_inven(ctx: Context) -> Result<()> {
 pub fn add_timer_event(ctx: Context) -> Result<()> {
     let flags = ctx.prg.data_stack.pop()?.into_int()?;
     let ticks = ctx.prg.data_stack.pop()?.into_int()?;
-    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
-        .ok_or(Error::BadValue(BadValue::Content))?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
 
     log_a3!(ctx.prg, obj, ticks, flags);
     log_stub!(ctx.prg);
@@ -161,6 +160,18 @@ pub fn critter_add_trait(ctx: Context) -> Result<()> {
     ctx.prg.data_stack.push(r.into())?;
 
     log_a4r1!(ctx.prg, obj, kind, sub_kind, value, r);
+    log_stub!(ctx.prg);
+    Ok(())
+}
+
+pub fn critter_inven_obj(ctx: Context) -> Result<()> {
+    let query = ctx.prg.data_stack.pop()?.into_int()?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    let r = 0;
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a2r1!(ctx.prg, obj, query, r);
     log_stub!(ctx.prg);
     Ok(())
 }
@@ -597,6 +608,23 @@ pub fn metarule3(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn move_obj_inven_to_obj(ctx: Context) -> Result<()> {
+    let dst = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let src = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    if src.is_none() {
+        log_error!(ctx.prg, "src object is null");
+    }
+    if dst.is_none() {
+        log_error!(ctx.prg, "dst object is null");
+    }
+
+    log_a2!(ctx.prg, src, dst);
+    log_stub!(ctx.prg);
+
+    Ok(())
+}
+
 pub fn obj_art_fid(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
@@ -606,6 +634,22 @@ pub fn obj_art_fid(ctx: Context) -> Result<()> {
     ctx.prg.data_stack.push(Value::Int(r.packed() as i32))?;
     log_a1r1!(ctx.prg, obj, r);
 
+    Ok(())
+}
+
+pub fn obj_can_see_obj(ctx: Context) -> Result<()> {
+    let obj2 = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let obj1 = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    if obj1.is_none() || obj2.is_none() {
+        log_error!(ctx.prg, "obj1 or obj2 is null");
+    }
+
+    let r = false;
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a2r1!(ctx.prg, obj1, obj2, r);
+    log_stub!(ctx.prg);
     Ok(())
 }
 
@@ -654,6 +698,23 @@ pub fn obj_on_screen(ctx: Context) -> Result<()> {
 
     log_a1r1!(ctx.prg, obj, r);
 
+    Ok(())
+}
+
+pub fn obj_pid(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    if obj.is_none() {
+        log_error!(ctx.prg, "object is null");
+    }
+
+    let r = obj
+        .and_then(|obj| ctx.ext.world.objects().get(obj).borrow().pid)
+        .map(|pid| pid.pack() as i32)
+        .unwrap_or(-1);
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a1r1!(ctx.prg, obj, r);
     Ok(())
 }
 
