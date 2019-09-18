@@ -1,8 +1,12 @@
-use bstring::BString;
+pub mod floating_text;
+
+use bstring::{bstr, BString};
 use if_chain::if_chain;
+use log::debug;
 use std::cell::RefCell;
 use std::cmp;
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 use crate::asset::EntityKind;
 use crate::asset::frame::{FrameId, FrameDb};
@@ -12,12 +16,18 @@ use crate::asset::proto::ProtoDb;
 use crate::game::GameTime;
 use crate::game::object::{self, DamageFlag, Egg, Object, Objects, SubObject};
 use crate::graphics::{EPoint, Point, Rect};
+use crate::graphics::font::Fonts;
+use crate::graphics::geometry::TileGridView;
 use crate::graphics::geometry::camera::Camera;
 use crate::graphics::geometry::hex::{self, Direction};
 use crate::graphics::lighting::light_grid::LightGrid;
 use crate::graphics::map::*;
 use crate::graphics::render::Canvas;
 use crate::util::array2d::Array2d;
+
+use floating_text::FloatingText;
+
+const MAX_FLOATING_TEXTS: usize = 19;
 
 pub struct World {
     proto_db: Rc<ProtoDb>,
@@ -28,7 +38,11 @@ pub struct World {
     sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
     objects: Objects,
     light_grid: LightGrid,
+    floating_texts: Vec<FloatingText>,
     dude_obj: Option<object::Handle>,
+    update_time: Instant,
+    fonts: Rc<Fonts>,
+
     pub dude_name: BString,
     pub game_time: GameTime,
     pub ambient_light: u32,
@@ -42,7 +56,10 @@ impl World {
             hex_grid: hex::TileGrid,
             viewport: Rect,
             sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
-            objects: Objects) -> Self {
+            objects: Objects,
+            update_time: Instant,
+            fonts: Rc<Fonts>,
+    ) -> Self {
         assert_eq!(sqr_tiles.len(), ELEVATION_COUNT as usize);
         let light_grid = LightGrid::new(
             hex_grid.width(),
@@ -60,7 +77,10 @@ impl World {
             sqr_tiles,
             objects,
             light_grid,
+            floating_texts: Vec::new(),
             dude_obj: None,
+            update_time,
+            fonts,
             dude_name: BString::new(),
             game_time: GameTime::from_decis(0),
             ambient_light: 0x10000,
@@ -221,6 +241,30 @@ impl World {
         }
     }
 
+    pub fn show_floating_text(&mut self,
+        obj: Option<object::Handle>,
+        text: &bstr,
+        options: floating_text::Options,
+    ) -> bool {
+        self.hide_floating_text(obj);
+        if self.floating_texts.len() < MAX_FLOATING_TEXTS {
+            self.floating_texts.push(FloatingText::new(
+                obj, text, &self.fonts, options, self.update_time));
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn hide_floating_text(&mut self, obj: Option<object::Handle>) {
+        self.floating_texts.retain(|ft| ft.obj != obj);
+    }
+
+    pub fn update(&mut self, time: Instant) {
+        self.update_time = time;
+        self.expire_floating_texts();
+    }
+
     pub fn render(&self, canvas: &mut Canvas, draw_roof: bool) {
         let elevation = self.elevation();
         render_floor(canvas, &self.camera.sqr(), &self.camera.viewport,
@@ -256,7 +300,7 @@ impl World {
 
         self.objects().render_outlines(canvas, elevation, &self.camera.viewport, &self.camera.hex());
 
-        // TODO render floating text objects.
+        self.render_floating_texts(canvas);
     }
 
     fn update_light_grid(objects: &Objects, light_grid: &mut LightGrid, h: object::Handle,
@@ -279,6 +323,36 @@ impl World {
         } else {
             None
         }
+    }
+
+    fn render_floating_texts(&self, canvas: &mut dyn Canvas) {
+        for floating_text in &self.floating_texts {
+            let screen_pos = if let Some(obj) = floating_text.obj {
+                let pos = if let Some(pos) = self.objects.get(obj).borrow().pos {
+                    pos
+                } else {
+                    debug!("not showing floating text for {:?} because it is not on the hex grid",
+                        floating_text.obj);
+                    continue;
+                };
+                if pos.elevation != self.elevation() {
+                    return;
+                }
+                self.camera.hex().to_screen(pos.point) + Point::new(16, 8) - Point::new(0, 60)
+            } else {
+                self.camera.viewport.center()
+            };
+            floating_text.render(screen_pos, &self.camera.viewport, canvas);
+        }
+    }
+
+    fn expire_floating_texts(&mut self) {
+        let update_time = self.update_time;
+        self.floating_texts.retain(|ft| {
+            let expires_at = ft.expires_at(Duration::from_millis(3_500),
+                Duration::from_millis(1_400));
+            expires_at > update_time
+        })
     }
 }
 

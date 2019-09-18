@@ -295,7 +295,9 @@ fn main() {
         hex_grid.clone(),
         viewport,
         map.sqr_tiles,
-        objects);
+        objects,
+        game_update_time.time(),
+        fonts.clone());
     world.game_time = START_GAME_TIME;
     world.rebuild_light_grid();
 
@@ -727,6 +729,8 @@ fn main() {
 
         if game_update_time.is_running() {
             let mut world = world.borrow_mut();
+            world.update(game_update_time.time());
+
             sequencer.update(&mut sequence::Update {
                 time: game_update_time.time(),
                 world: &mut world
