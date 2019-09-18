@@ -505,7 +505,7 @@ pub(in super) mod instructions {
         i!(Fadein,                      unimplemented),
         i!(Fadeout,                     unimplemented),
         i!(Fetch,                       fetch),
-        i!(FetchExternal,               unimplemented),
+        i!(FetchExternal,               fetch_external),
         i!(FetchGlobal,                 fetch_global),
         i!(FetchProcAddress,            unimplemented),
         i!(Fillrect,                    unimplemented),

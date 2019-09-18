@@ -19,6 +19,7 @@ pub enum Error {
     BadProcedureId(ProcedureId),
     BadState(Cow<'static, str>),
     BadValue(BadValue),
+    BadExternalVar(Rc<BString>),
     Halted,
     Misc(Cow<'static, str>),
     UnimplementedOpcode,

@@ -204,6 +204,18 @@ pub fn export_var(ctx: Context) -> Result<()> {
     }
 }
 
+pub fn fetch_external(ctx: Context) -> Result<()> {
+    let name = ctx.prg.data_stack.pop()?.into_string(&ctx.prg.names())?;
+
+    let r = ctx.ext.external_vars.get(&name).cloned()
+        .ok_or(Error::BadExternalVar(name.clone()))?
+        .unwrap_or(0.into());
+    ctx.prg.data_stack.push(r)?;
+
+    log_a1r1!(ctx.prg, &name, ctx.prg.data_stack.top().unwrap());
+    Ok(())
+}
+
 pub fn global_var(ctx: Context) -> Result<()> {
     persistent_var(ctx, PersistentVarScope::Global)
 }
@@ -395,8 +407,7 @@ pub fn store_external(ctx: Context) -> Result<()> {
     let value = ctx.prg.data_stack.pop()?;
     let name = name.into_string(&ctx.prg.names())?;
     let v = ctx.ext.external_vars.get_mut(&name)
-        .ok_or_else(|| Error::Misc(format!("external variable `{}` doesn't exist",
-            name.display()).into()))?;
+        .ok_or_else(|| Error::BadExternalVar(name.clone()))?;
     *v = Some(value);
     log_a2!(ctx.prg, &name, v);
     Ok(())
