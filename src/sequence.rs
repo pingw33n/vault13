@@ -64,13 +64,13 @@ pub struct Cleanup<'a> {
 
 pub struct Sequencer {
     last_time: Instant,
-    sequences: Vec<Box<Sequence>>,
+    sequences: Vec<Box<dyn Sequence>>,
 }
 
 impl Sequencer {
-    pub fn new() -> Self {
+    pub fn new(now: Instant) -> Self {
         Self {
-            last_time: Instant::now(),
+            last_time: now,
             sequences: Vec::new(),
         }
     }

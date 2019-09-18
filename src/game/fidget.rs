@@ -16,9 +16,9 @@ pub struct Fidget {
 }
 
 impl Fidget {
-    pub fn new() -> Self {
+    pub fn new(now: Instant) -> Self {
         Self {
-            next_time: Instant::now() + Self::next_delay(0),
+            next_time: now + Self::next_delay(0),
         }
     }
 

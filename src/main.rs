@@ -283,6 +283,10 @@ fn main() {
         }
     }
 
+    let start = Instant::now();
+    let mut timer = Timer::new(start);
+    let mut game_update_time = PausableTime::new(start);
+
     let viewport = Rect::with_size(0, 0, 640, 380);
     let mut world = World::new(
         proto_db.clone(),
@@ -324,7 +328,7 @@ fn main() {
 
     world.camera_mut().look_at(map.entrance.point);
 
-    let mut sequencer = Sequencer::new();
+    let mut sequencer = Sequencer::new(game_update_time.time());
 
     let ui = &mut Ui::new(frm_db.clone(), fonts.clone(), 640, 480);
     ui.set_cursor(ui::Cursor::Arrow);
@@ -438,7 +442,7 @@ fn main() {
         }
     }
 
-    let mut fidget = Fidget::new();
+    let mut fidget = Fidget::new(game_update_time.time());
 
     let mut draw_debug = true;
 
@@ -455,10 +459,6 @@ fn main() {
     let mut object_action = None;
 
     let mut paused = false;
-
-    let start = Instant::now();
-    let mut timer = Timer::new(start);
-    let mut game_update_time = PausableTime::new(start);
 
     'running: loop {
         for event in event_pump.poll_iter() {
