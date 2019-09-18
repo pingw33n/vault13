@@ -12,7 +12,10 @@ use crate::asset::script::ProgramId;
 use crate::game::dialog::Dialog;
 use crate::game::object::Object;
 use crate::game::script::Sid;
+use crate::game::world::floating_text;
 use crate::graphics::EPoint;
+use crate::graphics::color::*;
+use crate::graphics::font::FontKey;
 use crate::graphics::geometry::hex::Direction;
 use crate::sequence::Sequence;
 use crate::sequence::chain::Chain;
@@ -210,6 +213,89 @@ pub fn end_dialogue(ctx: Context) -> Result<()> {
     *ctx.ext.dialog = None;
     log_!(ctx.prg);
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[repr(u32)]
+enum FloatingTextStyle {
+    Sequential  = 0xffff_fffe,
+    Warning     = 0xffff_ffff,
+    Normal      = 0,
+    Black       = 1,
+    Red         = 2,
+    Green       = 3,
+    Blue        = 4,
+    Purple      = 5,
+    NearWhite   = 6,
+    LightRed    = 7,
+    Yellow      = 8,
+    White       = 9,
+    Gray        = 10,
+    DarkGray    = 11,
+    LightGray   = 12,
+}
+
+impl FloatingTextStyle {
+    const SEQ_MIN: u32 = 1;
+    const SEQ_MAX: u32 = 12;
+}
+
+pub fn float_msg(ctx: Context) -> Result<()> {
+    let style = FloatingTextStyle::from_i32(ctx.prg.data_stack.pop()?.into_int()?);
+    let msg = ctx.prg.data_stack.pop()?.into_string(ctx.prg.strings())?;
+    let mut obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    if obj.is_some() {
+        use FloatingTextStyle::*;
+        let style = style.unwrap_or(Normal);
+
+        if style == Sequential {
+            // In original it's true sequential, but random is easier to implement and
+            // should provide the same features.
+            FloatingTextStyle::from_i32(rand(-1, 12)).unwrap()
+        } else {
+            style
+        };
+        let mut font_key = FontKey::antialiased(1);
+        let color = match style {
+            Sequential => unreachable!(),
+            Warning => {
+                font_key = FontKey::antialiased(3);
+                obj = None;
+                RED
+            }
+            Normal | Yellow => Rgb15::from_packed(0x7feb),
+            Black | Purple | Gray => BLACK,
+            Red => RED,
+            Green => GREEN,
+            Blue => BLUE,
+            NearWhite => Rgb15::from_packed(0x5294),
+            LightRed => Rgb15::from_packed(0x7d4a),
+            White => WHITE,
+            DarkGray => Rgb15::from_packed(0x2108),
+            LightGray => Rgb15::from_packed(0x3def),
+        };
+        ctx.ext.world.show_floating_text(obj, &*msg, floating_text::Options {
+            font_key,
+            color,
+            outline_color: Some(BLACK),
+        });
+    }
+
+    log_a3!(ctx.prg, obj, msg, style);
+
+    Ok(())
+}
+
+#[test]
+fn floating_text_style() {
+    assert_eq!(FloatingTextStyle::from_i32(-2), Some(FloatingTextStyle::Sequential));
+    assert_eq!(FloatingTextStyle::from_i32(-1), Some(FloatingTextStyle::Warning));
+
+    assert!(FloatingTextStyle::SEQ_MIN <= FloatingTextStyle::SEQ_MAX);
+    for i in FloatingTextStyle::SEQ_MIN..=FloatingTextStyle::SEQ_MAX {
+        assert!(FloatingTextStyle::from_u32(i).is_some());
+    }
 }
 
 pub fn game_ticks(ctx: Context) -> Result<()> {

@@ -512,7 +512,7 @@ pub(in super) mod instructions {
         i!(Fillwin,                     unimplemented),
         i!(Fillwin3X3,                  unimplemented),
         i!(FixedParam,                  unimplemented),
-        i!(FloatMsg,                    unimplemented),
+        i!(FloatMsg,                    float_msg),
         i!(Floor,                       unimplemented),
         i!(Fork,                        unimplemented),
         i!(Format,                      unimplemented),
