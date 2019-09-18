@@ -153,7 +153,7 @@ impl Scripts {
             Entry::Vacant(e) => {
                 let db = &self.db;
                 let (code, info) = db.load(program_id)?;
-                let program = Rc::new(self.vm.load(code)
+                let program = Rc::new(self.vm.load(info.name.clone(), code)
                     .map_err(|e| io::Error::new(io::ErrorKind::InvalidData,
                         format!("error loading program {} ({}): {:?}",
                         info.name, program_id.val(), e)))?);
@@ -221,7 +221,11 @@ impl Scripts {
         }
         vm_ctx.self_obj = script.object;
         let prg = self.vm.program_state_mut(script.program);
-        debug!("[{:?}#{}] executing proc {:?} ({:?})", sid, script.program_id.val(), proc_id,
+        debug!("[{:?}#{}:{}] executing proc {:?} ({:?})",
+            sid,
+            script.program_id.val(),
+            prg.program().name(),
+            proc_id,
             prg.program().proc(proc_id).map(|p| p.name()));
         let r = prg.execute_proc(proc_id, vm_ctx).unwrap();
         if r.is_some() {

@@ -234,6 +234,7 @@ impl Procedure {
 }
 
 pub struct Program {
+    name: String,
     config: Rc<VmConfig>,
     code: Box<[u8]>,
     names: StringMap,
@@ -243,7 +244,7 @@ pub struct Program {
 }
 
 impl Program {
-    fn new(config: Rc<VmConfig>, code: Box<[u8]>) -> Result<Self> {
+    fn new(name: String, code: Box<[u8]>, config: Rc<VmConfig>) -> Result<Self> {
         const PROC_TABLE_START: usize = 42;
         const PROC_TABLE_HEADER_LEN: usize = 4;
         const PROC_ENTRY_LEN: usize = 24;
@@ -269,6 +270,7 @@ impl Program {
         let (procs, proc_by_name) = Self::read_proc_table(&code[PROC_TABLE_START..], &names)?;
 
         Ok(Self {
+            name,
             config,
             code,
             names,
@@ -276,6 +278,10 @@ impl Program {
             procs,
             proc_by_name,
         })
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn proc(&self, id: ProcedureId) -> Option<&Procedure> {
@@ -625,8 +631,8 @@ impl Vm {
         }
     }
 
-    pub fn load(&self, code: Box<[u8]>) -> Result<Program> {
-        Program::new(self.config.clone(), code)
+    pub fn load(&self, name: String, code: Box<[u8]>) -> Result<Program> {
+        Program::new(name, code, self.config.clone())
     }
 
     pub fn insert(&mut self, program: Rc<Program>) -> Handle {
