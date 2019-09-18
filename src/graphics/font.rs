@@ -83,24 +83,29 @@ pub struct Font {
 }
 
 impl Font {
-    pub fn measure_max_line_width(&self, text: &bstr) -> i32 {
-        let mut max_line_width = 0;
-        for line in text.lines() {
-            let mut line_width = 0;
-            for &c in line {
-                line_width += self.glyphs.get(c as usize)
-                    .map(|g| g.width + self.horz_spacing)
-                    .unwrap_or(0);
-            }
-            if line_width > max_line_width {
-                max_line_width = line_width;
-            }
+    /// Return width of a line of text without applying wrapping.
+    pub fn line_width(&self, line: &bstr) -> i32 {
+        let mut r = 0;
+        for &c in line {
+            r += self.glyphs.get(c as usize)
+                .map(|g| g.width + self.horz_spacing)
+                .unwrap_or(0);
         }
-        max_line_width
+        r
     }
 
-    pub fn measure_text_height(&self, text: &bstr) -> i32 {
-        text.lines().count() as i32 * self.height
+    /// Returns width of the `text` with wrapping applied. The result is the width of the longest
+    /// line in text.
+    pub fn text_width(&self, text: &bstr, horz_overflow: Option<Overflow>) -> i32 {
+        self.lines(text, horz_overflow)
+            .map(|l| self.line_width(l))
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// Returns height of the `text` with wrapping applied.
+    pub fn text_height(&self, text: &bstr, horz_overflow: Option<Overflow>) -> i32 {
+        self.lines(text, horz_overflow).count() as i32 * self.vert_advance()
     }
 
     pub fn vert_advance(&self) -> i32 {
@@ -121,15 +126,15 @@ impl Font {
             options: &DrawOptions) {
         let mut y = match options.vert_align {
             VertAlign::Top => y,
-            VertAlign::Middle => y - self.measure_text_height(text) / 2,
-            VertAlign::Bottom => y - self.measure_text_height(text),
+            VertAlign::Middle => y - self.text_height(text, options.horz_overflow) / 2,
+            VertAlign::Bottom => y - self.text_height(text, options.horz_overflow),
         };
 
         for line in self.lines(text, options.horz_overflow) {
             let mut x = match options.horz_align {
                 HorzAlign::Left => x,
-                HorzAlign::Center => x - self.measure_max_line_width(line) / 2,
-                HorzAlign::Right => x - self.measure_max_line_width(line),
+                HorzAlign::Center => x - self.text_width(line, options.horz_overflow) / 2,
+                HorzAlign::Right => x - self.text_width(line, options.horz_overflow),
             };
             for &c in line {
                 let glyph = &self.glyphs[c as usize];
@@ -162,6 +167,10 @@ impl<'a, 'b> LineRanges0<'a, 'b> {
             horz_overflow,
             i: 0,
         }
+    }
+
+    fn can_wrap_after(c: u8) -> bool {
+        c.is_ascii_whitespace() || c == b'-'
     }
 }
 
@@ -203,7 +212,7 @@ impl Iterator for LineRanges0<'_, '_> {
                         OverflowMode::Truncate => {}
                         OverflowMode::WordWrap => {
                             if let Some(i) = self.text[start..end].iter()
-                                .rposition(|&c| c == b' ')
+                                .rposition(|&c| Self::can_wrap_after(c))
                                 .map(|i| start + i)
                             {
                                 end = i;
@@ -220,11 +229,11 @@ impl Iterator for LineRanges0<'_, '_> {
         if start < self.text.len() {
             let mut start = start;
             // Trim leading whitespace if this is not the first line.
-            while start > 0 && start < end && self.text[start] == b' ' {
+            while start > 0 && start < end && self.text[start].is_ascii_whitespace() {
                 start += 1;
             }
             // Trim trailing whitespace.
-            while end > start + 1 && self.text[end - 1] == b' ' {
+            while end > start + 1 && self.text[end - 1].is_ascii_whitespace() {
                 end -= 1;
             }
             Some(Range { start, end })
