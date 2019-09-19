@@ -54,16 +54,7 @@ pub struct Playfield {
 
 impl Playfield {
     pub fn new(world: Rc<RefCell<World>>) -> Self {
-        let mut hex_cursor = Object::new(FrameId::MOUSE_HEX_OUTLINE, None,
-            Some(EPoint::new(0, (0, 0))));
-        hex_cursor.flags = Flag::WalkThru | Flag::Flat | Flag::NoBlock | Flag::Temp |
-            Flag::LightThru | Flag::ShootThru;
-        hex_cursor.outline = Some(object::Outline {
-            style: OutlineStyle::Red,
-            translucent: true,
-            disabled: false,
-        });
-        let hex_cursor = world.borrow_mut().insert_object(hex_cursor);
+        let hex_cursor = Self::insert_hex_cursor(&mut world.borrow_mut());
 
         Self {
             world,
@@ -85,6 +76,26 @@ impl Playfield {
         } else {
             None
         }
+    }
+
+    pub fn ensure_hex_cursor(&mut self) {
+        let world = &mut self.world.borrow_mut();
+        if !world.objects().contains(self.hex_cursor) {
+            self.hex_cursor = Self::insert_hex_cursor(world);
+        }
+    }
+
+    fn insert_hex_cursor(world: &mut World) -> object::Handle {
+        let mut hex_cursor = Object::new(FrameId::MOUSE_HEX_OUTLINE, None,
+            Some(EPoint::new(0, (0, 0))));
+        hex_cursor.flags = Flag::WalkThru | Flag::Flat | Flag::NoBlock | Flag::Temp |
+            Flag::LightThru | Flag::ShootThru;
+        hex_cursor.outline = Some(object::Outline {
+            style: OutlineStyle::Red,
+            translucent: true,
+            disabled: false,
+        });
+        world.insert_object(hex_cursor)
     }
 
     fn update_hex_cursor_pos(&mut self, screen_pos: Point) -> (EPoint, bool) {
@@ -139,7 +150,7 @@ impl Widget for Playfield {
                 self.update_hex_cursor_visibility(None);
             }
             Event::MouseDown { pos, button } => {
-                if button == MouseButton::Left {
+                if button == MouseButton::Left && self.pick_mode == PickMode::Object {
                     let world = self.world.borrow();
                     if let Some(obj) = world.pick_object(pos, true) {
                         self.action_menu_state = Some((ctx.now, obj));

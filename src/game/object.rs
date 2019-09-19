@@ -394,8 +394,23 @@ impl Objects {
         }
     }
 
+    pub fn elevation_count(&self) -> u32 {
+        self.by_pos.len() as u32
+    }
+
     pub fn contains(&self, obj: Handle) -> bool {
         self.objects.contains_key(obj.0)
+    }
+
+    pub fn clear(&mut self) {
+        self.handles.clear();
+        self.objects.clear();
+        for elev in self.by_pos.iter_mut() {
+            for v in elev.as_slice_mut() {
+                *v = Vec::new();
+            }
+        }
+        self.detached.clear();
     }
 
     pub fn insert(&mut self, obj: Object) -> Handle {
@@ -909,7 +924,7 @@ pub enum DamageFlag {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::geometry::hex::View;
+    use crate::graphics::geometry::hex::View;
 
     #[test]
     fn bounds() {

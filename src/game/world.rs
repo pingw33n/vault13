@@ -26,6 +26,10 @@ use crate::graphics::render::Canvas;
 use crate::util::array2d::Array2d;
 
 use floating_text::FloatingText;
+use crate::util::VecExt;
+
+// scr_game_init()
+const START_GAME_TIME: GameTime = GameTime::from_decis(302400);
 
 const MAX_FLOATING_TEXTS: usize = 19;
 
@@ -50,22 +54,20 @@ pub struct World {
 
 impl World {
     pub fn new(
-            proto_db: Rc<ProtoDb>,
-            frm_db: Rc<FrameDb>,
-            critter_names: Messages,
-            hex_grid: hex::TileGrid,
-            viewport: Rect,
-            sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
-            objects: Objects,
-            update_time: Instant,
-            fonts: Rc<Fonts>,
+        proto_db: Rc<ProtoDb>,
+        frm_db: Rc<FrameDb>,
+        critter_names: Messages,
+        hex_grid: hex::TileGrid,
+        viewport: Rect,
+        update_time: Instant,
+        fonts: Rc<Fonts>,
     ) -> Self {
-        assert_eq!(sqr_tiles.len(), ELEVATION_COUNT as usize);
         let light_grid = LightGrid::new(
             hex_grid.width(),
             hex_grid.height(),
             ELEVATION_COUNT);
-        let mut r = Self {
+        let objects = Objects::new(hex_grid.clone(), ELEVATION_COUNT, proto_db.clone(), frm_db.clone());
+        Self {
             proto_db,
             frm_db,
             critter_names,
@@ -74,7 +76,7 @@ impl World {
                 origin: Point::new(0, 0),
                 viewport,
             },
-            sqr_tiles,
+            sqr_tiles: Vec::with_default(ELEVATION_COUNT as usize),
             objects,
             light_grid,
             floating_texts: Vec::new(),
@@ -82,12 +84,9 @@ impl World {
             update_time,
             fonts,
             dude_name: BString::new(),
-            game_time: GameTime::from_decis(0),
+            game_time: START_GAME_TIME,
             ambient_light: 0x10000,
-        };
-        r.rebuild_light_grid();
-
-        r
+        }
     }
 
     pub fn proto_db(&self) -> &ProtoDb {
@@ -120,6 +119,21 @@ impl World {
 
     pub fn light_grid(&self) -> &LightGrid {
         &self.light_grid
+    }
+
+    pub fn clear(&mut self) {
+        for v in &mut self.sqr_tiles {
+            *v = None;
+        }
+        self.objects.clear();
+        self.floating_texts.clear();
+        self.dude_obj = None;
+        self.light_grid.clear();
+    }
+
+    pub fn set_sqr_tiles(&mut self, sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>) {
+        assert_eq!(sqr_tiles.len(), ELEVATION_COUNT as usize);
+        self.sqr_tiles = sqr_tiles;
     }
 
     pub fn insert_object(&mut self, object: Object) -> object::Handle {

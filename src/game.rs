@@ -3,11 +3,9 @@ pub mod fidget;
 pub mod object;
 pub mod script;
 pub mod sequence;
+pub mod state;
 pub mod ui;
 pub mod world;
-
-// As in scr_game_init()
-pub const START_GAME_TIME: GameTime = GameTime::from_decis(302400);
 
 #[derive(Clone, Copy)]
 pub struct GameTime(u32);
