@@ -639,6 +639,23 @@ impl Objects {
         self.blocker_at(p, |h, _| h != obj)
     }
 
+    /// Returns object that would block sight from `obj` through tile at `pos`.
+    // obj_sight_blocking_at()
+    pub fn sight_blocker_for_object(&self, pos: EPoint, obj: Handle) -> Option<Handle> {
+        for &h in self.at(pos) {
+            let o = &self.get(h).borrow();
+            if !o.flags.contains(Flag::TurnedOff) &&
+                !o.flags.contains(Flag::LightThru) &&
+                o.kind() != EntityKind::Scenery &&
+                o.kind() != EntityKind::Wall &&
+                h != obj
+            {
+                return Some(h);
+            }
+        }
+        None
+    }
+
     pub fn path_for_object(&self, obj: Handle, to: impl Into<Point>, smooth: bool, proto_db: &ProtoDb)
             -> Option<Vec<Direction>> {
         let o = self.get(obj).borrow();
