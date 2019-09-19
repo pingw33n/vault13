@@ -1,14 +1,17 @@
+use bstring::{bstr, BString};
+
 use crate::asset::frame::FrameId;
-use crate::graphics::Rect;
+use crate::asset::message::BULLET_STR;
+use crate::game::object;
+use crate::game::script::Sid;
+use crate::game::world::World;
+use crate::graphics::{Point, Rect};
+use crate::graphics::color::{Rgb15, GREEN};
+use crate::graphics::font::FontKey;
 use crate::graphics::sprite::{Sprite, Effect};
 use crate::ui::*;
 use crate::ui::message_panel::{MessagePanel, MouseControl};
 use crate::ui::panel::Panel;
-use crate::graphics::font::FontKey;
-use crate::graphics::color::{Rgb15, GREEN};
-use crate::asset::message::BULLET_STR;
-use bstring::{bstr, BString};
-use crate::game::script::Sid;
 
 pub struct OptionInfo {
     pub proc_id: Option<u32>,
@@ -20,11 +23,12 @@ pub struct Dialog {
     options_widget: Handle,
     options: Vec<OptionInfo>,
     sid: Sid,
+    saved_camera_origin: Point,
     pub running: bool,
 }
 
 impl Dialog {
-    pub fn show(ui: &mut Ui, sid: Sid) -> Self {
+    pub fn show(ui: &mut Ui, world: &mut World, obj: object::Handle) -> Self {
         let window = ui.new_window(Rect::with_size(0, 0, 640, 480),
             Some(Sprite::new(FrameId::ALLTLK)));
 
@@ -50,6 +54,15 @@ impl Dialog {
         ui.new_widget(window, Rect::with_size(129, 214 - 2 - 131, 1, 1), None, Some(spr),
             Panel::new());
 
+        let (obj_pos, sid) = {
+            let obj = world.objects().get(obj).borrow();
+            let (sid, _) = obj.script.unwrap();
+            (obj.pos.unwrap().point, sid)
+        };
+
+        let saved_camera_origin = world.camera().origin;
+        world.camera_mut().align(obj_pos, Point::new(640 / 2, 235 / 2));
+
         Self {
             window,
             reply,
@@ -57,11 +70,13 @@ impl Dialog {
             options: Vec::new(),
             running: false,
             sid,
+            saved_camera_origin,
         }
     }
 
-    pub fn hide(&self, ui: &mut Ui) {
+    pub fn hide(self, ui: &mut Ui, world: &mut World) {
         ui.remove(self.window);
+        world.camera_mut().origin = self.saved_camera_origin;
     }
 
     pub fn is(&self, widget: Handle) -> bool {

@@ -220,8 +220,7 @@ pub fn elevation(ctx: Context) -> Result<()> {
 }
 
 pub fn end_dialogue(ctx: Context) -> Result<()> {
-    ctx.ext.dialog.as_mut().unwrap().hide(ctx.ext.ui);
-    *ctx.ext.dialog = None;
+    ctx.ext.dialog.take().unwrap().hide(ctx.ext.ui, ctx.ext.world);
     log_!(ctx.prg);
     Ok(())
 }
@@ -880,9 +879,7 @@ pub fn start_gdialog(mut ctx: Context) -> Result<()> {
     // TODO handle head_id
 
     assert!(ctx.ext.dialog.is_none());
-    let obj = ctx.ext.world.objects().get(objh).borrow();
-    let (sid, _) = obj.script.unwrap();
-    *ctx.ext.dialog = Some(Dialog::show(ctx.ext.ui, sid));
+    *ctx.ext.dialog = Some(Dialog::show(ctx.ext.ui, ctx.ext.world, objh));
 
     log_a5!(ctx.prg, program_id, objh, reaction, head_id, background);
 

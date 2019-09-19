@@ -21,9 +21,14 @@ impl Camera {
         sqr::View::new(self.origin - Point::new(16, 2))
     }
 
+    /// Adjusts the `origin` so the center of tile at `hex_pos` is positioned in the center of viewport.
     pub fn look_at(&mut self, hex_pos: impl Into<Point>) {
-        self.origin = -hex::to_screen(hex_pos.into()) +
-            Point::new(self.viewport.width() / 2 - 16, self.viewport.height() / 2 - 8);
+        self.align(hex_pos, self.viewport.center())
+    }
+
+    /// Adjusts the `origin` so the center of tile at `hex_pos` is positioned at the `screen_pos`.
+    pub fn align(&mut self, hex_pos: impl Into<Point>, screen_pos: impl Into<Point>) {
+        self.origin = -hex::to_screen(hex_pos.into()) + screen_pos.into() - Point::new(16, 8);
     }
 }
 
