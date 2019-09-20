@@ -115,22 +115,58 @@ use crate::util::SmKey;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PredefinedProc {
+    Combat,
+    CombatIsOver,
+    CombatIsStarting,
+    Create,
+    Critter,
+    Damage,
+    Description,
+    Destroy,
+    Drop,
+    IsDropping,
+    LookAt,
     MapEnter,
-    MapUpdate,
     MapExit,
+    MapUpdate,
+    Pickup,
+    Push,
+    Spatial,
     Start,
     Talk,
+    TimedEvent,
+    Use,
+    UseObjOn,
+    UseSkillOn,
 }
 
 impl PredefinedProc {
     pub fn name(&self) -> &'static str {
         use PredefinedProc::*;
         match self {
+            Combat => "combat_is_over_p_proc",
+            CombatIsOver => "combat_is_starting_p_proc",
+            CombatIsStarting => "combat_p_proc",
+            Create => "create_p_proc",
+            Critter => "critter_p_proc",
+            Damage => "damage_p_proc",
+            Description => "description_p_proc",
+            Destroy => "destroy_p_proc",
+            Drop => "drop_p_proc",
+            IsDropping => "is_dropping_p_proc",
+            LookAt => "look_at_p_proc",
             MapEnter => "map_enter_p_proc",
-            MapUpdate => "map_update_p_proc",
             MapExit => "map_exit_p_proc",
+            MapUpdate => "map_update_p_proc",
+            Pickup => "pickup_p_proc",
+            Push => "push_p_proc",
+            Spatial => "spatial_p_proc",
             Start => "start",
             Talk => "talk_p_proc",
+            TimedEvent => "timed_event_p_proc",
+            Use => "use_obj_on_p_proc",
+            UseObjOn => "use_p_proc",
+            UseSkillOn => "use_skill_on_p_proc",
         }
     }
 }
