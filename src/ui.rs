@@ -1,6 +1,6 @@
 pub mod button;
+pub mod command;
 pub mod message_panel;
-pub mod out;
 pub mod panel;
 
 pub use sdl2::mouse::MouseButton;
@@ -15,12 +15,12 @@ use std::time::Instant;
 
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::graphics::{Point, Rect};
+use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::Sprite;
+use crate::ui::command::UiCommand;
 use crate::util::{SmKey, VecExt};
-use crate::ui::out::OutEvent;
-use crate::graphics::font::Fonts;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
@@ -80,7 +80,7 @@ pub struct Handle(SmKey);
 pub struct HandleInput<'a> {
     pub now: Instant,
     pub event: &'a SdlEvent,
-    pub out: &'a mut Vec<out::OutEvent>,
+    pub out: &'a mut Vec<command::UiCommand>,
 }
 
 pub struct Ui {
@@ -279,7 +279,7 @@ impl Ui {
         now: Instant,
         target: Handle,
         event: Event,
-        out: &mut Vec<out::OutEvent>)
+        out: &mut Vec<command::UiCommand>)
     {
         self.widgets[target.0].borrow_mut().handle_event(HandleEvent {
             now,
@@ -325,7 +325,7 @@ impl Ui {
         true
     }
 
-    pub fn update(&mut self, now: Instant, out: &mut Vec<out::OutEvent>) {
+    pub fn update(&mut self, now: Instant, out: &mut Vec<command::UiCommand>) {
         if self.simulate_mouse_move {
             self.simulate_mouse_move = false;
             self.fire_mouse_move(now, out);
@@ -440,7 +440,7 @@ impl Ui {
         }
     }
 
-    fn update_mouse_focus(&mut self, now: Instant, out: &mut Vec<OutEvent>)
+    fn update_mouse_focus(&mut self, now: Instant, out: &mut Vec<UiCommand>)
         -> Option<Handle>
     {
         let target = self.find_mouse_event_target()?;
@@ -451,7 +451,7 @@ impl Ui {
         Some(target)
     }
 
-    fn fire_mouse_move(&mut self, now: Instant, out: &mut Vec<OutEvent>) -> bool {
+    fn fire_mouse_move(&mut self, now: Instant, out: &mut Vec<UiCommand>) -> bool {
         if let Some(target) = self.update_mouse_focus(now, out) {
             self.widget_handle_event(now, target,
                 Event::MouseMove { pos: self.cursor_pos }, out);
@@ -550,7 +550,7 @@ pub struct HandleEvent<'a> {
     pub base: &'a mut Base,
     pub event: Event,
     capture: &'a mut Option<Handle>,
-    pub out: &'a mut Vec<out::OutEvent>,
+    pub out: &'a mut Vec<command::UiCommand>,
     pub cursor_pos: Point,
 }
 

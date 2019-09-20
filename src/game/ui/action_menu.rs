@@ -6,7 +6,7 @@ use crate::graphics::{Point, Rect};
 use crate::graphics::geometry::hex::Direction;
 use crate::graphics::sprite::Sprite;
 use crate::ui::*;
-use crate::ui::out::{OutEvent, OutEventData};
+use crate::ui::command::{UiCommand, UiCommandData};
 
 pub fn show(actions: Vec<Action>, win: Handle, ui: &mut Ui) -> Handle {
     assert!(actions.len() > 0);
@@ -125,9 +125,9 @@ impl Widget for ActionMenu {
             },
             Event::MouseUp { pos, .. } => {
                 self.update_selection(ctx.base, pos);
-                ctx.out.push(OutEvent {
+                ctx.out.push(UiCommand {
                     source: ctx.this,
-                    data: OutEventData::Action { action: self.actions[self.selection as usize] },
+                    data: UiCommandData::Action { action: self.actions[self.selection as usize] },
                 });
             }
             _ => {}

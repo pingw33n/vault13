@@ -209,7 +209,7 @@ fn main() {
 
     let mut draw_debug = true;
 
-    let ui_out_events = &mut Vec::new();
+    let ui_commands = &mut Vec::new();
 
     'running: loop {
         // Handle input.
@@ -218,7 +218,7 @@ fn main() {
             let mut handled = ui.handle_input(ui::HandleInput {
                 now: timer.time(),
                 event: &event,
-                out: ui_out_events,
+                out: ui_commands,
             });
             if !handled {
                 handled = state.handle_event(&event, ui);
@@ -238,10 +238,10 @@ fn main() {
 
         // Update.
 
-        ui.update(timer.time(), ui_out_events);
+        ui.update(timer.time(), ui_commands);
 
-        for event in ui_out_events.drain(..) {
-            state.handle_ui_out_event(event, ui);
+        for event in ui_commands.drain(..) {
+            state.handle_ui_command(event, ui);
         }
 
         state.update(timer.delta());

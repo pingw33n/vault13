@@ -14,7 +14,7 @@ use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render;
 use crate::graphics::sprite::{OutlineStyle, Sprite};
 use crate::ui::*;
-use crate::ui::out::{OutEvent, OutEventData, ObjectPickKind};
+use crate::ui::command::{UiCommand, UiCommandData, ObjectPickKind};
 
 use super::action_menu::{Action, Placement};
 
@@ -136,9 +136,9 @@ impl Widget for Playfield {
                     PickMode::Hex => {
                         let (pos, changed) = self.update_hex_cursor_pos(pos);
                         if changed {
-                            ctx.out.push(OutEvent {
+                            ctx.out.push(UiCommand {
                                 source: ctx.this,
-                                data: OutEventData::HexPick { action: false, pos },
+                                data: UiCommandData::HexPick { action: false, pos },
                             });
                         }
                     }
@@ -164,17 +164,17 @@ impl Widget for Playfield {
                         match self.pick_mode {
                             PickMode::Hex => {
                                 let (pos, _) = self.update_hex_cursor_pos(pos);
-                                ctx.out.push(OutEvent {
+                                ctx.out.push(UiCommand {
                                     source: ctx.this,
-                                    data: OutEventData::HexPick { action: true, pos },
+                                    data: UiCommandData::HexPick { action: true, pos },
                                 });
                             }
                             PickMode::Object => {
                                 let world = self.world.borrow();
                                 if let Some(obj) = world.pick_object(pos, true) {
-                                    ctx.out.push(OutEvent {
+                                    ctx.out.push(UiCommand {
                                         source: ctx.this,
-                                        data: OutEventData::ObjectPick {
+                                        data: UiCommandData::ObjectPick {
                                             kind: ObjectPickKind::DefaultAction,
                                             obj,
                                         },
@@ -193,9 +193,9 @@ impl Widget for Playfield {
                                 ctx.base.set_cursor(Some(Cursor::Hidden));
                                 let (pos, changed) = self.update_hex_cursor_pos(pos);
                                 if changed {
-                                    ctx.out.push(OutEvent {
+                                    ctx.out.push(UiCommand {
                                         source: ctx.this,
-                                        data: OutEventData::HexPick { action: false, pos },
+                                        data: UiCommandData::HexPick { action: false, pos },
                                     });
                                 }
                                 PickMode::Hex
@@ -219,9 +219,9 @@ impl Widget for Playfield {
                         self.action_menu_state = None;
                         self.default_action_icon = None;
 
-                        ctx.out.push(OutEvent {
+                        ctx.out.push(UiCommand {
                             source: ctx.this,
-                            data: OutEventData::ObjectPick {
+                            data: UiCommandData::ObjectPick {
                                 kind: ObjectPickKind::ActionMenu,
                                 obj,
                             },
@@ -234,9 +234,9 @@ impl Widget for Playfield {
                     PickState::Pending { start, pos } => if ctx.now - start >= Duration::from_millis(500) {
                         let world = self.world.borrow();
                         if let Some(obj) = world.pick_object(pos, true) {
-                            ctx.out.push(OutEvent {
+                            ctx.out.push(UiCommand {
                                 source: ctx.this,
-                                data: OutEventData::ObjectPick {
+                                data: UiCommandData::ObjectPick {
                                     kind: ObjectPickKind::Hover,
                                     obj,
                                 },

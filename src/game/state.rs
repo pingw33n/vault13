@@ -31,8 +31,8 @@ use crate::graphics::geometry::hex::{self, Direction};
 use crate::sequence::{self, *};
 use crate::state::AppState;
 use crate::ui::{self, Ui};
+use crate::ui::command::{UiCommand, UiCommandData, ObjectPickKind};
 use crate::ui::message_panel::MessagePanel;
-use crate::ui::out::{OutEvent, OutEventData, ObjectPickKind};
 use crate::util::EnumExt;
 use crate::vm::{Vm, PredefinedProc};
 use crate::vm::suspend::Suspend;
@@ -350,9 +350,9 @@ impl AppState for GameState {
         true
     }
 
-    fn handle_ui_out_event(&mut self, event: OutEvent, ui: &mut Ui) {
-        match event.data {
-            OutEventData::ObjectPick { kind, obj: objh } => {
+    fn handle_ui_command(&mut self, command: UiCommand, ui: &mut Ui) {
+        match command.data {
+            UiCommandData::ObjectPick { kind, obj: objh } => {
                 let picked_dude = Some(objh) == self.world.borrow().dude_obj();
                 let default_action = if picked_dude {
                     Action::Rotate
@@ -406,7 +406,7 @@ impl AppState for GameState {
                     ObjectPickKind::DefaultAction => self.handle_action(ui, objh, default_action),
                 }
             }
-            OutEventData::HexPick { action, pos } => {
+            UiCommandData::HexPick { action, pos } => {
                 if action {
                     let world = self.world.borrow();
                     let dude_objh = world.dude_obj().unwrap();
@@ -436,17 +436,17 @@ impl AppState for GameState {
                     };
                 }
             }
-            OutEventData::Action { action } => {
+            UiCommandData::Action { action } => {
                 let object_action = self.object_action.take().unwrap();
                 self.handle_action(ui, object_action.obj, action);
                 action_menu::hide(object_action.menu, ui);
                 self.time.set_paused(false);
             }
-            OutEventData::Pick { id } => {
+            UiCommandData::Pick { id } => {
                 let (sid, proc_id) = {
                     let dialog = self.dialog.as_mut().unwrap();
 
-                    assert!(dialog.is(event.source));
+                    assert!(dialog.is(command.source));
                     let proc_id = dialog.option(id).proc_id;
                     dialog.clear_options(ui);
 
