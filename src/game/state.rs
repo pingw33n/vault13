@@ -34,8 +34,7 @@ use crate::ui::{self, Ui};
 use crate::ui::command::{UiCommand, UiCommandData, ObjectPickKind};
 use crate::ui::message_panel::MessagePanel;
 use crate::util::EnumExt;
-use crate::vm::{Vm, PredefinedProc};
-use crate::vm::suspend::Suspend;
+use crate::vm::{Vm, PredefinedProc, Suspend};
 
 const SCROLL_STEP: i32 = 10;
 
@@ -213,8 +212,8 @@ impl GameState {
             // PredefinedProc::Start for map script is never called.
             // MapEnter in map script is called before anything else.
             if let Some(sid) = self.scripts.map_sid() {
-                assert!(self.scripts.execute_predefined_proc(sid, PredefinedProc::MapEnter, ctx).is_none(),
-                    "can't suspend in MapEnter");
+                self.scripts.execute_predefined_proc(sid, PredefinedProc::MapEnter, ctx)
+                    .suspend.map(|_| panic!("can't suspend in MapEnter"));
             }
 
             self.scripts.execute_procs(PredefinedProc::Start, ctx, |sid| sid.kind() != ScriptKind::System);
@@ -256,7 +255,7 @@ impl GameState {
                             ui,
                             message_panel: self.message_panel,
                             map_id: self.map_id.unwrap(),
-                        })
+                        }).suspend
                     {
                         None | Some(Suspend::GsayEnd) => {}
                     }
@@ -453,7 +452,7 @@ impl AppState for GameState {
                     (dialog.sid(), proc_id)
                 };
                 let finished = if let Some(proc_id) = proc_id {
-                    assert!(self.scripts.execute_proc(sid, proc_id,
+                    self.scripts.execute_proc(sid, proc_id,
                         &mut script::Context {
                             ui,
                             world: &mut self.world.borrow_mut(),
@@ -461,7 +460,7 @@ impl AppState for GameState {
                             dialog: &mut self.dialog,
                             message_panel: self.message_panel,
                             map_id: self.map_id.unwrap(),
-                        }).is_none());
+                        }).assert_no_suspend();
                     // No dialog options means the dialog is finished.
                     self.dialog.as_ref().unwrap().is_empty()
                 } else {
@@ -475,7 +474,7 @@ impl AppState for GameState {
                         dialog: &mut self.dialog,
                         message_panel: self.message_panel,
                         map_id: self.map_id.unwrap(),
-                    });
+                    }).assert_no_suspend();
                     assert!(!self.scripts.can_resume());
                     // TODO call MapUpdate (multiple times?), see gdialogEnter()
                 }

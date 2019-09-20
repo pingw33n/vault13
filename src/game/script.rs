@@ -14,9 +14,8 @@ use crate::asset::proto::ProtoDb;
 use crate::asset::script::ProgramId;
 use crate::asset::script::db::ScriptDb;
 use crate::game::object;
-use crate::vm::{self, PredefinedProc, ProcedureId, Vm};
+use crate::vm::{self, *};
 use crate::vm::value::Value;
-use crate::vm::suspend::Suspend;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum ScriptKind {
@@ -205,7 +204,7 @@ impl Scripts {
 
     #[must_use]
     pub fn execute_proc(&mut self, sid: Sid, proc_id: ProcedureId,
-        ctx: &mut Context)-> Option<Suspend>
+        ctx: &mut Context) -> InvocationResult
     {
         let script = self.scripts.get_mut(&sid).unwrap();
         let vm_ctx = &mut Self::make_vm_ctx(
@@ -216,7 +215,8 @@ impl Scripts {
             ctx);
         if !script.inited {
             debug!("[{:?}#{}] running program initialization code", sid, script.program_id.val());
-            self.vm.run(script.program, vm_ctx).unwrap();
+            self.vm.run(script.program, vm_ctx).unwrap()
+                .assert_no_suspend();
             script.inited = true;
         }
         vm_ctx.self_obj = script.object;
@@ -228,7 +228,7 @@ impl Scripts {
             proc_id,
             prg.program().proc(proc_id).map(|p| p.name()));
         let r = prg.execute_proc(proc_id, vm_ctx).unwrap();
-        if r.is_some() {
+        if r.suspend.is_some() {
             self.suspend_stack.push(sid);
         }
         r
@@ -236,7 +236,7 @@ impl Scripts {
 
     #[must_use]
     pub fn execute_proc_name(&mut self, sid: Sid, proc: &Rc<BString>,
-        ctx: &mut Context)-> Option<Suspend>
+        ctx: &mut Context)-> InvocationResult
     {
         let script = self.scripts.get_mut(&sid).unwrap();
         let proc_id = self.vm.program_state(script.program)
@@ -248,7 +248,7 @@ impl Scripts {
 
     #[must_use]
     pub fn execute_predefined_proc(&mut self, sid: Sid, proc: PredefinedProc,
-        ctx: &mut Context)-> Option<Suspend>
+        ctx: &mut Context) -> InvocationResult
     {
         let script = self.scripts.get_mut(&sid).unwrap();
         let proc_id = self.vm.program_state(script.program)
@@ -270,8 +270,8 @@ impl Scripts {
                     .program()
                     .predefined_proc_id(proc)
                 {
-                    let r = self.execute_proc(sid, proc_id, ctx);
-                    assert!(r.is_none(), "can't suspend in {:?}", proc);
+                    self.execute_proc(sid, proc_id, ctx)
+                        .suspend.map(|_| panic!("can't suspend in {:?}", proc));
                 }
             }
         }
@@ -286,8 +286,8 @@ impl Scripts {
         // MapEnter is ignored since it's executed separately immediately after map loaded.
         if proc != PredefinedProc::MapEnter {
             if let Some(sid) = self.map_sid {
-                assert!(self.execute_predefined_proc(sid, proc, ctx).is_none()
-                    "can't suspend in {:?}", proc);
+                self.execute_predefined_proc(sid, proc, ctx)
+                    .suspend.map(|_| panic!("can't suspend in {:?}", proc));
             }
         }
 
@@ -300,7 +300,7 @@ impl Scripts {
         self.suspend_stack.len() > 0
     }
 
-    pub fn resume(&mut self, ctx: &mut Context) -> Option<Suspend> {
+    pub fn resume(&mut self, ctx: &mut Context) -> InvocationResult {
         let sid = self.suspend_stack.pop().unwrap();
         let script = self.scripts.get_mut(&sid).unwrap();
         let vm_ctx = &mut Self::make_vm_ctx(

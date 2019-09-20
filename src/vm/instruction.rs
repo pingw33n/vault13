@@ -5,18 +5,22 @@ use enum_primitive_derive::Primitive;
 use std::collections::HashMap;
 
 use super::*;
-use super::suspend::Suspend;
 use crate::game::object;
 use crate::sequence::chain::Chain;
 
 pub struct State {
-    sequences: HashMap<object::Handle, Chain>,
+    pub sequences: HashMap<object::Handle, Chain>,
+
+    /// Keeps the `script_overrides` flag state.
+    /// It is cleared on each invocation of the program initialization code or a procedure.
+    pub script_overrides: bool,
 }
 
 impl State {
     pub fn new() -> Self {
         Self {
             sequences: HashMap::new(),
+            script_overrides: false,
         }
     }
 }
@@ -674,7 +678,7 @@ pub(in super) mod instructions {
         i!(Saystartpos,                 unimplemented),
         i!(Scalewin,                    unimplemented),
         i!(ScriptAction,                unimplemented),
-        i!(ScriptOverrides,             unimplemented),
+        i!(ScriptOverrides,             script_overrides),
         i!(ScrReturn,                   unimplemented),
         i!(Selectfilelist,              unimplemented),
         i!(Selectwin,                   unimplemented),

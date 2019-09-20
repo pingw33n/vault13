@@ -88,7 +88,6 @@
 mod error;
 mod instruction;
 mod stack;
-pub mod suspend;
 pub mod value;
 
 use bstring::{bstr, BString};
@@ -106,10 +105,10 @@ use std::str;
 use std::time::Duration;
 
 pub use error::*;
+pub use value::Value;
+
 use instruction::{Instruction, instruction_map, Opcode};
 use stack::{Stack, StackId};
-use suspend::Suspend;
-use value::Value;
 use crate::game::object;
 use crate::util::SmKey;
 
@@ -174,6 +173,32 @@ impl PredefinedProc {
 impl fmt::Display for PredefinedProc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self.name())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Suspend {
+    GsayEnd,
+}
+
+/// Result of program invocation.
+#[derive(Clone, Copy, Debug, Default)]
+#[must_use]
+pub struct InvocationResult {
+    /// Whether the `script_overrides()` instruction has been called at least once.
+    /// Note this flag won't be carried over on resume.
+    /// Semantically a set `script_overrides` flag means the caller should not run some default
+    /// logic. For example for `PredefinedProc::Description` it should assume that the script
+    /// has pushed its description the message panel.
+    pub script_overrides: bool,
+    pub suspend: Option<Suspend>,
+}
+
+impl InvocationResult {
+    pub fn assert_no_suspend(&self) {
+        if let Some(s) = self.suspend {
+            panic!("unexpected suspend: {:?}", s);
+        }
     }
 }
 
@@ -477,16 +502,18 @@ impl ProgramState {
         &self.program.strings
     }
 
-    fn run(&mut self, ctx: &mut Context) -> Result<Option<Suspend>> {
+    fn run(&mut self, ctx: &mut Context) -> Result<InvocationResult> {
+        self.instr_state.script_overrides = false;
         loop {
             match self.step(ctx) {
-                Ok(None) => {}
-                Ok(Some(s)) => {
-                    debug!("suspending at 0x{:x}: {:?}", self.code_pos, s);
-                    self.suspend_stack.push(self.code_pos);
-                    break Ok(Some(s));
+                Ok(r) => {
+                    if let Some(s) = r.suspend {
+                        debug!("suspending at 0x{:x}: {:?}", self.code_pos, s);
+                        self.suspend_stack.push(self.code_pos);
+                        break Ok(r);
+                    }
                 }
-                Err(ref e) if matches!(e, Error::Halted) => break Ok(None),
+                Err(ref e) if matches!(e, Error::Halted) => break Ok(Default::default()),
                 Err(e) => break Err(e),
             }
         }
@@ -496,7 +523,7 @@ impl ProgramState {
         &self.program
     }
 
-    pub fn execute_proc(&mut self, id: ProcedureId, ctx: &mut Context) -> Result<Option<Suspend>> {
+    pub fn execute_proc(&mut self, id: ProcedureId, ctx: &mut Context) -> Result<InvocationResult> {
         let proc_pos = self.program.proc(id)
             .ok_or_else(|| Error::BadProcedureId(id))?
             .body_pos;
@@ -520,19 +547,23 @@ impl ProgramState {
         self.suspend_stack.len() > 0
     }
 
-    pub fn resume(&mut self, ctx: &mut Context) -> Result<Option<Suspend>> {
+    pub fn resume(&mut self, ctx: &mut Context) -> Result<InvocationResult> {
         self.code_pos = self.suspend_stack.pop().unwrap();
         self.run(ctx)
     }
 
-    fn step(&mut self, ctx: &mut Context) -> Result<Option<Suspend>> {
+    fn step(&mut self, ctx: &mut Context) -> Result<InvocationResult> {
         trace!("code_pos: 0x{:04x}", self.code_pos);
         let opcode_pos = self.code_pos;
         let instr = self.next_instruction()?;
         self.opcode = Some((instr.opcode(), opcode_pos));
-        instr.execute(instruction::Context {
+        let suspend = instr.execute(instruction::Context {
             prg: self,
             ext: ctx,
+        })?;
+        Ok(InvocationResult {
+            suspend,
+            script_overrides: self.instr_state.script_overrides,
         })
     }
 
@@ -678,8 +709,8 @@ impl Vm {
         Handle(k)
     }
 
-    pub fn run(&mut self, program: Handle, ctx: &mut Context) -> Result<Option<Suspend>> {
-       self.program_state_mut(program).run(ctx)
+    pub fn run(&mut self, program: Handle, ctx: &mut Context) -> Result<InvocationResult> {
+        self.program_state_mut(program).run(ctx)
     }
 
     pub fn program_state(&self, handle: Handle) -> &ProgramState {
