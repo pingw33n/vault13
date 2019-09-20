@@ -477,6 +477,7 @@ impl AppState for GameState {
                         map_id: self.map_id.unwrap(),
                     });
                     assert!(!self.scripts.can_resume());
+                    // TODO call MapUpdate (multiple times?), see gdialogEnter()
                 }
 
             }
