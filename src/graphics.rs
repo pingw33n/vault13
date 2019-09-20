@@ -59,7 +59,7 @@ impl Point {
         }
     }
 
-    pub fn clamp_in_rect(self, rect: &Rect) -> Self {
+    pub fn clamp_in_rect(self, rect: Rect) -> Self {
         Self::new(
             clamp(self.x, rect.left, rect.right - 1),
             clamp(self.y, rect.top, rect.bottom - 1))
@@ -169,7 +169,7 @@ impl Default for EPoint {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Rect {
     pub left: i32,
     pub top: i32,
@@ -216,7 +216,7 @@ impl Rect {
         }
     }
 
-    pub fn intersect(&self, other: &Self) -> Self {
+    pub fn intersect(&self, other: Self) -> Self {
         let left = cmp::max(self.left, other.left);
         let top = cmp::max(self.top, other.top);
         let right = cmp::min(self.right, other.right);
@@ -248,7 +248,7 @@ impl Rect {
             y >= self.top && y < self.bottom
     }
 
-    pub fn intersects(&self, other: &Rect) -> bool {
+    pub fn intersects(&self, other: Rect) -> bool {
         self.left < other.right &&
             self.right > other.left &&
             self.top < other.bottom &&

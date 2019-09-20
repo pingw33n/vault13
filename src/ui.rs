@@ -467,8 +467,8 @@ impl Ui {
     }
 
     fn update_cursor_pos_abs(&mut self, abs: Point) {
-        let rect = self.cursor_constraints.last().unwrap();
-        self.cursor_pos = abs.clamp_in_rect(&rect);
+        let rect = *self.cursor_constraints.last().unwrap();
+        self.cursor_pos = abs.clamp_in_rect(rect);
     }
 
     fn insert_widget(&mut self, window: Option<Handle>, base: Base, widget: Box<Widget>) -> Handle {
@@ -511,8 +511,8 @@ pub struct Base {
 }
 
 impl Base {
-    pub fn rect(&self) -> &Rect {
-        &self.rect
+    pub fn rect(&self) -> Rect {
+        self.rect
     }
 
     pub fn cursor(&self) -> Option<Cursor> {

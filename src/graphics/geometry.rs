@@ -13,12 +13,12 @@ pub trait TileGridView {
     fn to_screen(&self, p: impl Into<Point>) -> Point;
 
     /// Returns minimal rectangle in tile coordinates that encloses the specified screen `rect`.
-    fn from_screen_rect(&self, rect: &Rect) -> Rect {
+    fn from_screen_rect(&self, rect: Rect) -> Rect {
         from_screen_rect(rect, |p| self.from_screen(p))
     }
 }
 
-fn from_screen_rect(rect: &Rect, from_screen: impl Fn(Point) -> Point) -> Rect {
+fn from_screen_rect(rect: Rect, from_screen: impl Fn(Point) -> Point) -> Rect {
     let right = rect.right - 1;
     let bottom = rect.bottom - 1;
 

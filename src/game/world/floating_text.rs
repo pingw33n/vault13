@@ -59,7 +59,7 @@ impl FloatingText {
         }
     }
 
-    pub fn render(&self, pos: Point, rect: &Rect, canvas: &mut dyn Canvas) {
+    pub fn render(&self, pos: Point, rect: Rect, canvas: &mut dyn Canvas) {
         let pos = Self::fit(
             Rect::with_size(pos.x - self.width / 2, pos.y - self.height,
                 self.width, self.height),
@@ -83,7 +83,7 @@ impl FloatingText {
         self.time + d
     }
 
-    fn fit(rect: Rect, bound_rect: &Rect) -> Point {
+    fn fit(rect: Rect, bound_rect: Rect) -> Point {
         #[inline(always)]
         fn fit0(lo: i32, hi: i32, bound_lo: i32, bound_hi: i32,
             lo_max: i32, hi_max: i32) -> i32

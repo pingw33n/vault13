@@ -173,7 +173,7 @@ impl CanvasImpl {
 
         let color = pal.color_idx(color);
 
-        Self::do_draw(&mut self.back_buf, x, y, &tex, &self.clip_rect,
+        Self::do_draw(&mut self.back_buf, x, y, &tex, self.clip_rect,
             |dst, _, _, _, _, src| {
                 let color = Self::make_translucent(src, *dst, color, pal,
                     |rgb15| grayscale_func(rgb15));
@@ -184,10 +184,10 @@ impl CanvasImpl {
 
     fn compute_draw_rect(dst: &Texture, dst_x: i32, dst_y: i32,
                          src_width: i32, src_height: i32,
-                         clip_rect: &Rect) -> (Rect, i32, i32) {
+                         clip_rect: Rect) -> (Rect, i32, i32) {
         let rect = Rect::with_size(dst_x, dst_y, src_width, src_height)
-            .intersect(&Rect::with_size(0, 0, dst.width, dst.height))
-            .intersect(&clip_rect);
+            .intersect(Rect::with_size(0, 0, dst.width, dst.height))
+            .intersect(clip_rect);
         let src_rect = rect.translate(-dst_x, -dst_y);
         let dst_x = rect.left;
         let dst_y = rect.top;
@@ -198,7 +198,7 @@ impl CanvasImpl {
             dst: &mut Texture,
             dst_x: i32, dst_y: i32,
             src: &Texture,
-            clip_rect: &Rect,
+            clip_rect: Rect,
             f: impl Fn(&mut u8, i32, i32, i32, i32, u8)) {
         let (src_rect, dst_x, mut dst_y) =
             Self::compute_draw_rect(dst, dst_x, dst_y, src.width, src.height, clip_rect);
@@ -266,7 +266,7 @@ impl Canvas for CanvasImpl {
         let tex = self.textures.get(tex);
         let light = (light >> 9) as u8;
 
-        Self::do_draw(&mut self.back_buf, x, y, &tex, &self.clip_rect,
+        Self::do_draw(&mut self.back_buf, x, y, &tex, self.clip_rect,
             |dst, _, _, _, _, src| {
                 *dst = pal.darken(src, light);
             }
@@ -293,7 +293,7 @@ impl Canvas for CanvasImpl {
 
         let tex = self.textures.get(tex);
 
-        Self::do_draw(&mut self.back_buf, x, y, &tex, &self.clip_rect,
+        Self::do_draw(&mut self.back_buf, x, y, &tex, self.clip_rect,
             |dst, _, _, src_x, src_y, src| {
                 let light = light_map.get(src_x, src_y + 2 /* as in original */);
                 *dst = pal.darken(src, (light >> 9) as u8);
@@ -307,12 +307,12 @@ impl Canvas for CanvasImpl {
         let tex = self.textures.get(tex);
         let mask = self.textures.get(mask);
 
-        let mask_rect = &Rect::with_size(mask_x, mask_y, mask.width, mask.height);
+        let mask_rect = Rect::with_size(mask_x, mask_y, mask.width, mask.height);
         let light = (light >> 9) as u8;
 
         let pal = &self.palette;
 
-        Self::do_draw(&mut self.back_buf, x, y, &tex, &self.clip_rect,
+        Self::do_draw(&mut self.back_buf, x, y, &tex, self.clip_rect,
             |dst, dst_x, dst_y, _, _, src| {
                 let src = pal.darken(src, light);
                 let mask_v = if mask_rect.contains(dst_x, dst_y) {
@@ -339,7 +339,7 @@ impl Canvas for CanvasImpl {
         let src_color_idx = pal.color_idx(src);
         let dst_color_idx = dst.map(|c| pal.color_idx(c));
 
-        Self::do_draw(&mut self.back_buf, x, y, &mask, &self.clip_rect,
+        Self::do_draw(&mut self.back_buf, x, y, &mask, self.clip_rect,
             |dst, _, _, _, _, src| {
                 let alpha = cmp::min(src, 7);
                 *dst = pal.alpha_blend(src_color_idx, dst_color_idx.unwrap_or(*dst), alpha);
@@ -352,7 +352,7 @@ impl Canvas for CanvasImpl {
         let pal = &self.palette;
         let color_idx = pal.color_idx(color);
 
-        Self::do_draw(&mut self.back_buf, x, y, &mask, &self.clip_rect,
+        Self::do_draw(&mut self.back_buf, x, y, &mask, self.clip_rect,
             |dst, _, _, _, _, src| {
                 let x = if src != 0 {
                     ((256 - src as u32) >> 4) as u8
@@ -377,7 +377,7 @@ impl Canvas for CanvasImpl {
         let (mut src_rect, dst_x, dst_y) =
             Self::compute_draw_rect(&self.back_buf, x - 1, y - 1,
                 src.width + 2, src.height + 2,
-                &self.clip_rect);
+                self.clip_rect);
         src_rect.right -= 2;
         src_rect.bottom -= 2;
         let dst_width = self.back_buf.width;

@@ -198,11 +198,11 @@ impl World {
 
     pub fn is_object_in_camera(&self, obj: object::Handle) -> bool {
         let bounds = self.object_bounds(obj);
-        self.camera.viewport.intersects(&bounds)
+        self.camera.viewport.intersects(bounds)
     }
 
     pub fn object_hit_test(&self, p: impl Into<Point>) -> Vec<(object::Handle, object::Hit)> {
-        self.objects.hit_test(p.into().elevated(self.elevation()), &self.camera.viewport,
+        self.objects.hit_test(p.into().elevated(self.elevation()), self.camera.viewport,
             &self.camera.hex(), self.egg())
     }
 
@@ -286,7 +286,7 @@ impl World {
 
     pub fn render(&self, canvas: &mut Canvas, draw_roof: bool) {
         let elevation = self.elevation();
-        render_floor(canvas, &self.camera.sqr(), &self.camera.viewport,
+        render_floor(canvas, &self.camera.sqr(), self.camera.viewport,
             |p| {
                 let fid = FrameId::new_generic(EntityKind::SqrTile,
                     self.sqr_tiles[elevation as usize].as_ref().unwrap().get(p.x as usize, p.y as usize).unwrap().0).unwrap();
@@ -299,7 +299,7 @@ impl World {
             }
         );
 
-        self.objects().render(canvas, elevation, &self.camera.viewport, &self.camera.hex(),
+        self.objects().render(canvas, elevation, self.camera.viewport, &self.camera.hex(),
             self.egg().as_ref(),
             |pos| if let Some(pos) = pos {
                 cmp::max(self.light_grid().get_clipped(pos), self.ambient_light)
@@ -308,7 +308,7 @@ impl World {
             });
 
         if draw_roof {
-            render_roof(canvas, &self.camera.sqr(), &self.camera.viewport,
+            render_roof(canvas, &self.camera.sqr(), self.camera.viewport,
                 |p| {
                     let id = self.sqr_tiles[elevation as usize].as_ref().unwrap()
                         .get(p.x as usize, p.y as usize).unwrap().1;
@@ -317,7 +317,7 @@ impl World {
                 });
         }
 
-        self.objects().render_outlines(canvas, elevation, &self.camera.viewport, &self.camera.hex());
+        self.objects().render_outlines(canvas, elevation, self.camera.viewport, &self.camera.hex());
 
         self.render_floating_texts(canvas);
     }
@@ -361,7 +361,7 @@ impl World {
             } else {
                 self.camera.viewport.center()
             };
-            floating_text.render(screen_pos, &self.camera.viewport, canvas);
+            floating_text.render(screen_pos, self.camera.viewport, canvas);
         }
     }
 

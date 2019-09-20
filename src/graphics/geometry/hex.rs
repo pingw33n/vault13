@@ -202,7 +202,7 @@ pub fn from_screen(p: impl Into<Point>) -> Point {
 }
 
 /// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
-pub fn from_screen_rect(rect: &Rect) -> Rect {
+pub fn from_screen_rect(rect: Rect) -> Rect {
     super::from_screen_rect(rect, from_screen)
 }
 

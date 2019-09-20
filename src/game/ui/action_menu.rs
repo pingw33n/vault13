@@ -43,7 +43,7 @@ pub struct Placement {
 }
 
 impl Placement {
-    pub fn new(action_count: u32, cursor_pos: Point, bounds: &Rect) -> Self {
+    pub fn new(action_count: u32, cursor_pos: Point, bounds: Rect) -> Self {
         let flipped = bounds.right - cursor_pos.x <
             Action::ICON_OFFSET_X + Action::ICON_WIDTH;
 

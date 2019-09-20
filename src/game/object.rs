@@ -90,6 +90,12 @@ pub struct Hit {
     pub with_egg: bool,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CantTalkSpatial {
+    Unreachable,
+    TooFar,
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Handle(SmKey);
 
@@ -494,7 +500,7 @@ impl Objects {
         }
     }
 
-    pub fn render(&self, canvas: &mut Canvas, elevation: u32, screen_rect: &Rect,
+    pub fn render(&self, canvas: &mut Canvas, elevation: u32, screen_rect: Rect,
             tile_grid: &impl TileGridView, egg: Option<&Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32) {
         let ref get_light = get_light;
@@ -502,7 +508,7 @@ impl Objects {
         self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, false);
     }
 
-    pub fn render_outlines(&self, canvas: &mut Canvas, elevation: u32, screen_rect: &Rect,
+    pub fn render_outlines(&self, canvas: &mut Canvas, elevation: u32, screen_rect: Rect,
             tile_grid: &impl TileGridView) {
         let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
         for y in hex_rect.top..hex_rect.bottom {
@@ -656,6 +662,43 @@ impl Objects {
         None
     }
 
+    /// Based on spatial information are the objects close enough for talking?
+    /// Objects can talk if:
+    /// 1. There's a path between them which is not sight-blocked (see `sight_blocker_for_object()`).
+    /// 2. Screen distance between objects is within the limit.
+    // action_can_talk_to()
+    pub fn can_talk_spatial(&self, obj1: Handle, obj2: Handle) -> Result<(), CantTalkSpatial> {
+        let o1 = self.get(obj1).borrow();
+        let o2 = self.get(obj2).borrow();
+
+        // TODO maybe return Unreachable error instead.
+        let p1 = o1.pos.unwrap();
+        let p2 = o2.pos.unwrap();
+
+        if p1.elevation != p2.elevation {
+            return Err(CantTalkSpatial::Unreachable);
+        }
+
+        if hex::distance(p1.point, p2.point) > 12 {
+            return Err(CantTalkSpatial::TooFar);
+        }
+
+        let reachable = self.path_finder.borrow_mut().find(p1.point, p2.point, true,
+            |p| {
+                let p = EPoint::new(p1.elevation, p);
+                if self.sight_blocker_for_object(p, obj1).is_some() {
+                    TileState::Blocked
+                } else {
+                    TileState::Passable(0)
+                }
+            }).is_some();
+        if reachable {
+            Ok(())
+        } else {
+            Err(CantTalkSpatial::Unreachable)
+        }
+    }
+
     pub fn path_for_object(&self, obj: Handle, to: impl Into<Point>, smooth: bool, proto_db: &ProtoDb)
             -> Option<Vec<Direction>> {
         let o = self.get(obj).borrow();
@@ -663,7 +706,7 @@ impl Objects {
         self.path_finder.borrow_mut().find(from.point, to, smooth,
             |p| {
                 let p = EPoint::new(from.elevation, p);
-                if self.blocker_for_object_at(obj, p).is_some() {
+                if self.blocker_for_object_at(obj, p).is_some() { // TODO check anim_can_use_door_(obj, v22)
                     TileState::Blocked
                 } else if let Some(pid) = o.pid {
                     let radioacive_goo = self.at(p)
@@ -697,7 +740,7 @@ impl Objects {
         self.get(obj).borrow().bounds(&self.frm_db, tile_grid)
     }
 
-    pub fn hit_test(&self, p: EPoint, screen_rect: &Rect, tile_grid: &impl TileGridView,
+    pub fn hit_test(&self, p: EPoint, screen_rect: Rect, tile_grid: &impl TileGridView,
         egg: Option<Egg>) -> Vec<(Handle, Hit)>
     {
         let mut r = Vec::new();
@@ -764,8 +807,8 @@ impl Objects {
         }
     }
 
-    fn get_render_hex_rect(screen_rect: &Rect, tile_grid: &impl TileGridView) -> Rect {
-        tile_grid.from_screen_rect(&Rect {
+    fn get_render_hex_rect(screen_rect: Rect, tile_grid: &impl TileGridView) -> Rect {
+        tile_grid.from_screen_rect(Rect {
             left: -320,
             top: -190,
             right: screen_rect.width() + 320,
@@ -774,7 +817,7 @@ impl Objects {
     }
 
     fn render0(&self, canvas: &mut Canvas, elevation: u32,
-            screen_rect: &Rect, tile_grid: &impl TileGridView, egg: Option<&Egg>,
+            screen_rect: Rect, tile_grid: &impl TileGridView, egg: Option<&Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32,
             flat: bool) {
         let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);

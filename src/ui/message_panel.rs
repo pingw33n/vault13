@@ -222,7 +222,7 @@ impl MessagePanel {
         }
     }
 
-    fn scroll_for_cursor(&self, rect: &Rect, cursor_pos: Point) -> Option<Scroll> {
+    fn scroll_for_cursor(&self, rect: Rect, cursor_pos: Point) -> Option<Scroll> {
         if self.mouse_control != MouseControl::Scroll {
             return None;
         }
@@ -258,7 +258,7 @@ impl MessagePanel {
     }
 
     fn update_cursor(&self, ctx: &mut HandleEvent) {
-        let scroll = self.scroll_for_cursor(&ctx.base.rect, ctx.cursor_pos);
+        let scroll = self.scroll_for_cursor(ctx.base.rect, ctx.cursor_pos);
         ctx.base.cursor = self.cursor(scroll);
     }
 }
@@ -300,7 +300,7 @@ impl Widget for MessagePanel {
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
             Event::MouseDown { .. } => {
-                if let Some(scroll) = self.scroll_for_cursor(&ctx.base.rect, ctx.cursor_pos) {
+                if let Some(scroll) = self.scroll_for_cursor(ctx.base.rect, ctx.cursor_pos) {
                     self.scroll(scroll);
                     self.update_cursor(&mut ctx);
                     self.repeat_scroll.start(ctx.now, scroll);

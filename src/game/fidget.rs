@@ -34,7 +34,7 @@ impl Fidget {
 
         let elevation = world.elevation();
 
-        let hex_rect = world.camera().hex().from_screen_rect(&Rect {
+        let hex_rect = world.camera().hex().from_screen_rect(Rect {
             left: world.camera().viewport.left - 320,
             top: world.camera().viewport.top - 190,
             right: world.camera().viewport.width() + 320,
@@ -49,7 +49,7 @@ impl Fidget {
                     if obj.flags.contains(Flag::TurnedOff) ||
                         obj.fid.kind() != EntityKind::Critter ||
                         obj.is_critter_dead() ||
-                        !world.object_bounds(objh).intersects(&world.camera().viewport)
+                        !world.object_bounds(objh).intersects(world.camera().viewport)
                     // FIXME
                     // g_map_header.map_id == MAP_ID_WOODSMAN_ENCOUNTER && obj.pid == Some(Pid::ENCLAVE_PATROL)
                     {
