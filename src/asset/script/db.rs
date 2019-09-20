@@ -1,4 +1,4 @@
-use atoi::atoi;
+use bstring::bstr;
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
@@ -80,10 +80,19 @@ fn read_lst(rd: &mut impl BufRead) -> io::Result<Vec<ScriptInfo>> {
             let i = l.find('#')
                 .and_then(|i| l[i + 1..].find(LOCAL_VARS).map(|j| i + 1 + j + LOCAL_VARS.len()));
             let local_var_count = if let Some(i) = i {
-                let l = &l[i..];
-                atoi::<u32>(l.trim_end().as_bytes())
-                    .ok_or_else(|| Error::new(ErrorKind::InvalidData,
-                        "error parsing local_vars in scripts lst file"))? as usize
+                let mut l = l[i..].as_bytes();
+                while let Some(c) = l.last() {
+                    if c.is_ascii_digit() {
+                        break;
+                    } else {
+                        l = &l[..l.len() - 1];
+                    }
+                }
+                let l: &bstr = l.into();
+                btoi::btoi::<u32>(l.as_bytes())
+                    .map_err(|_| Error::new(ErrorKind::InvalidData,
+                        format!("error parsing local_vars in scripts lst file: {}",
+                            l.display())))? as usize
             } else {
                 0
             };
@@ -117,7 +126,7 @@ mod tests {
             SCripT2.InT ; \tdsds\n\
             scr ipt 3  .int         #\n\
             Test0.int       ; Used to Test Scripts                          # local_vars=8\n\
-            FSBroDor.int    ; Brother Hood Door                             # local_vars=3#\
+            FSBroDor.int    ; Brother Hood Door                             # local_vars=3# non_digit\
             ".as_bytes())).unwrap();
         assert_eq!(a, vec![
             si("script1", 0),

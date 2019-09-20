@@ -9,8 +9,8 @@ pub mod script;
 use enumflags2_derive::EnumFlags;
 use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
-use log::*;
-use std::io::{self, prelude::*};
+use std::io::{self, Error, ErrorKind};
+use std::io::prelude::*;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum EntityKind {
@@ -560,8 +560,6 @@ pub fn read_lst(rd: &mut impl BufRead) -> io::Result<Vec<LstEntry>> {
 }
 
 pub fn read_gam(rd: &mut impl BufRead, tag: &str) -> io::Result<Vec<i32>> {
-    use atoi::atoi;
-
     let mut r = Vec::new();
     let mut lines = rd.lines();
     while let Some(l) = lines.next() {
@@ -577,17 +575,12 @@ pub fn read_gam(rd: &mut impl BufRead, tag: &str) -> io::Result<Vec<i32>> {
         }
 
         let l = l.splitn(2, |c| c == ';').next().unwrap_or(&l);
-        let v = l.find(":=")
-            .and_then(|i| {
-                let v = l[i + 2..].trim();
-                if let Some(v) = atoi::<i32>(v.as_bytes()) {
-                    Some(v)
-                } else {
-                    warn!("couldn't parse .gam var value as i32: {}", v);
-                    None
-                }
-            })
-            .unwrap_or(0);
+        let i = l.find(":=")
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "couldn't parse .gam var line"))?;
+        let v = l[i + 2..].trim();
+        let v = btoi::btoi::<i32>(v.as_bytes())
+            .map_err(|_| Error::new(ErrorKind::InvalidData,
+                format!("couldn't parse .gam var value as i32: `{}`", v)))?;
         r.push(v);
     }
     Ok(r)
@@ -619,9 +612,9 @@ GAME_GLOBAL_VARS:
 
 GVAR_0                  :=0;    //      (0)
  \t  GVAR_1             :=100;  //      (1)
-GVAR_2                    :=   123;    //      (2) blah blah blah";
+GVAR_2                    :=   -123;    //      (2) blah blah blah";
         assert_eq!(read_game_global_vars(&mut BufReader::new(Cursor::new(s))).unwrap(),
-            [0, 100, 123]);
+            [0, 100, -123]);
     }
 
     #[test]
@@ -637,8 +630,8 @@ MAP_GLOBAL_VARS:
 
 MVAR_0                  :=123;    //      (0) blah blah blah
 MVAR_1             :=0;  //      (1)
-MVAR_2:=456;    //      (2)";
+MVAR_2:=-1;    //      (2)";
         assert_eq!(read_map_global_vars(&mut BufReader::new(Cursor::new(s))).unwrap(),
-            [123, 0, 456]);
+            [123, 0, -1]);
     }
 }
