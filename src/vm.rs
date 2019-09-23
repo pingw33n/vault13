@@ -504,19 +504,23 @@ impl ProgramState {
 
     fn run(&mut self, ctx: &mut Context) -> Result<InvocationResult> {
         self.instr_state.script_overrides = false;
-        loop {
+        let suspend = loop {
             match self.step(ctx) {
                 Ok(r) => {
-                    if let Some(s) = r.suspend {
+                    if let Some(s) = r {
                         debug!("suspending at 0x{:x}: {:?}", self.code_pos, s);
                         self.suspend_stack.push(self.code_pos);
-                        break Ok(r);
+                        break Some(s);
                     }
                 }
-                Err(ref e) if matches!(e, Error::Halted) => break Ok(Default::default()),
-                Err(e) => break Err(e),
+                Err(ref e) if matches!(e, Error::Halted) => break None,
+                Err(e) => return Err(e),
             }
-        }
+        };
+        Ok(InvocationResult {
+            suspend,
+            script_overrides: self.instr_state.script_overrides,
+        })
     }
 
     pub fn program(&self) -> &Program {
@@ -552,7 +556,7 @@ impl ProgramState {
         self.run(ctx)
     }
 
-    fn step(&mut self, ctx: &mut Context) -> Result<InvocationResult> {
+    fn step(&mut self, ctx: &mut Context) -> Result<Option<Suspend>> {
         trace!("code_pos: 0x{:04x}", self.code_pos);
         let opcode_pos = self.code_pos;
         let instr = self.next_instruction()?;
@@ -561,10 +565,7 @@ impl ProgramState {
             prg: self,
             ext: ctx,
         })?;
-        Ok(InvocationResult {
-            suspend,
-            script_overrides: self.instr_state.script_overrides,
-        })
+        Ok(suspend)
     }
 
     fn next_instruction(&mut self) -> Result<Instruction> {
