@@ -8,11 +8,11 @@ use std::cmp;
 use std::mem;
 use std::rc::Rc;
 
-use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, WeaponKind};
+use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, ItemKind, WeaponKind};
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::{self, CritterKillKind, ProtoId, ProtoDb};
 use crate::asset::script::ProgramId;
-use crate::game::script::Sid;
+use crate::game::script::{Scripts, Sid};
 use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::TileGridView;
 use crate::graphics::geometry::hex::{self, Direction, TileGrid};
@@ -23,6 +23,7 @@ use crate::graphics::sprite::*;
 use crate::sequence::cancellable::Cancel;
 use crate::util::{EnumExt, SmKey, VecExt};
 use crate::util::array2d::Array2d;
+use crate::vm::PredefinedProc;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Outline {
@@ -662,12 +663,12 @@ impl Objects {
         None
     }
 
-    /// Based on spatial information are the objects close enough for talking?
+    /// Based on spatial information are the objects able to talk?
     /// Objects can talk if:
     /// 1. There's a path between them which is not sight-blocked (see `sight_blocker_for_object()`).
     /// 2. Screen distance between objects is within the limit.
     // action_can_talk_to()
-    pub fn can_talk_spatial(&self, obj1: Handle, obj2: Handle) -> Result<(), CantTalkSpatial> {
+    pub fn can_talk(&self, obj1: Handle, obj2: Handle) -> Result<(), CantTalkSpatial> {
         let o1 = self.get(obj1).borrow();
         let o2 = self.get(obj2).borrow();
 
@@ -697,6 +698,85 @@ impl Objects {
         } else {
             Err(CantTalkSpatial::Unreachable)
         }
+    }
+
+    /// Whether one can talk to `obj`.
+    // obj_action_can_talk_to()
+    pub fn can_talk_to(&self, obj: Handle) -> bool {
+        let obj = self.get(obj).borrow();
+        if_chain! {
+            if let SubObject::Critter(c) = &obj.sub;
+            if let Some(pid) = obj.pid;
+            then {
+                c.is_active() && self.proto_db.can_talk_to(pid)
+            } else {
+                false
+            }
+        }
+    }
+
+    // obj_action_can_use()
+    pub fn can_use(&self, obj: Handle) -> bool {
+        if let Some(pid) = self.get(obj).borrow().pid {
+            match pid {
+                | ProtoId::ACTIVE_DYNAMITE
+                | ProtoId::ACTIVE_FLARE
+                | ProtoId::ACTIVE_PLASTIC_EXPLOSIVE
+                => false,
+                _ => self.proto_db.can_use(pid),
+            }
+        } else {
+            false
+        }
+    }
+
+    // item_get_type()
+    pub fn item_kind(&self, obj: Handle) -> Option<ItemKind> {
+        let obj = self.get(obj).borrow();
+        if obj.kind() == EntityKind::Item {
+            let pid = obj.pid.unwrap();
+            if pid == ProtoId::SHIV {
+                return Some(self.proto_db.proto(pid).unwrap()
+                    .sub.item().unwrap()
+                    .sub.kind());
+            }
+        }
+        None
+    }
+
+    // action_can_be_pushed()
+    pub fn can_push(&self, pusher: Handle, pushed: Handle, scripts: &Scripts,
+        in_combat: bool) -> bool
+    {
+        let pushedo = self.get(pushed).borrow();
+        if pushedo.kind() != EntityKind::Critter
+            || pusher == pushed
+            || !pushedo.sub.critter().unwrap().is_active()
+            || !self.can_talk(pusher, pushed).is_ok()
+            || pushedo.script.is_none()
+        {
+            return false;
+        }
+        let (sid, _) = pushedo.script.unwrap();
+        if !scripts.has_predefined_proc(sid, PredefinedProc::Push) {
+            return false;
+        }
+        if in_combat {
+            unimplemented!("TODO")
+//            pushed_team_num = pushed->_._.critter.combat_data.team_num;
+//          pushed_ = &pushed->_._;
+//          if ( pushed_team_num == pusher->_._.critter.combat_data.team_num
+//            && pusher == pushed_->critter.combat_data.who_hit_me )
+//          {
+//            return 0;
+//          }
+//          v7 = pushed_->critter.combat_data.who_hit_me;
+//          if ( v7 && v7->_._.critter.combat_data.team_num == pusher->_._.critter.combat_data.team_num )
+//            result = 0;
+//          else
+//            result = 1;
+        }
+        true
     }
 
     pub fn path_for_object(&self, obj: Handle, to: impl Into<Point>, smooth: bool, proto_db: &ProtoDb)
@@ -932,12 +1012,40 @@ pub enum SubObject {
     Critter(Critter),
 }
 
+impl SubObject {
+    pub fn critter(&self) -> Option<&Critter> {
+        if let SubObject::Critter(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Critter {
     pub health: i32,
     pub radiation: i32,
     pub poison: i32,
     pub combat: CritterCombat,
+}
+
+impl Critter {
+    // critter_is_active()
+    pub fn is_active(&self) -> bool {
+        !self.combat.damage_flags.intersects(
+            DamageFlag::LoseTurn |
+            DamageFlag::Dead |
+            DamageFlag::KnockedOut)
+    }
+
+    // critter_is_dead()
+    pub fn is_dead(&self) -> bool {
+        self.combat.damage_flags.contains(DamageFlag::Dead)
+        // TODO
+//        if ( stat_level_(result, STAT_current_hp) <= 0 )
+//      return 1;
+    }
 }
 
 #[derive(Debug)]

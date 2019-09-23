@@ -1,4 +1,5 @@
 use bstring::{bstr, BString};
+use if_chain::if_chain;
 use log::*;
 use measure_time::*;
 use sdl2::event::Event;
@@ -8,11 +9,11 @@ use std::cmp;
 use std::rc::Rc;
 use std::time::{Instant, Duration};
 
-use crate::asset::{self, EntityKind, CritterAnim};
+use crate::asset::{self, EntityKind, CritterAnim, ItemKind};
 use crate::asset::frame::{FrameDb, FrameId};
 use crate::asset::map::{MapReader, ELEVATION_COUNT};
 use crate::asset::message::{BULLET, Messages};
-use crate::asset::proto::ProtoDb;
+use crate::asset::proto::{CritterFlag, ProtoDb};
 use crate::asset::script::db::ScriptDb;
 use crate::fs::FileSystem;
 use crate::game::dialog::Dialog;
@@ -33,7 +34,8 @@ use crate::state::AppState;
 use crate::ui::{self, Ui};
 use crate::ui::command::{UiCommand, UiCommandData, ObjectPickKind};
 use crate::ui::message_panel::MessagePanel;
-use crate::util::EnumExt;
+use crate::util::{EnumExt, sprintf};
+use crate::util::random::random;
 use crate::vm::{Vm, PredefinedProc, Suspend};
 
 const SCROLL_STEP: i32 = 10;
@@ -52,9 +54,10 @@ pub struct GameState {
     dialog: Option<Dialog>,
     shift_key_down: bool,
     last_picked_obj: Option<object::Handle>,
-    object_action: Option<ObjectAction>,
+    object_action_menu: Option<ObjectActionMenu>,
     user_paused: bool,
     map_id: Option<i32>,
+    in_combat: bool,
 }
 
 impl GameState {
@@ -111,9 +114,10 @@ impl GameState {
             dialog: None,
             shift_key_down: false,
             last_picked_obj: None,
-            object_action: None,
+            object_action_menu: None,
             user_paused: false,
             map_id: None,
+            in_combat: false,
         }
     }
 
@@ -227,10 +231,21 @@ impl GameState {
         obj: object::Handle,
         action: Action,
     ) {
-        let mut world = self.world.borrow_mut();
-        let world = &mut world;
         match action {
+            Action::Cancel => {},
+            Action::Drop | Action::Unload => unreachable!(),
+            Action::Inventory => {
+                // TODO
+            }
+            Action::Look => {
+                // TODO obj_examine
+                self.dude_look_at_object(obj, ui);
+            }
+            Action::Push => {
+                // TODO
+            }
             Action::Rotate => {
+                let world = self.world.borrow_mut();
                 let mut obj = world.objects().get(obj).borrow_mut();
                 if let Some(signal) = obj.sequence.take() {
                     signal.cancel();
@@ -238,6 +253,7 @@ impl GameState {
                 obj.direction = obj.direction.rotate_cw();
             }
             Action::Talk => {
+                let world = &mut self.world.borrow_mut();
                 // TODO optimize this.
                 for obj in world.objects().iter() {
                     world.objects().get(obj).borrow_mut().cancel_sequence();
@@ -261,7 +277,12 @@ impl GameState {
                     }
                 }
             }
-            _ => {}
+            Action::UseHand => {
+                // TODO
+            }
+            Action::UseSkill => {
+                // TODO
+            }
         }
     }
 
@@ -275,6 +296,121 @@ impl GameState {
 
     pub fn time(&self) -> &PausableTime {
         &self.time
+    }
+
+    fn actions(&self, objh: object::Handle) -> Vec<Action> {
+        let mut r = Vec::new();
+        let world = self.world.borrow();
+        let obj = world.objects().get(objh).borrow();
+        match obj.kind() {
+            EntityKind::Critter => {
+                if Some(objh) == world.dude_obj() {
+                    r.push(Action::Rotate);
+                } else {
+                    if world.objects().can_talk_to(objh) {
+                        if !self.in_combat {
+                            r.push(Action::Talk);
+                        }
+                    } else if !self.proto_db.proto(obj.pid.unwrap()).unwrap().sub.critter().unwrap()
+                        .flags.contains(CritterFlag::NoSteal)
+                    {
+                        r.push(Action::UseHand);
+                    }
+                    if world.objects().can_push(world.dude_obj().unwrap(), objh,
+                        &self.scripts, self.in_combat)
+                    {
+                        r.push(Action::Push);
+                    }
+                }
+                r.extend_from_slice(&[Action::Look, Action::Inventory, Action::UseSkill])
+            }
+            EntityKind::Item => {
+                r.extend_from_slice(&[Action::UseHand, Action::Look]);
+                if world.objects().item_kind(objh) == Some(ItemKind::Container) {
+                    r.extend_from_slice(&[Action::UseSkill, Action::Inventory]);
+                }
+            }
+            EntityKind::Scenery => {
+                if world.objects().can_use(objh) {
+                    r.push(Action::UseHand)
+                }
+                r.extend_from_slice(&[Action::Look, Action::Inventory, Action::UseSkill])
+            }
+            EntityKind::Wall => {
+                r.push(Action::Look);
+                if world.objects().can_use(objh) {
+                    r.push(Action::UseHand)
+                }
+            }
+            _ => {}
+        }
+        if r.len() > 0 {
+            r.push(Action::Cancel)
+        }
+        r
+    }
+
+    fn look_at_object(&mut self, looker: object::Handle, looked: object::Handle, ui: &mut Ui)
+        -> Option<BString>
+    {
+        let sid = {
+            let world = self.world.borrow();
+            let lookero = world.objects().get(looker).borrow();
+            let lookedo = world.objects().get(looked).borrow();
+            if lookero.sub.critter().map(|c| c.is_dead()).unwrap_or(true)
+                // TODO This is only useful for mapper?
+                || lookedo.kind() == EntityKind::SqrTile
+                || lookedo.pid.is_none()
+                || self.proto_db.proto(lookedo.pid.unwrap()).is_err()
+            {
+                return None;
+            }
+            lookedo.script.map(|(v, _)| v)
+        };
+
+        if let Some(sid) = sid {
+            let r = self.scripts.execute_predefined_proc(sid, PredefinedProc::LookAt,
+                &mut script::Context {
+                    world: &mut self.world.borrow_mut(),
+                    sequencer: &mut self.sequencer,
+                    dialog: &mut self.dialog,
+                    ui,
+                    message_panel: self.message_panel,
+                    map_id: self.map_id.unwrap(),
+                });
+            assert!(r.suspend.is_none(), "can't suspend");
+            if r.script_overrides {
+                return None;
+            }
+        }
+
+        let world = self.world.borrow();
+        let lookedo = world.objects().get(looked).borrow();
+        let msg_id = if lookedo.sub.critter().map(|c| c.is_dead()).unwrap_or(false) {
+            491 + random(0, 1)
+        } else {
+            490
+        };
+        if_chain! {
+            if let Some(msg) = self.proto_db.messages().get(msg_id);
+            if let Some(name) = world.object_name(looked);
+            then {
+                Some(sprintf(&msg.text, &[&*name]))
+            } else {
+                None
+            }
+        }
+    }
+
+    fn dude_look_at_object(&mut self, obj: object::Handle, ui: &mut Ui) {
+        let dude_obj = self.world().borrow().dude_obj().unwrap();
+        if let Some(msg) = self.look_at_object(dude_obj, obj, ui) {
+            let mut mp = ui.widget_mut::<MessagePanel>(self.message_panel);
+            let mut m = BString::new();
+            m.push(BULLET);
+            m.push_str(msg);
+            mp.push_message(m);
+        }
     }
 }
 
@@ -352,57 +488,37 @@ impl AppState for GameState {
     fn handle_ui_command(&mut self, command: UiCommand, ui: &mut Ui) {
         match command.data {
             UiCommandData::ObjectPick { kind, obj: objh } => {
-                let picked_dude = Some(objh) == self.world.borrow().dude_obj();
-                let default_action = if picked_dude {
-                    Action::Rotate
-                } else {
-                    Action::Talk
-                };
+                let actions = self.actions(objh);
+                let default_action = actions.first().cloned();
                 match kind {
                     ObjectPickKind::Hover => {
-                        ui.widget_mut::<Playfield>(self.playfield).default_action_icon = if self.object_action.is_none() {
-                            Some(default_action)
+                        // TODO highlight item on Action::UseHand: gmouse_bk_process()
+
+                        ui.widget_mut::<Playfield>(self.playfield).default_action_icon = if self.object_action_menu.is_none() {
+                            default_action
                         }  else {
                             None
                         };
 
                         if self.last_picked_obj != Some(objh) {
                             self.last_picked_obj = Some(objh);
-
-                            if let Some(name) = self.world.borrow().object_name(objh) {
-                                let mut mp = ui.widget_mut::<MessagePanel>(self.message_panel);
-                                let mut m = BString::new();
-                                m.push(BULLET);
-                                m.push_str("You see: ");
-                                m.push_str(name);
-                                mp.push_message(m);
-                            }
+                            self.dude_look_at_object(objh, ui);
                         }
                     }
                     ObjectPickKind::ActionMenu => {
                         ui.widget_mut::<Playfield>(self.playfield).default_action_icon = None;
 
-                        let mut actions = Vec::new();
-                        actions.push(default_action);
-                        if !actions.contains(&Action::Look) {
-                            actions.push(Action::Look);
-                        }
-                        if !actions.contains(&Action::Talk) {
-                            actions.push(Action::Talk);
-                        }
-                        if !actions.contains(&Action::Cancel) {
-                            actions.push(Action::Cancel);
-                        }
-
                         let playfield_win = ui.window_of(self.playfield).unwrap();
-                        self.object_action = Some(ObjectAction {
+                        self.object_action_menu = Some(ObjectActionMenu {
                             menu: action_menu::show(actions, playfield_win, ui),
                             obj: objh,
                         });
 
                         self.time.set_paused(true);
                     }
-                    ObjectPickKind::DefaultAction => self.handle_action(ui, objh, default_action),
+                    ObjectPickKind::DefaultAction => if let Some(a) = default_action {
+                        self.handle_action(ui, objh, a);
+                    }
                 }
             }
             UiCommandData::HexPick { action, pos } => {
@@ -436,7 +552,7 @@ impl AppState for GameState {
                 }
             }
             UiCommandData::Action { action } => {
-                let object_action = self.object_action.take().unwrap();
+                let object_action = self.object_action_menu.take().unwrap();
                 self.handle_action(ui, object_action.obj, action);
                 action_menu::hide(object_action.menu, ui);
                 self.time.set_paused(false);
@@ -547,7 +663,7 @@ impl PausableTime {
     }
 }
 
-struct ObjectAction {
+struct ObjectActionMenu {
     menu: ui::Handle,
     obj: object::Handle,
 }

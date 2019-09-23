@@ -202,7 +202,6 @@ impl Scripts {
         self.scripts.get_mut(&sid).unwrap().object = Some(obj);
     }
 
-    #[must_use]
     pub fn execute_proc(&mut self, sid: Sid, proc_id: ProcedureId,
         ctx: &mut Context) -> InvocationResult
     {
@@ -247,6 +246,12 @@ impl Scripts {
     }
 
     #[must_use]
+    pub fn has_predefined_proc(&self, sid: Sid, proc: PredefinedProc) -> bool {
+        let script = self.scripts.get(&sid).unwrap();
+        self.vm.program_state(script.program).program()
+            .predefined_proc_id(proc).is_some()
+    }
+
     pub fn execute_predefined_proc(&mut self, sid: Sid, proc: PredefinedProc,
         ctx: &mut Context) -> InvocationResult
     {

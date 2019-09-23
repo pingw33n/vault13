@@ -67,6 +67,9 @@ impl ProtoId {
     pub const EXIT_AREA_LAST: ProtoId = ProtoId(0x5000017);
     pub const RADIOACTIVE_GOO_FIRST: ProtoId = ProtoId(0x20003D9);
     pub const RADIOACTIVE_GOO_LAST: ProtoId = ProtoId(0x20003DC);
+    pub const ACTIVE_FLARE: ProtoId = ProtoId(0xCD);
+    pub const ACTIVE_DYNAMITE: ProtoId = ProtoId(0xCE);
+    pub const ACTIVE_PLASTIC_EXPLOSIVE: ProtoId = ProtoId(0xD1);
 
     pub fn new(kind: EntityKind, id: Option<u32>) -> Self {
         let bits = if let Some(id) = id {
@@ -111,7 +114,7 @@ impl ProtoId {
 
     /// Returns ID that is unique among entities of the same `EntityKind`.
     /// A special `None` ID is possible.
-    /// Note that the result it's zero based, so PID 0x01000001 has ID of 0, and
+    /// Note that the result is zero based, so PID 0x01000001 has ID of 0, and
     /// PID 0x01000000 has ID of `None`.
     pub fn id(self) -> Option<u32> {
         let r = self.0 & 0xffffff;
