@@ -122,7 +122,7 @@ pub struct Object {
     pub outline: Option<Outline>,
     pub sequence: Option<Cancel>,
     pub script: Option<(Sid, ProgramId)>,
-    pub sub: Option<SubObject>,
+    pub sub: SubObject,
 }
 
 impl Object {
@@ -145,8 +145,8 @@ impl Object {
             sequence: None,
             script: None,
             sub: match fid.kind() {
-                EntityKind::Critter => Some(SubObject::Critter(Default::default())),
-                _ => None,
+                EntityKind::Critter => SubObject::Critter(Default::default()),
+                _ => SubObject::None,
             }
         }
     }
@@ -928,6 +928,7 @@ impl Objects {
 
 #[derive(Debug)]
 pub enum SubObject {
+    None,
     Critter(Critter),
 }
 

@@ -329,14 +329,14 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             let health = self.reader.read_i32::<BigEndian>()?;
             let radiation = self.reader.read_i32::<BigEndian>()?;
             let poison = self.reader.read_i32::<BigEndian>()?;
-            Some(SubObject::Critter(Critter {
+            SubObject::Critter(Critter {
                 health,
                 radiation,
                 poison,
                 combat: CritterCombat {
                     damage_flags,
                 },
-            }))
+            })
         } else {
             assert!(updated_flags != 0xcccccccc);
     //            let update_flags = if updated_flags == 0xcccccccc {
@@ -423,7 +423,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 }
                 _ => {}
             }
-            None
+            SubObject::None
         };
 
         // inventory

@@ -218,7 +218,7 @@ impl World {
             .filter(|(_, h)| !h.translucent && !h.with_egg)
             .filter(|&&(o, _)| {
                 let obj = self.objects.get(o).borrow();
-                if let Some(SubObject::Critter(critter)) = &obj.sub {
+                if let SubObject::Critter(critter) = &obj.sub {
                     !critter.combat.damage_flags.intersects(DamageFlag::Dead | DamageFlag::KnockedOut)
                 } else {
                     true
