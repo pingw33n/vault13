@@ -73,9 +73,15 @@ impl Placement {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Action {
     Cancel,
+    Drop,
+    Inventory,
     Look,
+    Push,
     Rotate,
     Talk,
+    Unload,
+    UseHand,
+    UseSkill,
 }
 
 impl Action {
@@ -88,9 +94,15 @@ impl Action {
         use self::FrameId as F;
         match self {
             Cancel => (F::CANCELN, F::CANCELH),
+            Drop => (F::DROPN, F::DROPH),
+            Inventory => (F::INVENN, F::INVENH),
             Look => (F::LOOKN, F::LOOKH),
+            Push => (F::PUSHN, F::PUSHH),
             Rotate => (F::ROTATEN, F::ROTATEH),
             Talk => (F::TALKN, F::TALKH),
+            Unload => (F::UNLOADN, F::UNLOADH),
+            UseHand => (F::USEGETN, F::USEGETH),
+            UseSkill => (F::SKILLN, F::SKILLH),
         }
     }
 }
