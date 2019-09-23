@@ -4,6 +4,7 @@ pub mod random;
 #[cfg(test)]
 pub mod test;
 
+use bstring::{bstr, BString};
 use enum_map::Enum;
 use std::fmt;
 use std::marker::PhantomData;
@@ -142,5 +143,53 @@ impl fmt::Debug for SmKey {
         let ver = (v >> 32) as u32;
         let idx = v as u32;
         write!(f, "{}:{}", idx, ver)
+    }
+}
+
+pub fn sprintf(fmt: &bstr, args: &[&bstr]) -> BString {
+    let mut r = BString::with_capacity(fmt.len());
+    let mut args = args.iter();
+    let mut i = 0;
+    while i < fmt.len() {
+        let c = fmt[i];
+        match c {
+            b'%' => {
+                i += 1;
+                if i >= fmt.len() {
+                    panic!("truncated format spec");
+                }
+                let c = fmt[i];
+                match c {
+                    b's' => r.push_str(args.next().expect("no more args")),
+                    b'%' => r.push(b'%'),
+                    _ => panic!("unsupported format spec: {}", c as char),
+                }
+            }
+            _ => r.push(c),
+        }
+        i += 1;
+    }
+    assert!(args.next().is_none(), "too many args");
+    r
+}
+
+#[cfg(test)]
+mod test_ {
+    use super::*;
+
+    #[test]
+    fn sprintf_() {
+        let f = sprintf;
+        fn bs(s: &str) -> BString {
+            s.into()
+        }
+
+        assert_eq!(f("".into(), &[]), bs(""));
+        assert_eq!(f("no args".into(), &[]), bs("no args"));
+        assert_eq!(f("%s one arg".into(), &["arg1".into()]), bs("arg1 one arg"));
+        assert_eq!(f("one arg %s".into(), &["arg1".into()]), bs("one arg arg1"));
+        assert_eq!(f("%s two args %s".into(), &["arg1".into(), "arg2".into()]),
+            bs("arg1 two args arg2"));
+        assert_eq!(f("%%s escape %%".into(), &[]), bs("%s escape %"));
     }
 }
