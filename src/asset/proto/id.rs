@@ -58,36 +58,39 @@ use crate::asset::EntityKind;
   PID_MIRRORED_SHADES = 0x1B1,
   PID_SCROLL_BLOCKER = 0x500000C,*/
 
-#[derive(Clone, Copy, Default, Eq, Hash, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct ProtoId(u32);
 
 impl ProtoId {
-    pub const SHIV: ProtoId = ProtoId(0x17F);
-    pub const EXIT_AREA_FIRST: ProtoId = ProtoId(0x5000010);
-    pub const EXIT_AREA_LAST: ProtoId = ProtoId(0x5000017);
-    pub const RADIOACTIVE_GOO_FIRST: ProtoId = ProtoId(0x20003D9);
-    pub const RADIOACTIVE_GOO_LAST: ProtoId = ProtoId(0x20003DC);
-    pub const ACTIVE_FLARE: ProtoId = ProtoId(0xCD);
-    pub const ACTIVE_DYNAMITE: ProtoId = ProtoId(0xCE);
-    pub const ACTIVE_PLASTIC_EXPLOSIVE: ProtoId = ProtoId(0xD1);
+    pub const SHIV: Self = unsafe { Self::from_packed_unchecked(0x17F) };
+    pub const EXIT_AREA_FIRST: Self = unsafe { Self::from_packed_unchecked(0x5000010) };
+    pub const EXIT_AREA_LAST: Self = unsafe { Self::from_packed_unchecked(0x5000017) };
+    pub const RADIOACTIVE_GOO_FIRST: Self = unsafe { Self::from_packed_unchecked(0x20003D9) };
+    pub const RADIOACTIVE_GOO_LAST: Self = unsafe { Self::from_packed_unchecked(0x20003DC) };
+    pub const ACTIVE_FLARE: Self = unsafe { Self::from_packed_unchecked(0xCD) };
+    pub const ACTIVE_DYNAMITE: Self = unsafe { Self::from_packed_unchecked(0xCE) };
+    pub const ACTIVE_PLASTIC_EXPLOSIVE: Self = unsafe { Self::from_packed_unchecked(0xD1) };
 
-    pub fn new(kind: EntityKind, id: Option<u32>) -> Self {
-        let bits = if let Some(id) = id {
-            assert!(id <= 0xffffff);
-            id + 1
+    pub fn new(kind: EntityKind, id: u32) -> Option<Self> {
+        if id < 0xffffff {
+            Some(Self((kind as u32) << 24 | id))
         } else {
-            0
-        };
-        ProtoId((kind as u32) << 24 | bits)
+            None
+        }
+    }
+
+    const unsafe fn from_packed_unchecked(v: u32) -> Self {
+        Self(v - 1)
     }
 
     pub fn from_packed(v: u32) -> Option<Self> {
-        EntityKind::from_u32(v >> 24)?;
-        Some(ProtoId(v))
+        let kind = EntityKind::from_u32(v >> 24)?;
+        let id = (v & 0xffffff).checked_sub(1)?;
+        Self::new(kind, id)
     }
 
     pub fn pack(self) -> u32 {
-        self.0
+        self.0 + 1
     }
 
     pub fn read(rd: &mut impl Read) -> io::Result<Self> {
@@ -113,16 +116,9 @@ impl ProtoId {
     }
 
     /// Returns ID that is unique among entities of the same `EntityKind`.
-    /// A special `None` ID is possible.
-    /// Note that the result is zero based, so PID 0x01000001 has ID of 0, and
-    /// PID 0x01000000 has ID of `None`.
-    pub fn id(self) -> Option<u32> {
-        let r = self.0 & 0xffffff;
-        if r == 0 {
-            None
-        } else {
-            Some(r - 1)
-        }
+    /// The result is in range `[0..0xfffffe]`.
+    pub fn id(self) -> u32 {
+        self.0 & 0xffffff
     }
 
     pub fn is_exit_area(self) -> bool {
@@ -136,7 +132,7 @@ impl ProtoId {
 
 impl fmt::Debug for ProtoId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Pid(0x{:08x})", self.0)
+        write!(f, "ProtoId(0x{:08x})", self.0)
     }
 }
 
@@ -145,17 +141,17 @@ mod test {
     use super::*;
 
     #[test]
-    fn pid_id() {
-        let pid = ProtoId::new(EntityKind::Critter, Some(0));
-        assert_eq!(pid.id(), Some(0));
-        assert_eq!(pid.pack(), 0x01_000001);
+    fn test() {
+        let pid = ProtoId::new(EntityKind::Item, 0).unwrap();
+        assert_eq!(pid.id(), 0);
+        assert_eq!(pid.pack(), 0x00_000001);
+        assert_eq!(pid, ProtoId::from_packed(pid.pack()).unwrap());
 
-        let pid = ProtoId::new(EntityKind::Skilldex, Some(1));
-        assert_eq!(pid.id(), Some(1));
-        assert_eq!(pid.pack(), 0x0a_000002);
+        let pid = ProtoId::new(EntityKind::Skilldex, 0xfffffe).unwrap();
+        assert_eq!(pid.id(), 0xfffffe);
+        assert_eq!(pid.pack(), 0x0a_ffffff);
+        assert_eq!(pid, ProtoId::from_packed(pid.pack()).unwrap());
 
-        let pid = ProtoId::new(EntityKind::Critter, None);
-        assert_eq!(pid.id(), None);
-        assert_eq!(pid.pack(), 0x01_000000);
+        assert_eq!(ProtoId::new(EntityKind::Critter, 0xffffff), None);
     }
 }

@@ -552,11 +552,7 @@ impl Lst {
     }
 
     pub fn get(&self, pid: ProtoId) -> Option<&str> {
-        if let Some(id) = pid.id() {
-            self.lst[pid.kind()].get(id as usize).map(|e| e.fields[0].as_ref())
-        } else {
-            None
-        }
+        self.lst[pid.kind()].get(pid.id() as usize).map(|e| e.fields[0].as_ref())
     }
 
     fn read_lst_file(fs: &FileSystem, kind: EntityKind) -> io::Result<Vec<LstEntry>> {
