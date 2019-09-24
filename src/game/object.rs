@@ -704,8 +704,7 @@ impl Objects {
             let o = &self.get(h).borrow();
             if !o.flags.contains(Flag::TurnedOff) &&
                 !o.flags.contains(Flag::LightThru) &&
-                o.kind() != EntityKind::Scenery &&
-                o.kind() != EntityKind::Wall &&
+                (o.kind() == EntityKind::Scenery || o.kind() == EntityKind::Wall) &&
                 h != obj
             {
                 return true;
