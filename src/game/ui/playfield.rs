@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use crate::asset::Flag;
 use crate::asset::frame::FrameId;
 use crate::game::world::World;
-use crate::game::object::{self, Object};
+use crate::game::object::{self, Object, ObjectProtoId};
 use crate::graphics::{EPoint, Point};
 use crate::graphics::color;
 use crate::graphics::font::*;
@@ -86,7 +86,7 @@ impl Playfield {
     }
 
     fn insert_hex_cursor(world: &mut World) -> object::Handle {
-        let mut hex_cursor = Object::new(FrameId::MOUSE_HEX_OUTLINE, None,
+        let mut hex_cursor = Object::new(FrameId::MOUSE_HEX_OUTLINE, ObjectProtoId::None,
             Some(EPoint::new(0, (0, 0))));
         hex_cursor.flags = Flag::WalkThru | Flag::Flat | Flag::NoBlock | Flag::Temp |
             Flag::LightThru | Flag::ShootThru;

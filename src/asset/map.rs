@@ -461,7 +461,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             frame_idx,
             direction,
             light_emitter,
-            pid: Some(pid),
+            pid: pid.into(),
             inventory,
             outline,
             sequence: None,
@@ -530,7 +530,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
     fn make_map_script(&mut self, program_id: ProgramId) -> io::Result<()> {
         let sid = self.scripts.instantiate_map_script(program_id)?;
-        let mut obj = Object::new(FrameId::MAPMK, None, Some(EPoint::new(0, (0, 0))));
+        let mut obj = Object::new(FrameId::MAPMK, ObjectProtoId::None, Some(EPoint::new(0, (0, 0))));
         obj.flags = BitFlags::from(Flag::LightThru)
             | Flag::WalkThru
             | Flag::TurnedOff;
