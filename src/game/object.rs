@@ -658,7 +658,7 @@ impl Objects {
 
     // obj_blocking_at()
     #[must_use]
-    pub fn is_blocked(&self, obj: Handle, pos: EPoint) -> bool {
+    pub fn is_blocked_at(&self, obj: Handle, pos: EPoint) -> bool {
         let check = |h| {
             if h == obj {
                 return false;
@@ -699,7 +699,7 @@ impl Objects {
     /// Returns `true` if there's object that would block sight from `obj` through tile at `pos`.
     // obj_sight_blocking_at()
     #[must_use]
-    pub fn is_sight_blocked(&self, obj: Handle, pos: EPoint) -> bool {
+    pub fn is_sight_blocked_at(&self, obj: Handle, pos: EPoint) -> bool {
         for &h in self.at(pos) {
             let o = &self.get(h).borrow();
             if !o.flags.contains(Flag::TurnedOff) &&
@@ -737,7 +737,7 @@ impl Objects {
         let reachable = self.path_finder.borrow_mut().find(p1.point, p2.point, true,
             |p| {
                 let p = EPoint::new(p1.elevation, p);
-                if self.is_sight_blocked(obj1, p) {
+                if self.is_sight_blocked_at(obj1, p) {
                     TileState::Blocked
                 } else {
                     TileState::Passable(0)
@@ -838,7 +838,7 @@ impl Objects {
         self.path_finder.borrow_mut().find(from.point, to, smooth,
             |p| {
                 let p = EPoint::new(from.elevation, p);
-                if self.is_blocked(obj, p) { // TODO check anim_can_use_door_(obj, v22)
+                if self.is_blocked_at(obj, p) { // TODO check anim_can_use_door_(obj, v22)
                     TileState::Blocked
                 } else if let Some(pid) = o.pid.proto_id() {
                     let radioacive_goo = self.at(p)
