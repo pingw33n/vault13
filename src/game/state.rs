@@ -217,7 +217,7 @@ impl GameState {
             // MapEnter in map script is called before anything else.
             if let Some(sid) = self.scripts.map_sid() {
                 self.scripts.execute_predefined_proc(sid, PredefinedProc::MapEnter, ctx)
-                    .suspend.map(|_| panic!("can't suspend in MapEnter"));
+                    .map(|r| r.suspend.map(|_| panic!("can't suspend in MapEnter")));
             }
 
             self.scripts.execute_procs(PredefinedProc::Start, ctx, |sid| sid.kind() != ScriptKind::System);
@@ -270,7 +270,7 @@ impl GameState {
                             ui,
                             message_panel: self.message_panel,
                             map_id: self.map_id.unwrap(),
-                        }).suspend
+                        }).and_then(|r| r.suspend)
                     {
                         None | Some(Suspend::GsayEnd) => {}
                     }
@@ -367,8 +367,9 @@ impl GameState {
             lookedo.script.map(|(v, _)| v)
         };
 
-        if let Some(sid) = sid {
-            let r = self.scripts.execute_predefined_proc(sid, PredefinedProc::LookAt,
+        if_chain! {
+            if let Some(sid) = sid;
+            if let Some(r) = self.scripts.execute_predefined_proc(sid, PredefinedProc::LookAt,
                 &mut script::Context {
                     world: &mut self.world.borrow_mut(),
                     sequencer: &mut self.sequencer,
@@ -377,9 +378,11 @@ impl GameState {
                     message_panel: self.message_panel,
                     map_id: self.map_id.unwrap(),
                 });
-            assert!(r.suspend.is_none(), "can't suspend");
-            if r.script_overrides {
-                return None;
+            then {
+                assert!(r.suspend.is_none(), "can't suspend");
+                if r.script_overrides {
+                    return None;
+                }
             }
         }
 
@@ -425,8 +428,9 @@ impl GameState {
             examinedo.script.map(|(v, _)| v)
         };
 
-        let script_overrides = if let Some(sid) = sid {
-            let r = self.scripts.execute_predefined_proc(sid, PredefinedProc::Description,
+        let script_overrides = if_chain! {
+            if let Some(sid) = sid;
+            if let Some(r) = self.scripts.execute_predefined_proc(sid, PredefinedProc::Description,
                 &mut script::Context {
                     world: &mut self.world.borrow_mut(),
                     sequencer: &mut self.sequencer,
@@ -435,10 +439,12 @@ impl GameState {
                     message_panel: self.message_panel,
                     map_id: self.map_id.unwrap(),
                 });
-            assert!(r.suspend.is_none(), "can't suspend");
-            r.script_overrides
-        } else {
-            false
+            then {
+                assert!(r.suspend.is_none(), "can't suspend");
+                r.script_overrides
+            } else {
+                false
+            }
         };
 
         let mut r = Vec::new();

@@ -235,32 +235,31 @@ impl Scripts {
 
     #[must_use]
     pub fn execute_proc_name(&mut self, sid: Sid, proc: &Rc<BString>,
-        ctx: &mut Context)-> InvocationResult
+        ctx: &mut Context)-> Option<InvocationResult>
     {
         let script = self.scripts.get_mut(&sid).unwrap();
         let proc_id = self.vm.program_state(script.program)
             .program()
-            .proc_id(proc)
-            .unwrap();
-        self.execute_proc(sid, proc_id, ctx)
+            .proc_id(proc)?;
+        Some(self.execute_proc(sid, proc_id, ctx))
     }
 
     #[must_use]
     pub fn has_predefined_proc(&self, sid: Sid, proc: PredefinedProc) -> bool {
         let script = self.scripts.get(&sid).unwrap();
         self.vm.program_state(script.program).program()
-            .predefined_proc_id(proc).is_some()
+            .predefined_proc_id(proc)
+            .is_some()
     }
 
     pub fn execute_predefined_proc(&mut self, sid: Sid, proc: PredefinedProc,
-        ctx: &mut Context) -> InvocationResult
+        ctx: &mut Context) -> Option<InvocationResult>
     {
         let script = self.scripts.get_mut(&sid).unwrap();
         let proc_id = self.vm.program_state(script.program)
             .program()
-            .predefined_proc_id(proc)
-            .unwrap();
-        self.execute_proc(sid, proc_id, ctx)
+            .predefined_proc_id(proc)?;
+        Some(self.execute_proc(sid, proc_id, ctx))
     }
 
     pub fn execute_procs(&mut self, proc: PredefinedProc, ctx: &mut Context,
@@ -270,13 +269,8 @@ impl Scripts {
         let sids: Vec<_> = self.scripts.keys().cloned().collect();
         for sid in sids {
             if filter(sid) {
-                let program = self.scripts[&sid].program;
-                if let Some(proc_id) = self.vm.program_state(program)
-                    .program()
-                    .predefined_proc_id(proc)
-                {
-                    self.execute_proc(sid, proc_id, ctx)
-                        .suspend.map(|_| panic!("can't suspend in {:?}", proc));
+                if let Some(r) = self.execute_predefined_proc(sid, proc, ctx) {
+                    assert!(r.suspend.is_none(), "can't suspend in {:?}", proc);
                 }
             }
         }
@@ -292,7 +286,7 @@ impl Scripts {
         if proc != PredefinedProc::MapEnter {
             if let Some(sid) = self.map_sid {
                 self.execute_predefined_proc(sid, proc, ctx)
-                    .suspend.map(|_| panic!("can't suspend in {:?}", proc));
+                    .map(|r| r.suspend.map(|_| panic!("can't suspend in {:?}", proc)));
             }
         }
 
