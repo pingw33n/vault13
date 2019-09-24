@@ -598,57 +598,49 @@ impl Objects {
     }
 
     // obj_blocking_at()
-    pub fn blocker_at(&self, p: impl Into<EPoint>, mut filter: impl FnMut(Handle, &Object) -> bool)
-            -> Option<&RefCell<Object>> {
-        let p = p.into();
-        let mut check = |h| {
-            let obj = self.get(h);
-            let o = obj.borrow();
+    #[must_use]
+    pub fn is_blocked(&self, obj: Handle, pos: EPoint) -> bool {
+        let check = |h| {
+            if h == obj {
+                return false;
+            }
+            let o = self.get(h).borrow();
             match o.fid.kind() {
                 | EntityKind::Critter
                 | EntityKind::Scenery
                 | EntityKind::Wall
                 => {},
-                _ => return None,
+                _ => return false,
             }
             if o.flags.contains(Flag::TurnedOff) || o.flags.contains(Flag::NoBlock) {
-                return None;
+                return false;
             }
-            if !filter(h, &*o) {
-                return None;
-            }
-            Some(obj)
+            true
         };
-        for &objh in self.at(p.into()) {
-            let r = check(objh);
-            if r.is_some() {
-                return r;
+        for &objh in self.at(pos.into()) {
+            if check(objh) {
+                return true;
             }
         }
         for dir in Direction::iter() {
-            if let Some(near) = self.tile_grid.go(p.point, dir, 1) {
-                for &objh in self.at(near.elevated(p.elevation)) {
+            if let Some(near) = self.tile_grid.go(pos.point, dir, 1) {
+                for &objh in self.at(near.elevated(pos.elevation)) {
                     if self.get(objh).borrow().flags.contains(Flag::MultiHex) {
-                        let r = check(objh);
-                        if r.is_some() {
-                            return r;
+                        if check(objh) {
+                            return true;
                         }
                     }
                 }
             }
         }
 
-        None
+        false
     }
 
-    pub fn blocker_for_object_at(&self, obj: Handle, p: impl Into<EPoint>)
-            -> Option<&RefCell<Object>> {
-        self.blocker_at(p, |h, _| h != obj)
-    }
-
-    /// Returns object that would block sight from `obj` through tile at `pos`.
+    /// Returns `true` if there's object that would block sight from `obj` through tile at `pos`.
     // obj_sight_blocking_at()
-    pub fn sight_blocker_for_object(&self, pos: EPoint, obj: Handle) -> Option<Handle> {
+    #[must_use]
+    pub fn is_sight_blocked(&self, obj: Handle, pos: EPoint) -> bool {
         for &h in self.at(pos) {
             let o = &self.get(h).borrow();
             if !o.flags.contains(Flag::TurnedOff) &&
@@ -657,10 +649,10 @@ impl Objects {
                 o.kind() != EntityKind::Wall &&
                 h != obj
             {
-                return Some(h);
+                return true;
             }
         }
-        None
+        false
     }
 
     /// Based on spatial information are the objects able to talk?
@@ -687,7 +679,7 @@ impl Objects {
         let reachable = self.path_finder.borrow_mut().find(p1.point, p2.point, true,
             |p| {
                 let p = EPoint::new(p1.elevation, p);
-                if self.sight_blocker_for_object(p, obj1).is_some() {
+                if self.is_sight_blocked(obj1, p) {
                     TileState::Blocked
                 } else {
                     TileState::Passable(0)
@@ -779,14 +771,16 @@ impl Objects {
         true
     }
 
-    pub fn path_for_object(&self, obj: Handle, to: impl Into<Point>, smooth: bool, proto_db: &ProtoDb)
-            -> Option<Vec<Direction>> {
+    #[must_use]
+    pub fn path(&self, obj: Handle, to: impl Into<Point>, smooth: bool, proto_db: &ProtoDb)
+        -> Option<Vec<Direction>>
+    {
         let o = self.get(obj).borrow();
         let from = o.pos?;
         self.path_finder.borrow_mut().find(from.point, to, smooth,
             |p| {
                 let p = EPoint::new(from.elevation, p);
-                if self.blocker_for_object_at(obj, p).is_some() { // TODO check anim_can_use_door_(obj, v22)
+                if self.is_blocked(obj, p) { // TODO check anim_can_use_door_(obj, v22)
                     TileState::Blocked
                 } else if let Some(pid) = o.pid {
                     let radioacive_goo = self.at(p)

@@ -182,7 +182,7 @@ impl World {
 
     pub fn path_for_object(&self, obj: object::Handle, to: impl Into<Point>, smooth: bool)
             -> Option<Vec<Direction>> {
-        self.objects.path_for_object(obj, to, smooth, &self.proto_db)
+        self.objects.path(obj, to, smooth, &self.proto_db)
     }
 
     pub fn rebuild_light_grid(&mut self) {
