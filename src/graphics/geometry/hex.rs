@@ -76,71 +76,113 @@ fn go0(p: impl Into<Point>, direction: Direction, distance: u32, is_in_bounds: i
     p
 }
 
+/// Creates iterator over positions of distinct tiles that intersect the ray cast from `from` tile
+/// center via `via` tile center.
+///
+/// # Panics
+///
+/// * Panics if `from == via`.
+/// * Might panic if internal values overflow `i32`.
+pub fn ray(from: Point, via: Point) -> Ray {
+    Ray::new(from, via)
+}
+
+pub struct Ray {
+    first: bool,
+    pos_scr: Point,
+    pos_hex: Point,
+    delta_x: i32,
+    delta_y: i32,
+    i: i32,
+}
+
+impl Ray {
+    fn new(from: Point, via: Point) -> Self {
+        assert_ne!(from, via);
+        let from_scr = to_screen(from).add((16, 8));
+        let via_scr = to_screen(via).add((16, 8));
+
+        let delta_x = via_scr.x - from_scr.x;
+        let delta_y = via_scr.y - from_scr.y;
+        let i = if delta_x.abs() > delta_y.abs() {
+            2 * delta_y.abs() - delta_x.abs()
+        } else {
+            2 * delta_x.abs() - delta_y.abs()
+        };
+
+        Self {
+            first: true,
+            pos_scr: from_scr,
+            pos_hex: from,
+            delta_x,
+            delta_y,
+            i,
+        }
+    }
+}
+
+impl Iterator for Ray {
+    type Item = Point;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.first {
+            self.first = false;
+            return Some(self.pos_hex);
+        }
+        let dec_i = 2 * self.delta_x.abs();
+        let inc_x = self.delta_x.signum();
+        let inc_i = 2 * self.delta_y.abs();
+        let inc_y = self.delta_y.signum();
+        if dec_i > inc_i {
+            loop {
+                let next_hex = from_screen(self.pos_scr);
+                if next_hex != self.pos_hex {
+                    self.pos_hex = next_hex;
+                    break Some(self.pos_hex);
+                }
+                if self.i >= 0 {
+                    self.i -= dec_i;
+                    self.pos_scr.y += inc_y;
+                }
+                self.i += inc_i;
+                self.pos_scr.x += inc_x;
+            }
+        } else {
+            loop {
+                let next_hex = from_screen(self.pos_scr);
+                if next_hex != self.pos_hex {
+                    self.pos_hex = next_hex;
+                    break Some(self.pos_hex);
+                }
+                if self.i >= 0 {
+                    self.i -= inc_i;
+                    self.pos_scr.x += inc_x;
+                }
+                self.i += dec_i;
+                self.pos_scr.y += inc_y;
+            }
+        }
+    }
+}
+
 /// Casts line between two tile centers and returns coordinates of tile that is `n`-th distinct
 /// intersection of line and tiles that lie beyond and including `from`
-/// if going staight from `from` to `to`, where `n` is the `distance`.
+/// if going straight from `from` to `to`, where `n` is the `distance`.
 pub fn beyond(from: impl Into<Point>, to: impl Into<Point>, distance: u32) -> Point {
-    beyond0(from.into(), to.into(), distance, |_| false)
+    beyond0(from.into(), to.into(), distance, |_| true)
 }
 
 // tile_num_beyond()
-fn beyond0(from: Point, to: Point, distance: u32, is_on_edge: impl Fn(Point) -> bool) -> Point {
+fn beyond0(from: Point, to: Point, distance: u32, is_in_bounds: impl Fn(Point) -> bool) -> Point {
     if distance == 0 {
         return from;
     }
 
-    let froms = to_screen(from).add((16, 8));
-    let tos = to_screen(to).add((16, 8));
-
-    let delta_x = tos.x - froms.x;
-    let abs_delta_x_mult_2 = 2 * delta_x.abs();
-    let x_inc = delta_x.signum();
-
-    let delta_y = tos.y - froms.y;
-    let abs_delta_y_mult_2 = 2 * delta_y.abs();
-    let y_inc = delta_y.signum();
-
-    let mut cur = from;
-    let mut curs = froms;
-    let mut cur_distance = 0;
-
-    if abs_delta_x_mult_2 > abs_delta_y_mult_2 {
-        let mut j = abs_delta_y_mult_2 - abs_delta_x_mult_2 / 2;
-        loop {
-            let next = from_screen(curs);
-            if next != cur {
-                cur_distance += 1;
-                if cur_distance == distance || is_on_edge(next) {
-                    return next;
-                }
-                cur = next;
-            }
-            if j >= 0 {
-                j -= abs_delta_x_mult_2;
-                curs.y += y_inc;
-            }
-            j += abs_delta_y_mult_2;
-            curs.x += x_inc;
-        }
-    }
-
-    let mut j = abs_delta_x_mult_2 - abs_delta_y_mult_2 / 2;
-    loop {
-        let next = from_screen(curs);
-        if next != cur {
-            cur_distance += 1;
-            if cur_distance == distance || is_on_edge(next) {
-                return next;
-            }
-            cur = next;
-        }
-        if j >= 0 {
-            j -= abs_delta_y_mult_2;
-            curs.x += x_inc;
-        }
-        j += abs_delta_x_mult_2;
-        curs.y += y_inc;
-    }
+    ray(from, to)
+        .take(distance as usize + 1)
+        .take_while(|&p| is_in_bounds(p))
+        .last()
+        .unwrap()
 }
 
 // tile_num()
@@ -351,14 +393,6 @@ impl TileGrid {
         self.height
     }
 
-    pub fn is_on_edge(&self, p: impl Into<Point>) -> bool {
-        let p = p.into();
-        p.x == 0 ||
-            p.x == self.width - 1 ||
-            p.y == 0 ||
-            p.y == self.height - 1
-    }
-
     pub fn go(&self, p: impl Into<Point>, direction: Direction, distance: u32) -> Option<Point> {
         let p = go0(p, direction, distance, |_| true);
         if self.is_in_bounds(p) {
@@ -377,7 +411,7 @@ impl TileGrid {
         let from = from.into();
         let to = to.into();
         assert!(self.is_in_bounds(from));
-        beyond0(from, to.into(), distance, |p| self.is_on_edge(p))
+        beyond0(from, to.into(), distance, |p| self.is_in_bounds(p))
     }
 
     /// Linear to rectangular coordinates.
