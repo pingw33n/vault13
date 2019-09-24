@@ -238,8 +238,7 @@ impl GameState {
                 // TODO
             }
             Action::Look => {
-                // TODO obj_examine
-                self.dude_look_at_object(obj, ui);
+                self.dude_examine_object(obj, ui);
             }
             Action::Push => {
                 // TODO
@@ -405,12 +404,82 @@ impl GameState {
     fn dude_look_at_object(&mut self, obj: object::Handle, ui: &mut Ui) {
         let dude_obj = self.world().borrow().dude_obj().unwrap();
         if let Some(msg) = self.look_at_object(dude_obj, obj, ui) {
-            let mut mp = ui.widget_mut::<MessagePanel>(self.message_panel);
-            let mut m = BString::new();
-            m.push(BULLET);
-            m.push_str(msg);
-            mp.push_message(m);
+            self.push_message(&msg, ui);
         }
+    }
+
+    // obj_examine_func()
+    fn examine_object(&mut self, examiner: object::Handle, examined: object::Handle, ui: &mut Ui)
+        -> Vec<BString>
+    {
+        let sid = {
+            let world = self.world.borrow();
+            let examinero = world.objects().get(examiner).borrow();
+            let examinedo = world.objects().get(examined).borrow();
+            if examinero.sub.critter().map(|c| c.is_dead()).unwrap_or(false)
+                // TODO This is only useful for mapper?
+                || examinedo.kind() == EntityKind::SqrTile
+            {
+                return Vec::new();
+            }
+            examinedo.script.map(|(v, _)| v)
+        };
+
+        let script_overrides = if let Some(sid) = sid {
+            let r = self.scripts.execute_predefined_proc(sid, PredefinedProc::Description,
+                &mut script::Context {
+                    world: &mut self.world.borrow_mut(),
+                    sequencer: &mut self.sequencer,
+                    dialog: &mut self.dialog,
+                    ui,
+                    message_panel: self.message_panel,
+                    map_id: self.map_id.unwrap(),
+                });
+            assert!(r.suspend.is_none(), "can't suspend");
+            r.script_overrides
+        } else {
+            false
+        };
+
+        let mut r = Vec::new();
+
+        if !script_overrides {
+            let world = self.world.borrow();
+            let examinedo = world.objects().get(examined).borrow();
+            if !examinedo.sub.critter().map(|c| c.is_dead()).unwrap_or(false) {
+                let descr = if let Some(descr) = examinedo.pid
+                    .and_then(|pid| self.proto_db.description(pid).unwrap())
+                    .filter(|desr| {
+                        // Compare to "<None>".
+                        desr != &self.proto_db.messages().get(10).unwrap().text
+                    })
+                {
+                    descr.to_owned()
+                } else {
+                    self.proto_db.messages().get(493).unwrap().text.clone()
+                };
+                r.push(descr);
+            }
+        }
+
+        // TODO critter state/hp, weapon/ammo description, car info etc
+
+        r
+    }
+
+    fn dude_examine_object(&mut self, obj: object::Handle, ui: &mut Ui) {
+        let dude_obj = self.world().borrow().dude_obj().unwrap();
+        for msg in self.examine_object(dude_obj, obj, ui) {
+            self.push_message(&msg, ui);
+        }
+    }
+
+    fn push_message(&self, msg: &bstr, ui: &mut Ui) {
+        let mut mp = ui.widget_mut::<MessagePanel>(self.message_panel);
+        let mut m = BString::new();
+        m.push(BULLET);
+        m.push_str(msg);
+        mp.push_message(m);
     }
 }
 
