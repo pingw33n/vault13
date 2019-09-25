@@ -906,24 +906,41 @@ impl Objects {
         true
     }
 
+    /// `allow_neighbor_tile` - allows constructing path to a neighbor tile of `to` tile if the
+    /// target tile is blocked.
     #[must_use]
-    pub fn path(&self, obj: Handle, to: impl Into<Point>, smooth: bool, proto_db: &ProtoDb)
+    pub fn path(&self,
+        obj: Handle,
+        to: impl Into<Point>,
+        smooth: bool,
+        allow_neighbor_tile: bool,
+        proto_db: &ProtoDb)
         -> Option<Vec<Direction>>
     {
         let o = self.get(obj).borrow();
         let from = o.pos?;
-        self.path_finder.borrow_mut().find(from.point, to, smooth,
+        let to = to.into();
+
+        let to_blocked = if allow_neighbor_tile {
+            Some(self.is_blocked_at(obj, to.elevated(from.elevation)))
+        } else {
+            None
+        };
+
+        let mut r = self.path_finder.borrow_mut().find(from.point, to, smooth,
             |p| {
                 let p = EPoint::new(from.elevation, p);
-                if self.is_blocked_at(obj, p) { // TODO check anim_can_use_door_(obj, v22)
+                if (!allow_neighbor_tile || p.point != to) &&
+                    self.is_blocked_at(obj, p) // TODO check anim_can_use_door_(obj, v22)
+                {
                     TileState::Blocked
                 } else if let Some(pid) = o.pid.proto_id() {
-                    let radioacive_goo = self.at(p)
+                    let radioactive_goo = self.at(p)
                         .iter()
                         .any(|&h| self.get(h).borrow().pid.proto_id()
                             .map(|pid| pid.is_radioactive_goo())
                             .unwrap_or(false));
-                    let cost = if radioacive_goo {
+                    let cost = if radioactive_goo {
                         let gecko = if let proto::SubProto::Critter(ref c) = proto_db.proto(pid).unwrap().sub {
                             c.kill_kind == CritterKillKind::Gecko
                         } else {
@@ -942,7 +959,14 @@ impl Objects {
                 } else {
                     TileState::Passable(0)
                 }
-            })
+            });
+        if to_blocked == Some(true) {
+            if let Some(path) = r.as_mut() {
+                let last = path.len() - 1;
+                path.remove(last);
+            }
+        }
+        r
     }
 
     pub fn bounds(&self, obj: Handle, tile_grid: &impl TileGridView) -> Rect {

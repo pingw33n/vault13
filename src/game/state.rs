@@ -605,7 +605,7 @@ impl AppState for GameState {
                         signal.cancel();
                     }
 
-                    if let Some(path) = world.path_for_object(dude_objh, pos.point, true) {
+                    if let Some(path) = world.path_for_object(dude_objh, pos.point, true, true) {
                         let anim = if self.shift_key_down {
                             CritterAnim::Walk
                         } else {
@@ -620,7 +620,9 @@ impl AppState for GameState {
                 } else {
                     let mut pf = ui.widget_mut::<Playfield>(self.playfield);
                     let dude_obj = self.world.borrow().dude_obj().unwrap();
-                    pf.hex_cursor_style = if self.world.borrow().path_for_object(dude_obj, pos.point, true).is_some() {
+                    pf.hex_cursor_style = if self.world.borrow()
+                        .path_for_object(dude_obj, pos.point, true, true).is_some()
+                    {
                         HexCursorStyle::Normal
                     } else {
                         HexCursorStyle::Blocked

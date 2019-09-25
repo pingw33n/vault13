@@ -180,9 +180,13 @@ impl World {
         self.objects.make_standing(h, &self.frm_db);
     }
 
-    pub fn path_for_object(&self, obj: object::Handle, to: impl Into<Point>, smooth: bool)
-            -> Option<Vec<Direction>> {
-        self.objects.path(obj, to, smooth, &self.proto_db)
+    pub fn path_for_object(&self,
+        obj: object::Handle,
+        to: impl Into<Point>,
+        smooth: bool,
+        allow_neighbor_tile: bool,
+    ) -> Option<Vec<Direction>> {
+        self.objects.path(obj, to, smooth, allow_neighbor_tile, &self.proto_db)
     }
 
     pub fn rebuild_light_grid(&mut self) {
