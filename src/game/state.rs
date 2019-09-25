@@ -605,18 +605,14 @@ impl AppState for GameState {
                         signal.cancel();
                     }
 
-                    if let Some(path) = world.path_for_object(dude_objh, pos.point, true, true) {
-                        let anim = if self.shift_key_down {
-                            CritterAnim::Walk
-                        } else {
-                            CritterAnim::Running
-                        };
-                        if !path.is_empty() {
-                            let (seq, signal) = Move::new(dude_objh, anim, path).cancellable();
-                            world.objects().get(dude_objh).borrow_mut().sequence = Some(signal);
-                            self.sequencer.start(seq.then(Stand::new(dude_objh)));
-                        }
-                    }
+                    let anim = if self.shift_key_down {
+                        CritterAnim::Walk
+                    } else {
+                        CritterAnim::Running
+                    };
+                    let (seq, signal) = Move::new(dude_objh, pos.point, anim).cancellable();
+                    world.objects().get(dude_objh).borrow_mut().sequence = Some(signal);
+                    self.sequencer.start(seq.then(Stand::new(dude_objh)));
                 } else {
                     let mut pf = ui.widget_mut::<Playfield>(self.playfield);
                     let dude_obj = self.world.borrow().dude_obj().unwrap();

@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use crate::asset::CritterAnim;
 use crate::game::object::Handle;
 use crate::game::world::World;
-use crate::graphics::EPoint;
+use crate::graphics::{EPoint, Point};
 use crate::graphics::geometry::hex::{self, Direction};
 use crate::sequence::*;
 
@@ -16,6 +16,7 @@ enum State {
 
 pub struct Move {
     obj: Handle,
+    to: Point,
     anim: CritterAnim,
     frame_len: Duration,
     path: Vec<Direction>,
@@ -24,18 +25,14 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new(obj: Handle, anim: CritterAnim, path: Vec<Direction>) -> Self {
-        let state = if path.is_empty() {
-            State::Done
-        } else {
-            State::Started
-        };
+    pub fn new(obj: Handle, to: Point, anim: CritterAnim) -> Self {
         Self {
             obj,
+            to,
             anim,
             frame_len: Duration::from_millis(1000 / 10),
-            path,
-            state,
+            path: Vec::new(),
+            state: State::Started,
             path_pos: 0,
         }
     }
@@ -43,7 +40,10 @@ impl Move {
     fn init_step(&mut self, world: &mut World) {
         let mut obj = world.objects().get(self.obj).borrow_mut();
 
-        obj.direction = self.path[self.path_pos];
+        // Path can be empty in Started state.
+        if self.path.len() > 0 {
+            obj.direction = self.path[self.path_pos];
+        }
         obj.fid = obj.fid
             .critter()
             .unwrap()
@@ -56,6 +56,12 @@ impl Move {
 
         self.frame_len = Duration::from_millis(1000 / world.frm_db().get(obj.fid).unwrap().fps as u64);
     }
+
+    fn rebuild_path(&mut self, world: &mut World) {
+        // TODO non-smooth
+        self.path = world.path_for_object(self.obj, self.to, true, true)
+            .unwrap_or(Vec::new())
+    }
 }
 
 impl Sequence for Move {
@@ -63,8 +69,15 @@ impl Sequence for Move {
     fn update(&mut self, ctx: &mut Update) -> Result {
         match self.state {
             State::Started => {
+                self.rebuild_path(ctx.world);
+
                 self.init_step(ctx.world);
                 ctx.world.objects_mut().reset_screen_shift(self.obj);
+
+                if self.path.is_empty() {
+                    self.state = State::Done;
+                    return Result::Done;
+                }
             },
             State::Running(last_time) => {
                 if ctx.time - last_time < self.frame_len {
