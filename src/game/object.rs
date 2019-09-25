@@ -807,7 +807,7 @@ impl Objects {
             return Err(CantTalkSpatial::Unreachable);
         }
 
-        if hex::distance(p1.point, p2.point) > 12 {
+        if hex::screen_distance(p1.point, p2.point) > 12 {
             return Err(CantTalkSpatial::TooFar);
         }
 
