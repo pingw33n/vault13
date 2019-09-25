@@ -713,6 +713,83 @@ impl Objects {
         false
     }
 
+    // obj_shoot_blocking_at()
+    #[must_use]
+    pub fn shot_blocker_at(&self, obj: Handle, pos: EPoint) -> Option<Handle> {
+        let check = |pos, multi_hex_only| {
+            for &h in self.at(pos) {
+                let o = &self.get(h).borrow();
+                if multi_hex_only && !o.flags.contains(Flag::MultiHex) {
+                    return None;
+                }
+                let non_shoot_thru = if multi_hex_only {
+                    // TODO For multi-hex ShootThru flag doesn't apply?
+                    false
+                } else {
+                    !o.flags.contains(Flag::ShootThru)
+                };
+                if !o.flags.contains(Flag::TurnedOff) &&
+                    (!o.flags.contains(Flag::NoBlock) || non_shoot_thru) &&
+                    h != obj &&
+                    match o.kind() {
+                        EntityKind::Scenery | EntityKind::Wall | EntityKind::Critter => true,
+                        _ => false,
+                    }
+                {
+                    return Some(h);
+                }
+            }
+            None
+        };
+
+        let r = check(pos, false);
+        if r.is_some() {
+            return r;
+        }
+
+        // Check for MultiHex objects in neighbor tiles.
+        for dir in Direction::iter() {
+            if let Some(p) = self.tile_grid.go(pos.point, dir, 1) {
+                let r = check(p.elevated(pos.elevation), true);
+                if r.is_some() {
+                    return r;
+                }
+            }
+        }
+
+        None
+    }
+
+    // combat_is_shot_blocked()
+    #[must_use]
+    pub fn is_shot_blocked(&self, shooter: Handle, target: Handle) -> bool {
+        let pos = self.get(shooter).borrow().pos.unwrap();
+        let target_pos = self.get(target).borrow().pos.unwrap();
+        assert_eq!(pos.elevation, target_pos.elevation);
+        let mut last_blocker = None;
+        for p in hex::ray(pos.point, target_pos.point) {
+            let blocker = self.shot_blocker_at(shooter, p.elevated(pos.elevation));
+
+            if_chain! {
+                if blocker != last_blocker;
+                if let Some(blocker) = blocker;
+                then {
+                    if blocker != shooter && blocker != target {
+                        let o = self.get(blocker).borrow();
+                        if o.kind() != EntityKind::Critter {
+                            return true;
+                        }
+                    }
+                    last_blocker = Some(blocker);
+                }
+            };
+            if p == target_pos.point {
+                break;
+            }
+        }
+        false
+    }
+
     /// Based on spatial information are the objects able to talk?
     /// Objects can talk if:
     /// 1. There's a path between them which is not sight-blocked (see `sight_blocker_for_object()`).
