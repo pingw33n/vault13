@@ -93,14 +93,15 @@ impl Sequence for Move {
             let shift = ctx.world.objects_mut().add_screen_shift(self.obj, shift);
 
             let dir = self.path[self.path_pos];
-            let next_hex_offset = hex::screen_offset(dir);
-            if next_hex_offset.x != 0
-                    && shift.x.abs() >= next_hex_offset.x.abs()
-                    || next_hex_offset.y != 0
-                    && shift.y.abs() >= next_hex_offset.y.abs() {
+            let next_offset = hex::screen_offset(dir);
+            if next_offset.x > 0 && shift.x >= next_offset.x ||
+                next_offset.x < 0 && shift.x <= next_offset.x ||
+                next_offset.y > 0 && shift.y >= next_offset.y ||
+                next_offset.y < 0 && shift.y <= next_offset.y
+            {
                 let shift = {
                     let obj = ctx.world.objects().get(self.obj).borrow();
-                    obj.screen_shift - next_hex_offset
+                    obj.screen_shift - next_offset
                 };
                 let pos = pos.unwrap();
                 let pos_point = ctx.world.hex_grid().go(pos.point, dir, 1).unwrap();
@@ -111,6 +112,9 @@ impl Sequence for Move {
         };
         if let Some((pos, shift)) = new_obj_pos_and_shift {
             ctx.world.set_object_pos(self.obj, pos);
+
+            // TODO check for blocker and rebuild path
+            // TODO use door
 
             self.path_pos += 1;
             if self.path_pos >= self.path.len() {
