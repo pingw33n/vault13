@@ -24,7 +24,7 @@ use crate::game::sequence::stand::Stand;
 use crate::game::script::{self, Scripts, ScriptKind};
 use crate::game::ui::action_menu::{self, Action};
 use crate::game::ui::hud;
-use crate::game::ui::playfield::{HexCursorStyle, Playfield};
+use crate::game::ui::world::{HexCursorStyle, WorldView};
 use crate::game::world::World;
 use crate::graphics::Rect;
 use crate::graphics::font::Fonts;
@@ -51,7 +51,7 @@ pub struct GameState {
     sequencer: Sequencer,
     fidget: Fidget,
     message_panel: ui::Handle,
-    playfield: ui::Handle,
+    world_view: ui::Handle,
     dialog: Option<Dialog>,
     shift_key_down: bool,
     last_picked_obj: Option<object::Handle>,
@@ -97,10 +97,10 @@ impl GameState {
         let sequencer = Sequencer::new(now);
         let fidget = Fidget::new(now);
 
-        let playfield = {
+        let world_view = {
             let rect = Rect::with_size(0, 0, 640, 379);
             let win = ui.new_window(rect.clone(), None);
-            ui.new_widget(win, rect, None, None, Playfield::new(world.clone()))
+            ui.new_widget(win, rect, None, None, WorldView::new(world.clone()))
         };
         let message_panel = hud::create(ui);
 
@@ -114,7 +114,7 @@ impl GameState {
             sequencer,
             fidget,
             message_panel,
-            playfield,
+            world_view,
             dialog: None,
             shift_key_down: false,
             last_picked_obj: None,
@@ -131,8 +131,8 @@ impl GameState {
         &self.world
     }
 
-    pub fn playfield(&self) -> ui::Handle {
-        self.playfield
+    pub fn world_view(&self) -> ui::Handle {
+        self.world_view
     }
 
     pub fn time(&self) -> &PausableTime {
@@ -142,7 +142,7 @@ impl GameState {
     pub fn new_game(&mut self, map_name: &str, dude_name: &bstr, ui: &mut Ui) {
         self.world.borrow_mut().clear();
         // Reinsert the hex cursor. Needs `world` to be not borrowed.
-        ui.widget_mut::<Playfield>(self.playfield).ensure_hex_cursor();
+        ui.widget_mut::<WorldView>(self.world_view).ensure_hex_cursor();
 
         let world = &mut self.world.borrow_mut();
 
@@ -608,8 +608,8 @@ impl AppState for GameState {
                 world.ambient_light = cmp::min(world.ambient_light + 1000, 0x10000);
             }
             Event::KeyDown { keycode: Some(Keycode::R), .. } => {
-                let mut pf = ui.widget_mut::<Playfield>(self.playfield);
-                pf.roof_visible = pf.roof_visible;
+                let mut wv = ui.widget_mut::<WorldView>(self.world_view);
+                wv.roof_visible = wv.roof_visible;
             }
             Event::KeyDown { keycode: Some(Keycode::P), .. } => {
                 self.user_paused = !self.user_paused;
@@ -633,7 +633,7 @@ impl AppState for GameState {
                     ObjectPickKind::Hover => {
                         // TODO highlight item on Action::UseHand: gmouse_bk_process()
 
-                        ui.widget_mut::<Playfield>(self.playfield).default_action_icon = if self.object_action_menu.is_none() {
+                        ui.widget_mut::<WorldView>(self.world_view).default_action_icon = if self.object_action_menu.is_none() {
                             default_action
                         }  else {
                             None
@@ -645,11 +645,11 @@ impl AppState for GameState {
                         }
                     }
                     ObjectPickKind::ActionMenu => {
-                        ui.widget_mut::<Playfield>(self.playfield).default_action_icon = None;
+                        ui.widget_mut::<WorldView>(self.world_view).default_action_icon = None;
 
-                        let playfield_win = ui.window_of(self.playfield).unwrap();
+                        let world_view_win = ui.window_of(self.world_view).unwrap();
                         self.object_action_menu = Some(ObjectActionMenu {
-                            menu: action_menu::show(actions, playfield_win, ui),
+                            menu: action_menu::show(actions, world_view_win, ui),
                             obj: objh,
                         });
 
@@ -677,9 +677,9 @@ impl AppState for GameState {
                     world.objects().get(dude_objh).borrow_mut().sequence = Some(signal);
                     self.sequencer.start(seq.then(Stand::new(dude_objh)));
                 } else {
-                    let mut pf = ui.widget_mut::<Playfield>(self.playfield);
+                    let mut wv = ui.widget_mut::<WorldView>(self.world_view);
                     let dude_obj = self.world.borrow().dude_obj().unwrap();
-                    pf.hex_cursor_style = if self.world.borrow()
+                    wv.hex_cursor_style = if self.world.borrow()
                         .path_for_object(dude_obj, pos.point, true, false).is_some()
                     {
                         HexCursorStyle::Normal

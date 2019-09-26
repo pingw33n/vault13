@@ -29,7 +29,7 @@ use crate::asset::message::Messages;
 use crate::asset::palette::read_palette;
 use crate::asset::proto::ProtoDb;
 use crate::game::state::GameState;
-use crate::game::ui::playfield::Playfield;
+use crate::game::ui::world::WorldView;
 use crate::graphics::{EPoint, Point};
 use crate::graphics::color::{BLACK, GREEN};
 use crate::graphics::color::palette::overlay::PaletteOverlay;
@@ -261,8 +261,8 @@ fn main() {
 
         if draw_debug {
             let world = state.world().borrow();
-            let pf = ui.widget_ref::<Playfield>(state.playfield());
-            let (mouse_hex_pos, mouse_sqr_pos) = if let Some(EPoint { point, .. }) = pf.hex_cursor_pos() {
+            let world_view = ui.widget_ref::<WorldView>(state.world_view());
+            let (mouse_hex_pos, mouse_sqr_pos) = if let Some(EPoint { point, .. }) = world_view.hex_cursor_pos() {
                 (point, world.camera().sqr().from_screen(
                     world.camera().hex().to_screen(point) + Point::new(16, 8)))
             } else {

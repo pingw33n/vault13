@@ -39,7 +39,7 @@ enum PickState {
     },
 }
 
-pub struct Playfield {
+pub struct WorldView {
     world: Rc<RefCell<World>>,
     pick_mode: PickMode,
     hex_cursor: object::Handle,
@@ -52,7 +52,7 @@ pub struct Playfield {
     pub default_action_icon: Option<Action>,
 }
 
-impl Playfield {
+impl WorldView {
     pub fn new(world: Rc<RefCell<World>>) -> Self {
         let hex_cursor = Self::insert_hex_cursor(&mut world.borrow_mut());
 
@@ -124,7 +124,7 @@ impl Playfield {
     }
 }
 
-impl Widget for Playfield {
+impl Widget for WorldView {
     fn init(&mut self, ctx: Init) {
         ctx.base.set_cursor(Some(Cursor::Hidden));
     }
