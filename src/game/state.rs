@@ -362,8 +362,9 @@ impl GameState {
             if lookero.sub.critter().map(|c| c.is_dead()).unwrap_or(true)
                 // TODO This is only useful for mapper?
                 || lookedo.kind() == EntityKind::SqrTile
-                || lookedo.pid.proto_id().is_none()
-                || self.proto_db.proto(lookedo.pid.proto_id().unwrap()).is_err()
+                || lookedo.pid != ObjectProtoId::Dude &&
+                    (lookedo.pid.proto_id().is_none()
+                        || self.proto_db.proto(lookedo.pid.proto_id().unwrap()).is_err())
             {
                 return None;
             }
