@@ -58,6 +58,7 @@ pub struct GameState {
     user_paused: bool,
     map_id: Option<i32>,
     in_combat: bool,
+    seq_events: Vec<sequence::Event>,
 }
 
 impl GameState {
@@ -118,7 +119,20 @@ impl GameState {
             user_paused: false,
             map_id: None,
             in_combat: false,
+            seq_events: Vec::new(),
         }
+    }
+
+    pub fn world(&self) -> &RefCell<World> {
+        &self.world
+    }
+
+    pub fn playfield(&self) -> ui::Handle {
+        self.playfield
+    }
+
+    pub fn time(&self) -> &PausableTime {
+        &self.time
     }
 
     pub fn new_game(&mut self, map_name: &str, dude_name: &bstr, ui: &mut Ui) {
@@ -285,16 +299,15 @@ impl GameState {
         }
     }
 
-    pub fn world(&self) -> &RefCell<World> {
-        &self.world
-    }
-
-    pub fn playfield(&self) -> ui::Handle {
-        self.playfield
-    }
-
-    pub fn time(&self) -> &PausableTime {
-        &self.time
+    fn handle_seq_events(&mut self) {
+        for event in self.seq_events.drain(..) {
+            match event {
+                sequence::Event::ObjectMoved { obj, old_pos, new_pos } => {
+                    dbg!((obj, old_pos, new_pos));
+                }
+                _ => {}
+            }
+        }
     }
 
     fn actions(&self, objh: object::Handle) -> Vec<Action> {
@@ -680,15 +693,21 @@ impl AppState for GameState {
         self.time.set_paused(self.user_paused || self.scripts.can_resume());
 
         if self.time.is_running() {
-            let mut world = self.world.borrow_mut();
-            world.update(self.time.time());
+            {
+                let mut world = self.world.borrow_mut();
+                world.update(self.time.time());
 
-            self.sequencer.update(&mut sequence::Update {
-                time: self.time.time(),
-                world: &mut world
-            });
+                self.seq_events.clear();
+                self.sequencer.update(&mut sequence::Update {
+                    time: self.time.time(),
+                    world: &mut world,
+                    out: &mut self.seq_events,
+                });
+            }
 
-            self.fidget.update(self.time.time(), &mut world, &mut self.sequencer);
+            self.handle_seq_events();
+
+            self.fidget.update(self.time.time(), &mut self.world.borrow_mut(), &mut self.sequencer);
         } else {
             self.sequencer.cleanup(&mut sequence::Cleanup {
                 world: &mut self.world.borrow_mut(),

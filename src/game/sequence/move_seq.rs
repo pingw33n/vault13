@@ -124,7 +124,14 @@ impl Sequence for Move {
             }
         };
         if let Some((pos, shift)) = new_obj_pos_and_shift {
+            let old_pos = ctx.world.objects().get(self.obj).borrow().pos.unwrap();
             ctx.world.set_object_pos(self.obj, pos);
+
+            ctx.out.push(Event::ObjectMoved {
+                obj: self.obj,
+                old_pos,
+                new_pos: pos,
+            });
 
             // TODO check for blocker and rebuild path
             // TODO use door

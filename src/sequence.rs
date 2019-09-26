@@ -2,6 +2,7 @@ use enum_map_derive::Enum;
 
 pub mod cancellable;
 pub mod chain;
+pub mod event;
 pub mod noop;
 pub mod repeat;
 pub mod sleep;
@@ -10,6 +11,8 @@ pub mod then;
 use std::time::Instant;
 
 use crate::game::world::World;
+
+pub use event::Event;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
 pub enum Running {
@@ -34,6 +37,7 @@ pub enum Result {
 pub struct Update<'a> {
     pub time: Instant,
     pub world: &'a mut World,
+    pub out: &'a mut Vec<Event>,
 }
 
 pub trait Sequence {
@@ -106,10 +110,13 @@ impl Sequencer {
 
     /// Executes a no-advance update so the cancelled sequenced can get cleaned up.
     pub fn cleanup(&mut self, ctx: &mut Cleanup) {
+        let out = &mut Vec::new();
         self.update(&mut Update {
             time: self.last_time,
             world: ctx.world,
-        })
+            out,
+        });
+        assert!(out.is_empty());
     }
 }
 
