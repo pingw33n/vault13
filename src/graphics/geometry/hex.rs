@@ -313,7 +313,7 @@ pub fn direction(from: impl Into<Point>, to: impl Into<Point>) -> Direction {
 }
 
 // tile_dist()
-pub fn screen_distance(p1: impl Into<Point>, p2: impl Into<Point>) -> i32 {
+pub fn screen_distance(p1: impl Into<Point>, p2: impl Into<Point>) -> u32 {
     let mut p1 = p1.into();
     let p2 = p2.into();
     let mut distance = 0;
