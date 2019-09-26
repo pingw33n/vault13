@@ -99,6 +99,7 @@ pub struct MessagePanel {
     skew: i32,
     anchor: Anchor,
     message_spacing: i32,
+    needs_update_highlight: bool,
 }
 
 impl MessagePanel {
@@ -119,6 +120,7 @@ impl MessagePanel {
             skew: 0,
             anchor: Anchor::Top,
             message_spacing: 0,
+            needs_update_highlight: false,
         }
     }
 
@@ -144,6 +146,10 @@ impl MessagePanel {
                 message: self.messages.len() - 1,
                 range,
             });
+        }
+
+        if self.mouse_control == MouseControl::Pick {
+            self.needs_update_highlight = true;
         }
     }
 
@@ -261,6 +267,40 @@ impl MessagePanel {
         let scroll = self.scroll_for_cursor(ctx.base.rect, ctx.cursor_pos);
         ctx.base.cursor = self.cursor(scroll);
     }
+
+    fn update_highlight(&mut self, cursor_pos: Point, base: &Base) {
+        assert_eq!(self.scroll_pos, 0);
+        assert_eq!(self.anchor, Anchor::Top);
+        self.highlighted = if base.rect.contains(cursor_pos.x, cursor_pos.y) {
+            let line_advance = self.fonts.get(self.font).vert_advance();
+
+            let mut msgs = self.messages.iter().map(|m| m.line_count).peekable();
+            let cursor_y = cursor_pos.y - base.rect.top;
+            let mut y = 0;
+            let mut message = 0;
+            loop {
+                if y > cursor_y {
+                    break None;
+                }
+                let line_count = if let Some(v) = msgs.next() {
+                    v
+                } else {
+                    break None;
+                };
+
+                let height = line_advance * line_count as i32 +
+                    // Don't add spacing on the last message
+                    if msgs.peek().is_some() { self.message_spacing } else { 0 };
+                if cursor_y >= y && cursor_y < y + height {
+                    break Some(message);
+                }
+                y += height;
+                message += 1;
+            }
+        } else {
+            None
+        };
+    }
 }
 
 struct Line {
@@ -325,39 +365,7 @@ impl Widget for MessagePanel {
             }
             Event::MouseMove { .. } => match self.mouse_control {
                 MouseControl::Scroll => self.update_cursor(&mut ctx),
-                MouseControl::Pick => {
-                    assert_eq!(self.scroll_pos, 0);
-                    assert_eq!(self.anchor, Anchor::Top);
-                    self.highlighted = if ctx.base.rect.contains(ctx.cursor_pos.x, ctx.cursor_pos.y) {
-                        let line_advance = self.fonts.get(self.font).vert_advance();
-
-                        let mut msgs = self.messages.iter().map(|m| m.line_count).peekable();
-                        let cursor_y = ctx.cursor_pos.y - ctx.base.rect.top;
-                        let mut y = 0;
-                        let mut message = 0;
-                        loop {
-                            if y > cursor_y {
-                                break None;
-                            }
-                            let line_count = if let Some(v) = msgs.next() {
-                                v
-                            } else {
-                                break None;
-                            };
-
-                            let height = line_advance * line_count as i32 +
-                                // Don't add spacing on the last message
-                                if msgs.peek().is_some() { self.message_spacing } else { 0 };
-                            if cursor_y >= y && cursor_y < y + height {
-                                break Some(message);
-                            }
-                            y += height;
-                            message += 1;
-                        }
-                    } else {
-                        None
-                    };
-                }
+                MouseControl::Pick => self.update_highlight(ctx.cursor_pos, &ctx.base),
             }
             Event::MouseLeave => {
                 self.highlighted = None;
@@ -369,6 +377,13 @@ impl Widget for MessagePanel {
                 }
             }
             _ => {}
+        }
+    }
+
+    fn sync(&mut self, ctx: Sync) {
+        if self.needs_update_highlight {
+            self.update_highlight(ctx.cursor_pos, &ctx.base);
+            self.needs_update_highlight = false;
         }
     }
 
