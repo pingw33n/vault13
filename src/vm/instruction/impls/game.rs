@@ -878,6 +878,7 @@ pub fn start_gdialog(mut ctx: Context) -> Result<()> {
 
     // TODO disallow in combat state
     // TODO handle head_id
+    // TODO check for can_talk() (or can_talk_now()?)
 
     assert!(ctx.ext.dialog.is_none());
     *ctx.ext.dialog = Some(Dialog::show(ctx.ext.ui, ctx.ext.world, objh));

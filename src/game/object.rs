@@ -297,6 +297,18 @@ impl Object {
         })
     }
 
+    #[must_use]
+    pub fn screen_distance(&self, other: &Object) -> Option<u32> {
+        let mut r = hex::screen_distance(self.pos?.point, other.pos?.point);
+        if r > 0 && self.flags.contains(Flag::MultiHex) {
+            r -= 1;
+        }
+        if r > 0 && other.flags.contains(Flag::MultiHex) {
+            r -= 1;
+        }
+        Some(r)
+    }
+
     fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &impl TileGridView) -> Rect {
         let mut r = if let Some(pos) = self.pos {
             let top_left =
@@ -827,7 +839,12 @@ impl Objects {
         }
     }
 
-    /// Whether one can talk to `obj`.
+    // can_talk_to
+    pub fn can_talk_now(&self, obj1: Handle, obj2: Handle) -> bool {
+        self.screen_distance(obj1, obj2).unwrap() < 9 && !self.is_shot_blocked(obj1, obj2)
+    }
+
+    /// Whether `obj` can be talked to.
     // obj_action_can_talk_to()
     pub fn can_talk_to(&self, obj: Handle) -> bool {
         let obj = self.get(obj).borrow();
@@ -1004,6 +1021,10 @@ impl Objects {
             }
         }
         r
+    }
+
+    pub fn screen_distance(&self, from: Handle, to: Handle) -> Option<u32> {
+        self.get(from).borrow().screen_distance(&self.get(to).borrow())
     }
 
     // obj_intersects_with()

@@ -13,6 +13,10 @@ pub enum Event {
         old_pos: EPoint,
         new_pos: EPoint,
     },
+    Talk {
+        talker: object::Handle,
+        talked: object::Handle,
+    },
 }
 
 pub struct PushEvent {

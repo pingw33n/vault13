@@ -30,6 +30,7 @@ use crate::graphics::Rect;
 use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::{self, Direction};
 use crate::sequence::{self, *};
+use crate::sequence::event::PushEvent;
 use crate::state::AppState;
 use crate::ui::{self, Ui};
 use crate::ui::command::{UiCommand, UiCommandData, ObjectPickKind};
@@ -59,6 +60,7 @@ pub struct GameState {
     map_id: Option<i32>,
     in_combat: bool,
     seq_events: Vec<sequence::Event>,
+    misc_msgs: Rc<Messages>,
 }
 
 impl GameState {
@@ -68,6 +70,7 @@ impl GameState {
         proto_db: Rc<ProtoDb>,
         frm_db: Rc<FrameDb>,
         fonts: Rc<Fonts>,
+        misc_msgs: Rc<Messages>,
         now: Instant,
         ui: &mut Ui,
     ) -> Self {
@@ -120,6 +123,7 @@ impl GameState {
             map_id: None,
             in_combat: false,
             seq_events: Vec::new(),
+            misc_msgs,
         }
     }
 
@@ -266,29 +270,8 @@ impl GameState {
                 obj.direction = obj.direction.rotate_cw();
             }
             Action::Talk => {
-                let world = &mut self.world.borrow_mut();
-                // TODO optimize this.
-                for obj in world.objects().iter() {
-                    world.objects().get(obj).borrow_mut().cancel_sequence();
-                }
-                self.sequencer.cleanup(&mut sequence::Cleanup {
-                    world,
-                });
-                let script = world.objects().get(obj).borrow().script;
-                if let Some((sid, _)) = script {
-                    match self.scripts.execute_predefined_proc(sid, PredefinedProc::Talk,
-                        &mut script::Context {
-                            world,
-                            sequencer: &mut self.sequencer,
-                            dialog: &mut self.dialog,
-                            ui,
-                            message_panel: self.message_panel,
-                            map_id: self.map_id.unwrap(),
-                        }).and_then(|r| r.suspend)
-                    {
-                        None | Some(Suspend::GsayEnd) => {}
-                    }
-                }
+                let talker = self.world.borrow().dude_obj().unwrap();
+                self.action_talk(talker, obj, ui);
             }
             Action::UseHand => {
                 // TODO
@@ -299,15 +282,21 @@ impl GameState {
         }
     }
 
-    fn handle_seq_events(&mut self) {
-        for event in self.seq_events.drain(..) {
+    fn handle_seq_events(&mut self, ui: &mut Ui) {
+        use sequence::Event::*;
+        let mut events = std::mem::replace(&mut self.seq_events, Vec::new());
+        for event in events.drain(..) {
             match event {
-                sequence::Event::ObjectMoved { obj, old_pos, new_pos } => {
+                ObjectMoved { obj, old_pos, new_pos } => {
                     dbg!((obj, old_pos, new_pos));
+                }
+                Talk { talker, talked } => {
+                    self.talk(talker, talked, ui);
                 }
                 _ => {}
             }
         }
+        std::mem::replace(&mut self.seq_events, events);
     }
 
     fn actions(&self, objh: object::Handle) -> Vec<Action> {
@@ -501,6 +490,67 @@ impl GameState {
         m.push_str(msg);
         mp.push_message(m);
     }
+
+    // action_talk_to()
+    fn action_talk(&mut self, talker: object::Handle, talked: object::Handle, ui: &mut Ui) {
+        // TODO handle combat state
+
+        {
+            let world = self.world.borrow();
+            let objs = world.objects();
+
+            if objs.screen_distance(talker, talked).unwrap() >= 9 || // TODO this value is different (12) in can_talk2()
+                objs.is_shot_blocked(talker, talked)
+            {
+                // TODO original cancels only Walk/Run animation, is this important?
+                objs.get(talker).borrow_mut().cancel_sequence();
+
+                let dest = objs.get(talked).borrow().pos.unwrap().point;
+                // TODO (move_to_object()) shorten the move path by 1 tile if the `talked` is MultiHex
+                let (seq, cancel) = Move::new(talker, dest, CritterAnim::Running).cancellable();
+                objs.get(talker).borrow_mut().sequence = Some(cancel);
+                self.sequencer.start(seq
+                    .then(Stand::new(talker))
+                    .then(PushEvent::new(sequence::Event::Talk { talker, talked })));
+                return;
+            }
+        }
+
+        self.talk(talker, talked, ui);
+    }
+
+    // talk_to(), gdialogEnter()
+    fn talk(&mut self, talker: object::Handle, talked: object::Handle, ui: &mut Ui) {
+        if self.world.borrow().objects().can_talk_now(talker, talked) {
+            let world = &mut self.world.borrow_mut();
+            // TODO optimize this.
+            for obj in world.objects().iter() {
+                world.objects().get(obj).borrow_mut().cancel_sequence();
+            }
+            self.sequencer.cleanup(&mut sequence::Cleanup {
+                world,
+            });
+            let script = world.objects().get(talked).borrow().script;
+            if let Some((sid, _)) = script {
+                match self.scripts.execute_predefined_proc(sid, PredefinedProc::Talk,
+                    &mut script::Context {
+                        world,
+                        sequencer: &mut self.sequencer,
+                        dialog: &mut self.dialog,
+                        ui,
+                        message_panel: self.message_panel,
+                        map_id: self.map_id.unwrap(),
+                    }).and_then(|r| r.suspend)
+                    {
+                        None | Some(Suspend::GsayEnd) => {}
+                    }
+            }
+        } else {
+            assert_eq!(talker, self.world.borrow().dude_obj().unwrap());
+            let msg = &self.misc_msgs.get(2000).unwrap().text;
+            self.push_message(&msg, ui);
+        }
+    }
 }
 
 impl AppState for GameState {
@@ -687,7 +737,7 @@ impl AppState for GameState {
         }
     }
 
-    fn update(&mut self, delta: Duration) {
+    fn update(&mut self, delta: Duration, ui: &mut Ui) {
         self.time.update(delta);
 
         self.time.set_paused(self.user_paused || self.scripts.can_resume());
@@ -705,7 +755,7 @@ impl AppState for GameState {
                 });
             }
 
-            self.handle_seq_events();
+            self.handle_seq_events(ui);
 
             self.fidget.update(self.time.time(), &mut self.world.borrow_mut(), &mut self.sequencer);
         } else {

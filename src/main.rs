@@ -25,6 +25,7 @@ use std::time::{Instant, Duration};
 use crate::asset::EntityKind;
 use crate::asset::font::load_fonts;
 use crate::asset::frame::{FrameDb, FrameId};
+use crate::asset::message::Messages;
 use crate::asset::palette::read_palette;
 use crate::asset::proto::ProtoDb;
 use crate::game::state::GameState;
@@ -195,12 +196,14 @@ fn main() {
     let ui = &mut Ui::new(frm_db.clone(), fonts.clone(), 640, 480);
     ui.set_cursor(ui::Cursor::Arrow);
 
+    let misc_msgs = Rc::new(Messages::read_file(&fs, language, "game/misc.msg").unwrap());
     let mut state = GameState::new(
         fs.clone(),
         language,
         proto_db.clone(),
         frm_db.clone(),
         fonts.clone(),
+        misc_msgs,
         start,
         ui,
     );
@@ -244,7 +247,7 @@ fn main() {
             state.handle_ui_command(event, ui);
         }
 
-        state.update(timer.delta());
+        state.update(timer.delta(), ui);
 
         ui.sync();
 
