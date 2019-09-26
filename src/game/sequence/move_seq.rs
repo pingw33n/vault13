@@ -138,6 +138,11 @@ impl Sequence for Move {
 
             self.path_pos += 1;
             if self.path_pos >= self.path.len() {
+                if pos.point != self.to {
+                    // Make object look into target's direction.
+                    ctx.world.objects().get(self.obj).borrow_mut().direction =
+                        hex::direction(pos.point, self.to);
+                }
                 self.state = State::Done;
                 return Result::Done;
             }
