@@ -617,7 +617,7 @@ impl AppState for GameState {
                     let mut pf = ui.widget_mut::<Playfield>(self.playfield);
                     let dude_obj = self.world.borrow().dude_obj().unwrap();
                     pf.hex_cursor_style = if self.world.borrow()
-                        .path_for_object(dude_obj, pos.point, true, true).is_some()
+                        .path_for_object(dude_obj, pos.point, true, false).is_some()
                     {
                         HexCursorStyle::Normal
                     } else {
