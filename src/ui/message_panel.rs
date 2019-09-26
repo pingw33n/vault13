@@ -347,7 +347,7 @@ impl Widget for MessagePanel {
 
                             let height = line_advance * line_count as i32 +
                                 // Don't add spacing on the last message
-                                if msgs.peek().is_none() { self.message_spacing } else { 0 };
+                                if msgs.peek().is_some() { self.message_spacing } else { 0 };
                             if cursor_y >= y && cursor_y < y + height {
                                 break Some(message);
                             }
