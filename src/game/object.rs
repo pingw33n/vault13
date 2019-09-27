@@ -602,22 +602,22 @@ impl Objects {
         self.handles.keys().map(|k| Handle(k))
     }
 
-    pub fn set_pos(&mut self, h: Handle, pos: impl Into<EPoint>) {
+    pub fn set_pos(&mut self, h: Handle, pos: EPoint) {
         self.remove_from_tile_grid(h);
-        self.insert_into_tile_grid(h, Some(pos.into()), true);
+        self.insert_into_tile_grid(h, Some(pos), true);
     }
 
-    pub fn set_screen_shift(&mut self, h: Handle, shift: impl Into<Point>) {
+    pub fn set_screen_shift(&mut self, h: Handle, shift: Point) {
         let pos = self.remove_from_tile_grid(h);
-        self.get(h).borrow_mut().screen_shift = shift.into();
+        self.get(h).borrow_mut().screen_shift = shift;
         self.insert_into_tile_grid(h, pos, false);
     }
 
-    pub fn add_screen_shift(&mut self, h: Handle, shift: impl Into<Point>) -> Point {
+    pub fn add_screen_shift(&mut self, h: Handle, shift: Point) -> Point {
         let pos = self.remove_from_tile_grid(h);
         let new_shift = {
             let mut obj = self.get(h).borrow_mut();
-            obj.screen_shift += shift.into();
+            obj.screen_shift += shift;
             obj.screen_shift
         };
         self.insert_into_tile_grid(h, pos, false);
@@ -688,7 +688,7 @@ impl Objects {
             }
             true
         };
-        for &objh in self.at(pos.into()) {
+        for &objh in self.at(pos) {
             if check(objh) {
                 return true;
             }
@@ -928,7 +928,7 @@ impl Objects {
     #[must_use]
     pub fn path(&self,
         obj: Handle,
-        to: impl Into<Point>,
+        to: Point,
         smooth: bool,
         allow_neighbor_tile: bool,
         proto_db: &ProtoDb)
@@ -936,7 +936,6 @@ impl Objects {
     {
         let o = self.get(obj).borrow();
         let from = o.pos?;
-        let to = to.into();
 
         let to_blocked = if allow_neighbor_tile {
             Some(self.is_blocked_at(obj, to.elevated(from.elevation)))
@@ -1274,10 +1273,10 @@ mod test {
         let screen_shift = Point::new(10, 20);
         let base = Point::new(2384, 468) + screen_shift;
 
-        let mut obj = Object::new(FrameId::BLANK, ObjectProtoId::None, Some(EPoint::new(0, (55, 66))));
+        let mut obj = Object::new(FrameId::BLANK, ObjectProtoId::None, Some((0, (55, 66)).into()));
         obj.screen_shift = screen_shift;
         assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &View::default()),
-            Rect::with_points((1, -51), (30, 12))
+            Rect::with_points(Point::new(1, -51), Point::new(30, 12))
                 .translate(base.x, base.y));
     }
 }

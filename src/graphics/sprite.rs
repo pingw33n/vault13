@@ -119,7 +119,7 @@ impl Mask {
     }
 
     #[must_use]
-    pub fn test(&self, point: impl Into<Point>) -> bool {
+    pub fn test(&self, point: Point) -> bool {
         let Point { x, y } = point.into();
         let i = x + y * self.width;
         let bit = i % 8;
@@ -272,10 +272,10 @@ mod test {
         fn test() {
             let mask = Mask::new(3, &[0, 1, 0, 2, 0, 100]);
             assert_eq!(&*mask.bitmask, &[0b101010]);
-            assert_eq!(mask.test((0, 0)), false);
-            assert_eq!(mask.test((1, 0)), true);
-            assert_eq!(mask.test((0, 1)), true);
-            assert_eq!(mask.test((1, 1)), false);
+            assert_eq!(mask.test((0, 0).into()), false);
+            assert_eq!(mask.test((1, 0).into()), true);
+            assert_eq!(mask.test((0, 1).into()), true);
+            assert_eq!(mask.test((1, 1).into()), false);
         }
     }
 }

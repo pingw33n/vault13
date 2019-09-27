@@ -52,12 +52,12 @@ pub fn screen_offset(direction: Direction) -> Point {
     }.into()
 }
 
-pub fn go(p: impl Into<Point>, direction: Direction, distance: u32) -> Point {
+pub fn go(p: Point, direction: Direction, distance: u32) -> Point {
     go0(p, direction, distance, |_| true)
 }
 
 // tile_num_in_direction_()
-fn go0(p: impl Into<Point>, direction: Direction, distance: u32, is_in_bounds: impl Fn(Point) -> bool)
+fn go0(mut p: Point, direction: Direction, distance: u32, is_in_bounds: impl Fn(Point) -> bool)
     -> Point
 {
     // Advance per each direction for even/odd hex.
@@ -65,7 +65,6 @@ fn go0(p: impl Into<Point>, direction: Direction, distance: u32, is_in_bounds: i
         [(1, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (0, -1)],
         [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (0, -1)],
     ];
-    let mut p = p.into();
     for _ in 0..distance {
         let advance = ADVANCE_MAP[p.x as usize % 2][direction as usize].into();
         let next = p + advance;
@@ -133,8 +132,8 @@ pub struct Ray {
 impl Ray {
     fn new(from: Point, via: Point) -> Self {
         assert_ne!(from, via);
-        let from_scr = to_screen(from).add((16, 8));
-        let via_scr = to_screen(via).add((16, 8));
+        let from_scr = to_screen(from) + Point::new(16, 8);
+        let via_scr = to_screen(via) + Point::new(16, 8);
 
         let delta_x = via_scr.x - from_scr.x;
         let delta_y = via_scr.y - from_scr.y;
@@ -202,8 +201,8 @@ impl Iterator for Ray {
 /// Casts line between two tile centers and returns coordinates of tile that is `n`-th distinct
 /// intersection of line and tiles that lie beyond and including `from`
 /// if going straight from `from` to `to`, where `n` is the `distance`.
-pub fn beyond(from: impl Into<Point>, to: impl Into<Point>, distance: u32) -> Point {
-    beyond0(from.into(), to.into(), distance, |_| true)
+pub fn beyond(from: Point, to: Point, distance: u32) -> Point {
+    beyond0(from, to, distance, |_| true)
 }
 
 // tile_num_beyond()
@@ -221,9 +220,7 @@ fn beyond0(from: Point, to: Point, distance: u32, is_in_bounds: impl Fn(Point) -
 
 // tile_num()
 /// Returns tile coordinates.
-pub fn from_screen(p: impl Into<Point>) -> Point {
-    let p = p.into();
-
+pub fn from_screen(p: Point) -> Point {
     let abs_screen_y = p.y;
 
     // 12 is vertical hex advance
@@ -252,7 +249,7 @@ pub fn from_screen(p: impl Into<Point>) -> Point {
         tile_x += 1;
     }
 
-    match tile_hit_test((screen_x_in_tile, screen_y_in_tile)) {
+    match tile_hit_test(Point::new(screen_x_in_tile, screen_y_in_tile)) {
         TileHit::TopRight => {
             tile_x += 1;
             if tile_x % 2 == 1 {
@@ -283,8 +280,7 @@ pub fn from_screen_rect(rect: Rect) -> Rect {
 }
 
 // tile_coord()
-pub fn to_screen(p: impl Into<Point>) -> Point {
-    let p = p.into();
+pub fn to_screen(p: Point) -> Point {
     let dx = p.x / 2;
     let mut r = Point::new(48 * dx, 12 * -dx);
     if p.x % 2 != 0 {
@@ -308,28 +304,25 @@ pub struct View {
 }
 
 impl View {
-    pub fn new(origin: impl Into<Point>) -> Self {
+    pub fn new(origin: Point) -> Self {
         Self {
-            origin: origin.into(),
+            origin,
         }
     }
 }
 
 impl TileGridView for View {
-    fn from_screen(&self, p: impl Into<Point>) -> Point {
-        let p = p.into() - self.origin;
-        from_screen(p)
+    fn from_screen(&self, p: Point) -> Point {
+        from_screen(p - self.origin)
     }
 
-    fn to_screen(&self, p: impl Into<Point>) -> Point {
+    fn to_screen(&self, p: Point) -> Point {
         to_screen(p) + self.origin
     }
 }
 
 // tile_dir()
-pub fn direction(from: impl Into<Point>, to: impl Into<Point>) -> Direction {
-    let from = from.into();
-    let to = to.into();
+pub fn direction(from: Point, to: Point) -> Direction {
     assert_ne!(from, to);
     let from_scr = to_screen(from);
     let to_scr = to_screen(to);
@@ -348,9 +341,7 @@ pub fn direction(from: impl Into<Point>, to: impl Into<Point>) -> Direction {
 
 /// Returns smallest number of steps needed to reach tile `p2` from `p1`.
 // tile_dist()
-pub fn distance(p1: impl Into<Point>, p2: impl Into<Point>) -> u32 {
-    let mut p1 = p1.into();
-    let p2 = p2.into();
+pub fn distance(mut p1: Point, p2: Point) -> u32 {
     let mut distance = 0;
     while p1 != p2 {
         let dir = direction(p1, p2);
@@ -362,7 +353,7 @@ pub fn distance(p1: impl Into<Point>, p2: impl Into<Point>) -> u32 {
 
 /// Is `p1` located in front of `p2` if looking in SE direction?
 // tile_in_front_of()
-pub fn is_in_front_of(p1: impl Into<Point>, p2: impl Into<Point>) -> bool {
+pub fn is_in_front_of(p1: Point, p2: Point) -> bool {
     let sp1 = to_screen(p1);
     let sp2 = to_screen(p2);
     sp2.x - sp1.x <= (sp2.y - sp1.y) * -4
@@ -370,7 +361,7 @@ pub fn is_in_front_of(p1: impl Into<Point>, p2: impl Into<Point>) -> bool {
 
 /// Is `p1` located to right of `p2` if looking in SE direction?
 // tile_to_right_of()
-pub fn is_to_right_of(p1: impl Into<Point>, p2: impl Into<Point>) -> bool {
+pub fn is_to_right_of(p1: Point, p2: Point) -> bool {
     let sp1 = to_screen(p1);
     let sp2_ = to_screen(p2);
     sp1.x - sp2_.x <= (sp1.y - sp2_.y) * 32 / (12 * 2)
@@ -385,8 +376,7 @@ enum TileHit {
     BottomRight,
 }
 
-fn tile_hit_test(p: impl Into<Point>) -> TileHit {
-    let p = p.into();
+fn tile_hit_test(p: Point) -> TileHit {
     let line_test = |x1: i32, y1: i32, x2: i32, y2: i32| -> i32 {
         (p.x - x1) * (y2 - y1) - (p.y - y1) * (x2 - x1)
     };
@@ -428,7 +418,7 @@ impl TileGrid {
         self.height
     }
 
-    pub fn go(&self, p: impl Into<Point>, direction: Direction, distance: u32) -> Option<Point> {
+    pub fn go(&self, p: Point, direction: Direction, distance: u32) -> Option<Point> {
         let p = go0(p, direction, distance, |_| true);
         if self.is_in_bounds(p) {
             Some(p)
@@ -437,16 +427,14 @@ impl TileGrid {
         }
     }
 
-    pub fn go_clipped(&self, p: impl Into<Point>, direction: Direction, distance: u32) -> Point {
+    pub fn go_clipped(&self, p: Point, direction: Direction, distance: u32) -> Point {
         go0(p, direction, distance, |next| self.is_in_bounds(next))
     }
 
     /// Similar to top-level `beyond()` but also clips the result to grid bounds.
-    pub fn beyond(&self, from: impl Into<Point>, to: impl Into<Point>, distance: u32) -> Point {
-        let from = from.into();
-        let to = to.into();
+    pub fn beyond(&self, from: Point, to: Point, distance: u32) -> Point {
         assert!(self.is_in_bounds(from));
-        beyond0(from, to.into(), distance, |p| self.is_in_bounds(p))
+        beyond0(from, to, distance, |p| self.is_in_bounds(p))
     }
 
     /// Linear to rectangular coordinates.
@@ -459,8 +447,7 @@ impl TileGrid {
     /// Rectangular to linear coordinates.
     /// Note this is different from original since the `x` axis is not inverted,
     /// see `to_linear_inv()` for the inverted variant.
-    pub fn to_linear(&self, p: impl Into<Point>) -> Option<u32> {
-        let p = p.into();
+    pub fn to_linear(&self, p: Point) -> Option<u32> {
         if self.is_in_bounds(p) {
             Some((self.width * p.y + p.x) as u32)
         } else {
@@ -471,8 +458,7 @@ impl TileGrid {
     /// Rectangular to linear coordinates with `x` axis inverted.
     /// This method should be used when converting linears for use in the original assets
     /// (maps, scripts etc).
-    pub fn to_linear_inv(&self, p: impl Into<Point>) -> Option<u32> {
-        let p = p.into();
+    pub fn to_linear_inv(&self, p: Point) -> Option<u32> {
         if self.is_in_bounds(p) {
             let x = self.width - 1 - p.x;
             Some((self.width * p.y + x) as u32)
@@ -491,13 +477,11 @@ impl TileGrid {
     }
 
     /// Verifies the tile coordinates `p` are within (0, 0, width, height) boundaries.
-    pub fn is_in_bounds(&self, p: impl Into<Point>) -> bool {
-        let p = p.into();
+    pub fn is_in_bounds(&self, p: Point) -> bool {
         p.x >= 0 && p.x < self.width && p.y >= 0 && p.y < self.height
     }
 
-    pub fn clip(&self, p: impl Into<Point>) -> Point {
-        let p = p.into();
+    pub fn clip(&self, p: Point) -> Point {
         Point {
             x: clamp(p.x, 0, self.width - 1),
             y: clamp(p.y, 0, self.height - 1),
@@ -523,6 +507,11 @@ impl Default for TileGrid {
 mod test {
     use super::*;
 
+    #[allow(non_snake_case)]
+    fn P(x: i32, y: i32) -> Point {
+        Point::new(x, y)
+    }
+
     #[test]
     fn tile_hit_test_() {
         let expected = [
@@ -544,17 +533,17 @@ mod test {
             [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]];
         for y in 0..16 {
             for x in 0..32 {
-                assert_eq!(tile_hit_test(Point::new(x, y)) as usize, expected[y as usize][x as usize]);
+                assert_eq!(tile_hit_test(P(x, y)) as usize, expected[y as usize][x as usize]);
             }
         }
     }
 
     #[test]
     fn view_from_screen() {
-        let t = View::new((272, 182));
-        assert_eq!(t.from_screen((-320, -240)), Point::new(-1, -37));
-        assert_eq!(t.from_screen((-320, 620)), Point::new(-37, 17));
-        assert_eq!(t.from_screen((256, -242)), Point::new(17, -28));
+        let t = View::new(P(272, 182));
+        assert_eq!(t.from_screen(P(-320, -240)), P(-1, -37));
+        assert_eq!(t.from_screen(P(-320, 620)), P(-37, 17));
+        assert_eq!(t.from_screen(P(256, -242)), P(17, -28));
     }
 
     #[test]
@@ -570,51 +559,51 @@ mod test {
             ((0, 4), (0, 0)),
         ];
         for &(inp, exp) in data {
-            assert_eq!(from_screen(inp), Point::from(exp));
+            assert_eq!(from_screen(inp.into()), exp.into());
         }
     }
 
     #[test]
     fn to_screen_() {
-        assert_eq!(to_screen((0, 0)), Point::new(0, 0));
-        assert_eq!(to_screen((97, 63)), Point::new(3344, 180));
+        assert_eq!(to_screen(P(0, 0)), P(0, 0));
+        assert_eq!(to_screen(P(97, 63)), P(3344, 180));
     }
 
     #[test]
     fn view_from_screen2() {
         let mut t = View::default();
 
-        for &o in &[Point::new(0, 0), Point::new(100, 200)] {
+        for &o in &[P(0, 0), P(100, 200)] {
             t.origin = o;
-            assert_eq!(t.from_screen(o.add((0, 0))), Point::new(0, -1));
-            assert_eq!(t.from_screen(o.add((16, 0))), Point::new(0, 0));
-            assert_eq!(t.from_screen(o.add((48, 0))), Point::new(1, 0));
-            assert_eq!(t.from_screen(o.add((48, -1))), Point::new(2, 0));
-            assert_eq!(t.from_screen(o.add((0, 4))), Point::new(0, 0));
+            assert_eq!(t.from_screen(o + P(0, 0)), P(0, -1));
+            assert_eq!(t.from_screen(o + P(16, 0)), P(0, 0));
+            assert_eq!(t.from_screen(o + P(48, 0)), P(1, 0));
+            assert_eq!(t.from_screen(o + P(48, -1)), P(2, 0));
+            assert_eq!(t.from_screen(o + P(0, 4)), P(0, 0));
         }
     }
 
     #[test]
     fn view_to_screen1() {
         let t = TileGrid::default();
-        let v = View::new((272, 182));
-        assert_eq!(v.to_screen(t.from_linear_inv(12702)), Point::new(3616, 362));
+        let v = View::new(P(272, 182));
+        assert_eq!(v.to_screen(t.from_linear_inv(12702)), P(3616, 362));
     }
 
     #[test]
     fn view_to_screen2() {
         let t = View::default();
-        assert_eq!(t.to_screen((0, 0)), Point::new(0, 0));
+        assert_eq!(t.to_screen(P(0, 0)), P(0, 0));
     }
 
     #[test]
     fn go_() {
         let t = TileGrid::default();
-        assert_eq!(go((0, 0), Direction::W, 1), Point::new(-1, -1));
-        assert_eq!(t.go((0, 0), Direction::W, 1), None);
-        assert_eq!(t.go_clipped((0, 0), Direction::W, 1), Point::new(0, 0));
-        assert_eq!(go((22, 11), Direction::E, 0), Point::new(22, 11));
-        assert_eq!(go((22, 11), Direction::E, 1), Point::new(23, 11));
+        assert_eq!(go(P(0, 0), Direction::W, 1), P(-1, -1));
+        assert_eq!(t.go(P(0, 0), Direction::W, 1), None);
+        assert_eq!(t.go_clipped(P(0, 0), Direction::W, 1), P(0, 0));
+        assert_eq!(go(P(22, 11), Direction::E, 0), P(22, 11));
+        assert_eq!(go(P(22, 11), Direction::E, 1), P(23, 11));
     }
 
     #[test]
@@ -622,45 +611,45 @@ mod test {
         for dir in Direction::iter() {
             for dist in 1..=10 {
                 let from = (100, 100);
-                let to = go(from, dir, dist);
-                assert_eq!(direction(from, to), dir);
+                let to = go(from.into(), dir, dist);
+                assert_eq!(direction(from.into(), to), dir);
             }
         }
 
-        assert_eq!(direction((98, 105), (111, 92)), Direction::NE);
+        assert_eq!(direction(P(98, 105), P(111, 92)), Direction::NE);
     }
 
     #[test]
     fn distance_() {
-        assert_eq!(distance((1234, -5678), (1234, -5678)), 0);
+        assert_eq!(distance(P(1234, -5678), P(1234, -5678)), 0);
 
-        assert_eq!(distance((111, 92), (98, 105)), 19);
-        assert_eq!(distance((98, 105), (111, 92)), 19);
+        assert_eq!(distance(P(111, 92), P(98, 105)), 19);
+        assert_eq!(distance(P(98, 105), P(111, 92)), 19);
 
-        assert_eq!(distance((92, 143), (70, 102)), 52);
-        assert_eq!(distance((70, 102), (92, 143)), 52);
+        assert_eq!(distance(P(92, 143), P(70, 102)), 52);
+        assert_eq!(distance(P(70, 102), P(92, 143)), 52);
     }
 
     #[test]
     fn is_in_front_of_() {
-        assert_eq!(is_in_front_of((111, 87), (111, 79)), true);
-        assert_eq!(is_in_front_of((100, 100), (100, 100)), true);
-        assert_eq!(is_in_front_of((101, 100), (100, 100)), true);
-        assert_eq!(is_in_front_of((100, 101), (100, 100)), true);
-        assert_eq!(is_in_front_of((100, 99), (100, 100)), false);
+        assert_eq!(is_in_front_of(P(111, 87), P(111, 79)), true);
+        assert_eq!(is_in_front_of(P(100, 100), P(100, 100)), true);
+        assert_eq!(is_in_front_of(P(101, 100), P(100, 100)), true);
+        assert_eq!(is_in_front_of(P(100, 101), P(100, 100)), true);
+        assert_eq!(is_in_front_of(P(100, 99), P(100, 100)), false);
     }
 
     #[test]
     fn is_to_right_of_() {
-        assert_eq!(is_to_right_of((100, 100), (100, 100)), true);
-        assert_eq!(is_to_right_of((99, 100), (100, 100)), true);
-        assert_eq!(is_to_right_of((100, 99), (100, 100)), true);
-        assert_eq!(is_to_right_of((100, 101), (100, 100)), true);
-        assert_eq!(is_to_right_of((99, 99), (100, 100)), true);
+        assert_eq!(is_to_right_of(P(100, 100), P(100, 100)), true);
+        assert_eq!(is_to_right_of(P(99, 100), P(100, 100)), true);
+        assert_eq!(is_to_right_of(P(100, 99), P(100, 100)), true);
+        assert_eq!(is_to_right_of(P(100, 101), P(100, 100)), true);
+        assert_eq!(is_to_right_of(P(99, 99), P(100, 100)), true);
 
-        assert_eq!(is_to_right_of((101, 100), (100, 100)), false);
-        assert_eq!(is_to_right_of((101, 99), (100, 100)), false);
-        assert_eq!(is_to_right_of((101, 101), (100, 100)), false);
+        assert_eq!(is_to_right_of(P(101, 100), P(100, 100)), false);
+        assert_eq!(is_to_right_of(P(101, 99), P(100, 100)), false);
+        assert_eq!(is_to_right_of(P(101, 101), P(100, 100)), false);
     }
 
     #[test]
@@ -679,7 +668,7 @@ mod test {
         ];
 
         for &((from, to, distance), exp) in data {
-            assert_eq!(beyond(from, to, distance), Point::from(exp));
+            assert_eq!(beyond(from.into(), to.into(), distance), exp.into());
         }
     }
 
@@ -694,7 +683,7 @@ mod test {
         ];
 
         for &((from, to, distance), exp) in data {
-            assert_eq!(tg.beyond(from, to, distance), Point::from(exp));
+            assert_eq!(tg.beyond(from.into(), to.into(), distance), exp.into());
         }
     }
 }

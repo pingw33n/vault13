@@ -50,12 +50,10 @@ impl PathFinder {
     /// If `smooth` is `true` it will add extra cost to changing of direction. This effectively
     /// attempts to decrease the number of turns in the path making smoother at the price of
     /// choosing sub-optimal route.
-    pub fn find(&mut self, from: impl Into<Point>, to: impl Into<Point>,
+    pub fn find(&mut self, from: Point, to: Point,
             smooth: bool,
             mut f: impl FnMut(Point) -> TileState) -> Option<Vec<Direction>> {
         debug_time!("PathFinder::find()");
-        let from = from.into();
-        let to = to.into();
         if from == to {
             return Some(Vec::new());
         }
@@ -273,7 +271,7 @@ mod test {
             ((0, 0), (199, 199), AllBlocked, None),
         ];
         for (from, to, f, expected) in d {
-            assert_eq!(t.find(from, to, false, &*f.f()), expected);
+            assert_eq!(t.find(from.into(), to.into(), false, &*f.f()), expected);
         }
     }
 
@@ -281,16 +279,16 @@ mod test {
     fn smooth() {
         let mut t = PathFinder::new(TileGrid::default(), 5000);
         use self::Direction::*;
-        assert_eq!(t.find((2, 0), (0, 3), false, |_| TileState::Passable(0)),
+        assert_eq!(t.find((2, 0).into(), (0, 3).into(), false, |_| TileState::Passable(0)),
             Some(vec![SE, SW, SE, SW]));
-        assert_eq!(t.find((2, 0), (0, 3), true, |_| TileState::Passable(0)),
+        assert_eq!(t.find((2, 0).into(), (0, 3).into(), true, |_| TileState::Passable(0)),
             Some(vec![SE, SW, SW, SE]));
     }
 
     #[test]
     fn max_depth() {
         let mut t = PathFinder::new(TileGrid::default(), 10);
-        assert_eq!(t.find((2, 0), (0, 0), false,
+        assert_eq!(t.find((2, 0).into(), (0, 0).into(), false,
             |p| if p == Point::new(1, 0) || p == Point::new(0, 1) {
                 TileState::Blocked
             } else {

@@ -19,10 +19,12 @@ pub struct FrameDb {
 }
 
 impl FrameDb {
-    pub fn new(fs: Rc<FileSystem>, language: impl Into<String>, texture_factory: TextureFactory)
+    pub fn new(fs: Rc<FileSystem>, language: &str, texture_factory: TextureFactory)
         -> io::Result<Self>
     {
-        let language = Some(language.into()).filter(|s| !s.eq_ignore_ascii_case("english"));
+        let language = Some(language)
+            .filter(|s| !s.eq_ignore_ascii_case("english"))
+            .map(|s| s.to_owned());
         let lst = Self::read_lst_files(&fs)?;
         Ok(Self {
             fs,

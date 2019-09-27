@@ -27,7 +27,7 @@ fn render_square_tiles(canvas: &mut Canvas, stg: &impl TileGridView, rect: Rect,
     for y in sqr_rect.top..sqr_rect.bottom {
         for x in (sqr_rect.left..sqr_rect.right).rev() {
             if let Some(tex) = get_tex(Point::new(x, y)) {
-                let scr_pt = stg.to_screen((x, y)) - Point::new(0, y_offset);
+                let scr_pt = stg.to_screen(Point::new(x, y)) - Point::new(0, y_offset);
 
                 let hex_pos = Point::new(x * 2, y * 2);
                 for i in 0..VERTEX_COUNT {
@@ -42,7 +42,7 @@ fn render_square_tiles(canvas: &mut Canvas, stg: &impl TileGridView, rect: Rect,
 }
 
 // Whether scroll is restricted based on horz/vert distance from `dude_pos` to the new `pos`.
-pub fn is_scroll_limited(pos: impl Into<Point>, dude_pos: impl Into<Point>) -> bool {
+pub fn is_scroll_limited(pos: Point, dude_pos: Point) -> bool {
     let dist = hex::to_screen(dude_pos) - hex::to_screen(pos);
     dist.x >= 480 || dist.y >= 400
 

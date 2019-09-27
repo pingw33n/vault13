@@ -7,10 +7,10 @@ use crate::graphics::{Point, Rect};
 /// Provides mapping between tile and screen coordinates.
 pub trait TileGridView {
     /// Converts screen coordinates to tile coordinates.
-    fn from_screen(&self, p: impl Into<Point>) -> Point;
+    fn from_screen(&self, p: Point) -> Point;
 
     /// Converts tile coordinates to screen coordinates.
-    fn to_screen(&self, p: impl Into<Point>) -> Point;
+    fn to_screen(&self, p: Point) -> Point;
 
     /// Returns minimal rectangle in tile coordinates that encloses the specified screen `rect`.
     fn from_screen_rect(&self, rect: Rect) -> Rect {

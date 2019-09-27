@@ -69,11 +69,10 @@ impl LightGrid {
         }
     }
 
-    pub fn update(&mut self, p: impl Into<EPoint>, radius: u32, delta: i32,
+    pub fn update(&mut self, p: EPoint, radius: u32, delta: i32,
                   mut tester: impl FnMut(LightTest) -> LightTestResult) {
         assert!(radius <= MAX_EMITTER_RADIUS, "{}", radius);
 
-        let p = p.into();
         assert!((p.elevation as usize) < self.grid.len());
         assert!(p.point.x >= 0 && p.point.x < self.width);
         assert!(p.point.y >= 0 && p.point.y < self.grid[0].len() as i32 / self.width);
@@ -121,12 +120,11 @@ impl LightGrid {
         &self.grid
     }
 
-    pub fn get(&self, p: impl Into<EPoint>) -> i32 {
-        let p = p.into();
+    pub fn get(&self, p: EPoint) -> i32 {
         self.grid[p.elevation as usize][(self.width * p.point.y + p.point.x) as usize]
     }
 
-    pub fn get_clipped(&self, p: impl Into<EPoint>) -> u32 {
+    pub fn get_clipped(&self, p: EPoint) -> u32 {
         clamp(self.get(p), 0, 0x10000) as u32
     }
 
@@ -482,10 +480,7 @@ mod test {
                 let lt = LightTest {
                     i,
                     direction,
-                    point: EPoint {
-                        elevation: ELEVATION,
-                        point: (x, y).into(),
-                    },
+                    point: EPoint::new(ELEVATION, Point::new(x, y)),
                 };
                 let r = LightTestResult {
                     block,

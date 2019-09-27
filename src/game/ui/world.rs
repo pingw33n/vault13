@@ -87,7 +87,7 @@ impl WorldView {
 
     fn insert_hex_cursor(world: &mut World) -> object::Handle {
         let mut hex_cursor = Object::new(FrameId::MOUSE_HEX_OUTLINE, ObjectProtoId::None,
-            Some(EPoint::new(0, (0, 0))));
+            Some(Default::default()));
         hex_cursor.flags = Flag::WalkThru | Flag::Flat | Flag::NoBlock | Flag::Temp |
             Flag::LightThru | Flag::ShootThru;
         hex_cursor.outline = Some(object::Outline {

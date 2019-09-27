@@ -1,6 +1,7 @@
 use num_traits::clamp;
 use std::cmp;
 use std::ops;
+use std::ops::MulAssign;
 
 pub mod color;
 pub mod font;
@@ -10,7 +11,7 @@ pub mod map;
 pub mod render;
 pub mod sprite;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Point {
     pub x: i32,
     pub y: i32,
@@ -22,23 +23,6 @@ impl Point {
             x,
             y,
         }
-    }
-
-    pub fn add(self, p: impl Into<Self>) -> Self {
-        let p = p.into();
-        Self::new(self.x + p.x, self.y + p.y)
-    }
-
-    pub fn add_assign(&mut self, p: impl Into<Self>) {
-        let p = p.into();
-        self.x += p.x;
-        self.y += p.y;
-    }
-
-    pub fn sub_assign(&mut self, p: impl Into<Self>) {
-        let p = p.into();
-        self.x -= p.x;
-        self.y -= p.y;
     }
 
     pub fn abs(self) -> Self {
@@ -66,23 +50,48 @@ impl Point {
     }
 }
 
-impl Default for Point {
-    fn default() -> Self {
-        Self::new(0, 0)
-    }
-}
-
 impl ops::Add for Point {
     type Output = Self;
 
     fn add(self, o: Self) -> Self {
-        Point::add(self, o)
+        Self::new(self.x + o.x, self.y + o.y)
     }
 }
 
 impl ops::AddAssign for Point {
     fn add_assign(&mut self, o: Self) {
-        Point::add_assign(self, o)
+        self.x += o.x;
+        self.y += o.y;
+    }
+}
+
+impl ops::Div<i32> for Point {
+    type Output = Self;
+
+    fn div(self, rhs: i32) -> Self::Output {
+        Self::new(self.x / rhs, self.y / rhs)
+    }
+}
+
+impl ops::DivAssign<i32> for Point {
+    fn div_assign(&mut self, rhs: i32) {
+        self.x /= rhs;
+        self.y /= rhs;
+    }
+}
+
+impl ops::Mul<i32> for Point {
+    type Output = Self;
+
+    fn mul(self, rhs: i32) -> Self::Output {
+        Self::new(self.x * rhs, self.y * rhs)
+    }
+}
+
+impl MulAssign<i32> for Point {
+    fn mul_assign(&mut self, rhs: i32) {
+        self.x *= rhs;
+        self.y *= rhs;
     }
 }
 
@@ -107,7 +116,8 @@ impl ops::Sub for Point {
 
 impl ops::SubAssign for Point {
     fn sub_assign(&mut self, o: Self) {
-        Point::sub_assign(self, o)
+        self.x -= o.x;
+        self.y -= o.y;
     }
 }
 
@@ -123,21 +133,21 @@ impl From<(i32, i32)> for Point {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct EPoint {
     pub elevation: u32,
     pub point: Point,
 }
 
 impl EPoint {
-    pub fn new(elevation: u32, point: impl Into<Point>) -> Self {
+    pub fn new(elevation: u32, point: Point) -> Self {
         Self {
             elevation,
-            point: point.into(),
+            point,
         }
     }
 
-    pub fn with_point(self, point: impl Into<Point>) -> Self {
+    pub fn with_point(self, point: Point) -> Self {
         Self::new(self.elevation, point)
     }
 }
@@ -157,15 +167,6 @@ impl From<(u32, Point)> for EPoint {
 impl From<(u32, (i32, i32))> for EPoint {
     fn from(v: (u32, (i32, i32))) -> Self {
         Self::new(v.0, Point::from(v.1))
-    }
-}
-
-impl Default for EPoint {
-    fn default() -> Self {
-        Self {
-            elevation: 0,
-            point: Default::default(),
-        }
     }
 }
 
@@ -214,9 +215,7 @@ impl Rect {
         }
     }
 
-    pub fn with_points(top_left: impl Into<Point>, bottom_right: impl Into<Point>) -> Self {
-        let top_left = top_left.into();
-        let bottom_right = bottom_right.into();
+    pub fn with_points(top_left: Point, bottom_right: Point) -> Self {
         Self {
             left: top_left.x,
             top: top_left.y,

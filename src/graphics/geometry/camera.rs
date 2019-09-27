@@ -22,13 +22,13 @@ impl Camera {
     }
 
     /// Adjusts the `origin` so the center of tile at `hex_pos` is positioned in the center of viewport.
-    pub fn look_at(&mut self, hex_pos: impl Into<Point>) {
+    pub fn look_at(&mut self, hex_pos: Point) {
         self.align(hex_pos, self.viewport.center())
     }
 
     /// Adjusts the `origin` so the center of tile at `hex_pos` is positioned at the `screen_pos`.
-    pub fn align(&mut self, hex_pos: impl Into<Point>, screen_pos: impl Into<Point>) {
-        self.origin = -hex::to_screen(hex_pos.into()) + screen_pos.into() - Point::new(16, 8);
+    pub fn align(&mut self, hex_pos: Point, screen_pos: Point) {
+        self.origin = -hex::to_screen(hex_pos) + screen_pos - Point::new(16, 8);
     }
 }
 
@@ -55,10 +55,11 @@ mod test {
                     (123, 123),
                     (124, 124),
                 ] {
-            c.look_at((x, y));
-            assert_eq!(c.hex().to_screen((x, y)), expected_hex);
+            let p = Point::new(x, y);
+            c.look_at(p);
+            assert_eq!(c.hex().to_screen(p), expected_hex);
             let expected_sqr =  expected_sqr[y as usize % 2][x as usize % 2];
-            assert_eq!(c.sqr().to_screen((x / 2, y / 2)), expected_sqr);
+            assert_eq!(c.sqr().to_screen(p / 2), expected_sqr);
         }
     }
 }

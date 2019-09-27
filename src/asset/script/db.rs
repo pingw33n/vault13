@@ -21,7 +21,7 @@ pub struct ScriptDb {
 }
 
 impl ScriptDb {
-    pub fn new(fs: Rc<FileSystem>, language: impl Into<String>) -> io::Result<Self> {
+    pub fn new(fs: Rc<FileSystem>, language: &str) -> io::Result<Self> {
         let infos = read_lst(&mut fs.reader("scripts/scripts.lst")?)?;
         Ok(Self {
             fs,

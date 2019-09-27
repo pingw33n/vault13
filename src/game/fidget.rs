@@ -6,7 +6,7 @@ use crate::asset::{CritterAnim, EntityKind, Flag};
 use crate::game::sequence::frame_anim::{AnimDirection, FrameAnim};
 use crate::game::sequence::stand::Stand;
 use crate::game::world::World;
-use crate::graphics::{EPoint, Rect};
+use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::TileGridView;
 use crate::sequence::{Sequence, Sequencer};
 use crate::util::random::random;
@@ -44,7 +44,7 @@ impl Fidget {
         let mut objs = Vec::new();
         for y in hex_rect.top..hex_rect.bottom {
             for x in hex_rect.left..hex_rect.right {
-                for &objh in world.objects().at(EPoint::new(elevation, (x, y))) {
+                for &objh in world.objects().at(EPoint::new(elevation, Point::new(x, y))) {
                     let obj = world.objects().get(objh).borrow();
                     if obj.flags.contains(Flag::TurnedOff) ||
                         obj.fid.kind() != EntityKind::Critter ||

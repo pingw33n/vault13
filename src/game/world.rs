@@ -198,7 +198,7 @@ impl World {
         self.sqr_tiles[elevation as usize].is_some()
     }
 
-    pub fn set_object_pos(&mut self, h: object::Handle, pos: impl Into<EPoint>) {
+    pub fn set_object_pos(&mut self, h: object::Handle, pos: EPoint) {
         Self::update_light_grid(&self.objects, &mut self.light_grid, h, -1);
 
         self.objects.set_pos(h, pos);
@@ -212,7 +212,7 @@ impl World {
 
     pub fn path_for_object(&self,
         obj: object::Handle,
-        to: impl Into<Point>,
+        to: Point,
         smooth: bool,
         allow_neighbor_tile: bool,
     ) -> Option<Vec<Direction>> {
@@ -235,13 +235,13 @@ impl World {
         self.camera.viewport.intersects(bounds)
     }
 
-    pub fn object_hit_test(&self, p: impl Into<Point>) -> Vec<(object::Handle, object::Hit)> {
-        self.objects.hit_test(p.into().elevated(self.elevation()), self.camera.viewport,
+    pub fn object_hit_test(&self, p: Point) -> Vec<(object::Handle, object::Hit)> {
+        self.objects.hit_test(p.elevated(self.elevation()), self.camera.viewport,
             &self.camera.hex(), self.egg())
     }
 
     // object_under_mouse()
-    pub fn pick_object(&self, pos: impl Into<Point>, include_dude: bool) -> Option<object::Handle> {
+    pub fn pick_object(&self, pos: Point, include_dude: bool) -> Option<object::Handle> {
         let filter_dude = |oh: &&(object::Handle, object::Hit)| -> bool {
             include_dude || Some(oh.0) != self.dude_obj
         };

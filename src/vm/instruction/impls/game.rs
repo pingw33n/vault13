@@ -13,7 +13,7 @@ use crate::game::dialog::Dialog;
 use crate::game::object::{Object, ObjectProtoId};
 use crate::game::script::Sid;
 use crate::game::world::floating_text;
-use crate::graphics::EPoint;
+use crate::graphics::{EPoint, Point};
 use crate::graphics::color::*;
 use crate::graphics::font::FontKey;
 use crate::graphics::geometry::hex::Direction;
@@ -742,7 +742,7 @@ pub fn override_map_start(ctx: Context) -> Result<()> {
     let x = world.hex_grid().invert_x(x);
 
     let obj = world.dude_obj().unwrap();
-    let pos = EPoint::new(elevation, (x, y));
+    let pos = EPoint::new(elevation, Point::new(x, y));
     world.set_object_pos(obj, pos);
     world.objects_mut().get(obj).borrow_mut().direction = direction;
 
