@@ -298,8 +298,8 @@ impl Object {
     }
 
     #[must_use]
-    pub fn screen_distance(&self, other: &Object) -> Option<u32> {
-        let mut r = hex::screen_distance(self.pos?.point, other.pos?.point);
+    pub fn distance(&self, other: &Object) -> Option<u32> {
+        let mut r = hex::distance(self.pos?.point, other.pos?.point);
         if r > 0 && self.flags.contains(Flag::MultiHex) {
             r -= 1;
         }
@@ -819,7 +819,7 @@ impl Objects {
             return Err(CantTalkSpatial::Unreachable);
         }
 
-        if hex::screen_distance(p1.point, p2.point) > 12 {
+        if hex::distance(p1.point, p2.point) > 12 {
             return Err(CantTalkSpatial::TooFar);
         }
 
@@ -841,7 +841,7 @@ impl Objects {
 
     // can_talk_to
     pub fn can_talk_now(&self, obj1: Handle, obj2: Handle) -> bool {
-        self.screen_distance(obj1, obj2).unwrap() < 9 && !self.is_shot_blocked(obj1, obj2)
+        self.distance(obj1, obj2).unwrap() < 9 && !self.is_shot_blocked(obj1, obj2)
     }
 
     /// Whether `obj` can be talked to.
@@ -1023,8 +1023,8 @@ impl Objects {
         r
     }
 
-    pub fn screen_distance(&self, from: Handle, to: Handle) -> Option<u32> {
-        self.get(from).borrow().screen_distance(&self.get(to).borrow())
+    pub fn distance(&self, from: Handle, to: Handle) -> Option<u32> {
+        self.get(from).borrow().distance(&self.get(to).borrow())
     }
 
     // obj_intersects_with()

@@ -312,8 +312,9 @@ pub fn direction(from: impl Into<Point>, to: impl Into<Point>) -> Direction {
     }
 }
 
+/// Returns smallest number of steps needed to reach tile `p2` from `p1`.
 // tile_dist()
-pub fn screen_distance(p1: impl Into<Point>, p2: impl Into<Point>) -> u32 {
+pub fn distance(p1: impl Into<Point>, p2: impl Into<Point>) -> u32 {
     let mut p1 = p1.into();
     let p2 = p2.into();
     let mut distance = 0;
@@ -596,14 +597,14 @@ mod test {
     }
 
     #[test]
-    fn screen_distance_() {
-        assert_eq!(screen_distance((1234, -5678), (1234, -5678)), 0);
+    fn distance_() {
+        assert_eq!(distance((1234, -5678), (1234, -5678)), 0);
 
-        assert_eq!(screen_distance((111, 92), (98, 105)), 19);
-        assert_eq!(screen_distance((98, 105), (111, 92)), 19);
+        assert_eq!(distance((111, 92), (98, 105)), 19);
+        assert_eq!(distance((98, 105), (111, 92)), 19);
 
-        assert_eq!(screen_distance((92, 143), (70, 102)), 52);
-        assert_eq!(screen_distance((70, 102), (92, 143)), 52);
+        assert_eq!(distance((92, 143), (70, 102)), 52);
+        assert_eq!(distance((70, 102), (92, 143)), 52);
     }
 
     #[test]

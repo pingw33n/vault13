@@ -500,7 +500,7 @@ impl GameState {
             let world = self.world.borrow();
             let objs = world.objects();
 
-            if objs.screen_distance(talker, talked).unwrap() >= 9 || // TODO this value is different (12) in can_talk2()
+            if objs.distance(talker, talked).unwrap() >= 9 || // TODO this value is different (12) in can_talk2()
                 objs.is_shot_blocked(talker, talked)
             {
                 // TODO original cancels only Walk/Run animation, is this important?
