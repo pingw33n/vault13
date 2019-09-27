@@ -270,7 +270,7 @@ impl Widget for WorldView {
             PickMode::Hex => if self.hex_cursor_style == HexCursorStyle::Blocked {
                 let hex_cursor = world.objects().get(self.hex_cursor).borrow();
                 let pos = hex_cursor.pos.unwrap();
-                if pos.elevation == world.elevation() {
+                if !hex_cursor.flags.contains(Flag::TurnedOff) && pos.elevation == world.elevation() {
                     let center = world.camera().hex().to_screen(pos.point) + Point::new(16, 8);
                     ctx.canvas.draw_text(b"X".as_ref().into(), center.x, center.y, FontKey::antialiased(1),
                         color::RED, &DrawOptions {
