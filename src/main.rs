@@ -195,6 +195,7 @@ fn main() {
 
     let ui = &mut Ui::new(frm_db.clone(), fonts.clone(), 640, 480);
     ui.set_cursor(ui::Cursor::Arrow);
+    ui.set_cursor_pos(Point::new(640 / 2, 480 / 2));
 
     let misc_msgs = Rc::new(Messages::read_file(&fs, language, "game/misc.msg").unwrap());
     let mut state = GameState::new(
@@ -270,11 +271,13 @@ fn main() {
             };
             let dude_pos = world.objects().get(world.dude_obj().unwrap()).borrow().pos.unwrap().point;
             let ref msg = format!(
-                "mouse hex: {}, {} ({})\n\
+                "mouse: {}, {}\n\
+                 mouse hex: {}, {} ({})\n\
                  mouse sqr: {}, {} ({})\n\
                  dude hex: {}, {} ({})\n\
                  ambient: 0x{:x}\n\
                  paused: {}",
+                ui.cursor_pos().x, ui.cursor_pos().y,
                 mouse_hex_pos.x, mouse_hex_pos.y,
                 world.hex_grid().to_linear_inv(mouse_hex_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 mouse_sqr_pos.x, mouse_sqr_pos.y,

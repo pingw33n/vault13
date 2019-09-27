@@ -26,6 +26,7 @@ pub enum UiCommandData {
     Pick {
         id: u32,
     },
+    Scroll,
 
     #[doc(hidden)]
     __NonExhaustive,

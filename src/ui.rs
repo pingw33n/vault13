@@ -48,6 +48,24 @@ pub enum Cursor {
     Arrow,
     ArrowDown,
     ArrowUp,
+
+    ScrollNorth,
+    ScrollNorthEast,
+    ScrollEast,
+    ScrollSouthEast,
+    ScrollSouth,
+    ScrollSouthWest,
+    ScrollWest,
+    ScrollNorthWest,
+    ScrollNorthX,
+    ScrollNorthEastX,
+    ScrollEastX,
+    ScrollSouthEastX,
+    ScrollSouthX,
+    ScrollSouthWestX,
+    ScrollWestX,
+    ScrollNorthWestX,
+
     Hidden,
 }
 
@@ -60,6 +78,24 @@ impl Cursor {
             Arrow => FrameId::STDARROW,
             ArrowDown => FrameId::SDNARROW,
             ArrowUp => FrameId::SUPARROW,
+
+            ScrollNorth => FrameId::SCRNORTH,
+            ScrollNorthEast => FrameId::SCRNEAST,
+            ScrollEast => FrameId::SCREAST,
+            ScrollSouthEast => FrameId::SCRSEAST,
+            ScrollSouth => FrameId::SCRSOUTH,
+            ScrollSouthWest => FrameId::SCRSWEST,
+            ScrollWest => FrameId::SCRWEST,
+            ScrollNorthWest => FrameId::SCRNWEST,
+            ScrollNorthX => FrameId::SCRNX,
+            ScrollNorthEastX => FrameId::SCRNEX,
+            ScrollEastX => FrameId::SCREX,
+            ScrollSouthEastX => FrameId::SCRSEX,
+            ScrollSouthX => FrameId::SCRSX,
+            ScrollSouthWestX => FrameId::SCRSWX,
+            ScrollWestX => FrameId::SCRWX,
+            ScrollNorthWestX => FrameId::SCRNWX,
+
             Hidden => FrameId::BLANK,
         }
     }

@@ -1,4 +1,5 @@
 use bstring::{bstr, BString};
+use enum_map::{enum_map, EnumMap};
 use if_chain::if_chain;
 use log::*;
 use measure_time::*;
@@ -24,8 +25,9 @@ use crate::game::sequence::stand::Stand;
 use crate::game::script::{self, Scripts, ScriptKind};
 use crate::game::ui::action_menu::{self, Action};
 use crate::game::ui::hud;
+use crate::game::ui::scroll_area::ScrollArea;
 use crate::game::ui::world::{HexCursorStyle, WorldView};
-use crate::game::world::World;
+use crate::game::world::{ScrollDirection, World};
 use crate::graphics::Rect;
 use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::{self, Direction};
@@ -61,6 +63,7 @@ pub struct GameState {
     in_combat: bool,
     seq_events: Vec<sequence::Event>,
     misc_msgs: Rc<Messages>,
+    scroll_areas: EnumMap<ScrollDirection, ui::Handle>,
 }
 
 impl GameState {
@@ -97,12 +100,14 @@ impl GameState {
         let sequencer = Sequencer::new(now);
         let fidget = Fidget::new(now);
 
+        let world_view_rect = Rect::with_size(0, 0, 640, 379);
         let world_view = {
-            let rect = Rect::with_size(0, 0, 640, 379);
-            let win = ui.new_window(rect.clone(), None);
-            ui.new_widget(win, rect, None, None, WorldView::new(world.clone()))
+            let win = ui.new_window(world_view_rect.clone(), None);
+            ui.new_widget(win, world_view_rect, None, None, WorldView::new(world.clone()))
         };
         let message_panel = hud::create(ui);
+
+        let scroll_areas = Self::create_scroll_areas(Rect::with_size(0, 0, 640, 480), ui);
 
         Self {
             time,
@@ -124,6 +129,7 @@ impl GameState {
             in_combat: false,
             seq_events: Vec::new(),
             misc_msgs,
+            scroll_areas,
         }
     }
 
@@ -552,6 +558,42 @@ impl GameState {
             self.push_message(&msg, ui);
         }
     }
+
+    fn create_scroll_areas(rect: Rect, ui: &mut Ui) -> EnumMap<ScrollDirection, ui::Handle> {
+        let mut new = |rect, cur, curx| {
+            let win = ui.new_window(rect, None);
+            ui.new_widget(win, Rect::with_size(0, 0, rect.width(), rect.height()), None, None,
+                ScrollArea::new(cur, curx, Duration::from_millis(0), Duration::from_millis(30)))
+        };
+        use ui::Cursor::*;
+        use ScrollDirection::*;
+        enum_map! {
+            N => new(
+                Rect::new(rect.left + 1, rect.top, rect.right - 1, rect.top + 1),
+                ScrollNorth, ScrollNorthX),
+            NE => new(
+                Rect::new(rect.right - 1, rect.top, rect.right, rect.top + 1),
+                ScrollNorthEast, ScrollNorthEastX),
+            E => new(
+                Rect::new(rect.right - 1, rect.top + 1, rect.right, rect.bottom - 1),
+                ScrollEast, ScrollEastX),
+            SE => new(
+                Rect::new(rect.right - 1, rect.bottom - 1, rect.right, rect.bottom),
+                ScrollSouthEast, ScrollSouthEastX),
+            S => new(
+                Rect::new(rect.left + 1, rect.bottom - 1, rect.right - 1, rect.bottom),
+                ScrollSouth, ScrollSouthX),
+            SW => new(
+                Rect::new(rect.left, rect.bottom - 1, rect.left + 1, rect.bottom),
+                ScrollSouthWest, ScrollSouthWestX),
+            W => new(
+                Rect::new(rect.left, rect.top + 1, rect.left + 1, rect.bottom - 1),
+                ScrollWest, ScrollWestX),
+            NW => new(
+                Rect::new(rect.left, rect.top, rect.left + 1, rect.top + 1),
+                ScrollNorthWest, ScrollNorthWestX),
+        }
+    }
 }
 
 impl AppState for GameState {
@@ -559,16 +601,16 @@ impl AppState for GameState {
         let mut world = self.world.borrow_mut();
         match event {
             Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
-                world.camera_mut().origin.x -= SCROLL_STEP;
+                world.scroll(ScrollDirection::E, 1);
             }
             Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
-                world.camera_mut().origin.x += SCROLL_STEP;
+                world.scroll(ScrollDirection::W, 1);
             }
             Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
-                world.camera_mut().origin.y += SCROLL_STEP;
+                world.scroll(ScrollDirection::N, 1);
             }
             Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
-                world.camera_mut().origin.y -= SCROLL_STEP;
+                world.scroll(ScrollDirection::S, 1);
             }
             Event::KeyDown { keycode: Some(Keycode::A), .. } => {
                 let dude_obj = world.dude_obj().unwrap();
@@ -733,6 +775,14 @@ impl AppState for GameState {
                     // TODO call MapUpdate (multiple times?), see gdialogEnter()
                 }
 
+            }
+            UiCommandData::Scroll => {
+                let (dir, widg) = self.scroll_areas
+                    .iter()
+                    .find(|&(_, w)| w == &command.source)
+                    .unwrap();
+                let scrolled = self.world.borrow_mut().scroll(dir, 1) > 0;
+                ui.widget_mut::<ScrollArea>(*widg).set_enabled(scrolled);
             }
             _ => {}
         }
