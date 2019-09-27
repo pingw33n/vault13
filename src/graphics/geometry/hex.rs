@@ -10,9 +10,10 @@ use crate::graphics::{Point, Rect};
 use crate::util::EnumExt;
 use super::TileGridView;
 
-const TILE_WIDTH: i32 = 32;
-const TILE_HEIGHT: i32 = 16;
-const TILE_INNER_HEIGHT: i32 = 8;
+pub const TILE_WIDTH: i32 = 32;
+pub const TILE_HEIGHT: i32 = 16;
+pub const TILE_INNER_HEIGHT: i32 = 8;
+pub const TILE_CENTER: Point = Point::new(TILE_WIDTH / 2, TILE_HEIGHT / 2);
 
 #[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 pub enum Direction {
@@ -74,6 +75,39 @@ fn go0(p: impl Into<Point>, direction: Direction, distance: u32, is_in_bounds: i
         p = next;
     }
     p
+}
+
+/// Returns tile that is directly above or below the tile at `p` in screen space.
+/// The `offset` defines the number of steps to go up if negative or down if positive.
+pub fn go_vert(p: Point, offset: i32) -> Point {
+    let i = offset / 2;
+    let j = offset % 2;
+    let k = if offset > 0 {
+        1 + p.x.abs() % 2
+    } else {
+        2 - p.x.abs() % 2
+    };
+    p + Point::new(-offset, i * 3 + j * k)
+}
+
+#[test]
+fn go_vert_() {
+    let d = &[
+        ((123, -456), 0, (123, -456)),
+        ((0, 0), 1, (-1, 1)),
+        ((0, 0), -1, (1, -2)),
+        ((0, 0), 2, (-2, 3)),
+        ((1, 0), 1, (0, 2)),
+        ((111, 87), 1, (110, 89)),
+        ((111, 87), -1, (112, 86)),
+        ((111, 87), 5, (106, 95)),
+    ];
+    for &((ix, iy), o, (ex, ey)) in d {
+        let inp = (ix, iy).into();
+        let exp = (ex, ey).into();
+        assert_eq!(go_vert(inp, o), exp);
+        assert_eq!(go_vert(exp, -o), inp);
+    }
 }
 
 /// Creates iterator over positions of distinct tiles that intersect the ray cast from `from` tile

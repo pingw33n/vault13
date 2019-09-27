@@ -1,6 +1,7 @@
 pub mod floating_text;
 
 use bstring::{bstr, BString};
+use enum_map::Enum;
 use if_chain::if_chain;
 use log::debug;
 use std::cell::RefCell;
@@ -12,7 +13,7 @@ use crate::asset::EntityKind;
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::map::ELEVATION_COUNT;
 use crate::asset::message::Messages;
-use crate::asset::proto::ProtoDb;
+use crate::asset::proto::{ProtoDb, ProtoId};
 use crate::game::GameTime;
 use crate::game::object::{self, DamageFlag, Egg, Object, Objects, SubObject};
 use crate::graphics::{EPoint, Point, Rect};
@@ -23,15 +24,44 @@ use crate::graphics::geometry::hex::{self, Direction};
 use crate::graphics::lighting::light_grid::LightGrid;
 use crate::graphics::map::*;
 use crate::graphics::render::Canvas;
+use crate::util::VecExt;
 use crate::util::array2d::Array2d;
 
 use floating_text::FloatingText;
-use crate::util::VecExt;
 
 // scr_game_init()
 const START_GAME_TIME: GameTime = GameTime::from_decis(302400);
 
 const MAX_FLOATING_TEXTS: usize = 19;
+
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+pub enum ScrollDirection {
+    N,
+    NE,
+    E,
+    SE,
+    S,
+    SW,
+    W,
+    NW,
+}
+
+impl ScrollDirection {
+    fn go(self, p: Point) -> Point {
+        use ScrollDirection::*;
+        let dir = match self {
+            N => return hex::go_vert(p, -1),
+            S => return hex::go_vert(p, 1),
+            NE => Direction::NE,
+            E => Direction::E,
+            SE => Direction::SE,
+            SW => Direction::SW,
+            W => Direction::W,
+            NW => Direction::NW,
+        };
+        hex::go(p, dir, 1)
+    }
+}
 
 pub struct World {
     proto_db: Rc<ProtoDb>,
@@ -324,6 +354,47 @@ impl World {
         self.objects().render_outlines(canvas, elevation, self.camera.viewport, &self.camera.hex());
 
         self.render_floating_texts(canvas);
+    }
+
+    pub fn scroll(&mut self, dir: ScrollDirection, amount: u32) -> u32 {
+        if amount == 0 {
+            return 0;
+        }
+
+        let mut scrolled = 0;
+        let mut pos = self.camera.hex().from_screen(self.camera.viewport.center());
+        // Original doesn't use tile centers when measuring screen distance between dude and camera.
+        let dude_pos_scr = hex::to_screen(
+            self.objects.get(self.dude_obj.unwrap()).borrow().pos.unwrap().point) + hex::TILE_CENTER;
+        let elevation = self.elevation();
+        while scrolled < amount {
+            let new_pos = dir.go(pos);
+            if !self.hex_grid.is_in_bounds(new_pos) {
+                break;
+            }
+
+            let new_pos_scr = hex::to_screen(new_pos) + hex::TILE_CENTER;
+            let distance = dude_pos_scr - new_pos_scr;
+            if distance.x.abs() >= 480 || distance.y.abs() >= 400 { // TODO make configurable
+                break;
+            }
+
+            let blocker = self.objects.at(new_pos.elevated(elevation))
+                .iter()
+                .find(|&&h| self.objects.get(h).borrow()
+                    .pid.proto_id() == Some(ProtoId::SCROLL_BLOCKER))
+                .is_some();
+            if blocker {
+                break;
+            }
+
+            pos = new_pos;
+            scrolled += 1;
+        }
+
+        self.camera.look_at(pos);
+
+        scrolled
     }
 
     fn update_light_grid(objects: &Objects, light_grid: &mut LightGrid, h: object::Handle,
