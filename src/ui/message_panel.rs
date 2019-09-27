@@ -421,7 +421,7 @@ impl Widget for MessagePanel {
                 }
                 last_message = Some(line.message);
 
-                ctx.canvas.draw_text(s, x, y, self.font, color,
+                ctx.canvas.draw_text(s, Point::new(x, y), self.font, color,
                     &font::DrawOptions::default());
             }
             x += self.skew;

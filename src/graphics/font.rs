@@ -3,6 +3,7 @@ use enum_map_derive::Enum;
 use std::collections::HashMap;
 use std::ops::Range;
 
+use crate::graphics::Point;
 use crate::graphics::color::Rgb15;
 use crate::graphics::render::{Canvas, Outline, TextureHandle};
 
@@ -122,28 +123,28 @@ impl Font {
         Lines(LineRanges0::new(self, text, horz_overflow))
     }
 
-    pub fn draw(&self, canvas: &mut Canvas, text: &bstr, x: i32, y: i32, color: Rgb15,
+    pub fn draw(&self, canvas: &mut Canvas, text: &bstr, pos: Point, color: Rgb15,
             options: &DrawOptions) {
         let mut y = match options.vert_align {
-            VertAlign::Top => y,
-            VertAlign::Middle => y - self.text_height(text, options.horz_overflow) / 2,
-            VertAlign::Bottom => y - self.text_height(text, options.horz_overflow),
+            VertAlign::Top => pos.y,
+            VertAlign::Middle => pos.y - self.text_height(text, options.horz_overflow) / 2,
+            VertAlign::Bottom => pos.y - self.text_height(text, options.horz_overflow),
         };
 
         for line in self.lines(text, options.horz_overflow) {
             let mut x = match options.horz_align {
-                HorzAlign::Left => x,
-                HorzAlign::Center => x - self.text_width(line, options.horz_overflow) / 2,
-                HorzAlign::Right => x - self.text_width(line, options.horz_overflow),
+                HorzAlign::Left => pos.x,
+                HorzAlign::Center => pos.x - self.text_width(line, options.horz_overflow) / 2,
+                HorzAlign::Right => pos.x - self.text_width(line, options.horz_overflow),
             };
             for &c in line {
                 let glyph = &self.glyphs[c as usize];
                 let y = y + self.height - glyph.height;
 
-                canvas.draw_masked_color(color, options.dst_color, x, y, &glyph.texture);
+                canvas.draw_masked_color(color, options.dst_color, Point::new(x, y), &glyph.texture);
 
                 if let Some(outline) = options.outline {
-                    canvas.draw_outline(&glyph.texture, x, y, outline);
+                    canvas.draw_outline(&glyph.texture, Point::new(x, y), outline);
                 }
                 x += glyph.width + self.horz_spacing;
             }

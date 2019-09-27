@@ -287,7 +287,7 @@ fn main() {
                 world.ambient_light,
                 state.time().is_paused(),
             );
-            canvas.draw_text(msg.as_bytes().into(), 2, 1, FontKey::antialiased(1), GREEN,
+            canvas.draw_text(msg.as_bytes().into(), Point::new(2, 1), FontKey::antialiased(1), GREEN,
                 &font::DrawOptions {
                     dst_color: Some(BLACK),
                     outline: Some(graphics::render::Outline::Fixed { color: BLACK, trans_color: None }),

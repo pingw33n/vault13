@@ -208,20 +208,19 @@ impl Sprite {
                     Translucency::Steam => TRANS_STEAM,
                     Translucency::Wall => TRANS_WALL,
                 };
-                canvas.draw_translucent_dark(&frm.texture, bounds.left, bounds.top, color,
-                    self.light);
+                canvas.draw_translucent_dark(&frm.texture, bounds.top_left(), color, self.light);
             }
             Some(Effect::Masked { mask_pos, mask_fid }) => {
                 let mask_frms = frm_db.get(mask_fid).unwrap();
                 let mask_frml = &mask_frms.frame_lists[Direction::NE];
                 let mask_frm = &mask_frml.frames[0];
                 let mask_bounds = mask_frm.bounds_centered(mask_pos, mask_frml.center);
-                canvas.draw_masked(&frm.texture, bounds.left, bounds.top,
-                    &mask_frm.texture, mask_bounds.left, mask_bounds.top,
+                canvas.draw_masked(&frm.texture, bounds.top_left(),
+                    &mask_frm.texture, mask_bounds.top_left(),
                     self.light);
             }
             Some(Effect::Highlight { color }) => {
-                canvas.draw_highlight(color, bounds.left, bounds.top, &frm.texture);
+                canvas.draw_highlight(color, bounds.top_left(), &frm.texture);
             }
             Some(Effect::Outline { style, translucent }) => {
                 use self::OutlineStyle::*;
@@ -251,9 +250,9 @@ impl Sprite {
                         trans_color: None,
                     },
                 };
-                canvas.draw_outline(&frm.texture, bounds.left, bounds.top, outline);
+                canvas.draw_outline(&frm.texture, bounds.top_left(), outline);
             }
-            None => canvas.draw(&frm.texture, bounds.left, bounds.top, self.light),
+            None => canvas.draw(&frm.texture, bounds.top_left(), self.light),
         }
 
         bounds

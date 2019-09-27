@@ -1,14 +1,15 @@
 pub mod software;
 
+use bstring::bstr;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 use std::time::Instant;
 
+use crate::graphics::Point;
 use crate::graphics::color::Rgb15;
 use crate::graphics::font::{self, FontKey, Fonts};
 use crate::util::SmKey;
-use bstring::bstr;
 
 #[derive(Clone)]
 pub struct TextureHandle(Rc<TextureHandleInner>);
@@ -66,13 +67,13 @@ pub trait Canvas {
 
     fn clear(&mut self, color: Rgb15);
 
-    fn draw(&mut self, tex: &TextureHandle, x: i32, y: i32, light: u32);
-    fn draw_multi_light(&mut self, tex: &TextureHandle, x: i32, y: i32, lights: &[u32]);
+    fn draw(&mut self, tex: &TextureHandle, pos: Point, light: u32);
+    fn draw_multi_light(&mut self, tex: &TextureHandle, pos: Point, lights: &[u32]);
 
     /// Draws the specified `texture` masked using the specified `mask`.
     /// `mask` values are in range [0..128]. 0 is fully opaque, 128 is fully transparent.
-    fn draw_masked(&mut self, texture: &TextureHandle, x: i32, y: i32,
-                   mask: &TextureHandle, mask_x: i32, mask_y: i32,
+    fn draw_masked(&mut self, texture: &TextureHandle, pos: Point,
+                   mask: &TextureHandle, mask_pos: Point,
                    light: u32);
 
     /// Alpha blends from `src` color to `dst` color with alpha mask specified by the `mask.
@@ -80,16 +81,16 @@ pub trait Canvas {
     /// `color`. `mask` values are in range [0..7]. Note the meaning here is inverted compared to
     /// `draw_masked()`: 0 is fully transparent `src` (and fully opaque `dst`),
     /// 7 is fully opaque `src` (and fully transparent `dst`).
-    fn draw_masked_color(&mut self, src: Rgb15, dst: Option<Rgb15>, x: i32, y: i32,
+    fn draw_masked_color(&mut self, src: Rgb15, dst: Option<Rgb15>, pos: Point,
                          mask: &TextureHandle);
 
     /// Similar to `draw_masked_color()` but the `mask` specifies combined alpha and lightening
     /// values. This is used for drawing screen glare effect in dialog window.
-    fn draw_highlight(&mut self, color: Rgb15, x: i32, y: i32, mask: &TextureHandle);
+    fn draw_highlight(&mut self, color: Rgb15, pos: Point, mask: &TextureHandle);
 
-    fn draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
-    fn draw_translucent_dark(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32);
-    fn draw_outline(&mut self, tex: &TextureHandle, x: i32, y: i32, outline: Outline);
-    fn draw_text(&mut self, text: &bstr, x: i32, y: i32, font: FontKey, color: Rgb15,
+    fn draw_translucent(&mut self, tex: &TextureHandle, pos: Point, color: Rgb15, light: u32);
+    fn draw_translucent_dark(&mut self, tex: &TextureHandle, pos: Point, color: Rgb15, light: u32);
+    fn draw_outline(&mut self, tex: &TextureHandle, pos: Point, outline: Outline);
+    fn draw_text(&mut self, text: &bstr, pos: Point, font: FontKey, color: Rgb15,
         options: &font::DrawOptions);
 }

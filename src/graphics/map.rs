@@ -35,7 +35,7 @@ fn render_square_tiles(canvas: &mut Canvas, stg: &impl TileGridView, rect: Rect,
                     vertex_lights[i] = l;
                 }
 
-                canvas.draw_multi_light(&tex, scr_pt.x, scr_pt.y, &vertex_lights[..]);
+                canvas.draw_multi_light(&tex, scr_pt, &vertex_lights[..]);
             }
         }
     }

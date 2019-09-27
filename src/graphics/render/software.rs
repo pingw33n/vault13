@@ -165,7 +165,7 @@ impl CanvasImpl {
         palette.alpha_blend(trans_color_idx, dst, alpha)
     }
 
-    fn do_draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32,
+    fn do_draw_translucent(&mut self, tex: &TextureHandle, pos: Point, color: Rgb15, light: u32,
             grayscale_func: impl Fn(Rgb15) -> u8) {
         let pal = &self.palette;
         let tex = self.textures.get(tex);
@@ -173,7 +173,7 @@ impl CanvasImpl {
 
         let color = pal.color_idx(color);
 
-        Self::do_draw(&mut self.back_buf, x, y, &tex, self.clip_rect,
+        Self::do_draw(&mut self.back_buf, pos.x, pos.y, &tex, self.clip_rect,
             |dst, _, _, _, _, src| {
                 let color = Self::make_translucent(src, *dst, color, pal,
                     |rgb15| grayscale_func(rgb15));
@@ -261,19 +261,19 @@ impl Canvas for CanvasImpl {
         }
     }
 
-    fn draw(&mut self, tex: &TextureHandle, x: i32, y: i32, light: u32) {
+    fn draw(&mut self, tex: &TextureHandle, pos: Point, light: u32) {
         let pal = &self.palette;
         let tex = self.textures.get(tex);
         let light = (light >> 9) as u8;
 
-        Self::do_draw(&mut self.back_buf, x, y, &tex, self.clip_rect,
+        Self::do_draw(&mut self.back_buf, pos.x, pos.y, &tex, self.clip_rect,
             |dst, _, _, _, _, src| {
                 *dst = pal.darken(src, light);
             }
         );
     }
 
-    fn draw_multi_light(&mut self, tex: &TextureHandle, x: i32, y: i32, lights: &[u32]) {
+    fn draw_multi_light(&mut self, tex: &TextureHandle, pos: Point, lights: &[u32]) {
         let mut uniform = true;
         for i in 1..light_map::VERTEX_COUNT {
             if lights[i] != lights[i - 1] {
@@ -282,7 +282,7 @@ impl Canvas for CanvasImpl {
             }
         }
         if uniform {
-            self.draw(tex, x, y, lights[0]);
+            self.draw(tex, pos, lights[0]);
             return;
         }
 
@@ -293,7 +293,7 @@ impl Canvas for CanvasImpl {
 
         let tex = self.textures.get(tex);
 
-        Self::do_draw(&mut self.back_buf, x, y, &tex, self.clip_rect,
+        Self::do_draw(&mut self.back_buf, pos.x, pos.y, &tex, self.clip_rect,
             |dst, _, _, src_x, src_y, src| {
                 let light = light_map.get(src_x, src_y + 2 /* as in original */);
                 *dst = pal.darken(src, (light >> 9) as u8);
@@ -301,22 +301,22 @@ impl Canvas for CanvasImpl {
         );
     }
 
-    fn draw_masked(&mut self, tex: &TextureHandle, x: i32, y: i32,
-                   mask: &TextureHandle, mask_x: i32, mask_y: i32,
+    fn draw_masked(&mut self, tex: &TextureHandle, pos: Point,
+                   mask: &TextureHandle, mask_pos: Point,
                    light: u32) {
         let tex = self.textures.get(tex);
         let mask = self.textures.get(mask);
 
-        let mask_rect = Rect::with_size(mask_x, mask_y, mask.width, mask.height);
+        let mask_rect = Rect::with_size(mask_pos.x, mask_pos.y, mask.width, mask.height);
         let light = (light >> 9) as u8;
 
         let pal = &self.palette;
 
-        Self::do_draw(&mut self.back_buf, x, y, &tex, self.clip_rect,
+        Self::do_draw(&mut self.back_buf, pos.x, pos.y, &tex, self.clip_rect,
             |dst, dst_x, dst_y, _, _, src| {
                 let src = pal.darken(src, light);
                 let mask_v = if mask_rect.contains(Point::new(dst_x, dst_y)) {
-                    let i = (dst_y - mask_y) * mask.width + dst_x - mask_x;
+                    let i = (dst_y - mask_pos.y) * mask.width + dst_x - mask_pos.x;
                     cmp::min(mask.data[i as usize], 128)
                 } else {
                     0
@@ -332,14 +332,14 @@ impl Canvas for CanvasImpl {
         );
     }
 
-    fn draw_masked_color(&mut self, src: Rgb15, dst: Option<Rgb15>, x: i32, y: i32,
+    fn draw_masked_color(&mut self, src: Rgb15, dst: Option<Rgb15>, pos: Point,
             mask: &TextureHandle) {
         let mask = self.textures.get(mask);
         let pal = &self.palette;
         let src_color_idx = pal.color_idx(src);
         let dst_color_idx = dst.map(|c| pal.color_idx(c));
 
-        Self::do_draw(&mut self.back_buf, x, y, &mask, self.clip_rect,
+        Self::do_draw(&mut self.back_buf, pos.x, pos.y, &mask, self.clip_rect,
             |dst, _, _, _, _, src| {
                 let alpha = cmp::min(src, 7);
                 *dst = pal.alpha_blend(src_color_idx, dst_color_idx.unwrap_or(*dst), alpha);
@@ -347,12 +347,12 @@ impl Canvas for CanvasImpl {
         );
     }
 
-    fn draw_highlight(&mut self, color: Rgb15, x: i32, y: i32, mask: &TextureHandle) {
+    fn draw_highlight(&mut self, color: Rgb15, pos: Point, mask: &TextureHandle) {
         let mask = self.textures.get(mask);
         let pal = &self.palette;
         let color_idx = pal.color_idx(color);
 
-        Self::do_draw(&mut self.back_buf, x, y, &mask, self.clip_rect,
+        Self::do_draw(&mut self.back_buf, pos.x, pos.y, &mask, self.clip_rect,
             |dst, _, _, _, _, src| {
                 let x = if src != 0 {
                     ((256 - src as u32) >> 4) as u8
@@ -364,18 +364,18 @@ impl Canvas for CanvasImpl {
         );
     }
 
-    fn draw_translucent(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32) {
-        self.do_draw_translucent(tex, x, y, color, light, Rgb15::grayscale)
+    fn draw_translucent(&mut self, tex: &TextureHandle, pos: Point, color: Rgb15, light: u32) {
+        self.do_draw_translucent(tex, pos, color, light, Rgb15::grayscale)
     }
 
-    fn draw_translucent_dark(&mut self, tex: &TextureHandle, x: i32, y: i32, color: Rgb15, light: u32) {
-        self.do_draw_translucent(tex, x, y, color, light, Rgb15::grayscale_dark)
+    fn draw_translucent_dark(&mut self, tex: &TextureHandle, pos: Point, color: Rgb15, light: u32) {
+        self.do_draw_translucent(tex, pos, color, light, Rgb15::grayscale_dark)
     }
 
-    fn draw_outline(&mut self, tex: &TextureHandle, x: i32, y: i32, outline: Outline) {
+    fn draw_outline(&mut self, tex: &TextureHandle, pos: Point, outline: Outline) {
         let src = self.textures.get(tex);
         let (mut src_rect, dst_x, dst_y) =
-            Self::compute_draw_rect(&self.back_buf, x - 1, y - 1,
+            Self::compute_draw_rect(&self.back_buf, pos.x - 1, pos.y - 1,
                 src.width + 2, src.height + 2,
                 self.clip_rect);
         src_rect.right -= 2;
@@ -488,9 +488,9 @@ impl Canvas for CanvasImpl {
         }
     }
 
-    fn draw_text(&mut self, text: &bstr, x: i32, y: i32, font: FontKey, color: Rgb15,
+    fn draw_text(&mut self, text: &bstr, pos: Point, font: FontKey, color: Rgb15,
             options: &font::DrawOptions) {
         let fonts = self.fonts.clone();
-        fonts.get(font).draw(self, text.into(), x, y, color, options);
+        fonts.get(font).draw(self, text.into(), pos, color, options);
     }
 }

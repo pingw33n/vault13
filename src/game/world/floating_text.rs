@@ -68,7 +68,7 @@ impl FloatingText {
         let mut y = pos.y;
         for (line, line_width) in &self.lines {
             let x = pos.x + (self.width - *line_width) / 2;
-            canvas.draw_text(line, x, y, self.options.font_key, self.options.color,
+            canvas.draw_text(line, Point::new(x, y), self.options.font_key, self.options.color,
                 &font::DrawOptions {
                     outline: self.options.outline_color
                         .map(|color| Outline::Fixed { color, trans_color: None }),
