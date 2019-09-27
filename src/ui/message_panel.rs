@@ -271,7 +271,7 @@ impl MessagePanel {
     fn update_highlight(&mut self, cursor_pos: Point, base: &Base) {
         assert_eq!(self.scroll_pos, 0);
         assert_eq!(self.anchor, Anchor::Top);
-        self.highlighted = if base.rect.contains(cursor_pos.x, cursor_pos.y) {
+        self.highlighted = if base.rect.contains(cursor_pos) {
             let line_advance = self.fonts.get(self.font).vert_advance();
 
             let mut msgs = self.messages.iter().map(|m| m.line_count).peekable();

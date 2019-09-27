@@ -11,7 +11,7 @@ use crate::graphics::color::palette::Palette;
 use crate::graphics::color::palette::overlay::PaletteOverlay;
 use crate::graphics::font::{self, FontKey, Fonts};
 use crate::graphics::lighting::light_map::{self, LightMap};
-use crate::graphics::Rect;
+use crate::graphics::{Point, Rect};
 use crate::util::SmKey;
 
 pub struct Backend {
@@ -188,7 +188,7 @@ impl CanvasImpl {
         let rect = Rect::with_size(dst_x, dst_y, src_width, src_height)
             .intersect(Rect::with_size(0, 0, dst.width, dst.height))
             .intersect(clip_rect);
-        let src_rect = rect.translate(-dst_x, -dst_y);
+        let src_rect = rect.translate(Point::new(-dst_x, -dst_y));
         let dst_x = rect.left;
         let dst_y = rect.top;
         (src_rect, dst_x, dst_y)
@@ -315,7 +315,7 @@ impl Canvas for CanvasImpl {
         Self::do_draw(&mut self.back_buf, x, y, &tex, self.clip_rect,
             |dst, dst_x, dst_y, _, _, src| {
                 let src = pal.darken(src, light);
-                let mask_v = if mask_rect.contains(dst_x, dst_y) {
+                let mask_v = if mask_rect.contains(Point::new(dst_x, dst_y)) {
                     let i = (dst_y - mask_y) * mask.width + dst_x - mask_x;
                     cmp::min(mask.data[i as usize], 128)
                 } else {

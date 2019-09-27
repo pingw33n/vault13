@@ -35,7 +35,7 @@ impl Widget for Button {
             }
             Event::MouseMove { pos } if ctx.is_captured() => {
                 // FIXME should optionally hit test the frame as in original.
-                self.state = if ctx.base.rect.contains(pos.x, pos.y) {
+                self.state = if ctx.base.rect.contains(pos) {
                     State::Down
                 } else {
                     State::Up
@@ -44,7 +44,7 @@ impl Widget for Button {
             Event::MouseUp { pos, button } if button == MouseButton::Left => {
                 self.state = State::Up;
                 // FIXME should optionally hit test the frame as in original.
-                if ctx.base.rect.contains(pos.x, pos.y) {
+                if ctx.base.rect.contains(pos) {
                     dbg!("clicked");
                 }
                 ctx.release();

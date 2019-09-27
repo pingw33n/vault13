@@ -133,7 +133,7 @@ impl Egg {
         let frm = &frml.frames[0];
 
         let bounds = frm.bounds_centered(screen_pos, frml.center);
-        if !bounds.contains(p.x, p.y) {
+        if !bounds.contains(p) {
             return false;
         }
         let p = p - bounds.top_left();
@@ -281,7 +281,7 @@ impl Object {
         }
 
         let bounds = self.bounds(frm_db, tile_grid);
-        if !bounds.contains(p.x, p.y) {
+        if !bounds.contains(p) {
             return None;
         }
 
@@ -1277,6 +1277,6 @@ mod test {
         obj.screen_shift = screen_shift;
         assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &View::default()),
             Rect::with_points(Point::new(1, -51), Point::new(30, 12))
-                .translate(base.x, base.y));
+                .translate(base));
     }
 }

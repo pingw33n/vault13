@@ -237,12 +237,12 @@ impl Rect {
         }
     }
 
-    pub fn translate(&self, x: i32, y: i32) -> Self {
+    pub fn translate(&self, offset: Point) -> Self {
         Self {
-            left: self.left + x,
-            top: self.top + y,
-            right: self.right + x,
-            bottom: self.bottom + y,
+            left: self.left + offset.x,
+            top: self.top + offset.y,
+            right: self.right + offset.x,
+            bottom: self.bottom + offset.y,
         }
     }
 
@@ -251,9 +251,9 @@ impl Rect {
             self.top >= self.bottom
     }
 
-    pub fn contains(&self, x: i32, y: i32) -> bool {
-        x >= self.left && x < self.right &&
-            y >= self.top && y < self.bottom
+    pub fn contains(&self, p: Point) -> bool {
+        p.x >= self.left && p.x < self.right &&
+            p.y >= self.top && p.y < self.bottom
     }
 
     pub fn intersects(&self, other: Rect) -> bool {

@@ -218,7 +218,7 @@ impl Ui {
         let rect = {
             let win_base = self.widget_bases[window.0].borrow();
             let top_left = win_base.rect.top_left();
-            rect.translate(top_left.x, top_left.y)
+            rect.translate(top_left)
         };
 
         let h = self.insert_widget(Some(window), Base {
@@ -453,12 +453,12 @@ impl Ui {
     fn widget_at(&self, point: Point) -> Option<Handle> {
         for &winh in self.windows_order.iter().rev() {
             let win_base = self.widget_bases[winh.0].borrow();
-            if win_base.rect.contains(point.x, point.y) {
+            if win_base.rect.contains(point) {
                 let mut win = self.widgets[winh.0].borrow_mut();
                 let win = win.downcast_mut::<Window>().unwrap();
                 for &widgh in win.widgets.iter().rev() {
                     let widg_base = self.widget_bases[widgh.0].borrow();
-                    if widg_base.rect.contains(point.x, point.y) {
+                    if widg_base.rect.contains(point) {
                         return Some(widgh);
                     }
                 }
