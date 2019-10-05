@@ -1,0 +1,26 @@
+language: rust
+rust: 1.38.0
+os:
+  - linux
+  - osx
+addons:
+  apt:
+    packages:
+      - libsndio-dev
+script:
+  # Fail fast.
+  - set -e
+  - cargo test --release --verbose
+  - cargo build --release --verbose
+cache: cargo
+before_cache:
+  - rm -rfv target/{debug,release}/incremental/{vault13,build_script_build}-*
+  - rm -rfv target/{debug,release}/{.fingerprint,build,deps}/vault13-*
+  - rm -rfv target/{debug,release}/vault13.d
+  - rm -fv target/{debug,release}/vault13
+  # For some reason this file still invalidates the cache.
+  - rm -fv target/.rustc_info.json
+  - cargo clean -p vault13
+branches:
+  only:
+    - master
