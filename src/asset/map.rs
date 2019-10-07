@@ -292,8 +292,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         let elevation = self.reader.read_u32::<BigEndian>()?;
         let pid = ProtoId::read(self.reader)?;
-        trace!("{:?} {:?}", pid, self.proto_db.proto(pid)
-            .ok().and_then(|p| p.name().map(|s| s.to_owned())));
+        let proto = self.proto_db.proto(pid)?;
+        trace!("{:?} {:?}", pid, proto.borrow().name());
         let _cid = self.reader.read_u32::<BigEndian>()?;
         let light_emitter = LightEmitter {
             radius: self.reader.read_i32::<BigEndian>()? as u32,
@@ -347,7 +347,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
     //            };
             match pid.kind() {
                 EntityKind::Item => {
-                    let proto = self.proto_db.proto(pid).unwrap();
+                    let proto = proto.borrow();
                     match proto.sub.item().unwrap().sub {
                         SubItem::Weapon(ref proto) => {
                             let _charges = self.reader.read_i32::<BigEndian>()?;

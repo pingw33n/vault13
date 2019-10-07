@@ -136,7 +136,7 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
         .ok_or(Error::BadValue(BadValue::Content))?;
 
     // FIXME add proper impl
-    let fid = ctx.ext.world.proto_db().proto(pid).unwrap().fid;
+    let fid = ctx.ext.world.proto_db().proto(pid).unwrap().borrow().fid;
     let pos = ctx.ext.world.hex_grid().from_linear_inv(tile_num);
     let pos = pos.elevated(elevation);
     let obj = Object::new(fid, pid.into(), Some(pos));

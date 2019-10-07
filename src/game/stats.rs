@@ -2,7 +2,6 @@ mod def;
 
 use enum_map::EnumMap;
 use num_traits::clamp;
-use std::cell::Ref;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::io;
@@ -205,16 +204,19 @@ impl Stats {
             Stat::CurrentHitPoints => critter().health,
             Stat::CurrentPoison => critter().poison,
             Stat::CurrentRad => critter().radiation,
-            _ => self.critter_proto(obj).base_stats[stat],
+            _ => self.with_critter_proto(obj, |c| c.base_stats[stat]),
         }
     }
 
     fn bonus_stat(&self, stat: Stat, obj: &Object) -> i32 {
-        self.critter_proto(obj).bonus_stats[stat]
+        self.with_critter_proto(obj, |c| c.bonus_stats[stat])
     }
 
-    fn critter_proto(&self, obj: &Object) -> Ref<proto::Critter> {
+    fn with_critter_proto<F, R>(&self, obj: &Object, f: F) -> R
+        where F: FnOnce(&proto::Critter) -> R
+    {
         let proto = self.proto_db.proto(obj.pid.proto_id().unwrap()).unwrap();
-        Ref::map(proto, |p| p.sub.critter().unwrap())
+        let proto = proto.borrow();
+        f(proto.sub.critter().unwrap())
     }
 }

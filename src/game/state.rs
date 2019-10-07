@@ -318,7 +318,7 @@ impl GameState {
                         if !self.in_combat {
                             r.push(Action::Talk);
                         }
-                    } else if !self.proto_db.proto(obj.pid.proto_id().unwrap()).unwrap()
+                    } else if !self.proto_db.proto(obj.pid.proto_id().unwrap()).unwrap().borrow()
                         .sub.critter().unwrap()
                         .flags.contains(CritterFlag::NoSteal)
                     {
@@ -466,6 +466,7 @@ impl GameState {
                 let descr = examinedo.pid.proto_id()
                     .map(|pid| self.proto_db.proto(pid).unwrap())
                     .and_then(|p| {
+                        let p = p.borrow();
                         let descr = p.description()?;
                         // Compare to "<None>".
                         if descr != &self.proto_db.messages().get(10).unwrap().text {
