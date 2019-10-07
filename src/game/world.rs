@@ -318,7 +318,7 @@ impl World {
         self.expire_floating_texts();
     }
 
-    pub fn render(&self, canvas: &mut Canvas, draw_roof: bool) {
+    pub fn render(&self, canvas: &mut dyn Canvas, draw_roof: bool) {
         let elevation = self.elevation();
         render_floor(canvas, &self.camera.sqr(), self.camera.viewport,
             |p| {

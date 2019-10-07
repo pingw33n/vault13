@@ -188,7 +188,7 @@ impl Sprite {
         }
     }
 
-    pub fn render(&self, canvas: &mut Canvas, frm_db: &FrameDb) -> Rect {
+    pub fn render(&self, canvas: &mut dyn Canvas, frm_db: &FrameDb) -> Rect {
         let frms = frm_db.get(self.fid).unwrap();
         let frml = &frms.frame_lists[self.direction];
         let frm = &frml.frames[self.frame_idx];

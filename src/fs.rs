@@ -16,7 +16,7 @@ impl Metadata {
 }
 
 pub struct FileSystem {
-    providers: Vec<Box<Provider>>,
+    providers: Vec<Box<dyn Provider>>,
 }
 
 impl FileSystem {
@@ -24,11 +24,11 @@ impl FileSystem {
         FileSystem { providers: Vec::new() }
     }
 
-    pub fn register_provider(&mut self, provider: Box<Provider>) {
+    pub fn register_provider(&mut self, provider: Box<dyn Provider>) {
         self.providers.push(provider);
     }
 
-    pub fn reader(&self, path: &str) -> Result<Box<BufRead + Send>> {
+    pub fn reader(&self, path: &str) -> Result<Box<dyn BufRead + Send>> {
         self.find_provider(path, |p| p.reader(path))
     }
 
@@ -36,7 +36,7 @@ impl FileSystem {
         self.find_provider(path, |p| p.metadata(path))
     }
 
-    fn find_provider<T>(&self, path: &str, f: impl Fn(&Provider) -> Result<T>) -> Result<T> {
+    fn find_provider<T>(&self, path: &str, f: impl Fn(&dyn Provider) -> Result<T>) -> Result<T> {
         let mut error: Option<Error> = None;
         for provider in &self.providers {
             match f(provider.as_ref()) {
@@ -62,6 +62,6 @@ impl FileSystem {
 }
 
 pub trait Provider {
-    fn reader(&self, path: &str) -> Result<Box<BufRead + Send>>;
+    fn reader(&self, path: &str) -> Result<Box<dyn BufRead + Send>>;
     fn metadata(&self, path: &str) -> Result<Metadata>;
 }

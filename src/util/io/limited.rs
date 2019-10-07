@@ -39,7 +39,7 @@ impl<T> Limited<T> {
     }
 }
 
-fn read_limited(buf: &mut [u8], pos: u64, limit: u64, reader: &mut Read) -> Result<usize> {
+fn read_limited(buf: &mut [u8], pos: u64, limit: u64, reader: &mut impl Read) -> Result<usize> {
     let can_read = cmp::min(buf.len() as u64, limit - pos);
     if can_read != 0 {
         reader.read(&mut buf[..(can_read as usize)])

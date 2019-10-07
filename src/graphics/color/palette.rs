@@ -82,7 +82,7 @@ impl Palette {
     pub fn blend_lookup(&self, base_color_idx: u8, color_idx: u8, x: u8) -> u8 {
         match x {
             0 => color_idx,
-            1...7 => self.alpha_blend(color_idx, base_color_idx, 7 - x),
+            1..=7 => self.alpha_blend(color_idx, base_color_idx, 7 - x),
             amount => {
                 let amount = amount - 8;
                 let amount = ((amount as u32 * 0x10000 / 7 + 0xffff) >> 9) as u8;

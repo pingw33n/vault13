@@ -4,7 +4,7 @@ use std::rc::Rc;
 use super::*;
 
 struct Inner {
-    new: Vec<Box<Sequence>>,
+    new: Vec<Box<dyn Sequence>>,
     clear: bool,
 }
 
@@ -25,7 +25,7 @@ impl Inner {
         self.clear = true;
     }
 
-    fn apply(&mut self, seqs: &mut Vec<Box<Sequence>>) {
+    fn apply(&mut self, seqs: &mut Vec<Box<dyn Sequence>>) {
         if self.clear {
             self.clear = false;
             seqs.clear();
@@ -50,7 +50,7 @@ impl Control {
         Control(Rc::new(RefCell::new(Inner::new())))
     }
 
-    fn apply(&self, seqs: &mut Vec<Box<Sequence>>) {
+    fn apply(&self, seqs: &mut Vec<Box<dyn Sequence>>) {
         self.0.borrow_mut().apply(seqs);
     }
 
@@ -60,7 +60,7 @@ impl Control {
 }
 
 pub struct Chain {
-    sequences: Vec<Box<Sequence>>,
+    sequences: Vec<Box<dyn Sequence>>,
     control: Control,
     keep_running: bool,
 }

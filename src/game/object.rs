@@ -225,7 +225,7 @@ impl Object {
         }
     }
 
-    pub fn render(&mut self, canvas: &mut Canvas, light: u32,
+    pub fn render(&mut self, canvas: &mut dyn Canvas, light: u32,
             frm_db: &FrameDb, proto_db: &ProtoDb, tile_grid: &impl TileGridView,
             egg: Option<&Egg>) {
         if self.flags.contains(Flag::TurnedOff) {
@@ -244,7 +244,7 @@ impl Object {
         self.screen_pos = sprite.render(canvas, frm_db).top_left();
     }
 
-    pub fn render_outline(&self, canvas: &mut Canvas, frm_db: &FrameDb, tile_grid: &impl TileGridView) {
+    pub fn render_outline(&self, canvas: &mut dyn Canvas, frm_db: &FrameDb, tile_grid: &impl TileGridView) {
         if self.flags.contains(Flag::TurnedOff) {
             return;
         }
@@ -572,7 +572,7 @@ impl Objects {
         }
     }
 
-    pub fn render(&self, canvas: &mut Canvas, elevation: u32, screen_rect: Rect,
+    pub fn render(&self, canvas: &mut dyn Canvas, elevation: u32, screen_rect: Rect,
             tile_grid: &impl TileGridView, egg: Option<&Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32) {
         let ref get_light = get_light;
@@ -580,7 +580,7 @@ impl Objects {
         self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, false);
     }
 
-    pub fn render_outlines(&self, canvas: &mut Canvas, elevation: u32, screen_rect: Rect,
+    pub fn render_outlines(&self, canvas: &mut dyn Canvas, elevation: u32, screen_rect: Rect,
             tile_grid: &impl TileGridView) {
         let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
         for y in hex_rect.top..hex_rect.bottom {
@@ -1069,7 +1069,7 @@ impl Objects {
         })
     }
 
-    fn render0(&self, canvas: &mut Canvas, elevation: u32,
+    fn render0(&self, canvas: &mut dyn Canvas, elevation: u32,
             screen_rect: Rect, tile_grid: &impl TileGridView, egg: Option<&Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32,
             flat: bool) {

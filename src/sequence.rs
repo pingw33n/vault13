@@ -126,7 +126,7 @@ enum NoLagResult {
     Done,
 }
 
-fn update_while_lagging(mut seq: impl AsMut<Sequence>, ctx: &mut Update) -> NoLagResult {
+fn update_while_lagging(mut seq: impl AsMut<dyn Sequence>, ctx: &mut Update) -> NoLagResult {
     loop {
         break match seq.as_mut().update(ctx) {
             Result::Running(Running::Lagging) => continue,

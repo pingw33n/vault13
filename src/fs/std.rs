@@ -4,7 +4,7 @@ use std::io::{BufRead, BufReader, Result};
 
 use super::{Metadata, Provider};
 
-pub fn new_provider<P: AsRef<Path>>(path: P) -> Result<Box<Provider>> {
+pub fn new_provider<P: AsRef<Path>>(path: P) -> Result<Box<dyn Provider>> {
     Ok(Box::new(StdFileSystem::new(path)))
 }
 
@@ -28,7 +28,7 @@ impl StdFileSystem {
 }
 
 impl Provider for StdFileSystem {
-    fn reader(&self, path: &str) -> Result<Box<BufRead + Send>> {
+    fn reader(&self, path: &str) -> Result<Box<dyn BufRead + Send>> {
         Ok(Box::new(BufReader::new(File::open(self.to_fs_path(path))?)))
     }
 

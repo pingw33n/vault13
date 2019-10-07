@@ -124,7 +124,7 @@ pub struct Ui {
     fonts: Rc<Fonts>,
     widget_handles: SlotMap<SmKey, ()>,
     widget_bases: SecondaryMap<SmKey, RefCell<Base>>,
-    widgets: SecondaryMap<SmKey, RefCell<Box<Widget>>>,
+    widgets: SecondaryMap<SmKey, RefCell<Box<dyn Widget>>>,
     windows_order: Vec<Handle>,
     cursor_pos: Point,
     cursor_constraints: Vec<Rect>,
@@ -236,7 +236,7 @@ impl Ui {
         &self.widget_bases[handle.0]
     }
 
-    pub fn widget(&self, handle: Handle) -> &RefCell<Box<Widget>> {
+    pub fn widget(&self, handle: Handle) -> &RefCell<Box<dyn Widget>> {
         &self.widgets[handle.0]
     }
 
@@ -383,7 +383,7 @@ impl Ui {
         }
     }
 
-    pub fn render(&mut self, canvas: &mut Canvas) {
+    pub fn render(&mut self, canvas: &mut dyn Canvas) {
         for &winh in &self.windows_order {
             let mut win = self.widgets[winh.0].borrow_mut();
             let win = win.downcast_mut::<Window>().unwrap();
@@ -507,7 +507,7 @@ impl Ui {
         self.cursor_pos = abs.clamp_in_rect(rect);
     }
 
-    fn insert_widget(&mut self, window: Option<Handle>, base: Base, widget: Box<Widget>) -> Handle {
+    fn insert_widget(&mut self, window: Option<Handle>, base: Base, widget: Box<dyn Widget>) -> Handle {
         let k = self.widget_handles.insert(());
         self.widget_bases.insert(k, RefCell::new(base));
         self.widgets.insert(k, RefCell::new(widget));
@@ -606,7 +606,7 @@ impl HandleEvent<'_> {
 
 pub struct Render<'a> {
     pub frm_db: &'a FrameDb,
-    pub canvas: &'a mut Canvas,
+    pub canvas: &'a mut dyn Canvas,
     pub base: Option<&'a Base>,
     pub cursor_pos: Point,
     pub has_mouse_focus: bool,

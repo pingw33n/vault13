@@ -36,7 +36,7 @@ impl Backend {
         TextureFactory(TextureFactoryInner::Software(self.textures.clone()))
     }
 
-    pub fn into_canvas(self, fonts: Rc<Fonts>) -> Box<Canvas> {
+    pub fn into_canvas(self, fonts: Rc<Fonts>) -> Box<dyn Canvas> {
         Box::new(CanvasImpl::new(self, fonts))
     }
 }

@@ -10,7 +10,7 @@ use crate::util::io::limited::Limited;
 use super::super::{Metadata, Provider};
 use super::util::{build_normalized_path, normalize_path};
 
-pub fn new_provider<P: AsRef<Path>>(path: P) -> Result<Box<Provider>> {
+pub fn new_provider<P: AsRef<Path>>(path: P) -> Result<Box<dyn Provider>> {
     Ok(Box::new(Dat::new(path)?))
 }
 
@@ -89,7 +89,7 @@ impl DatFile {
 }
 
 impl Provider for Dat {
-    fn reader(&self, path: &str) -> Result<Box<BufRead + Send>> {
+    fn reader(&self, path: &str) -> Result<Box<dyn BufRead + Send>> {
         let dat_file = self.file(path)?;
         let read_size = if dat_file.is_compressed() {
             dat_file.compressed_size

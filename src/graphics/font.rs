@@ -123,7 +123,7 @@ impl Font {
         Lines(LineRanges0::new(self, text, horz_overflow))
     }
 
-    pub fn draw(&self, canvas: &mut Canvas, text: &bstr, pos: Point, color: Rgb15,
+    pub fn draw(&self, canvas: &mut dyn Canvas, text: &bstr, pos: Point, color: Rgb15,
             options: &DrawOptions) {
         let mut y = match options.vert_align {
             VertAlign::Top => pos.y,

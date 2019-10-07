@@ -68,7 +68,7 @@ impl<R: Read> Read for LzssDecoder<R> {
     }
 }
 
-pub fn lzss_decode_block(inp: &mut Read, out: &mut Write) -> Result<u64> {
+pub fn lzss_decode_block(inp: &mut impl Read, out: &mut impl Write) -> Result<u64> {
     let block_descr = inp.read_i16::<BigEndian>()? as i32;
     if block_descr == 0 {
         return Ok(0);
@@ -90,10 +90,11 @@ pub fn lzss_decode_block(inp: &mut Read, out: &mut Write) -> Result<u64> {
     return Ok(block_written);
 }
 
-fn lzss_decode_block_content(inp: &mut Read,
-                             block_size: u64,
-                             out: &mut Write)
-                             -> Result<u64> {
+fn lzss_decode_block_content(
+    inp: &mut impl Read,
+    block_size: u64,
+    out: &mut impl Write,
+) -> Result<u64> {
     const N: usize = 4096;
     const F: usize = 18;
     const THRESHOLD: usize = 2;

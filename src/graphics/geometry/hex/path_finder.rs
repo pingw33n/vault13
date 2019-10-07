@@ -225,7 +225,7 @@ mod test {
     }
 
     impl TileStateFunc {
-        fn f(self) -> Box<Fn(Point) -> TileState> {
+        fn f(self) -> Box<dyn Fn(Point) -> TileState> {
             match self {
                 TileStateFunc::NoBlock => Box::new(|_| TileState::Passable(0)),
                 TileStateFunc::AllBlocked => Box::new(|_| TileState::Blocked),

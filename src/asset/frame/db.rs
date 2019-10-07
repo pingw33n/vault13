@@ -113,7 +113,7 @@ impl FrameDb {
         }
     }
 
-    fn read(&self, fid: FrameId) -> io::Result<Box<BufRead + Send>> {
+    fn read(&self, fid: FrameId) -> io::Result<Box<dyn BufRead + Send>> {
         let name = self.name_no_normalize(fid)
             .ok_or_else(|| Error::new(ErrorKind::NotFound,
                 format!("no name exists for FID: {:?}", fid)))?;
@@ -172,7 +172,7 @@ impl FrameDb {
         })
     }
 
-    fn read_by_name(&self, kind: EntityKind, name: &str) -> io::Result<Box<BufRead + Send>> {
+    fn read_by_name(&self, kind: EntityKind, name: &str) -> io::Result<Box<dyn BufRead + Send>> {
         let path = Self::full_path(kind, &name, self.language.as_ref());
         let path = if self.fs.exists(&path) ||
                 // Let the fs.reader() fail with NotFound.
