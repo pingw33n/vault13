@@ -27,12 +27,38 @@ impl ProtoDb {
         let lst = Lst::read(&fs)?;
         let messages = Messages::read_file(&fs, language, "game/proto.msg")?;
         let entity_messages = Self::read_entity_messages(&fs, language)?;
+
+        let mut protos = HashMap::new();
+        protos.insert(ProtoId::DUDE, Rc::new(RefCell::new(Proto {
+            pid: ProtoId::DUDE,
+            message_id: -1,
+            fid: FrameId::new(EntityKind::Critter, None, 0, 0, 0).unwrap(),
+            light_radius: 0,
+            light_intensity: 0,
+            flags: Flag::LightThru.into(),
+            flags_ext: BitFlags::empty(),
+            script_id: None,
+            sub: SubProto::Critter(Critter {
+                flags: BitFlags::empty(),
+                base_stats: EnumMap::new(),
+                bonus_stats: EnumMap::new(),
+                skills: EnumMap::new(),
+                body_kind: 0,
+                experience: 0,
+                kill_kind: CritterKillKind::Man,
+                damage_kind: DamageKind::Melee,
+                head_fid: None,
+                ai_packet: 0,
+                team_id: 0
+            }),
+        })));
+
         Ok(Self {
             fs,
             lst,
             messages,
             entity_messages,
-            protos: RefCell::new(HashMap::new()),
+            protos: RefCell::new(protos),
         })
     }
 
@@ -112,6 +138,10 @@ impl ProtoDb {
         } else {
             false
         }
+    }
+
+    pub fn dude(&self) -> Rc<RefCell<Proto>> {
+        self.protos.borrow().get(&ProtoId::DUDE).unwrap().clone()
     }
 
     fn read_entity_messages(fs: &FileSystem, language: &str)
