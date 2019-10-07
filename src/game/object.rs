@@ -375,7 +375,7 @@ impl Object {
         let egg = egg.unwrap();
 
         let pos = self.pos.unwrap().point;
-        let proto_flags_ext = proto_db.proto(self.pid.proto_id().unwrap()).unwrap().flags_ext;
+        let proto_flags_ext = proto_db.proto(self.pid.proto_id().unwrap()).unwrap().borrow().flags_ext;
 
         let with_egg = if proto_flags_ext.intersects(
                 FlagExt::WallEastOrWest | FlagExt::WallWestCorner) {
@@ -527,7 +527,7 @@ impl Objects {
 
             if obj.fid.kind() == EntityKind::Wall {
                 if !obj.flags.contains(Flag::Flat) {
-                    let flags_ext = self.proto_db.proto(obj.pid.proto_id().unwrap()).unwrap().flags_ext;
+                    let flags_ext = self.proto_db.proto(obj.pid.proto_id().unwrap()).unwrap().borrow().flags_ext;
                     if flags_ext.contains(FlagExt::WallEastOrWest) ||
                             flags_ext.contains(FlagExt::WallEastCorner) {
                         if dir != Direction::W
@@ -880,7 +880,7 @@ impl Objects {
         if obj.kind() == EntityKind::Item {
             let pid = obj.pid.proto_id().unwrap();
             if pid == ProtoId::SHIV {
-                return Some(self.proto_db.proto(pid).unwrap()
+                return Some(self.proto_db.proto(pid).unwrap().borrow()
                     .sub.item().unwrap()
                     .sub.kind());
             }
@@ -957,7 +957,9 @@ impl Objects {
                             .map(|pid| pid.is_radioactive_goo())
                             .unwrap_or(false));
                     let cost = if radioactive_goo {
-                        let gecko = if let proto::SubProto::Critter(ref c) = proto_db.proto(pid).unwrap().sub {
+                        let gecko = if let proto::SubProto::Critter(ref c) =
+                            proto_db.proto(pid).unwrap().borrow().sub
+                        {
                             c.kill_kind == CritterKillKind::Gecko
                         } else {
                             false
@@ -1040,6 +1042,7 @@ impl Objects {
                 }
 
                 let proto = self.proto_db.proto(pid).unwrap();
+                let proto = proto.borrow();
                 let masked = if proto.flags_ext.intersects(
                     FlagExt::WallEastOrWest | FlagExt::WallWestCorner)
                 {

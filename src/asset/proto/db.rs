@@ -2,9 +2,9 @@ use bstring::bstr;
 use byteorder::{BigEndian, ReadBytesExt};
 use enum_map::EnumMap;
 use num_traits::FromPrimitive;
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::cmp;
-use std::collections::HashMap;
+use std::collections::hash_map::{self, HashMap};
 use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
 use std::str;
@@ -19,7 +19,7 @@ pub struct ProtoDb {
     lst: Lst,
     messages: Messages,
     entity_messages: EnumMap<EntityKind, Messages>,
-    protos: RefCell<HashMap<ProtoId, Proto>>,
+    protos: RefCell<HashMap<ProtoId, Rc<RefCell<Proto>>>>,
 }
 
 impl ProtoDb {
@@ -44,21 +44,21 @@ impl ProtoDb {
         &self.messages
     }
 
-    pub fn proto(&self, pid: ProtoId) -> io::Result<Ref<Proto>> {
-        {
-            let mut protos = self.protos.borrow_mut();
-            if !protos.contains_key(&pid) {
+    pub fn proto(&self, pid: ProtoId) -> io::Result<Rc<RefCell<Proto>>> {
+        let mut protos = self.protos.borrow_mut();
+        match protos.entry(pid) {
+            hash_map::Entry::Occupied(e) => Ok(e.get().clone()),
+            hash_map::Entry::Vacant(e) => {
                 let file_name = self.lst.get(pid)
                     .ok_or_else(|| Error::new(ErrorKind::InvalidData,
                         format!("can't find proto file name for {:?}", pid)))?;
                 let path = format!("proto/{}/{}", pid.kind().dir(), file_name);
 
-                let proto =
-                    self.read_proto_file(&path)?;
-                protos.insert(pid, proto);
+                let proto = Rc::new(RefCell::new(self.read_proto_file(&path)?));
+                e.insert(proto.clone());
+                Ok(proto)
             }
         }
-        Ok(Ref::map(self.protos.borrow(), |p| p.get(&pid).unwrap()))
     }
 
     pub fn kind(&self, pid: ProtoId) -> ExactEntityKind {
@@ -67,12 +67,13 @@ impl ProtoDb {
         if pid == ProtoId::SHIV {
             return ExactEntityKind::Item(ItemKind::Misc);
         }
-        self.proto(pid).unwrap().kind()
+        self.proto(pid).unwrap().borrow().kind()
     }
 
     // proto_action_can_use()
     pub fn can_use(&self, pid: ProtoId) -> bool {
         if let Ok(proto) = self.proto(pid) {
+            let proto = proto.borrow();
             proto.flags_ext.contains(FlagExt::CanUse) ||
                 proto.kind() == ExactEntityKind::Item(ItemKind::Container)
         } else {
@@ -83,6 +84,7 @@ impl ProtoDb {
     // proto_action_can_use_on()
     pub fn can_use_on(&self, pid: ProtoId) -> bool {
         if let Ok(proto) = self.proto(pid) {
+            let proto = proto.borrow();
             proto.flags_ext.contains(FlagExt::CanUseOn) ||
                 proto.kind() == ExactEntityKind::Item(ItemKind::Drug)
         } else {
@@ -93,6 +95,7 @@ impl ProtoDb {
     // proto_action_can_talk_to()
     pub fn can_talk_to(&self, pid: ProtoId) -> bool {
         if let Ok(proto) = self.proto(pid) {
+            let proto = proto.borrow();
             proto.flags_ext.contains(FlagExt::CanTalk) ||
                 proto.kind() == ExactEntityKind::Critter
         } else {
@@ -103,6 +106,7 @@ impl ProtoDb {
     // proto_action_can_pick_up()
     pub fn can_pick_up(&self, pid: ProtoId) -> bool {
         if let Ok(proto) = self.proto(pid) {
+            let proto = proto.borrow();
             proto.flags_ext.contains(FlagExt::CanPickup) ||
                 proto.kind() == ExactEntityKind::Item(ItemKind::Container)
         } else {
