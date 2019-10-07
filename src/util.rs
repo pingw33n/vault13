@@ -1,5 +1,4 @@
 pub mod array2d;
-pub mod io;
 pub mod random;
 #[cfg(test)]
 pub mod test;

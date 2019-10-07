@@ -6,7 +6,6 @@ use std::io::prelude::*;
 
 use std::path::{Path, PathBuf};
 
-use crate::util::io::limited::Limited;
 use super::super::{Metadata, Provider};
 use super::util::{build_normalized_path, normalize_path};
 
@@ -96,13 +95,11 @@ impl Provider for Dat {
         } else {
             dat_file.size
         };
-        let reader = BufReader::new(Limited::new(
-            {
-                let mut f = File::open(&self.path)?;
-                f.seek(SeekFrom::Start(dat_file.offset as u64))?;
-                f
-            },
-            read_size as u64));
+        let reader = BufReader::new({
+            let mut f = File::open(&self.path)?;
+            f.seek(SeekFrom::Start(dat_file.offset as u64))?;
+            f.take(read_size as u64)
+        });
         if dat_file.is_compressed() {
             use flate2::bufread::ZlibDecoder;
             return Ok(Box::new(BufReader::new(ZlibDecoder::new(reader))));
