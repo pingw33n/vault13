@@ -10,7 +10,7 @@ use crate::asset::{Perk, Stat, Trait};
 use crate::asset::proto::ProtoId;
 use crate::asset::script::ProgramId;
 use crate::game::dialog::Dialog;
-use crate::game::object::{Object, ObjectProtoId};
+use crate::game::object::Object;
 use crate::game::script::Sid;
 use crate::game::world::floating_text;
 use crate::graphics::{EPoint, Point};
@@ -134,12 +134,17 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
     let pid = ctx.prg.data_stack.pop()?.into_int()?;
     let pid = ProtoId::from_packed(pid as u32)
         .ok_or(Error::BadValue(BadValue::Content))?;
+    let proto = ctx.ext.proto_db.proto(pid)
+        .map_err(|e| {
+            error!("error loading proto {:?}: {:?}", pid, e);
+            Error::BadValue(BadValue::Content)
+        })?;
 
     // FIXME add proper impl
-    let fid = ctx.ext.world.proto_db().proto(pid).unwrap().borrow().fid;
+    let fid = proto.borrow().fid;
     let pos = ctx.ext.world.hex_grid().from_linear_inv(tile_num);
     let pos = pos.elevated(elevation);
-    let obj = Object::new(fid, pid.into(), Some(pos));
+    let obj = Object::new(fid, proto.into(), Some(pos));
     let objh = ctx.ext.world.insert_object(obj);
 
     ctx.prg.data_stack.push(Value::Object(Some(objh)))?;
@@ -709,9 +714,9 @@ pub fn obj_pid(ctx: Context) -> Result<()> {
     }
 
     let r = obj
-        .map(|obj| ctx.ext.world.objects().get(obj).borrow().pid)
-        .unwrap_or(ObjectProtoId::None)
-        .pack() as i32;
+        .and_then(|obj| ctx.ext.world.objects().get(obj).borrow().proto_id())
+        .map(|pid| pid.pack() as i32)
+        .unwrap_or(-1);
     ctx.prg.data_stack.push(r.into())?;
 
     log_a1r1!(ctx.prg, obj, r);
@@ -900,7 +905,7 @@ pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
         .elevated(elevation);
 
     let r = ctx.ext.world.objects().at(pos).iter()
-        .any(|&obj| ctx.ext.world.objects().get(obj).borrow().pid == ObjectProtoId::ProtoId(pid));
+        .any(|&obj| ctx.ext.world.objects().get(obj).borrow().proto_id() == Some(pid));
     ctx.prg.data_stack.push(r.into())?;
 
     log_a3r1!(ctx.prg, tile_num, elevation, pid, ctx.prg.data_stack.top().unwrap());

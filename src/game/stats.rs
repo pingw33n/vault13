@@ -8,8 +8,8 @@ use std::io;
 
 use crate::asset::{Stat, Trait, Perk};
 use crate::asset::message::Messages;
-use crate::asset::proto::{self, ProtoDb};
-use crate::game::object::{DamageFlag, Object, ObjectProtoId};
+use crate::asset::proto::{self, ProtoDb, ProtoId};
+use crate::game::object::{DamageFlag, Object};
 use crate::fs::FileSystem;
 
 use def::StatDef;
@@ -42,7 +42,7 @@ pub struct Stats {
     stat_msgs: Messages,
     stat_defs: EnumMap<Stat, StatDef>,
     traits: Vec<Trait>,
-    perks: HashMap<ObjectProtoId, EnumMap<Perk, bool>>,
+    perks: HashMap<ProtoId, EnumMap<Perk, bool>>,
 }
 
 impl Stats {
@@ -51,7 +51,7 @@ impl Stats {
         let stat_defs = StatDef::defaults();
 
         let mut perks = HashMap::new();
-        perks.insert(ObjectProtoId::Dude, Default::default());
+        perks.insert(ProtoId::DUDE, Default::default());
         Ok(Self {
             proto_db,
             stat_msgs,
@@ -61,7 +61,7 @@ impl Stats {
         })
     }
 
-    pub fn has_perk(&self, perk: Perk, pid: ObjectProtoId) -> bool {
+    pub fn has_perk(&self, perk: Perk, pid: ProtoId) -> bool {
         self.perks.get(&pid).map(|m| m[perk]).unwrap_or(false)
     }
 
@@ -74,7 +74,7 @@ impl Stats {
         use Perk::*;
         use Stat::*;
 
-        let pei = |p| self.has_perk(p, obj.pid) as i32;
+        let pei = |p| self.has_perk(p, obj.proto_id().unwrap()) as i32;
 
         if stat == Age {
             // TODO
@@ -95,13 +95,13 @@ impl Stats {
                 r -= -left / 40 + 1;
             }
         }
-        if obj.pid == ObjectProtoId::Dude {
+        if obj.proto_id() == Some(ProtoId::DUDE) {
             r += self.trait_modifier(stat, obj);
 
             r += match stat {
                 Strength => {
                     pei(GainStrength) +
-                        if self.has_perk(AdrenalineRush, obj.pid) &&
+                        if self.has_perk(AdrenalineRush, obj.proto_id().unwrap()) &&
                             self.stat(CurrentHitPoints, obj) < self.stat(HitPoints, obj) / 2
                         {
                             1
@@ -140,17 +140,17 @@ impl Stats {
                     -2 * pei(AutodocHpNeg1) +
                     -4 * pei(AutodocHpNeg2),
                 DmgResistLaser | DmgResistFire | DmgResistPlasma =>
-                    if self.has_perk(PhoenixArmor, obj.pid) {
+                    if self.has_perk(PhoenixArmor, obj.proto_id().unwrap()) {
                         5
-                    } else if self.has_perk(PhoenixEnhancement, obj.pid) {
+                    } else if self.has_perk(PhoenixEnhancement, obj.proto_id().unwrap()) {
                         10
                     } else {
                         0
                     }
                 DmgResist | DmgResistExplosion =>
-                    if self.has_perk(DermalArmor, obj.pid) {
+                    if self.has_perk(DermalArmor, obj.proto_id().unwrap()) {
                         5
-                    } else if self.has_perk(DermalEnhancement, obj.pid) {
+                    } else if self.has_perk(DermalEnhancement, obj.proto_id().unwrap()) {
                         10
                     } else {
                         0
@@ -215,8 +215,7 @@ impl Stats {
     fn with_critter_proto<F, R>(&self, obj: &Object, f: F) -> R
         where F: FnOnce(&proto::Critter) -> R
     {
-        let proto = self.proto_db.proto(obj.pid.proto_id().unwrap()).unwrap();
-        let proto = proto.borrow();
+        let proto = obj.proto.as_ref().unwrap().borrow();
         f(proto.sub.critter().unwrap())
     }
 }

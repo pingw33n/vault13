@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use crate::asset::Flag;
 use crate::asset::frame::FrameId;
 use crate::game::world::World;
-use crate::game::object::{self, Object, ObjectProtoId};
+use crate::game::object::{self, Object};
 use crate::graphics::{EPoint, Point};
 use crate::graphics::color;
 use crate::graphics::font::*;
@@ -86,7 +86,7 @@ impl WorldView {
     }
 
     fn insert_hex_cursor(world: &mut World) -> object::Handle {
-        let mut hex_cursor = Object::new(FrameId::MOUSE_HEX_OUTLINE, ObjectProtoId::None,
+        let mut hex_cursor = Object::new(FrameId::MOUSE_HEX_OUTLINE, None,
             Some(Default::default()));
         hex_cursor.flags = Flag::WalkThru | Flag::Flat | Flag::NoBlock | Flag::Temp |
             Flag::LightThru | Flag::ShootThru;

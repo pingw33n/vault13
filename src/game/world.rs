@@ -283,13 +283,7 @@ impl World {
                 then {
                     Some(msg.text.clone())
                 } else {
-                    if let Some(pid) = obj.pid.proto_id() {
-                        let proto = self.proto_db.proto(pid).unwrap();
-                        let proto = proto.borrow();
-                        proto.name().map(|v| v.to_owned())
-                    } else {
-                        None
-                    }
+                    obj.proto.as_ref().and_then(|s| s.borrow().name().map(|s| s.to_owned()))
                 }
             }
         }
@@ -383,7 +377,7 @@ impl World {
             let blocker = self.objects.at(new_pos.elevated(elevation))
                 .iter()
                 .find(|&&h| self.objects.get(h).borrow()
-                    .pid.proto_id() == Some(ProtoId::SCROLL_BLOCKER))
+                    .proto_id() == Some(ProtoId::SCROLL_BLOCKER))
                 .is_some();
             if blocker {
                 break;

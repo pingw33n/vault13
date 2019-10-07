@@ -4,13 +4,13 @@ use enum_primitive_derive::Primitive;
 use if_chain::if_chain;
 use slotmap::{SecondaryMap, SlotMap};
 use std::cell::RefCell;
-use std::{cmp, fmt};
+use std::cmp;
 use std::mem;
 use std::rc::Rc;
 
 use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, ItemKind, WeaponKind};
 use crate::asset::frame::{FrameId, FrameDb};
-use crate::asset::proto::{self, CritterKillKind, ProtoId, ProtoDb};
+use crate::asset::proto::{self, CritterKillKind, Proto, ProtoId, ProtoDb};
 use crate::asset::script::ProgramId;
 use crate::game::script::{Scripts, Sid};
 use crate::graphics::{EPoint, Point, Rect};
@@ -24,65 +24,6 @@ use crate::sequence::cancellable::Cancel;
 use crate::util::{EnumExt, SmKey, VecExt};
 use crate::util::array2d::Array2d;
 use crate::vm::PredefinedProc;
-
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
-pub enum ObjectProtoId {
-    None,
-    /// Special ID used for dude object (packed as 0x1000000).
-    Dude,
-    ProtoId(ProtoId),
-}
-
-impl ObjectProtoId {
-    pub fn proto_id(self) -> Option<ProtoId> {
-        if let ObjectProtoId::ProtoId(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn from_packed(v: u32) -> Option<Self> {
-        match v {
-            0xffffffff => Some(ObjectProtoId::None),
-            0x01000000 => Some(ObjectProtoId::Dude),
-            _ => ProtoId::from_packed(v).map(ObjectProtoId::ProtoId),
-        }
-    }
-
-    pub fn pack(self) -> u32 {
-        match self {
-            ObjectProtoId::None => 0xffffffff,
-            ObjectProtoId::Dude => 0x01000000,
-            ObjectProtoId::ProtoId(v) => v.pack(),
-        }
-    }
-
-    pub fn read(rd: &mut impl std::io::Read) -> std::io::Result<Self> {
-        use byteorder::{BE, ReadBytesExt};
-        use std::io::{Error, ErrorKind};
-        let v = rd.read_u32::<BE>()?;
-        Self::from_packed(v)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
-                format!("malformed object PID: {:x}", v)))
-    }
-}
-
-impl fmt::Debug for ObjectProtoId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ObjectProtoId::None => write!(f, "ObjectProtoId::Null"),
-            ObjectProtoId::Dude => write!(f, "ObjectProtoId::Dude"),
-            ObjectProtoId::ProtoId(v) => write!(f, "ObjectProtoId(0x{:08x})", v.pack()),
-        }
-    }
-}
-
-impl From<ProtoId> for ObjectProtoId {
-    fn from(v: ProtoId) -> Self {
-        ObjectProtoId::ProtoId(v)
-    }
-}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Outline {
@@ -177,7 +118,7 @@ pub struct Object {
     pub frame_idx: usize,
     pub direction: Direction,
     pub light_emitter: LightEmitter,
-    pub pid: ObjectProtoId,
+    pub proto: Option<Rc<RefCell<Proto>>>,
     pub inventory: Inventory,
     pub outline: Option<Outline>,
     pub sequence: Option<Cancel>,
@@ -186,7 +127,7 @@ pub struct Object {
 }
 
 impl Object {
-    pub fn new(fid: FrameId, pid: ObjectProtoId, pos: Option<EPoint>) -> Self {
+    pub fn new(fid: FrameId, proto: Option<Rc<RefCell<Proto>>>, pos: Option<EPoint>) -> Self {
         Self {
             pos,
             screen_pos: Point::new(0, 0),
@@ -195,7 +136,7 @@ impl Object {
             frame_idx: 0,
             direction: Direction::NE,
             flags: BitFlags::empty(),
-            pid,
+            proto,
             inventory: Inventory::new(),
             light_emitter: LightEmitter {
                 intensity: 0,
@@ -215,6 +156,10 @@ impl Object {
         self.fid.kind()
     }
 
+    pub fn proto_id(&self) -> Option<ProtoId> {
+        self.proto.as_ref().map(|v| v.borrow().pid)
+    }
+
     pub fn has_running_sequence(&self) -> bool {
         self.sequence.as_ref().map(|seq| seq.is_running()).unwrap_or(false)
     }
@@ -226,7 +171,7 @@ impl Object {
     }
 
     pub fn render(&mut self, canvas: &mut dyn Canvas, light: u32,
-            frm_db: &FrameDb, proto_db: &ProtoDb, tile_grid: &impl TileGridView,
+            frm_db: &FrameDb, tile_grid: &impl TileGridView,
             egg: Option<&Egg>) {
         if self.flags.contains(Flag::TurnedOff) {
             return;
@@ -238,7 +183,7 @@ impl Object {
             light
         };
 
-        let effect = self.get_effect(proto_db, tile_grid, egg);
+        let effect = self.get_effect(tile_grid, egg);
         let sprite = self.create_sprite(light, effect, tile_grid);
 
         self.screen_pos = sprite.render(canvas, frm_db).top_left();
@@ -352,8 +297,7 @@ impl Object {
         }
     }
 
-    fn get_effect(&self, proto_db: &ProtoDb, tile_grid: &impl TileGridView, egg: Option<&Egg>)
-            -> Option<Effect> {
+    fn get_effect(&self, tile_grid: &impl TileGridView, egg: Option<&Egg>) -> Option<Effect> {
         let kind = self.fid.kind();
 
         if kind == EntityKind::Interface {
@@ -366,7 +310,7 @@ impl Object {
             && !self.has_trans()
             // Scenery or wall with position and proto.
             && (kind == EntityKind::Scenery || kind == EntityKind::Wall)
-                && self.pos.is_some() && self.pid.proto_id().is_some();
+                && self.pos.is_some() && self.proto.is_some();
 
         if !with_egg {
             return self.get_trans_effect();
@@ -375,7 +319,7 @@ impl Object {
         let egg = egg.unwrap();
 
         let pos = self.pos.unwrap().point;
-        let proto_flags_ext = proto_db.proto(self.pid.proto_id().unwrap()).unwrap().borrow().flags_ext;
+        let proto_flags_ext = self.proto.as_ref().unwrap().borrow().flags_ext;
 
         let with_egg = if proto_flags_ext.intersects(
                 FlagExt::WallEastOrWest | FlagExt::WallWestCorner) {
@@ -527,7 +471,7 @@ impl Objects {
 
             if obj.fid.kind() == EntityKind::Wall {
                 if !obj.flags.contains(Flag::Flat) {
-                    let flags_ext = self.proto_db.proto(obj.pid.proto_id().unwrap()).unwrap().borrow().flags_ext;
+                    let flags_ext = obj.proto.as_ref().unwrap().borrow().flags_ext;
                     if flags_ext.contains(FlagExt::WallEastOrWest) ||
                             flags_ext.contains(FlagExt::WallEastCorner) {
                         if dir != Direction::W
@@ -850,9 +794,10 @@ impl Objects {
         let obj = self.get(obj).borrow();
         if_chain! {
             if let SubObject::Critter(c) = &obj.sub;
-            if let Some(pid) = obj.pid.proto_id();
+            if c.is_active();
+            if let Some(proto) = obj.proto.as_ref();
             then {
-                c.is_active() && self.proto_db.can_talk_to(pid)
+                c.is_active() && self.proto_db.can_talk_to(proto.borrow().pid)
             } else {
                 false
             }
@@ -861,13 +806,14 @@ impl Objects {
 
     // obj_action_can_use()
     pub fn can_use(&self, obj: Handle) -> bool {
-        if let Some(pid) = self.get(obj).borrow().pid.proto_id() {
-            match pid {
+        if let Some(proto) = self.get(obj).borrow().proto.as_ref() {
+            let proto = proto.borrow();
+            match proto.pid {
                 | ProtoId::ACTIVE_DYNAMITE
                 | ProtoId::ACTIVE_FLARE
                 | ProtoId::ACTIVE_PLASTIC_EXPLOSIVE
                 => false,
-                _ => self.proto_db.can_use(pid),
+                pid => self.proto_db.can_use(pid),
             }
         } else {
             false
@@ -878,9 +824,8 @@ impl Objects {
     pub fn item_kind(&self, obj: Handle) -> Option<ItemKind> {
         let obj = self.get(obj).borrow();
         if obj.kind() == EntityKind::Item {
-            let pid = obj.pid.proto_id().unwrap();
-            if pid == ProtoId::SHIV {
-                return Some(self.proto_db.proto(pid).unwrap().borrow()
+            if obj.proto_id().unwrap() == ProtoId::SHIV {
+                return Some(obj.proto.as_ref().unwrap().borrow()
                     .sub.item().unwrap()
                     .sub.kind());
             }
@@ -950,15 +895,15 @@ impl Objects {
                     self.is_blocked_at(obj, p) // TODO check anim_can_use_door_(obj, v22)
                 {
                     TileState::Blocked
-                } else if let Some(pid) = o.pid.proto_id() {
+                } else if let Some(proto) = o.proto.as_ref() {
                     let radioactive_goo = self.at(p)
                         .iter()
-                        .any(|&h| self.get(h).borrow().pid.proto_id()
+                        .any(|&h| self.get(h).borrow().proto_id()
                             .map(|pid| pid.is_radioactive_goo())
                             .unwrap_or(false));
                     let cost = if radioactive_goo {
                         let gecko = if let proto::SubProto::Critter(ref c) =
-                            proto_db.proto(pid).unwrap().borrow().sub
+                            proto.borrow().sub
                         {
                             c.kill_kind == CritterKillKind::Gecko
                         } else {
@@ -1034,15 +979,14 @@ impl Objects {
         if_chain! {
             if let Some(obj_pos) = obj.pos;
             let obj_pos = obj_pos.point;
-            if let Some(pid) = obj.pid.proto_id();
-            if pid.kind() == EntityKind::Wall || pid.kind() == EntityKind::Scenery;
+            if let Some(proto) = obj.proto.as_ref();
+            let proto = proto.borrow();
+            if proto.pid.kind() == EntityKind::Wall || proto.pid.kind() == EntityKind::Scenery;
             then {
                 if !egg.hit_test(p, tile_grid, &self.frm_db) {
                     return false;
                 }
 
-                let proto = self.proto_db.proto(pid).unwrap();
-                let proto = proto.borrow();
                 let masked = if proto.flags_ext.intersects(
                     FlagExt::WallEastOrWest | FlagExt::WallWestCorner)
                 {
@@ -1092,7 +1036,7 @@ impl Objects {
                     }
                     let light = get_light(obj.pos);
                     assert!(light <= 0x10000);
-                    obj.render(canvas, light, &self.frm_db, &self.proto_db, tile_grid, egg);
+                    obj.render(canvas, light, &self.frm_db, tile_grid, egg);
                 }
             }
         }
@@ -1276,7 +1220,7 @@ mod test {
         let screen_shift = Point::new(10, 20);
         let base = Point::new(2384, 468) + screen_shift;
 
-        let mut obj = Object::new(FrameId::BLANK, ObjectProtoId::None, Some((0, (55, 66)).into()));
+        let mut obj = Object::new(FrameId::BLANK, None, Some((0, (55, 66)).into()));
         obj.screen_shift = screen_shift;
         assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &View::default()),
             Rect::with_points(Point::new(1, -51), Point::new(30, 12))
