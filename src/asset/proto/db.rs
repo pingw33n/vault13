@@ -88,15 +88,6 @@ impl ProtoDb {
         }
     }
 
-    pub fn kind(&self, pid: ProtoId) -> ExactEntityKind {
-        // As in original item_get_type().
-        // TODO maybe update the proto instead?
-        if pid == ProtoId::SHIV {
-            return ExactEntityKind::Item(ItemKind::Misc);
-        }
-        self.proto(pid).unwrap().borrow().kind()
-    }
-
     // proto_action_can_use()
     pub fn can_use(&self, pid: ProtoId) -> bool {
         if let Ok(proto) = self.proto(pid) {

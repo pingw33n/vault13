@@ -381,7 +381,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                     }
                 }
                 EntityKind::Scenery => {
-                    let k = self.proto_db.kind(pid);
+                    let k = proto.borrow().sub.kind();
                     let kind = k.scenery().unwrap();
                     match kind {
                         SceneryKind::Door => {
