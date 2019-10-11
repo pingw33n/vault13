@@ -157,7 +157,7 @@ impl Object {
     }
 
     pub fn proto_id(&self) -> Option<ProtoId> {
-        self.proto.as_ref().map(|v| v.borrow().pid)
+        self.proto.as_ref().map(|v| v.borrow().id())
     }
 
     pub fn has_running_sequence(&self) -> bool {
@@ -797,7 +797,7 @@ impl Objects {
             if c.is_active();
             if let Some(proto) = obj.proto.as_ref();
             then {
-                c.is_active() && self.proto_db.can_talk_to(proto.borrow().pid)
+                c.is_active() && self.proto_db.can_talk_to(proto.borrow().id())
             } else {
                 false
             }
@@ -808,7 +808,7 @@ impl Objects {
     pub fn can_use(&self, obj: Handle) -> bool {
         if let Some(proto) = self.get(obj).borrow().proto.as_ref() {
             let proto = proto.borrow();
-            match proto.pid {
+            match proto.id() {
                 | ProtoId::ACTIVE_DYNAMITE
                 | ProtoId::ACTIVE_FLARE
                 | ProtoId::ACTIVE_PLASTIC_EXPLOSIVE
@@ -981,7 +981,7 @@ impl Objects {
             let obj_pos = obj_pos.point;
             if let Some(proto) = obj.proto.as_ref();
             let proto = proto.borrow();
-            if proto.pid.kind() == EntityKind::Wall || proto.pid.kind() == EntityKind::Scenery;
+            if proto.id().kind() == EntityKind::Wall || proto.id().kind() == EntityKind::Scenery;
             then {
                 if !egg.hit_test(p, tile_grid, &self.frm_db) {
                     return false;
