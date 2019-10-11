@@ -216,7 +216,7 @@ impl World {
         smooth: bool,
         allow_neighbor_tile: bool,
     ) -> Option<Vec<Direction>> {
-        self.objects.path(obj, to, smooth, allow_neighbor_tile, &self.proto_db)
+        self.objects.path(obj, to, smooth, allow_neighbor_tile)
     }
 
     pub fn rebuild_light_grid(&mut self) {

@@ -204,7 +204,7 @@ impl Stats {
             Stat::CurrentHitPoints => critter().health,
             Stat::CurrentPoison => critter().poison,
             Stat::CurrentRad => critter().radiation,
-            _ => self.with_critter_proto(obj, |c| c.base_stats[stat]),
+            _ =>  self.with_critter_proto(obj, |c| c.base_stats[stat]),
         }
     }
 

@@ -875,8 +875,7 @@ impl Objects {
         obj: Handle,
         to: Point,
         smooth: bool,
-        allow_neighbor_tile: bool,
-        proto_db: &ProtoDb)
+        allow_neighbor_tile: bool)
         -> Option<Vec<Direction>>
     {
         let o = self.get(obj).borrow();
@@ -902,9 +901,7 @@ impl Objects {
                             .map(|pid| pid.is_radioactive_goo())
                             .unwrap_or(false));
                     let cost = if radioactive_goo {
-                        let gecko = if let proto::SubProto::Critter(ref c) =
-                            proto.borrow().sub
-                        {
+                        let gecko = if let proto::SubProto::Critter(ref c) = proto.borrow().sub {
                             c.kill_kind == CritterKillKind::Gecko
                         } else {
                             false
