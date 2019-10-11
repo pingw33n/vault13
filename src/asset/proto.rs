@@ -16,7 +16,7 @@ use crate::util::{enum_iter, EnumIter};
 
 #[derive(Debug)]
 pub struct Proto {
-    pub pid: ProtoId,
+    id: ProtoId,
     name: Option<BString>,
     description: Option<BString>,
     pub fid: FrameId,
@@ -31,6 +31,10 @@ pub struct Proto {
 impl Proto {
     pub fn kind(&self) -> ExactEntityKind {
         self.sub.kind()
+    }
+
+    pub fn id(&self) -> ProtoId {
+        self.id
     }
 
     pub fn name(&self) -> Option<&bstr> {

@@ -30,8 +30,9 @@ impl ProtoDb {
 
         let mut protos = HashMap::new();
         protos.insert(ProtoId::DUDE, Rc::new(RefCell::new(Proto {
-            pid: ProtoId::DUDE,
-            message_id: -1,
+            id: ProtoId::DUDE,
+            name: None,
+            description: None,
             fid: FrameId::new(EntityKind::Critter, None, 0, 0, 0).unwrap(),
             light_radius: 0,
             light_intensity: 0,
@@ -217,7 +218,7 @@ impl ProtoDb {
             .map(|s| s.to_owned());
 
         Ok(Proto {
-            pid,
+            id: pid,
             name,
             description,
             fid,
