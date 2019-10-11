@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, ItemKind, WeaponKind};
 use crate::asset::frame::{FrameId, FrameDb};
-use crate::asset::proto::{self, CritterKillKind, Proto, ProtoId, ProtoDb};
+use crate::asset::proto::{self, CritterKillKind, Proto, ProtoId};
 use crate::asset::script::ProgramId;
 use crate::game::script::{Scripts, Sid};
 use crate::graphics::{EPoint, Point, Rect};
@@ -384,7 +384,6 @@ impl Object {
 
 pub struct Objects {
     tile_grid: TileGrid,
-    proto_db: Rc<ProtoDb>,
     frm_db: Rc<FrameDb>,
     handles: SlotMap<SmKey, ()>,
     objects: SecondaryMap<SmKey, RefCell<Object>>,
@@ -397,15 +396,13 @@ pub struct Objects {
 }
 
 impl Objects {
-    pub fn new(tile_grid: TileGrid, elevation_count: u32, proto_db: Rc<ProtoDb>,
-            frm_db: Rc<FrameDb>) -> Self {
+    pub fn new(tile_grid: TileGrid, elevation_count: u32, frm_db: Rc<FrameDb>) -> Self {
         let path_finder = RefCell::new(PathFinder::new(tile_grid.clone(), 5000));
         let by_pos = Vec::from_fn(elevation_count as usize,
             |_| Array2d::with_default(tile_grid.width() as usize, tile_grid.height() as usize))
             .into_boxed_slice();
         Self {
             tile_grid,
-            proto_db,
             frm_db,
             handles: SlotMap::with_key(),
             objects: SecondaryMap::new(),
@@ -797,7 +794,7 @@ impl Objects {
             if c.is_active();
             if let Some(proto) = obj.proto.as_ref();
             then {
-                c.is_active() && self.proto_db.can_talk_to(proto.borrow().id())
+                proto.borrow().can_talk_to()
             } else {
                 false
             }
@@ -813,7 +810,7 @@ impl Objects {
                 | ProtoId::ACTIVE_FLARE
                 | ProtoId::ACTIVE_PLASTIC_EXPLOSIVE
                 => false,
-                pid => self.proto_db.can_use(pid),
+                _ => proto.can_use(),
             }
         } else {
             false

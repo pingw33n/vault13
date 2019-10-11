@@ -44,6 +44,30 @@ impl Proto {
     pub fn description(&self) -> Option<&bstr> {
         self.description.as_ref().map(|s| s.as_ref())
     }
+
+    // proto_action_can_use()
+    pub fn can_use(&self) -> bool {
+        self.flags_ext.contains(FlagExt::CanUse) ||
+            self.kind() == ExactEntityKind::Item(ItemKind::Container)
+    }
+
+    // proto_action_can_use_on()
+    pub fn can_use_on(&self) -> bool {
+        self.flags_ext.contains(FlagExt::CanUseOn) ||
+            self.kind() == ExactEntityKind::Item(ItemKind::Drug)
+    }
+
+    // proto_action_can_talk_to()
+    pub fn can_talk_to(&self) -> bool {
+        self.flags_ext.contains(FlagExt::CanTalk) ||
+            self.kind() == ExactEntityKind::Critter
+    }
+
+    // proto_action_can_pick_up()
+    pub fn can_pick_up(&self) -> bool {
+        self.flags_ext.contains(FlagExt::CanPickup) ||
+            self.kind() == ExactEntityKind::Item(ItemKind::Container)
+    }
 }
 
 #[derive(Debug)]

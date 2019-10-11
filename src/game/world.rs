@@ -96,7 +96,7 @@ impl World {
             hex_grid.width(),
             hex_grid.height(),
             ELEVATION_COUNT);
-        let objects = Objects::new(hex_grid.clone(), ELEVATION_COUNT, proto_db.clone(), frm_db.clone());
+        let objects = Objects::new(hex_grid.clone(), ELEVATION_COUNT, frm_db.clone());
         Self {
             proto_db,
             frm_db,
