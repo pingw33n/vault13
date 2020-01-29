@@ -463,17 +463,18 @@ impl GameState {
             let world = self.world.borrow();
             let examinedo = world.objects().get(examined).borrow();
             if !examinedo.sub.critter().map(|c| c.is_dead()).unwrap_or(false) {
-                let descr = if let Some(descr) = examinedo.pid.proto_id()
-                    .and_then(|pid| self.proto_db.description(pid).unwrap())
-                    .filter(|desr| {
+                let descr = examinedo.pid.proto_id()
+                    .map(|pid| self.proto_db.proto(pid).unwrap())
+                    .and_then(|p| {
+                        let descr = p.description()?;
                         // Compare to "<None>".
-                        desr != &self.proto_db.messages().get(10).unwrap().text
+                        if descr != &self.proto_db.messages().get(10).unwrap().text {
+                            Some(descr.to_owned())
+                        } else {
+                            None
+                        }
                     })
-                {
-                    descr.to_owned()
-                } else {
-                    self.proto_db.messages().get(493).unwrap().text.clone()
-                };
+                    .unwrap_or_else(|| self.proto_db.messages().get(493).unwrap().text.clone());
                 r.push(descr);
             }
         }

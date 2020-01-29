@@ -1,6 +1,7 @@
 mod db;
 mod id;
 
+use bstring::{bstr, BString};
 use enumflags2::BitFlags;
 use enum_map::EnumMap;
 use std::ops::RangeInclusive;
@@ -16,7 +17,8 @@ use crate::util::{enum_iter, EnumIter};
 #[derive(Debug)]
 pub struct Proto {
     pub pid: ProtoId,
-    pub message_id: i32,
+    name: Option<BString>,
+    description: Option<BString>,
     pub fid: FrameId,
     pub light_radius: i32,
     pub light_intensity: i32,
@@ -29,6 +31,14 @@ pub struct Proto {
 impl Proto {
     pub fn kind(&self) -> ExactEntityKind {
         self.sub.kind()
+    }
+
+    pub fn name(&self) -> Option<&bstr> {
+        self.name.as_ref().map(|s| s.as_ref())
+    }
+
+    pub fn description(&self) -> Option<&bstr> {
+        self.description.as_ref().map(|s| s.as_ref())
     }
 }
 
