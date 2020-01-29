@@ -62,6 +62,7 @@ use crate::asset::EntityKind;
 pub struct ProtoId(u32);
 
 impl ProtoId {
+    pub const DUDE: Self = unsafe { Self::from_packed_unchecked(0x1000000) };
     pub const SHIV: Self = unsafe { Self::from_packed_unchecked(0x17F) };
     pub const EXIT_AREA_FIRST: Self = unsafe { Self::from_packed_unchecked(0x5000010) };
     pub const EXIT_AREA_LAST: Self = unsafe { Self::from_packed_unchecked(0x5000017) };
@@ -73,7 +74,7 @@ impl ProtoId {
     pub const SCROLL_BLOCKER: Self = unsafe { Self::from_packed_unchecked(0x0500000c) };
 
     pub fn new(kind: EntityKind, id: u32) -> Option<Self> {
-        if id < 0xffffff {
+        if id <= 0xffffff {
             Some(Self((kind as u32) << 24 | id))
         } else {
             None
@@ -81,17 +82,17 @@ impl ProtoId {
     }
 
     const unsafe fn from_packed_unchecked(v: u32) -> Self {
-        Self(v - 1)
+        Self(v)
     }
 
     pub fn from_packed(v: u32) -> Option<Self> {
         let kind = EntityKind::from_u32(v >> 24)?;
-        let id = (v & 0xffffff).checked_sub(1)?;
+        let id = v & 0xffffff;
         Self::new(kind, id)
     }
 
     pub fn pack(self) -> u32 {
-        self.0 + 1
+        self.0
     }
 
     pub fn read(rd: &mut impl Read) -> io::Result<Self> {
@@ -117,9 +118,13 @@ impl ProtoId {
     }
 
     /// Returns ID that is unique among entities of the same `EntityKind`.
-    /// The result is in range `[0..0xfffffe]`.
+    /// The result is in range `[0..0xffffff]`.
     pub fn id(self) -> u32 {
         self.0 & 0xffffff
+    }
+
+    pub fn is_dude(self) -> bool {
+        self == Self::DUDE
     }
 
     pub fn is_exit_area(self) -> bool {
@@ -145,14 +150,16 @@ mod test {
     fn test() {
         let pid = ProtoId::new(EntityKind::Item, 0).unwrap();
         assert_eq!(pid.id(), 0);
-        assert_eq!(pid.pack(), 0x00_000001);
+        assert_eq!(pid.pack(), 0x00_000000);
+        assert_eq!(pid.is_dude(), false);
         assert_eq!(pid, ProtoId::from_packed(pid.pack()).unwrap());
 
-        let pid = ProtoId::new(EntityKind::Skilldex, 0xfffffe).unwrap();
-        assert_eq!(pid.id(), 0xfffffe);
+        let pid = ProtoId::new(EntityKind::Skilldex, 0xffffff).unwrap();
+        assert_eq!(pid.id(), 0xffffff);
         assert_eq!(pid.pack(), 0x0a_ffffff);
+        assert_eq!(pid.is_dude(), false);
         assert_eq!(pid, ProtoId::from_packed(pid.pack()).unwrap());
 
-        assert_eq!(ProtoId::new(EntityKind::Critter, 0xffffff), None);
+        assert!(ProtoId::new(EntityKind::Critter, 0).unwrap().is_dude());
     }
 }
