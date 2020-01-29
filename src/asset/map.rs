@@ -292,7 +292,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         let elevation = self.reader.read_u32::<BigEndian>()?;
         let pid = ProtoId::read(self.reader)?;
-        trace!("{:?} {:?}", pid, self.proto_db.name(pid));
+        trace!("{:?} {:?}", pid, self.proto_db.proto(pid)
+            .ok().and_then(|p| p.name().map(|s| s.to_owned())));
         let _cid = self.reader.read_u32::<BigEndian>()?;
         let light_emitter = LightEmitter {
             radius: self.reader.read_i32::<BigEndian>()? as u32,

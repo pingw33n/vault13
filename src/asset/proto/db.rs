@@ -44,25 +44,17 @@ impl ProtoDb {
         &self.messages
     }
 
-    // proto_name()
-    pub fn name(&self, pid: ProtoId) -> io::Result<Option<&bstr>> {
-        self.msg(pid, 0)
-    }
-
-    // proto_description()
-    pub fn description(&self, pid: ProtoId) -> io::Result<Option<&bstr>> {
-        self.msg(pid, 1)
-    }
-
     pub fn proto(&self, pid: ProtoId) -> io::Result<Ref<Proto>> {
         {
             let mut protos = self.protos.borrow_mut();
             if !protos.contains_key(&pid) {
-                let name = self.lst.get(pid)
+                let file_name = self.lst.get(pid)
                     .ok_or_else(|| Error::new(ErrorKind::InvalidData,
                         format!("can't find proto file name for {:?}", pid)))?;
-                let path = format!("proto/{}/{}", pid.kind().dir(), name);
-                let proto = self.read_proto_file(&path)?;
+                let path = format!("proto/{}/{}", pid.kind().dir(), file_name);
+
+                let proto =
+                    self.read_proto_file(&path)?;
                 protos.insert(pid, proto);
             }
         }
@@ -130,10 +122,8 @@ impl ProtoDb {
     }
 
     fn read_proto_file(&self, path: &str) -> io::Result<Proto> {
-        Self::read_proto(&mut self.fs.reader(&path)?)
-    }
+        let rd = &mut self.fs.reader(&path)?;
 
-    fn read_proto(rd: &mut impl Read) -> io::Result<Proto> {
         let pid = ProtoId::read(rd)?;
         let message_id = rd.read_i32::<BigEndian>()?;
         let fid = FrameId::read(rd)?;
@@ -185,9 +175,17 @@ impl ProtoDb {
             => return Err(Error::new(ErrorKind::InvalidData, "unsupported proto kind"))
         };
 
+        // proto_name()
+        let name = self.msg(pid.kind(), message_id, 0)?
+            .map(|s| s.to_owned());
+        // proto_description()
+        let description = self.msg(pid.kind(), message_id, 1)?
+            .map(|s| s.to_owned());
+
         Ok(Proto {
             pid,
-            message_id,
+            name,
+            description,
             fid,
             light_radius,
             light_intensity,
@@ -525,9 +523,8 @@ impl ProtoDb {
         })
     }
 
-    fn msg(&self, pid: ProtoId, base: i32) -> io::Result<Option<&bstr>> {
-        let proto = self.proto(pid)?;
-        Ok(self.entity_messages[pid.kind()].get(base + proto.message_id)
+    fn msg(&self, kind: EntityKind, msg_id: i32, base: i32) -> io::Result<Option<&bstr>> {
+        Ok(self.entity_messages[kind].get(base + msg_id)
             .map(|m| m.text.as_ref()))
     }
 }

@@ -284,7 +284,7 @@ impl World {
                     Some(msg.text.clone())
                 } else {
                     if let Some(pid) = obj.pid.proto_id() {
-                        self.proto_db.name(pid).unwrap()
+                        self.proto_db.proto(pid).unwrap().name()
                             .map(|v| v.to_owned())
                     } else {
                         None
