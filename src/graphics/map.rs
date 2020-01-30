@@ -5,13 +5,13 @@ use crate::graphics::render::{Canvas, TextureHandle};
 
 const ROOF_HEIGHT: i32 = 96;
 
-pub fn render_floor<'a>(canvas: &mut dyn Canvas, stg: &impl TileGridView, rect: Rect,
+pub fn render_floor(canvas: &mut dyn Canvas, stg: &impl TileGridView, rect: Rect,
         get_tex: impl FnMut(Point) -> Option<TextureHandle>,
         get_light: impl Fn(Point) -> u32) {
     render_square_tiles(canvas, stg, rect, 0, get_tex, get_light);
 }
 
-pub fn render_roof<'a>(canvas: &mut dyn Canvas, stg: &impl TileGridView, rect: Rect,
+pub fn render_roof(canvas: &mut dyn Canvas, stg: &impl TileGridView, rect: Rect,
         get_tex: impl FnMut(Point) -> Option<TextureHandle>) {
     let rect = Rect::with_size(rect.left, rect.top + ROOF_HEIGHT, rect.width(), rect.height());
     render_square_tiles(canvas, stg, rect, ROOF_HEIGHT, get_tex, |_| 0x10000);

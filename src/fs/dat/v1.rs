@@ -41,14 +41,14 @@ impl Dat {
 
         let mut files = HashMap::new();
 
-        for ref dir in dirs {
+        for dir in &dirs {
             let file_count = reader.read_u32::<BigEndian>()?;
 
             reader.seek(SeekFrom::Current(4 * 3))?;
 
             for _ in 0..file_count {
                 let mut path = String::with_capacity(dir.len() + 257);
-                if dir.len() != 0 {
+                if !dir.is_empty() {
                     path.push_str(dir);
                     if !path.ends_with('\\') {
                         path.push('\\');
@@ -101,12 +101,12 @@ impl Provider for Dat {
             f.seek(SeekFrom::Start(dat_file.offset as u64))?;
             f.take(read_size as u64)
         });
-        if dat_file.is_compressed() {
+        Ok(if dat_file.is_compressed() {
             // TODO make LzssDecoder implement BufRead
-            return Ok(Box::new(BufReader::new(lzss::LzssDecoder::new(reader, dat_file.size as u64))));
+            Box::new(BufReader::new(lzss::LzssDecoder::new(reader, dat_file.size as u64)))
         } else {
-            return Ok(Box::new(reader));
-        }
+            Box::new(reader)
+        })
     }
 
     fn metadata(&self, path: &str) -> Result<Metadata> {

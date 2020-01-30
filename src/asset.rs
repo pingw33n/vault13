@@ -29,7 +29,7 @@ pub enum EntityKind {
 
 impl EntityKind {
     pub fn dir(self) -> &'static str {
-        static DIRS: &'static [&'static str] = &[
+        static DIRS: &[&str] = &[
             "items",
             "critters",
             "scenery",

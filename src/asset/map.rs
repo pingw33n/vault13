@@ -46,12 +46,14 @@ pub enum OutlineFlag {
     Translucent     = 0x40000000,
 }
 
+pub type SqrTiles = Vec<Option<Array2d<(u16, u16)>>>;
+
 pub struct Map {
     pub id: i32,
     pub savegame: bool,
     pub entrance: EPoint,
     pub entrance_direction: Direction,
-    pub sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
+    pub sqr_tiles: SqrTiles,
     pub map_vars: Box<[i32]>,
 }
 
@@ -110,29 +112,29 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             local_vars.push(self.reader.read_i32::<BigEndian>()?);
         }
 
-        // tiles
+        let sqr_tiles = self.read_sqr_tiles(flags)?;
+        self.read_scripts(&local_vars, savegame)?;
 
-        let mut sqr_tiles: Vec<Option<_>> = Vec::with_capacity(ELEVATION_COUNT as usize);
-
-        for i in 0..ELEVATION_COUNT {
-            if flags & (1 << (i as u32 + 1)) != 0 {
-                debug!("no {} elevation", i);
-                sqr_tiles.push(None);
-                continue;
-            }
-            let mut tiles = Array2d::with_default(100, 100);
-            for y in 0..tiles.height() {
-                for x in (0..tiles.width()).rev() {
-                    let roof_id = self.reader.read_u16::<BigEndian>()?;
-                    let floor_id = self.reader.read_u16::<BigEndian>()?;
-                    *tiles.get_mut(x, y).unwrap() = (floor_id, roof_id);
-                }
-            }
-            sqr_tiles.push(Some(tiles));
+        if let Some(program_id) = program_id {
+            self.make_map_script(program_id)?;
         }
 
-        // scripts
+        self.read_objects(version)?;
 
+        Ok(Map {
+            id,
+            savegame,
+            entrance: EPoint {
+                elevation: entrance_elevation,
+                point: entrance_pos,
+            },
+            entrance_direction,
+            sqr_tiles,
+            map_vars: map_vars.into(),
+        })
+    }
+
+    fn read_scripts(&mut self, local_vars: &[i32], savegame: bool) -> io::Result<()> {
         for script_kind in ScriptKind::iter() {
             debug!("reading {:?} scripts", script_kind);
             let script_count = self.reader.read_i32::<BigEndian>()?;
@@ -169,40 +171,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 }
             }
         }
-
-        if let Some(program_id) = program_id {
-            self.make_map_script(program_id)?;
-        }
-
-        // objects
-
-        let total_obj_count = self.reader.read_i32::<BigEndian>()?;
-        debug!("object count: {}", total_obj_count);
-        for elev in 0..ELEVATION_COUNT {
-            let obj_count = self.reader.read_u32::<BigEndian>()?;
-            debug!("object count at elevation {}: {}", elev, obj_count);
-
-            for _ in 0..obj_count {
-                let obj = self.read_obj(version != 19)?;
-                let script = obj.script;
-                let objh = self.objects.insert(obj);
-                if let Some((sid, _)) = script {
-                    self.scripts.attach_to_object(sid, objh);
-                }
-            }
-        }
-
-        Ok(Map {
-            id,
-            savegame,
-            entrance: EPoint {
-                elevation: entrance_elevation,
-                point: entrance_pos,
-            },
-            entrance_direction,
-            sqr_tiles,
-            map_vars: map_vars.into(),
-        })
+        Ok(())
     }
 
     fn read_script(&mut self) -> io::Result<Option<ScriptInfo>> {
@@ -264,7 +233,26 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         }
     }
 
-    fn read_obj(&mut self, f2: bool) -> io::Result<Object> {
+    fn read_objects(&mut self, version: u32) -> io::Result<()> {
+        let total_obj_count = self.reader.read_i32::<BigEndian>()?;
+        debug!("object count: {}", total_obj_count);
+        for elev in 0..ELEVATION_COUNT {
+            let obj_count = self.reader.read_u32::<BigEndian>()?;
+            debug!("object count at elevation {}: {}", elev, obj_count);
+
+            for _ in 0..obj_count {
+                let obj = self.read_object(version != 19)?;
+                let script = obj.script;
+                let objh = self.objects.insert(obj);
+                if let Some((sid, _)) = script {
+                    self.scripts.attach_to_object(sid, objh);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn read_object(&mut self, f2: bool) -> io::Result<Object> {
         let id = self.reader.read_u32::<BigEndian>()?;
         trace!("object ID {}", id);
         let pos = self.reader.read_i32::<BigEndian>()?;
@@ -437,7 +425,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             trace!("loading inventory item {}/{}", i, inventory_len);
             let count = self.reader.read_i32::<BigEndian>()? as usize;
             trace!("item count: {}", count);
-            let object = self.read_obj(f2)?;
+            let object = self.read_object(f2)?;
             let object = self.objects.insert(object);
             inventory.items.push(InventoryItem {
                 object,
@@ -492,7 +480,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
     fn read_outline(&mut self) -> io::Result<Option<Outline>> {
         let flags_u32 = self.reader.read_u32::<BigEndian>()?;
-        let ref mut flags: BitFlags<OutlineFlag> = BitFlags::from_bits(flags_u32)
+        let flags = &mut BitFlags::from_bits(flags_u32)
             .ok_or_else(|| Error::new(ErrorKind::InvalidData,
                 format!("unknown object outline flags: {:x}", flags_u32)))?;
 
@@ -545,6 +533,27 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             .checked_add(offset)
             .and_then(|v| v.try_into().ok())
             .and_then(ProgramId::new))
+    }
+
+    fn read_sqr_tiles(&mut self, flags: u32) -> io::Result<SqrTiles> {
+        let mut sqr_tiles: Vec<Option<_>> = Vec::with_capacity(ELEVATION_COUNT as usize);
+        for i in 0..ELEVATION_COUNT {
+            if flags & (1 << (i as u32 + 1)) != 0 {
+                debug!("no {} elevation", i);
+                sqr_tiles.push(None);
+                continue;
+            }
+            let mut tiles = Array2d::with_default(100, 100);
+            for y in 0..tiles.height() {
+                for x in (0..tiles.width()).rev() {
+                    let roof_id = self.reader.read_u16::<BigEndian>()?;
+                    let floor_id = self.reader.read_u16::<BigEndian>()?;
+                    *tiles.get_mut(x, y).unwrap() = (floor_id, roof_id);
+                }
+            }
+            sqr_tiles.push(Some(tiles));
+        }
+        Ok(sqr_tiles)
     }
 }
 

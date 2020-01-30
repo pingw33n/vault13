@@ -81,13 +81,11 @@ pub fn lzss_decode_block(inp: &mut impl Read, out: &mut impl Write) -> Result<u6
         if block_written != block_size {
             return Err(Error::new(ErrorKind::InvalidData, "Malformed LZSS stream"));
         }
-    } else
-    // block_descr > 0
-    {
+    } else { // block_descr > 0
         block_written = lzss_decode_block_content(inp, block_size, out)?;
     }
 
-    return Ok(block_written);
+    Ok(block_written)
 }
 
 fn lzss_decode_block_content(
@@ -153,7 +151,7 @@ fn lzss_decode_block_content(
             i |= (j & 0xf0) << 4;
             j = (j & 0x0f) + THRESHOLD;
 
-            for k in 0..(j + 1) {
+            for k in 0..=j {
                 let b = text_buf[(i + k) & (N - 1)];
 
                 out.write_u8(b)?;

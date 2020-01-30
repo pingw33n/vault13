@@ -95,9 +95,9 @@ pub trait ColorPrecision: Clone + Copy + Eq + PartialEq + Ord + PartialOrd {
     #[inline(always)]
     fn scale<P: ColorPrecision>(v: u8) -> u8 {
         if P::BITS > Self::BITS {
-            v << P::BITS - Self::BITS
+            v << (P::BITS - Self::BITS)
         } else {
-            v >> Self::BITS - P::BITS
+            v >> (Self::BITS - P::BITS)
         }
     }
 }
@@ -150,14 +150,14 @@ impl<P: ColorPrecision> Rgb<P> {
     #[inline(always)]
     pub fn from_packed(rgb: u32) -> Self {
         Self::new(
-            (rgb >> P::BITS * 2) as u8,
+            (rgb >> (P::BITS * 2)) as u8,
             (rgb >> P::BITS & P::MASK) as u8,
             (rgb & P::MASK) as u8)
     }
 
     #[inline(always)]
     pub fn pack(self) -> u32 {
-        (self.r as u32) << P::BITS * 2 |
+        (self.r as u32) << (P::BITS * 2) |
             (self.g as u32) << P::BITS |
             (self.b as u32)
     }
@@ -217,9 +217,9 @@ impl<P: ColorPrecision> Rgb<P> {
         let (r, g, b) = self.colors_u32();
         let f = (amount as u32) << 9;
         let (r, g, b) = (
-            f * r >> 16,
-            f * g >> 16,
-            f * b >> 16);
+            (f * r) >> 16,
+            (f * g) >> 16,
+            (f * b) >> 16);
         Self::new(r as u8, g as u8, b as u8)
     }
 
@@ -230,9 +230,9 @@ impl<P: ColorPrecision> Rgb<P> {
         let (r, g, b) = self.colors_u32();
         let f = (amount as u32) << 9;
         let (r, g, b) = (
-            r + (f * (P::MASK - r) >> 16),
-            g + (f * (P::MASK - g) >> 16),
-            b + (f * (P::MASK - b) >> 16));
+            r + ((f * (P::MASK - r)) >> 16),
+            g + ((f * (P::MASK - g)) >> 16),
+            b + ((f * (P::MASK - b)) >> 16));
         Self::new(r as u8, g as u8, b as u8)
     }
 

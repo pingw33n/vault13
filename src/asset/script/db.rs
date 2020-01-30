@@ -70,8 +70,8 @@ fn read_lst(rd: &mut impl BufRead) -> io::Result<Vec<ScriptInfo>> {
         let mut l = l?;
         l.make_ascii_lowercase();
 
-        const DOT_INT: &'static str = ".int";
-        const LOCAL_VARS: &'static str = "local_vars=";
+        const DOT_INT: &str = ".int";
+        const LOCAL_VARS: &str = "local_vars=";
 
         if let Some(i) = l.find(DOT_INT) {
             let name = l[..i].to_owned();

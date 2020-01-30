@@ -208,7 +208,7 @@ pub fn fetch_external(ctx: Context) -> Result<()> {
     let name = ctx.prg.data_stack.pop()?.into_string(&ctx.prg.names())?;
 
     let r = ctx.ext.external_vars.get(&name).cloned()
-        .ok_or(Error::BadExternalVar(name.clone()))?
+        .ok_or_else(|| Error::BadExternalVar(name.clone()))?
         .unwrap_or(0.into());
     ctx.prg.data_stack.push(r)?;
 

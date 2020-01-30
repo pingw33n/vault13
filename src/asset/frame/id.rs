@@ -30,15 +30,15 @@ impl FrameId {
 
     pub fn new_critter(direction: Option<Direction>, anim: CritterAnim, weapon: WeaponKind, id: u16)
             -> Option<Self> {
-        Critter::new(direction, anim, weapon, id).map(|v| FrameId::Critter(v))
+        Critter::new(direction, anim, weapon, id).map(FrameId::Critter)
     }
 
     pub fn new_head(anim: u8, sub_anim: u8, id: u16) -> Option<Self> {
-        Head::new(anim, sub_anim, id).map(|v| FrameId::Head(v))
+        Head::new(anim, sub_anim, id).map(FrameId::Head)
     }
 
     pub fn new_generic(kind: EntityKind, id: u16) -> Option<Self> {
-        Generic::new(kind, id).map(|v| FrameId::Generic(v))
+        Generic::new(kind, id).map(FrameId::Generic)
     }
 
     pub fn read(rd: &mut impl Read) -> io::Result<Self> {
@@ -168,7 +168,7 @@ impl Critter {
             anim: anim as u8,
             sub_anim: weapon as u8,
             id
-        }).map(|v| Critter(v))
+        }).map(Critter)
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
@@ -233,7 +233,7 @@ impl Critter {
     pub fn with_id(self, id: u16) -> Option<Self> {
         let mut parts = unpack(self.packed()).unwrap();
         parts.id = id;
-        pack(parts).map(|v| Critter(v))
+        pack(parts).map(Critter)
     }
 }
 
@@ -262,7 +262,7 @@ impl Head {
             anim,
             sub_anim,
             id,
-        }).map(|v| Head(v))
+        }).map(Head)
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
@@ -341,7 +341,7 @@ impl Generic {
             anim: 0,
             sub_anim: 0,
             id,
-        }).map(|v| Generic(v))
+        }).map(Generic)
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
@@ -428,7 +428,7 @@ fn unpack(fid: u32) -> Option<Parts> {
         Some(Direction::from_u8(direction - 1)?)
     };
 
-    let anim = (fid >> 16) as u8 & 0xff;
+    let anim = (fid >> 16) as u8;
     let sub_anim = (fid >> 12) as u8 & 0b1111;
     let id = fid as u16 & 0b1111_1111_1111;
 

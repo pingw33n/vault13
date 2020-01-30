@@ -136,7 +136,7 @@ impl Value {
     pub fn resolved(self, strings: &StringMap) -> Result<Value> {
         Ok(match self {
             Value::String(v) => Value::String(v.resolved(strings)?),
-            v @ _ => v,
+            v => v,
         })
     }
 
@@ -387,7 +387,7 @@ mod test {
         Err(Error::BadValue(BadValue::Type))
     }
 
-    fn strings(d: &[(usize, &'static str)]) -> StringMap {
+    fn strings(d: &[(usize, &str)]) -> StringMap {
         let mut strings = StringMap::new();
         for &(id, s) in d {
             strings.insert(id, Rc::new(s.into()));
@@ -488,10 +488,10 @@ mod test {
 
     #[test]
     fn coerce_into_string() {
-        const S: &'static [(usize, &'static str)] = &[
+        const S: &[(usize, &str)] = &[
             (12, "s1"),    // 0
         ];
-        let ref strings = strings(S);
+        let strings = &strings(S);
         let mut d = vec![
             (Int(0), Ok("0")),
             (Int(123), Ok("123")),
@@ -567,7 +567,7 @@ mod test {
         use std::cmp::Ordering::*;
         use std::f32;
 
-        const S: &'static [(usize, &'static str)] = &[
+        const S: &[(usize, &str)] = &[
             (12, "string 1"),       // 0
             (34, "string 1"),       // 1
             (56, "string 2"),       // 2
@@ -648,14 +648,14 @@ mod test {
 
     #[test]
     fn add() {
-        const S: &'static [(usize, &'static str)] = &[
+        const S: &[(usize, &str)] = &[
             (12, "s1_"),     // 0
             (34, "S2"),     // 1
         ];
         let strings = strings(S);
         let mut d = vec![
             (Int(123), Int(456), Ok(Int(123 + 456))),
-            (Int(123), Float(456.789), Ok(Float(123 as f32 + 456.789))),
+            (Int(123), Float(456.789), Ok(Float(123_f32 + 456.789))),
             (Float(123.456), Float(456.789), Ok(Float(123.456 + 456.789))),
             (String(Indirect(S[0].0)), String(Indirect(S[1].0)), Ok("s1_S2".into())),
             (String(Indirect(S[0].0)), Int(42), Ok("s1_42".into())),
@@ -681,7 +681,7 @@ mod test {
 
     #[test]
     fn div() {
-        const S: &'static [(usize, &'static str)] = &[
+        const S: &[(usize, &str)] = &[
             (12, "123"),     // 0
             (34, "123.456"), // 1
             (56, "0"),       // 2
@@ -718,7 +718,7 @@ mod test {
 
     #[test]
     fn mul() {
-        const S: &'static [(usize, &'static str)] = &[
+        const S: &[(usize, &str)] = &[
             (12, "123"),     // 0
             (34, "123.456"), // 1
             (56, "0"),       // 2
@@ -727,7 +727,7 @@ mod test {
         let strings = strings(S);
 
         let mut d = vec![
-            (Int(456), Int(0), Ok(Int(456 * 0))),
+            (Int(456), Int(0), Ok(Int(0))),
             (Int(456), Int(123), Ok(Int(456 * 123))),
             (Int(123), Float(456.789), Ok(Float(123.0 * 456.789))),
             (Float(123.456), Float(456.789), Ok(Float(123.456 * 456.789))),
@@ -761,7 +761,7 @@ mod test {
 
     #[test]
     fn rem() {
-        const S: &'static [(usize, &'static str)] = &[
+        const S: &[(usize, &str)] = &[
             (12, "123"),     // 0
             (34, "123.456"), // 1
             (56, "0"),       // 2
@@ -799,7 +799,7 @@ mod test {
 
     #[test]
     fn sub() {
-        const S: &'static [(usize, &'static str)] = &[
+        const S: &[(usize, &str)] = &[
             (12, "123"),     // 0
             (34, "123.456"), // 1
             (56, "0"),       // 2

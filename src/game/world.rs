@@ -376,9 +376,8 @@ impl World {
 
             let blocker = self.objects.at(new_pos.elevated(elevation))
                 .iter()
-                .find(|&&h| self.objects.get(h).borrow()
-                    .proto_id() == Some(ProtoId::SCROLL_BLOCKER))
-                .is_some();
+                .any(|&h| self.objects.get(h).borrow()
+                    .proto_id() == Some(ProtoId::SCROLL_BLOCKER));
             if blocker {
                 break;
             }

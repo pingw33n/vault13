@@ -1,3 +1,8 @@
+#![allow(clippy::inconsistent_digit_grouping)]
+#![allow(clippy::map_entry)]
+#![allow(clippy::or_fun_call)]
+#![allow(clippy::unreadable_literal)]
+
 #![allow(dead_code)]
 #![allow(proc_macro_derive_resolution_fallback)]
 #![deny(non_snake_case)]
@@ -146,7 +151,7 @@ fn main() {
 
     let fs = Rc::new(fs);
 
-    let ref proto_db = Rc::new(ProtoDb::new(fs.clone(), language).unwrap());
+    let proto_db = Rc::new(ProtoDb::new(fs.clone(), language).unwrap());
 
     let pal = read_palette(&mut fs.reader("color.pal").unwrap()).unwrap();
 
@@ -169,7 +174,7 @@ fn main() {
         .build()
         .unwrap();
 
-    let gfx_backend: Backend = Backend::new(canvas, Box::new(pal.clone()), PaletteOverlay::standard());
+    let gfx_backend: Backend = Backend::new(canvas, Box::new(pal), PaletteOverlay::standard());
     let texture_factory = gfx_backend.new_texture_factory();
 
     let frm_db = Rc::new(FrameDb::new(fs.clone(), language, texture_factory.clone()).unwrap());
@@ -199,11 +204,11 @@ fn main() {
 
     let misc_msgs = Rc::new(Messages::read_file(&fs, language, "game/misc.msg").unwrap());
     let mut state = GameState::new(
-        fs.clone(),
+        fs,
         language,
-        proto_db.clone(),
-        frm_db.clone(),
-        fonts.clone(),
+        proto_db,
+        frm_db,
+        fonts,
         misc_msgs,
         start,
         ui,
@@ -270,7 +275,7 @@ fn main() {
                 (Point::new(-1, -1), Point::new(-1, -1))
             };
             let dude_pos = world.objects().get(world.dude_obj().unwrap()).borrow().pos.unwrap().point;
-            let ref msg = format!(
+            let msg = format!(
                 "mouse: {}, {}\n\
                  mouse hex: {}, {} ({})\n\
                  mouse sqr: {}, {} ({})\n\
