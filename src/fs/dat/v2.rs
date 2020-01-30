@@ -100,12 +100,12 @@ impl Provider for Dat {
             f.seek(SeekFrom::Start(dat_file.offset as u64))?;
             f.take(read_size as u64)
         });
-        if dat_file.is_compressed() {
+        Ok(if dat_file.is_compressed() {
             use flate2::bufread::ZlibDecoder;
-            return Ok(Box::new(BufReader::new(ZlibDecoder::new(reader))));
+            Box::new(BufReader::new(ZlibDecoder::new(reader)))
         } else {
-            return Ok(Box::new(reader));
-        }
+            Box::new(reader)
+        })
     }
 
     fn metadata(&self, path: &str) -> Result<Metadata> {

@@ -9,7 +9,7 @@ use crate::ui::*;
 use crate::ui::command::{UiCommand, UiCommandData};
 
 pub fn show(actions: Vec<Action>, win: Handle, ui: &mut Ui) -> Handle {
-    assert!(actions.len() > 0);
+    assert!(!actions.is_empty());
 
     let (placement, saved_cursor) = {
         let win_base = ui.widget_base(win);
@@ -89,7 +89,7 @@ impl Action {
     pub const ICON_WIDTH: i32 = 40;
     pub const ICON_HEIGHT: i32 = 40;
 
-    pub fn icons(&self) -> (FrameId, FrameId) {
+    pub fn icons(self) -> (FrameId, FrameId) {
         use Action::*;
         use self::FrameId as F;
         match self {

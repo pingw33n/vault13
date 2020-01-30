@@ -134,7 +134,6 @@ impl MessagePanel {
                 size: self.layout().width,
                 mode: font::OverflowMode::WordWrap,
             }))
-            .map(|s| s.to_owned())
             .collect();
 
         self.messages.push_back(Message {

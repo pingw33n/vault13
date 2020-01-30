@@ -128,7 +128,7 @@ impl LightGrid {
         clamp(self.get(p), 0, 0x10000) as u32
     }
 
-    fn update_at(grid: &mut Box<[Box<[i32]>]>, width: i32, elevation: u32, p: Point, delta: i32) {
+    fn update_at(grid: &mut [Box<[i32]>], width: i32, elevation: u32, p: Point, delta: i32) {
         let i = (width * p.y + p.x) as usize;
         grid[elevation as usize][i] += delta;
     }
@@ -420,9 +420,9 @@ mod test {
             },
         ];
 
-        for odd in 0..=1 {
+        for (odd, exp) in expected.iter().enumerate() {
             for dir in Direction::iter() {
-                for e in &expected[odd][dir] {
+                for e in &exp[dir] {
                     assert_eq!(light_cones.cones(odd == 1)[dir][e.i], e.p.into(),
                         "odd={} {:?} {:?}", odd, dir, e);
                 }
@@ -443,7 +443,7 @@ mod test {
             let expected = read_light_grid_dump(&include_bytes!("light_grid_expected.bin.gz")[..]);
 
             let mut actual = LightGrid::new(200, 200, 1);
-            for (linp, radius, amount) in vec![
+            for &(linp, radius, amount) in &[
                 (0x3898, 8, 0x10000),
                 (0x3d49, 8, 0x10000),
                 (0x41fa, 8, 0x10000),
@@ -502,7 +502,7 @@ mod test {
         fn flip() {
             let mut lg = LightGrid::new(200, 200, 2);
 
-            let expected = Vec::from(lg.grid().clone());
+            let expected = Vec::from(lg.grid());
 
             lg.update(EPoint { elevation: 0, point: Point::new(31, 41) }, 8, 1234567,
                 |_| LightTestResult::default());

@@ -40,7 +40,7 @@ impl Repeat {
                 Tick::Repeat => self.interval,
             };
             if now >= *last + d {
-                *last = *last + d;
+                *last += d;
                 *tick = Tick::Repeat;
                 return true;
             }

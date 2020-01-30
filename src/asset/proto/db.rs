@@ -293,7 +293,7 @@ impl ProtoDb {
             [s1, s2, s3]
         };
         let mut mods = [(0, [0, 0, 0]); 3];
-        for i in 0..3 {
+        for (i, m) in mods.iter_mut().enumerate() {
             let d = if i != 0 {
                 rd.read_u32::<BigEndian>()?
             } else {
@@ -302,7 +302,7 @@ impl ProtoDb {
             let m1 = rd.read_i32::<BigEndian>()?;
             let m2 = rd.read_i32::<BigEndian>()?;
             let m3 = rd.read_i32::<BigEndian>()?;
-            mods[i] = (d, [m1, m2, m3]);
+            *m = (d, [m1, m2, m3]);
         }
         let addiction_chance = rd.read_u32::<BigEndian>()?;
         let addiction_perk = read_opt_enum(rd, "invalid drug addiction perk")?;
@@ -331,8 +331,8 @@ impl ProtoDb {
         } else {
             0
         };
-        for stat_i in stat_i_start..3 {
-            let stat = get_opt_enum(stats[stat_i], "invalid drug stat")?;
+        for (stat_i, &stat) in stats.iter().enumerate().skip(stat_i_start) {
+            let stat = get_opt_enum(stat, "invalid drug stat")?;
             if let Some(stat) = stat {
                 for mods_i in 0..3 {
                     let mods = mods[mods_i];

@@ -67,6 +67,7 @@ pub struct GameState {
 }
 
 impl GameState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         fs: Rc<FileSystem>,
         language: &str,
@@ -92,10 +93,10 @@ impl GameState {
             proto_db.clone(),
             frm_db.clone(),
             critter_names,
-            hex_grid.clone(),
+            hex_grid,
             viewport,
             now,
-            fonts.clone());
+            fonts);
         let world = Rc::new(RefCell::new(world));
         let sequencer = Sequencer::new(now);
         let fidget = Fidget::new(now);
@@ -352,7 +353,7 @@ impl GameState {
             }
             _ => {}
         }
-        if r.len() > 0 {
+        if !r.is_empty() {
             r.push(Action::Cancel)
         }
         r

@@ -491,6 +491,6 @@ impl Canvas for CanvasImpl {
     fn draw_text(&mut self, text: &bstr, pos: Point, font: FontKey, color: Rgb15,
             options: &font::DrawOptions) {
         let fonts = self.fonts.clone();
-        fonts.get(font).draw(self, text.into(), pos, color, options);
+        fonts.get(font).draw(self, text, pos, color, options);
     }
 }

@@ -90,7 +90,7 @@ impl Stats {
         }
         if stat == ActionPoints {
             let carry_weight = self.stat(CarryWeight, obj);
-            let left = carry_weight - /* TODO item_total_weight_(obj) */ 0;
+            let left = carry_weight /* - item_total_weight_(obj)    TODO */;
             if left < 0 {
                 r -= -left / 40 + 1;
             }
@@ -160,9 +160,7 @@ impl Stats {
         }
 
         let stat_def = &self.stat_defs[stat];
-        let r = clamp(r, stat_def.min, stat_def.max);
-
-        r
+        clamp(r, stat_def.min, stat_def.max)
     }
 
     // trait_adjust_stat()

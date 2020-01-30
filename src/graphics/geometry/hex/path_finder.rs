@@ -238,7 +238,8 @@ mod test {
                 }),
                 TileStateFunc::Penalty(v) => Box::new(move |p| {
                     if let Some((_, _, c)) = v.iter()
-                            .filter(|(x, y, _)| Point::new(*x, *y) == p).next() {
+                        .find(|(x, y, _)| Point::new(*x, *y) == p)
+                    {
                         TileState::Passable(*c)
                     } else {
                         TileState::Passable(0)

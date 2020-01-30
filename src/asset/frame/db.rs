@@ -152,8 +152,8 @@ impl FrameDb {
                 }
             }
             FrameId::Head(fid) => {
-                static ANIM_TO_CODE1: &'static [u8] = b"gggnnnbbbgnb";
-                static ANIM_TO_CODE2: &'static [u8] = b"vfngfbnfvppp";
+                static ANIM_TO_CODE1: &[u8] = b"gggnnnbbbgnb";
+                static ANIM_TO_CODE2: &[u8] = b"vfngfbnfvppp";
 
                 let anim = fid.anim() as usize;
                 if anim >= ANIM_TO_CODE1.len() {
@@ -234,7 +234,7 @@ mod test {
 
     #[test]
     fn critter_anim_codes_() {
-        for ((wk, anim), exp) in vec![
+        for &((wk, anim), exp) in &[
                 ((0, 0), Some("aa")),
                 ((7, 0), Some("ja")),
                 ((7, 38), Some("jc")),

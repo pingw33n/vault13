@@ -2,6 +2,7 @@ use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
 use log::*;
 use num_traits::FromPrimitive;
+use static_assertions::const_assert;
 use std::cmp;
 use std::convert::TryInto;
 
@@ -256,6 +257,8 @@ impl FloatingTextStyle {
     const SEQ_MAX: u32 = 12;
 }
 
+const_assert!(FloatingTextStyle::SEQ_MIN <= FloatingTextStyle::SEQ_MAX);
+
 pub fn float_msg(ctx: Context) -> Result<()> {
     let style = FloatingTextStyle::from_i32(ctx.prg.data_stack.pop()?.into_int()?);
     let msg = ctx.prg.data_stack.pop()?.into_string(ctx.prg.strings())?;
@@ -308,7 +311,6 @@ fn floating_text_style() {
     assert_eq!(FloatingTextStyle::from_i32(-2), Some(FloatingTextStyle::Sequential));
     assert_eq!(FloatingTextStyle::from_i32(-1), Some(FloatingTextStyle::Warning));
 
-    assert!(FloatingTextStyle::SEQ_MIN <= FloatingTextStyle::SEQ_MAX);
     for i in FloatingTextStyle::SEQ_MIN..=FloatingTextStyle::SEQ_MAX {
         assert!(FloatingTextStyle::from_u32(i).is_some());
     }
@@ -446,7 +448,7 @@ pub fn gsay_reply(mut ctx: Context) -> Result<()> {
             let msgs = ctx.ext.script_db.messages(program_id).unwrap();
             Rc::new(msgs.get(msg_id).unwrap().text.clone())
         },
-        Value::String(s) => s.resolve(ctx.prg.strings())?.clone(),
+        Value::String(s) => s.resolve(ctx.prg.strings())?,
         _ => return Err(Error::BadValue(BadValue::Content)),
     };
 
@@ -848,12 +850,10 @@ pub fn set_light_level(ctx: Context) -> Result<()> {
 
     // TODO This probably should be fixed as follows:
     // if v < 50 { MIN + v * (MID - MIN) / 50 } else { MID + (v - 50) * (MAX - MID) / 50 }
-    let light = if v < 50 {
-        MIN + v * (MID - MIN) / 100
-    } else if v == 50 {
-        MID
-    } else {
-        MID + v * (MAX - MID) / 100
+    let light = match v {
+        0..=49 => MIN + v * (MID - MIN) / 100,
+        50 => MID,
+        _ => MID + v * (MAX - MID) / 100,
     };
 
     ctx.ext.world.ambient_light = light;

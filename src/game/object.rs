@@ -516,7 +516,7 @@ impl Objects {
     pub fn render(&self, canvas: &mut dyn Canvas, elevation: u32, screen_rect: Rect,
             tile_grid: &impl TileGridView, egg: Option<&Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32) {
-        let ref get_light = get_light;
+        let get_light = &get_light;
         self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, true);
         self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, false);
     }
@@ -540,7 +540,7 @@ impl Objects {
 
     pub fn iter(&self) -> impl Iterator<Item=Handle> + '_ {
         // FIXME this should come from by_pos.
-        self.handles.keys().map(|k| Handle(k))
+        self.handles.keys().map(Handle)
     }
 
     pub fn set_pos(&mut self, h: Handle, pos: EPoint) {
@@ -637,10 +637,10 @@ impl Objects {
         for dir in Direction::iter() {
             if let Some(near) = self.tile_grid.go(pos.point, dir, 1) {
                 for &objh in self.at(near.elevated(pos.elevation)) {
-                    if self.get(objh).borrow().flags.contains(Flag::MultiHex) {
-                        if check(objh) {
-                            return true;
-                        }
+                    if self.get(objh).borrow().flags.contains(Flag::MultiHex) &&
+                        check(objh)
+                    {
+                        return true;
                     }
                 }
             }
@@ -820,14 +820,15 @@ impl Objects {
     // item_get_type()
     pub fn item_kind(&self, obj: Handle) -> Option<ItemKind> {
         let obj = self.get(obj).borrow();
-        if obj.kind() == EntityKind::Item {
-            if obj.proto_id().unwrap() == ProtoId::SHIV {
-                return Some(obj.proto.as_ref().unwrap().borrow()
-                    .sub.item().unwrap()
-                    .sub.kind());
-            }
+        if obj.kind() == EntityKind::Item &&
+            obj.proto_id().unwrap() == ProtoId::SHIV
+        {
+            Some(obj.proto.as_ref().unwrap().borrow()
+                .sub.item().unwrap()
+                .sub.kind())
+        } else {
+            None
         }
-        None
     }
 
     // action_can_be_pushed()
@@ -838,7 +839,7 @@ impl Objects {
         if pushedo.kind() != EntityKind::Critter
             || pusher == pushed
             || !pushedo.sub.critter().unwrap().is_active()
-            || !self.can_talk(pusher, pushed).is_ok()
+            || self.can_talk(pusher, pushed).is_err()
             || pushedo.script.is_none()
         {
             return false;
@@ -981,7 +982,8 @@ impl Objects {
                     return false;
                 }
 
-                let masked = if proto.flags_ext.intersects(
+                // Is masked?
+                if proto.flags_ext.intersects(
                     FlagExt::WallEastOrWest | FlagExt::WallWestCorner)
                 {
                     hex::is_in_front_of(obj_pos, egg.pos)
@@ -993,8 +995,7 @@ impl Objects {
                         hex::is_to_right_of(obj_pos, egg.pos)
                 } else {
                     hex::is_to_right_of(obj_pos, egg.pos)
-                };
-                masked
+                }
             } else {
                 false
             }
@@ -1010,6 +1011,7 @@ impl Objects {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render0(&self, canvas: &mut dyn Canvas, elevation: u32,
             screen_rect: Rect, tile_grid: &impl TileGridView, egg: Option<&Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32,

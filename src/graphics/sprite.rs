@@ -75,7 +75,7 @@ impl Mask {
 
         #[inline(always)]
         fn byte(pixels: &[u8], i: usize) -> u8 {
-            bit(pixels[i + 0]) << 0 |
+            bit(pixels[i]) |
                 bit(pixels[i + 1]) << 1 |
                 bit(pixels[i + 2]) << 2 |
                 bit(pixels[i + 3]) << 3 |
@@ -97,6 +97,7 @@ impl Mask {
         if end_i < pix_len {
             let mut p = [0; 8];
             let mut i = end_i;
+            #[allow(clippy::never_loop)]
             loop {
                 p[0] = pixels[i]; i += 1;
                 if i < pix_len { p[1] = pixels[i]; i += 1; } else { break; }
@@ -120,7 +121,7 @@ impl Mask {
 
     #[must_use]
     pub fn test(&self, point: Point) -> bool {
-        let Point { x, y } = point.into();
+        let Point { x, y } = point;
         let i = x + y * self.width;
         let bit = i % 8;
         let i = i as usize / 8;

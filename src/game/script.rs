@@ -296,7 +296,7 @@ impl Scripts {
     }
 
     pub fn can_resume(&self) -> bool {
-        self.suspend_stack.len() > 0
+        !self.suspend_stack.is_empty()
     }
 
     pub fn resume(&mut self, ctx: &mut Context) -> InvocationResult {

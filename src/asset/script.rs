@@ -10,11 +10,11 @@ impl ProgramId {
         NonZeroU32::new(val).map(Self)
     }
 
-    pub fn index(&self) -> usize {
+    pub fn index(self) -> usize {
         self.val() as usize - 1
     }
 
-    pub fn val(&self) -> u32 {
+    pub fn val(self) -> u32 {
         self.0.get()
     }
 }

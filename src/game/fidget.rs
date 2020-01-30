@@ -60,7 +60,7 @@ impl Fidget {
             }
         }
 
-        if objs.len() > 0 {
+        if !objs.is_empty() {
             let objh = objs[random(0, objs.len() as i32 - 1) as usize];
             let mut obj = world.objects().get(objh).borrow_mut();
 

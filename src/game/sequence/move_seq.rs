@@ -41,7 +41,7 @@ impl Move {
         let mut obj = world.objects().get(self.obj).borrow_mut();
 
         // Path can be empty in Started state.
-        if self.path.len() > 0 {
+        if !self.path.is_empty() {
             obj.direction = self.path[self.path_pos];
         }
         obj.fid = obj.fid

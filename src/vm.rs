@@ -140,7 +140,7 @@ pub enum PredefinedProc {
 }
 
 impl PredefinedProc {
-    pub fn name(&self) -> &'static str {
+    pub fn name(self) -> &'static str {
         use PredefinedProc::*;
         match self {
             Combat => "combat_is_over_p_proc",
@@ -195,7 +195,7 @@ pub struct InvocationResult {
 }
 
 impl InvocationResult {
-    pub fn assert_no_suspend(&self) {
+    pub fn assert_no_suspend(self) {
         if let Some(s) = self.suspend {
             panic!("unexpected suspend: {:?}", s);
         }
@@ -294,14 +294,18 @@ impl Procedure {
     }
 }
 
+struct Procs {
+    by_id: Vec<Procedure>,
+    by_name: HashMap<Rc<BString>, ProcedureId>,
+}
+
 pub struct Program {
     name: String,
     config: Rc<VmConfig>,
     code: Box<[u8]>,
     names: StringMap,
     strings: StringMap,
-    procs: Vec<Procedure>,
-    proc_by_name: HashMap<Rc<BString>, ProcedureId>,
+    procs: Procs,
 }
 
 impl Program {
@@ -328,7 +332,7 @@ impl Program {
             Self::read_string_table(&code[string_table_start..])?;
 
         debug!("reading procedure table at 0x{:04x}", PROC_TABLE_START);
-        let (procs, proc_by_name) = Self::read_proc_table(&code[PROC_TABLE_START..], &names)?;
+        let procs = Self::read_proc_table(&code[PROC_TABLE_START..], &names)?;
 
         Ok(Self {
             name,
@@ -337,7 +341,6 @@ impl Program {
             names,
             strings,
             procs,
-            proc_by_name,
         })
     }
 
@@ -346,11 +349,11 @@ impl Program {
     }
 
     pub fn proc(&self, id: ProcedureId) -> Option<&Procedure> {
-        self.procs.get(id as usize)
+        self.procs.by_id.get(id as usize)
     }
 
     pub fn proc_id(&self, name: &Rc<BString>) -> Option<ProcedureId> {
-        self.proc_by_name.get(name).cloned()
+        self.procs.by_name.get(name).cloned()
     }
 
     pub fn predefined_proc_id(&self, proc: PredefinedProc) -> Option<ProcedureId> {
@@ -400,9 +403,7 @@ impl Program {
         Self::map_io_err(read())
     }
 
-    fn read_proc_table(buf: &[u8], names: &StringMap)
-        -> Result<(Vec<Procedure>, HashMap<Rc<BString>, ProcedureId>)>
-    {
+    fn read_proc_table(buf: &[u8], names: &StringMap) -> Result<Procs> {
         let mut rd = Cursor::new(buf);
         let mut read = || -> io::Result<Vec<Procedure>> {
             let count = rd.read_u32::<BigEndian>()? as usize;
@@ -437,16 +438,16 @@ impl Program {
             }
             Ok(r)
         };
-        let procs = Self::map_io_err(read())?;
-        let mut proc_by_name = HashMap::with_capacity(procs.len());
-        for (i, proc) in procs.iter().enumerate() {
-            if proc_by_name.contains_key(&proc.name) {
+        let by_id = Self::map_io_err(read())?;
+        let mut by_name = HashMap::with_capacity(by_id.len());
+        for (i, proc) in by_id.iter().enumerate() {
+            if by_name.contains_key(&proc.name) {
                 return Self::map_io_err(Err(io::Error::new(io::ErrorKind::InvalidData,
                     format!("duplicate procedure name: {}", proc.name.display()))));
             }
-            proc_by_name.insert(proc.name.clone(), i as ProcedureId);
+            by_name.insert(proc.name.clone(), i as ProcedureId);
         }
-        Ok((procs, proc_by_name))
+        Ok(Procs { by_id, by_name })
     }
 
     fn map_io_err<T>(r: io::Result<T>) -> Result<T> {
@@ -548,7 +549,7 @@ impl ProgramState {
     }
 
     pub fn can_resume(&self) -> bool {
-        self.suspend_stack.len() > 0
+        !self.suspend_stack.is_empty()
     }
 
     pub fn resume(&mut self, ctx: &mut Context) -> Result<InvocationResult> {

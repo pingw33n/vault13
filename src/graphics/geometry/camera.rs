@@ -48,7 +48,7 @@ mod test {
             [expected_hex - Point::new(16, 2), expected_hex - Point::new(48, 2)],
             [expected_hex - Point::new(32, 12 + 2), expected_hex - Point::new(64, 12 + 2)]];
 
-        for (x, y) in vec![
+        for &(x, y) in &[
                     (0, 0),
                     (1, 0),
                     (0, 1),
