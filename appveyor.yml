@@ -1,0 +1,73 @@
+image: Visual Studio 2015
+
+environment:
+  CARGO_HOME: c:\cargo
+  RUSTUP_HOME: c:\rustup
+  global:
+    RUST_BACKTRACE: full
+  matrix:
+    - TOOLCHAIN: 1.40.0
+      TARGET: i686-pc-windows-msvc
+      VC_ARCH: x86
+    - TOOLCHAIN: 1.40.0
+      TARGET: x86_64-pc-windows-msvc
+      VC_ARCH: x86_amd64
+  PROJECT_NAME: vault13
+  TAG_ZIP_NAME: $(PROJECT_NAME)-$(APPVEYOR_REPO_TAG_NAME)-win_$(VC_ARCH).zip
+
+matrix:
+  fast_finish: true
+
+cache:
+  - c:\cargo\registry
+  - c:\cargo\git
+
+init:
+  - mkdir c:\cargo
+  - mkdir c:\rustup
+  - set PATH=c:\cargo\bin;%PATH%
+
+install:
+  - appveyor DownloadFile https://win.rustup.rs/ -FileName rustup-init.exe
+  - rustup-init -yv --default-toolchain %TOOLCHAIN% --default-host %TARGET%
+  - rustc -vV
+  - cargo -vV
+  - call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" %VC_ARCH%
+
+build: false
+
+test_script:
+  - cargo test --release --verbose
+
+after_test:
+  - cargo build --release --verbose
+  - mkdir dist
+  - cp target\release\%PROJECT_NAME%.exe dist
+  - cp target\release\%PROJECT_NAME%.pdb dist
+  - cd dist
+  - 7z a ../%PROJECT_NAME%.zip *
+
+artifacts:
+  - path: $(PROJECT_NAME).zip
+    name: dist
+
+before_deploy:
+  - copy %PROJECT_NAME%.zip %TAG_ZIP_NAME%
+  - appveyor PushArtifact %TAG_ZIP_NAME%
+
+deploy:
+  artifact: $(TAG_ZIP_NAME)
+  auth_token:
+    secure: p2PM+5cT/fa3p0bJctqppqvWYJR5GOLIbJxE7ghrWJ1HJiziQ2QasVF/HJEAnZls
+  provider: GitHub
+  draft: true
+  prerelease: true
+  force_update: true
+  on:
+    APPVEYOR_REPO_TAG: true
+    APPVEYOR_REPO_TAG_NAME: /^snapshot-.*$/
+
+branches:
+  only:
+    - /^snapshot-.*$/
+    - master
