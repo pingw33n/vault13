@@ -7,9 +7,12 @@ addons:
   apt:
     packages:
       - libsndio-dev
+before_script:
+  - rustup component add clippy
 script:
   # Fail fast.
   - set -e
+  - cargo clippy --all-targets --all-features -- -D warnings
   - cargo test --release --verbose
   - cargo build --release --verbose
 cache: cargo
