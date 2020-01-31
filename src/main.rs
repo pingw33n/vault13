@@ -45,17 +45,39 @@ use crate::graphics::render::software::Backend;
 use crate::state::AppState;
 use crate::ui::Ui;
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+const GIT_HASH: &str = env!("GIT_HASH");
+const GIT_SHORT_HASH: &str = env!("GIT_SHORT_HASH");
+const GIT_TIMESTAMP: &str = env!("GIT_TIMESTAMP");
+const GIT_DATE: &str = env!("GIT_DATE");
+const GIT_VERSION_STATUS: &str = env!("GIT_VERSION_STATUS");
+
+fn version() -> String {
+    let (dev, dirty) = match GIT_VERSION_STATUS {
+        "Stable" => ("", ""),
+        "Dev" => ("-dev", ""),
+        "Dirty" => ("-dev", "-dirty"),
+        _ => panic!("bad GIT_VERSION_STATUS: {}", GIT_VERSION_STATUS),
+    };
+    format!("vault13 {}{dev} ({}{dirty} {})",
+        VERSION, GIT_SHORT_HASH, GIT_DATE, dev=dev, dirty=dirty)
+}
+
 fn args() -> clap::App<'static, 'static> {
     use clap::*;
 
-    App::new("Vault 13 Demo")
+    App::new(format!("Vault 13 {} ({})", VERSION, GIT_DATE))
         .arg(Arg::with_name("RESOURCE_DIR")
             .help("One or more resource directories where master.dat, critter.dat and patchXXX.dat \
                    can be found")
-            .required(true))
+            .required_unless("version"))
         .arg(Arg::with_name("MAP")
             .help("Map name to load. For example: artemple")
-            .required(true))
+            .required_unless("version"))
+        .arg(Arg::with_name("version")
+            .short("v")
+            .long("version")
+            .help("Prints version information"))
         .after_help(
             "EXAMPLE:\n\
           \x20   vault13 /path/to/fallout2 artemple")
@@ -139,6 +161,12 @@ fn main() {
     let map_name: String;
     {
         let args = &args().get_matches();
+
+        if args.is_present("version") {
+            println!("{}", version());
+            return;
+        }
+
         setup_file_system(&mut fs, args);
 
         let s = args.value_of("MAP").unwrap().to_lowercase();

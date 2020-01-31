@@ -4,9 +4,13 @@ version = "0.1.0"
 authors = ["Dmytro Lysai <d@emphased.net>"]
 license = "GPL-3.0"
 edition = "2018"
+build ="build.rs"
 
 [profile.release]
 debug = true
+
+[build-dependencies]
+regex = "1"
 
 [dependencies]
 bit-vec = "0.5"
