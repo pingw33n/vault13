@@ -128,6 +128,8 @@ impl Timer {
 }
 
 fn main() {
+    std::env::set_var("RUST_BACKTRACE", "1");
+
     env_logger::init();
 
     util::random::check_chi_square();
