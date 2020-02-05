@@ -232,7 +232,6 @@ fn main() {
 
     let canvas = window
         .into_canvas()
-        .present_vsync()
         .build()
         .unwrap();
     info!("Using render driver: {}", canvas.info().name);
