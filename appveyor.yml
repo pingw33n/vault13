@@ -6,10 +6,13 @@ environment:
   global:
     RUST_BACKTRACE: full
   matrix:
+    - TEST_BUILD: false
     - TOOLCHAIN: 1.40.0
       TARGET: i686-pc-windows-msvc
       VC_ARCH: x86
-    - TOOLCHAIN: 1.40.0
+
+    - TEST_BUILD: true
+      TOOLCHAIN: 1.40.0
       TARGET: x86_64-pc-windows-msvc
       VC_ARCH: x86_amd64
   PROJECT_NAME: vault13
@@ -68,6 +71,15 @@ deploy:
     APPVEYOR_REPO_TAG_NAME: /^snapshot-.*$/
 
 branches:
-  only:
-    - /^snapshot-.*$/
-    - master
+    only:
+      - /^snapshot-.*$/
+
+for:
+-
+  skip_non_tags: true
+  branches:
+    only:
+      - master
+  matrix:
+    only:
+      - TEST_BUILD: true
