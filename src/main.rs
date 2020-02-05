@@ -151,8 +151,14 @@ impl Timer {
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
+    if std::env::var("RUST_LOG") == Err(std::env::VarError::NotPresent) {
+        std::env::set_var("RUST_LOG", "vault13=info");
+    }
 
     env_logger::init();
+
+    info!("Version: {}", version());
+    info!("Build: {}", env!("BUILD_TARGET"));
 
     util::random::check_chi_square();
 
@@ -185,9 +191,35 @@ fn main() {
 
     let pal = read_palette(&mut fs.reader("color.pal").unwrap()).unwrap();
 
+    info!("SDL version: {}", sdl2::version::version());
+    info!("Video drivers:");
+    for driver in sdl2::video::drivers() {
+        info!("  {}", driver);
+    }
+    info!("Render drivers (name: flags, texture formats, max texture width x height:");
+    for driver in sdl2::render::drivers() {
+        use sdl2_sys::SDL_RendererFlags::*;
+        let flags: Vec<_> = [
+                SDL_RENDERER_SOFTWARE,
+                SDL_RENDERER_ACCELERATED,
+                SDL_RENDERER_PRESENTVSYNC,
+                SDL_RENDERER_TARGETTEXTURE,
+            ].iter()
+            .filter(|&&v| driver.flags & (v as u32) != 0)
+            .map(|&v| format!("{:?}", v)[13..].to_ascii_lowercase().to_owned())
+            .collect();
+        info!("  {}: {} (0x{:x}), {:?}, {} x {}",
+            driver.name,
+            flags.join(", "), driver.flags,
+            driver.texture_formats,
+            driver.max_texture_width,
+            driver.max_texture_height);
+    }
+
     let sdl = sdl2::init().unwrap();
     let mut event_pump = sdl.event_pump().unwrap();
     let video = sdl.video().unwrap();
+    info!("Using video driver: {}", video.current_video_driver());
 
     let window = video.window("Vault 13", 640, 480)
         .position_centered()
@@ -203,6 +235,7 @@ fn main() {
         .present_vsync()
         .build()
         .unwrap();
+    info!("Using render driver: {}", canvas.info().name);
 
     let gfx_backend: Backend = Backend::new(canvas, Box::new(pal), PaletteOverlay::standard());
     let texture_factory = gfx_backend.new_texture_factory();

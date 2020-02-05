@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::env;
 use std::process::Command;
 
 struct LastGitCommit {
@@ -83,4 +84,7 @@ fn main() {
     println!("cargo:rustc-env=GIT_TIMESTAMP={}", last_git_commit.timestamp);
     println!("cargo:rustc-env=GIT_DATE={}", last_git_commit.date());
     println!("cargo:rustc-env=GIT_VERSION_STATUS={:?}", git_version_status);
+    println!("cargo:rustc-env=BUILD_TARGET={}-{}",
+        env::var("CARGO_CFG_TARGET_OS").unwrap(),
+        env::var("CARGO_CFG_TARGET_ARCH").unwrap());
 }
