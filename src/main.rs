@@ -149,6 +149,33 @@ impl Timer {
     }
 }
 
+fn log_sdl_info() {
+    info!("SDL version: {}", sdl2::version::version());
+    info!("Video drivers:");
+    for driver in sdl2::video::drivers() {
+        info!("  {}", driver);
+    }
+    info!("Render drivers (name: flags, texture formats, max texture width x height:");
+    for driver in sdl2::render::drivers() {
+        use sdl2_sys::SDL_RendererFlags::*;
+        let flags: Vec<_> = [
+                SDL_RENDERER_SOFTWARE,
+                SDL_RENDERER_ACCELERATED,
+                SDL_RENDERER_PRESENTVSYNC,
+                SDL_RENDERER_TARGETTEXTURE,
+            ].iter()
+            .filter(|&&v| driver.flags & (v as u32) != 0)
+            .map(|&v| format!("{:?}", v)[13..].to_ascii_lowercase())
+            .collect();
+        info!("  {}: {} (0x{:x}), {:?}, {} x {}",
+            driver.name,
+            flags.join(", "), driver.flags,
+            driver.texture_formats,
+            driver.max_texture_width,
+            driver.max_texture_height);
+    }
+}
+
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
     if std::env::var("RUST_LOG") == Err(std::env::VarError::NotPresent) {
@@ -191,30 +218,7 @@ fn main() {
 
     let pal = read_palette(&mut fs.reader("color.pal").unwrap()).unwrap();
 
-    info!("SDL version: {}", sdl2::version::version());
-    info!("Video drivers:");
-    for driver in sdl2::video::drivers() {
-        info!("  {}", driver);
-    }
-    info!("Render drivers (name: flags, texture formats, max texture width x height:");
-    for driver in sdl2::render::drivers() {
-        use sdl2_sys::SDL_RendererFlags::*;
-        let flags: Vec<_> = [
-                SDL_RENDERER_SOFTWARE,
-                SDL_RENDERER_ACCELERATED,
-                SDL_RENDERER_PRESENTVSYNC,
-                SDL_RENDERER_TARGETTEXTURE,
-            ].iter()
-            .filter(|&&v| driver.flags & (v as u32) != 0)
-            .map(|&v| format!("{:?}", v)[13..].to_ascii_lowercase().to_owned())
-            .collect();
-        info!("  {}: {} (0x{:x}), {:?}, {} x {}",
-            driver.name,
-            flags.join(", "), driver.flags,
-            driver.texture_formats,
-            driver.max_texture_width,
-            driver.max_texture_height);
-    }
+    log_sdl_info();
 
     let sdl = sdl2::init().unwrap();
     let mut event_pump = sdl.event_pump().unwrap();
