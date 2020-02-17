@@ -6,19 +6,15 @@ Reimplementation of Fallout 2 engine.
 
 **This is a work in progress and is not playable**.
 
-# Building
+# Binaries
 
-*This was tested on Mac OS only.*
-
-1. Install Rust: https://www.rust-lang.org/tools/install.
-2. Install SDL2 development libraries: https://github.com/Rust-SDL2/rust-sdl2#sdl20-development-libraries.
-    * If you're on Mac OS Mojave you'll probably need at least 2.0.9 version of SDL.
-3. Run `cargo build --release`.
+There's automated daily build job that uploads development snapshot build as pre-releases on 
+[Releases page](https://github.com/pingw33n/vault13/releases).
 
 # Running demo
 
 ```
-cargo run --release -- /path/to/fallout2 artemple
+vault13 /path/to/fallout2 artemple
 ```
 
 Controls that work in demo:
