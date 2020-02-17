@@ -1,6 +1,6 @@
 # Vault13
 
-[![Build Status](https://travis-ci.org/pingw33n/vault13.svg?branch=master)](https://travis-ci.org/pingw33n/vault13)
+![Build](https://github.com/pingw33n/vault13/workflows/Build/badge.svg)
 
 Reimplementation of Fallout 2 engine.
 

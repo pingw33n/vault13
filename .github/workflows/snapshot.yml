@@ -1,0 +1,179 @@
+name: Snapshot
+
+on:
+  push:
+    tags: snapshot-*
+env:
+  NAME: vault13
+  RUST_VERSION: 1.41.0
+  RUST_BACKTRACE: full
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-16.04, macos-10.15, windows-2019]
+        arch: [x86, x86_64]
+        exclude:
+          - os: macos-10.15
+            arch: x86
+        include:
+          - os: ubuntu-16.04
+            os_kind: linux
+
+          - os: macos-10.15
+            os_kind: macos
+
+          - os: windows-2019
+            os_kind: windows
+            vcvars_cmd: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+
+          - os: ubuntu-16.04
+            arch: x86
+            target: i686-unknown-linux-gnu
+
+          - os: ubuntu-16.04
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+
+          - os: macos-10.15
+            arch: x86_64
+            target: x86_64-apple-darwin
+
+          - os: windows-2019
+            arch: x86
+            target: i686-pc-windows-msvc
+            vc_arch: x86
+
+          - os: windows-2019
+            arch: x86_64
+            target: x86_64-pc-windows-msvc
+            vc_arch: x86_amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        target: ${{ matrix.target }}
+        override: true
+
+    - name: Setup vcvars (Windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: call "${{ matrix.vcvars_cmd }}" ${{ matrix.vc_arch }}
+
+    - name: Install deps (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install libsndio-dev -y
+
+    - name: cargo test
+      shell: bash
+      run: cargo test --release --verbose
+
+    - name: cargo build
+      shell: bash
+      run: cargo build --release --verbose
+
+    - name: Check repo clean
+      shell: bash
+      run: git diff --exit-code
+
+    - name: App version
+      shell: bash
+      run: target/release/${NAME} -v
+
+    - name: Pre-package
+      shell: bash
+      run: mkdir dist
+
+    - name: Package (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      working-directory: dist
+      run: |
+        cp ../target/release/${NAME}.exe .
+        cp ../target/release/${NAME}.pdb .
+
+    - name: Package (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      working-directory: dist
+      run: |
+        brew install p7zip
+        cp ../target/release/${NAME} .
+        cp -r ../target/release/${NAME}.dSYM .
+
+    - name: Package (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      working-directory: dist
+      run: |
+        cp ../target/release/${NAME} .
+
+    - name: Make artifact name
+      id: artifact_name
+      shell: bash
+      # This must match the artifact_base_name step from the 'release' job below.
+      run: echo ::set-output name=value::${{ env.NAME }}-${GITHUB_REF#refs/tags/}-${{ matrix.os_kind }}-${{ matrix.arch }}.zip
+
+    - name: Post-package
+      shell: bash
+      working-directory: dist
+      run: 7z a ../${{ steps.artifact_name.outputs.value }} *
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v1
+      with:
+        name: ${{ steps.artifact_name.outputs.value }}
+        path: ${{ steps.artifact_name.outputs.value }}
+
+  release:
+    needs: [build]
+    runs-on: ubuntu-16.04
+    steps:
+    - name: Make artifact base name
+      id: artifact_base_name
+      shell: bash
+      # This must match the artifact_name step from the 'build' job above.
+      run: echo ::set-output name=value::${{ env.NAME }}-${GITHUB_REF#refs/tags/}
+
+    - name: Download
+      uses: actions/download-artifact@v1
+      with:
+        name: ${{ steps.artifact_base_name.outputs.value }}-linux-x86.zip
+        path: .
+
+    - name: Download
+      uses: actions/download-artifact@v1
+      with:
+        name: ${{ steps.artifact_base_name.outputs.value }}-macos-x86_64.zip
+        path: .
+
+    - name: Download
+      uses: actions/download-artifact@v1
+      with:
+        name: ${{ steps.artifact_base_name.outputs.value }}-windows-x86_64.zip
+        path: .
+
+    - name: Download
+      uses: actions/download-artifact@v1
+      with:
+        name: ${{ steps.artifact_base_name.outputs.value }}-windows-x86.zip
+        path: .
+
+    - run: ls -l *.zip
+
+    - name: Release
+      uses: softprops/action-gh-release@v0.1.5
+      with:
+        body:
+        files: '*.zip'
+        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
