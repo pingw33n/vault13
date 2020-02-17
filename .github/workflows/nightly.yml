@@ -1,0 +1,37 @@
+# This workflow needs personal access token in secrets.PAT to run.
+name: Nightly
+
+on:
+  repository_dispatch:
+    types: workflow_nightly
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  push_tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.PAT }}
+
+      - name: Fetch tags
+        run: git fetch --tags
+
+      - name: Check if need new snapshot
+        id: needs_snapshot
+        run: |
+          if git describe --exact-match --match 'snapshot-*'; then v=no; else v=yes; fi
+          echo ::set-output name=value::$v
+
+      - name: Get date
+        id: date
+        run: echo ::set-output name=value::$(date '+%Y-%m-%d')
+
+      - name: Create snapshot tag
+        if: steps.needs_snapshot.outputs.value == 'yes'
+        run: |
+          git config --global user.email "bot@example.com"
+          git config --global user.name "Bot"
+          git tag -m "[nightly] ${{ steps.date.outputs.value }}" -a snapshot-${{ steps.date.outputs.value }}
+          git push origin --tags

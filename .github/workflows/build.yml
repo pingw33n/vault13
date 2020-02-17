@@ -1,0 +1,146 @@
+name: Build
+
+on:
+  push:
+    branches: master
+  pull_request:
+    branches: master
+
+env:
+  NAME: vault13
+  RUST_VERSION: 1.41.0
+  RUST_BACKTRACE: full
+jobs:
+  main:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-16.04, macos-10.15, windows-2019]
+        arch: [x86_64]
+        include:
+          - os: ubuntu-16.04
+            os_kind: linux
+
+          - os: macos-10.15
+            os_kind: macos
+
+          - os: windows-2019
+            os_kind: windows
+            vcvars_cmd: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+
+          - os: ubuntu-16.04
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+
+          - os: macos-10.15
+            arch: x86_64
+            target: x86_64-apple-darwin
+
+          - os: windows-2019
+            arch: x86_64
+            target: x86_64-pc-windows-msvc
+            vc_arch: x86_amd64
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Calc hashes
+      id: hash
+      shell: bash
+      run: |
+        echo ::set-output name=cargo_lock::${{ hashFiles('Cargo.lock') }}
+        echo ::set-output name=workflow_yml::${{ hashFiles('.github/workflows/build.yml') }}
+
+    - name: Cache target/release/build
+      uses: actions/cache@v1
+      with:
+        path: target/release/build
+        key: ${{ runner.os }}-target-build-${{ steps.hash.outputs.cargo_lock }}-${{ steps.hash.outputs.workflow_yml }}
+    - name: Cache target/release/deps
+      uses: actions/cache@v1
+      with:
+        path: target/release/deps
+        key: ${{ runner.os }}-target-deps-${{ steps.hash.outputs.cargo_lock }}-${{ steps.hash.outputs.workflow_yml }}
+
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ env.RUST_VERSION }}
+        target: ${{ matrix.target }}
+        override: true
+
+    - name: Setup vcvars (Windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.vc_arch }}
+
+    - name: Install deps (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install libsndio-dev -y
+
+    - name: cargo clippy
+      shell: bash
+      run: cargo clippy --all-targets --all-features --release --verbose -- -D warnings
+
+    - name: cargo test
+      shell: bash
+      run: cargo test --release --verbose
+
+    - name: cargo build
+      shell: bash
+      run: cargo build --release --verbose
+
+    - name: Check repo clean
+      shell: bash
+      run: git diff --exit-code
+
+    - name: App version
+      shell: bash
+      run: target/release/${NAME} -v
+
+    - name: Pre-package
+      shell: bash
+      run: mkdir dist
+
+    - name: Package (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      working-directory: dist
+      run: |
+        cp ../target/release/${NAME}.exe .
+        cp ../target/release/${NAME}.pdb .
+
+    - name: Package (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      working-directory: dist
+      run: |
+        brew install p7zip
+        cp ../target/release/${NAME} .
+        cp -r ../target/release/${NAME}.dSYM .
+
+    - name: Package (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      working-directory: dist
+      run: |
+        cp ../target/release/${NAME} .
+
+    - name: Make artifact name
+      id: artifact_name
+      shell: bash
+      run: echo ::set-output name=value::${{ env.NAME }}-$(git rev-parse --short $GITHUB_SHA)-${{ matrix.os_kind }}-${{ matrix.arch }}.zip
+
+    - name: Post-package
+      shell: bash
+      working-directory: dist
+      run: 7z a ../${{ steps.artifact_name.outputs.value }} *
+
+    - name: Upload
+      uses: actions/upload-artifact@v1
+      with:
+        name: ${{ steps.artifact_name.outputs.value }}
+        path: ${{ steps.artifact_name.outputs.value }}
