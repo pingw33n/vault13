@@ -53,17 +53,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: ${{ env.RUST_VERSION }}
-        target: ${{ matrix.target }}
-        override: true
-
-    - name: Setup vcvars (Windows)
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: call "${{ matrix.vcvars_cmd }}" ${{ matrix.vc_arch }}
+    - name: Install 32-bit compatibility libs (Linux x86)
+      if: runner.os == 'Linux' && matrix.arch == 'x86'
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install gcc-multilib g++-multilib -y
 
     - name: Install deps (Linux)
       if: runner.os == 'Linux'
@@ -71,6 +66,18 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install libsndio-dev -y
+
+    - name: Install Rust
+      shell: bash
+      run: |
+        rustup default ${{ env.RUST_VERSION }}-${{ matrix.target }}
+        rustc -vV
+        cargo -vV
+
+    - name: Setup vcvars (Windows)
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: call "${{ matrix.vcvars_cmd }}" ${{ matrix.vc_arch }}
 
     - name: cargo test
       shell: bash
@@ -143,28 +150,34 @@ jobs:
       # This must match the artifact_name step from the 'build' job above.
       run: echo ::set-output name=value::${{ env.NAME }}-${GITHUB_REF#refs/tags/}
 
-    - name: Download
+    - name: Download Linux x86
       uses: actions/download-artifact@v1
       with:
         name: ${{ steps.artifact_base_name.outputs.value }}-linux-x86.zip
         path: .
 
-    - name: Download
+    - name: Download Linux x86_64
+      uses: actions/download-artifact@v1
+      with:
+        name: ${{ steps.artifact_base_name.outputs.value }}-linux-x86_64.zip
+        path: .
+
+    - name: Download MacOS x86_64
       uses: actions/download-artifact@v1
       with:
         name: ${{ steps.artifact_base_name.outputs.value }}-macos-x86_64.zip
         path: .
 
-    - name: Download
-      uses: actions/download-artifact@v1
-      with:
-        name: ${{ steps.artifact_base_name.outputs.value }}-windows-x86_64.zip
-        path: .
-
-    - name: Download
+    - name: Download Windows x86
       uses: actions/download-artifact@v1
       with:
         name: ${{ steps.artifact_base_name.outputs.value }}-windows-x86.zip
+        path: .
+
+    - name: Download Windows x86_64
+      uses: actions/download-artifact@v1
+      with:
+        name: ${{ steps.artifact_base_name.outputs.value }}-windows-x86_64.zip
         path: .
 
     - run: ls -l *.zip
