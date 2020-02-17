@@ -60,8 +60,16 @@ jobs:
         sudo apt-get update
         sudo apt-get install gcc-multilib g++-multilib -y
 
-    - name: Install deps (Linux)
-      if: runner.os == 'Linux'
+    - name: Install deps (Linux x86)
+      if: runner.os == 'Linux' && matrix.arch == 'x86'
+      shell: bash
+      run: |
+        sudo dpkg --add-architecture i386
+        sudo apt-get update
+        sudo apt-get install libsndio-dev:i386 -y
+
+    - name: Install deps (Linux x86_64)
+      if: runner.os == 'Linux' && matrix.arch == 'x86_64'
       shell: bash
       run: |
         sudo apt-get update
