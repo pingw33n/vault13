@@ -27,9 +27,6 @@ pub enum UiCommandData {
         id: u32,
     },
     Scroll,
-
-    #[doc(hidden)]
-    __NonExhaustive,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

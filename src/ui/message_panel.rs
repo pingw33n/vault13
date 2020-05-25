@@ -372,7 +372,6 @@ impl Widget for MessagePanel {
                     self.update_cursor(&mut ctx);
                 }
             }
-            _ => {}
         }
     }
 

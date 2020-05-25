@@ -37,8 +37,6 @@ pub enum Event {
         button: MouseButton,
     },
     Tick,
-    #[doc(hidden)]
-    __NonExhaustive,
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd)]
