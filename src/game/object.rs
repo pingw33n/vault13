@@ -3,7 +3,7 @@ use enumflags2_derive::EnumFlags;
 use enum_primitive_derive::Primitive;
 use if_chain::if_chain;
 use slotmap::{SecondaryMap, SlotMap};
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell, RefMut};
 use std::cmp;
 use std::mem;
 use std::rc::Rc;
@@ -450,8 +450,16 @@ impl Objects {
             .unwrap()
     }
 
-    pub fn get(&self, h: Handle) -> &RefCell<Object> {
+    pub fn get_ref(&self, h: Handle) -> &RefCell<Object> {
         &self.objects[h.0]
+    }
+
+    pub fn get(&self, h: Handle) -> Ref<Object> {
+        self.get_ref(h).borrow()
+    }
+
+    pub fn get_mut(&self, h: Handle) -> RefMut<Object> {
+        self.get_ref(h).borrow_mut()
     }
 
     pub fn light_test(&self, light_test: LightTest) -> LightTestResult {
@@ -460,7 +468,7 @@ impl Objects {
         let dir = light_test.direction;
 
         for &objh in self.at(light_test.point) {
-            let obj = self.get(objh).borrow();
+            let obj = self.get(objh);
             if obj.flags.contains(Flag::TurnedOff) {
                 continue;
             }
@@ -531,7 +539,7 @@ impl Objects {
                     point: Point::new(x, y),
                 };
                 for &objh in self.at(pos) {
-                    let obj = self.get(objh).borrow_mut();
+                    let obj = self.get_mut(objh);
                     obj.render_outline(canvas, &self.frm_db, tile_grid);
                 }
             }
@@ -550,14 +558,14 @@ impl Objects {
 
     pub fn set_screen_shift(&mut self, h: Handle, shift: Point) {
         let pos = self.remove_from_tile_grid(h);
-        self.get(h).borrow_mut().screen_shift = shift;
+        self.get_mut(h).screen_shift = shift;
         self.insert_into_tile_grid(h, pos, false);
     }
 
     pub fn add_screen_shift(&mut self, h: Handle, shift: Point) -> Point {
         let pos = self.remove_from_tile_grid(h);
         let new_shift = {
-            let mut obj = self.get(h).borrow_mut();
+            let mut obj = self.get_mut(h);
             obj.screen_shift += shift;
             obj.screen_shift
         };
@@ -573,7 +581,7 @@ impl Objects {
     // dude_stand()
     pub fn make_standing(&mut self, h: Handle, frm_db: &FrameDb) {
         let shift = {
-            let mut obj = self.get(h).borrow_mut();
+            let mut obj = self.get_mut(h);
             let mut shift = Point::new(0, 0);
             let fid = if let FrameId::Critter(critter_fid) = obj.fid {
                 if critter_fid.weapon() != WeaponKind::Unarmed {
@@ -616,7 +624,7 @@ impl Objects {
             if h == obj {
                 return false;
             }
-            let o = self.get(h).borrow();
+            let o = self.get(h);
             match o.fid.kind() {
                 | EntityKind::Critter
                 | EntityKind::Scenery
@@ -637,7 +645,7 @@ impl Objects {
         for dir in Direction::iter() {
             if let Some(near) = self.tile_grid.go(pos.point, dir, 1) {
                 for &objh in self.at(near.elevated(pos.elevation)) {
-                    if self.get(objh).borrow().flags.contains(Flag::MultiHex) &&
+                    if self.get(objh).flags.contains(Flag::MultiHex) &&
                         check(objh)
                     {
                         return true;
@@ -654,7 +662,7 @@ impl Objects {
     #[must_use]
     pub fn is_sight_blocked_at(&self, obj: Handle, pos: EPoint) -> bool {
         for &h in self.at(pos) {
-            let o = &self.get(h).borrow();
+            let o = &self.get(h);
             if !o.flags.contains(Flag::TurnedOff) &&
                 !o.flags.contains(Flag::LightThru) &&
                 (o.kind() == EntityKind::Scenery || o.kind() == EntityKind::Wall) &&
@@ -671,7 +679,7 @@ impl Objects {
     pub fn shot_blocker_at(&self, obj: Handle, pos: EPoint) -> Option<Handle> {
         let check = |pos, multi_hex_only| {
             for &h in self.at(pos) {
-                let o = &self.get(h).borrow();
+                let o = &self.get(h);
                 if multi_hex_only && !o.flags.contains(Flag::MultiHex) {
                     return None;
                 }
@@ -716,8 +724,8 @@ impl Objects {
     // combat_is_shot_blocked()
     #[must_use]
     pub fn is_shot_blocked(&self, shooter: Handle, target: Handle) -> bool {
-        let pos = self.get(shooter).borrow().pos.unwrap();
-        let target_pos = self.get(target).borrow().pos.unwrap();
+        let pos = self.get(shooter).pos.unwrap();
+        let target_pos = self.get(target).pos.unwrap();
         assert_eq!(pos.elevation, target_pos.elevation);
         let mut last_blocker = None;
         for p in hex::ray(pos.point, target_pos.point) {
@@ -728,7 +736,7 @@ impl Objects {
                 if let Some(blocker) = blocker;
                 then {
                     if blocker != shooter && blocker != target {
-                        let o = self.get(blocker).borrow();
+                        let o = self.get(blocker);
                         if o.kind() != EntityKind::Critter {
                             return true;
                         }
@@ -749,8 +757,8 @@ impl Objects {
     /// 2. Screen distance between objects is within the limit.
     // action_can_talk_to()
     pub fn can_talk(&self, obj1: Handle, obj2: Handle) -> Result<(), CantTalkSpatial> {
-        let o1 = self.get(obj1).borrow();
-        let o2 = self.get(obj2).borrow();
+        let o1 = self.get(obj1);
+        let o2 = self.get(obj2);
 
         // TODO maybe return Unreachable error instead.
         let p1 = o1.pos.unwrap();
@@ -788,7 +796,7 @@ impl Objects {
     /// Whether `obj` can be talked to.
     // obj_action_can_talk_to()
     pub fn can_talk_to(&self, obj: Handle) -> bool {
-        let obj = self.get(obj).borrow();
+        let obj = self.get(obj);
         if_chain! {
             if let SubObject::Critter(c) = &obj.sub;
             if c.is_active();
@@ -803,7 +811,7 @@ impl Objects {
 
     // obj_action_can_use()
     pub fn can_use(&self, obj: Handle) -> bool {
-        if let Some(proto) = self.get(obj).borrow().proto.as_ref() {
+        if let Some(proto) = self.get(obj).proto.as_ref() {
             let proto = proto.borrow();
             match proto.id() {
                 | ProtoId::ACTIVE_DYNAMITE
@@ -819,7 +827,7 @@ impl Objects {
 
     // item_get_type()
     pub fn item_kind(&self, obj: Handle) -> Option<ItemKind> {
-        let obj = self.get(obj).borrow();
+        let obj = self.get(obj);
         if obj.kind() == EntityKind::Item &&
             obj.proto_id().unwrap() == ProtoId::SHIV
         {
@@ -835,7 +843,7 @@ impl Objects {
     pub fn can_push(&self, pusher: Handle, pushed: Handle, scripts: &Scripts,
         in_combat: bool) -> bool
     {
-        let pushedo = self.get(pushed).borrow();
+        let pushedo = self.get(pushed);
         if pushedo.kind() != EntityKind::Critter
             || pusher == pushed
             || !pushedo.sub.critter().unwrap().is_active()
@@ -876,7 +884,7 @@ impl Objects {
         allow_neighbor_tile: bool)
         -> Option<Vec<Direction>>
     {
-        let o = self.get(obj).borrow();
+        let o = self.get(obj);
         let from = o.pos?;
 
         let to_blocked = if allow_neighbor_tile {
@@ -895,7 +903,7 @@ impl Objects {
                 } else if let Some(proto) = o.proto.as_ref() {
                     let radioactive_goo = self.at(p)
                         .iter()
-                        .any(|&h| self.get(h).borrow().proto_id()
+                        .any(|&h| self.get(h).proto_id()
                             .map(|pid| pid.is_radioactive_goo())
                             .unwrap_or(false));
                     let cost = if radioactive_goo {
@@ -928,7 +936,7 @@ impl Objects {
     }
 
     pub fn bounds(&self, obj: Handle, tile_grid: &impl TileGridView) -> Rect {
-        self.get(obj).borrow().bounds(&self.frm_db, tile_grid)
+        self.get(obj).bounds(&self.frm_db, tile_grid)
     }
 
     pub fn hit_test(&self, p: EPoint, screen_rect: Rect, tile_grid: &impl TileGridView,
@@ -943,7 +951,7 @@ impl Objects {
                     point: Point::new(x, y),
                 };
                 for &objh in self.at(pos).iter().rev() {
-                    let obj = self.get(objh).borrow();
+                    let obj = self.get(objh);
 
                     let mut hit = if let Some(hit) = obj.hit_test(p.point, &self.frm_db, tile_grid) {
                         hit
@@ -965,7 +973,7 @@ impl Objects {
     }
 
     pub fn distance(&self, from: Handle, to: Handle) -> Option<u32> {
-        self.get(from).borrow().distance(&self.get(to).borrow())
+        self.get(from).distance(&self.get(to))
     }
 
     // obj_intersects_with()
@@ -1024,7 +1032,7 @@ impl Objects {
                     point: Point::new(x, y),
                 };
                 for &objh in self.at(pos) {
-                    let mut obj = self.get(objh).borrow_mut();
+                    let mut obj = self.get_mut(objh);
                     if flat && !obj.flags.contains(Flag::Flat) {
                         break;
                     } else if !flat && obj.flags.contains(Flag::Flat) {
@@ -1077,7 +1085,7 @@ impl Objects {
     fn insert_into_tile_grid(&mut self, h: Handle, pos: Option<EPoint>, reset_screen_shift: bool) {
         if let Some(pos) = pos {
             {
-                let mut obj = self.get(h).borrow_mut();
+                let mut obj = self.get_mut(h);
                 obj.pos = Some(pos);
                 if reset_screen_shift {
                     obj.screen_shift = Point::new(0, 0);
@@ -1086,15 +1094,15 @@ impl Objects {
 
             let i = {
                 let list = self.at(pos);
-                let obj = self.get(h).borrow();
+                let obj = self.get(h);
                 match list.binary_search_by(|&h| {
-                    let o = self.get(h).borrow();
+                    let o = self.get(h);
                     self.cmp_objs(&o, &obj)
                 }) {
                     Ok(mut i) =>  {
                         // Append to the current group of equal objects.
                         while i < list.len()
-                            && self.cmp_objs(&obj, &self.get(list[i]).borrow()) == cmp::Ordering::Equal
+                            && self.cmp_objs(&obj, &self.get(list[i])) == cmp::Ordering::Equal
                         {
                             i += 1;
                         }
@@ -1110,7 +1118,7 @@ impl Objects {
     }
 
     fn remove_from_tile_grid(&mut self, h: Handle) -> Option<EPoint> {
-        let old_pos = mem::replace(&mut self.get(h).borrow_mut().pos, None);
+        let old_pos = mem::replace(&mut self.get_mut(h).pos, None);
         let list = if let Some(old_pos) = old_pos {
             self.at_mut(old_pos)
         } else {

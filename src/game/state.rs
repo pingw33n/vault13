@@ -182,7 +182,7 @@ impl GameState {
         {
             debug_time!("preloading object FIDs");
             for obj in world.objects().iter() {
-                for_each_direction(world.objects().get(obj).borrow().fid, |fid| {
+                for_each_direction(world.objects().get(obj).fid, |fid| {
                     if let Err(e) = self.frm_db.get(fid) {
                         warn!("error preloading {:?}: {:?}", fid, e);
                     }
@@ -270,7 +270,7 @@ impl GameState {
             }
             Action::Rotate => {
                 let world = self.world.borrow_mut();
-                let mut obj = world.objects().get(obj).borrow_mut();
+                let mut obj = world.objects().get_mut(obj);
                 if let Some(signal) = obj.sequence.take() {
                     signal.cancel();
                 }
@@ -309,7 +309,7 @@ impl GameState {
     fn actions(&self, objh: object::Handle) -> Vec<Action> {
         let mut r = Vec::new();
         let world = self.world.borrow();
-        let obj = world.objects().get(objh).borrow();
+        let obj = world.objects().get(objh);
         match obj.kind() {
             EntityKind::Critter => {
                 if Some(objh) == world.dude_obj() {
@@ -364,8 +364,8 @@ impl GameState {
     {
         let sid = {
             let world = self.world.borrow();
-            let lookero = world.objects().get(looker).borrow();
-            let lookedo = world.objects().get(looked).borrow();
+            let lookero = world.objects().get(looker);
+            let lookedo = world.objects().get(looked);
             if lookero.sub.critter().map(|c| c.is_dead()).unwrap_or(true)
                 // TODO This is only useful for mapper?
                 || lookedo.kind() == EntityKind::SqrTile
@@ -396,7 +396,7 @@ impl GameState {
         }
 
         let world = self.world.borrow();
-        let lookedo = world.objects().get(looked).borrow();
+        let lookedo = world.objects().get(looked);
         let msg_id = if lookedo.sub.critter().map(|c| c.is_dead()).unwrap_or(false) {
             491 + random(0, 1)
         } else {
@@ -426,8 +426,8 @@ impl GameState {
     {
         let sid = {
             let world = self.world.borrow();
-            let examinero = world.objects().get(examiner).borrow();
-            let examinedo = world.objects().get(examined).borrow();
+            let examinero = world.objects().get(examiner);
+            let examinedo = world.objects().get(examined);
             if examinero.sub.critter().map(|c| c.is_dead()).unwrap_or(false)
                 // TODO This is only useful for mapper?
                 || examinedo.kind() == EntityKind::SqrTile
@@ -460,7 +460,7 @@ impl GameState {
 
         if !script_overrides {
             let world = self.world.borrow();
-            let examinedo = world.objects().get(examined).borrow();
+            let examinedo = world.objects().get(examined);
             if !examinedo.sub.critter().map(|c| c.is_dead()).unwrap_or(false) {
                 let descr = examinedo.proto.as_ref()
                     .and_then(|p| {
@@ -508,12 +508,12 @@ impl GameState {
                 objs.is_shot_blocked(talker, talked)
             {
                 // TODO original cancels only Walk/Run animation, is this important?
-                objs.get(talker).borrow_mut().cancel_sequence();
+                objs.get_mut(talker).cancel_sequence();
 
-                let dest = objs.get(talked).borrow().pos.unwrap().point;
+                let dest = objs.get(talked).pos.unwrap().point;
                 // TODO (move_to_object()) shorten the move path by 1 tile if the `talked` is MultiHex
                 let (seq, cancel) = Move::new(talker, dest, CritterAnim::Running).cancellable();
-                objs.get(talker).borrow_mut().sequence = Some(cancel);
+                objs.get_mut(talker).sequence = Some(cancel);
                 self.sequencer.start(seq
                     .then(Stand::new(talker))
                     .then(PushEvent::new(sequence::Event::Talk { talker, talked })));
@@ -530,12 +530,12 @@ impl GameState {
             let world = &mut self.world.borrow_mut();
             // TODO optimize this.
             for obj in world.objects().iter() {
-                world.objects().get(obj).borrow_mut().cancel_sequence();
+                world.objects().get_mut(obj).cancel_sequence();
             }
             self.sequencer.cleanup(&mut sequence::Cleanup {
                 world,
             });
-            let script = world.objects().get(talked).borrow().script;
+            let script = world.objects().get(talked).script;
             if let Some((sid, _)) = script {
                 match self.scripts.execute_predefined_proc(sid, PredefinedProc::Talk,
                     &mut script::Context {
@@ -613,7 +613,7 @@ impl AppState for GameState {
             Event::KeyDown { keycode: Some(Keycode::A), .. } => {
                 let dude_obj = world.dude_obj().unwrap();
                 let new_pos = {
-                    let obj = world.objects().get(dude_obj).borrow_mut();
+                    let obj = world.objects().get_mut(dude_obj);
                     let mut new_pos = obj.pos.unwrap();
                     new_pos.elevation += 1;
                     while new_pos.elevation < ELEVATION_COUNT && !world.has_elevation(new_pos.elevation) {
@@ -628,7 +628,7 @@ impl AppState for GameState {
             Event::KeyDown { keycode: Some(Keycode::Z), .. } => {
                 let dude_obj = world.dude_obj().unwrap();
                 let new_pos = {
-                    let obj = world.objects().get(dude_obj).borrow_mut();
+                    let obj = world.objects().get_mut(dude_obj);
                     let mut new_pos = obj.pos.unwrap();
                     if new_pos.elevation > 0 {
                         new_pos.elevation -= 1;
@@ -705,7 +705,7 @@ impl AppState for GameState {
                 if action {
                     let world = self.world.borrow();
                     let dude_objh = world.dude_obj().unwrap();
-                    if let Some(signal) = world.objects().get(dude_objh).borrow_mut().sequence.take() {
+                    if let Some(signal) = world.objects().get_mut(dude_objh).sequence.take() {
                         signal.cancel();
                     }
 
@@ -715,7 +715,7 @@ impl AppState for GameState {
                         CritterAnim::Running
                     };
                     let (seq, signal) = Move::new(dude_objh, pos.point, anim).cancellable();
-                    world.objects().get(dude_objh).borrow_mut().sequence = Some(signal);
+                    world.objects().get_mut(dude_objh).sequence = Some(signal);
                     self.sequencer.start(seq.then(Stand::new(dude_objh)));
                 } else {
                     let mut wv = ui.widget_mut::<WorldView>(self.world_view);

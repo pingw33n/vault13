@@ -219,7 +219,7 @@ pub fn dude_obj(ctx: Context) -> Result<()> {
 pub fn elevation(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
-    let pos = ctx.ext.world.objects().get(obj).borrow().pos;
+    let pos = ctx.ext.world.objects().get(obj).pos;
     let r = pos.map(|p| p.elevation as i32).unwrap();
     ctx.prg.data_stack.push(r.into())?;
     log_a1r1!(ctx.prg, obj, r);
@@ -636,7 +636,7 @@ pub fn obj_art_fid(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
 
-    let r = ctx.ext.world.objects().get(obj).borrow().fid;
+    let r = ctx.ext.world.objects().get(obj).fid;
 
     ctx.prg.data_stack.push(Value::Int(r.packed() as i32))?;
     log_a1r1!(ctx.prg, obj, r);
@@ -716,7 +716,7 @@ pub fn obj_pid(ctx: Context) -> Result<()> {
     }
 
     let r = obj
-        .and_then(|obj| ctx.ext.world.objects().get(obj).borrow().proto_id())
+        .and_then(|obj| ctx.ext.world.objects().get(obj).proto_id())
         .map(|pid| pid.pack() as i32)
         .unwrap_or(-1);
     ctx.prg.data_stack.push(r.into())?;
@@ -751,7 +751,7 @@ pub fn override_map_start(ctx: Context) -> Result<()> {
     let obj = world.dude_obj().unwrap();
     let pos = EPoint::new(elevation, Point::new(x, y));
     world.set_object_pos(obj, pos);
-    world.objects_mut().get(obj).borrow_mut().direction = direction;
+    world.objects_mut().get_mut(obj).direction = direction;
 
     world.camera_mut().look_at(pos.point);
 
@@ -820,7 +820,7 @@ pub fn reg_anim_func(ctx: Context) -> Result<()> {
         RegAnimFuncOp::End => {
             for (objh, seq) in ctx.prg.instr_state.sequences.drain() {
                 let (seq, cancel) = seq.cancellable();
-                let mut obj = ctx.ext.world.objects().get(objh).borrow_mut();
+                let mut obj = ctx.ext.world.objects().get_mut(objh);
                 assert!(obj.sequence.is_none());
                 obj.sequence = Some(cancel);
                 ctx.ext.sequencer.start(seq);
@@ -831,7 +831,7 @@ pub fn reg_anim_func(ctx: Context) -> Result<()> {
         RegAnimFuncOp::Clear => {
             let obj = arg.into_object()?;
             if let Some(obj) = obj {
-                if let Some(s) = ctx.ext.world.objects().get(obj).borrow_mut().sequence.take() {
+                if let Some(s) = ctx.ext.world.objects().get_mut(obj).sequence.take() {
                     s.cancel();
                 }
             }
@@ -905,7 +905,7 @@ pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
         .elevated(elevation);
 
     let r = ctx.ext.world.objects().at(pos).iter()
-        .any(|&obj| ctx.ext.world.objects().get(obj).borrow().proto_id() == Some(pid));
+        .any(|&obj| ctx.ext.world.objects().get(obj).proto_id() == Some(pid));
     ctx.prg.data_stack.push(r.into())?;
 
     log_a3r1!(ctx.prg, tile_num, elevation, pid, ctx.prg.data_stack.top().unwrap());
@@ -932,7 +932,7 @@ pub fn tile_in_tile_rect(ctx: Context) -> Result<()> {
 pub fn tile_num(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
-    let pos = ctx.ext.world.objects().get(obj).borrow().pos;
+    let pos = ctx.ext.world.objects().get(obj).pos;
     let r = pos.map(|p| {
         // FIXME clean up this
         use crate::graphics::geometry::hex::TileGrid;

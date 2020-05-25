@@ -45,7 +45,7 @@ impl FrameAnim {
     }
 
     fn init(&mut self, world: &mut World) {
-        let mut obj = world.objects().get(self.obj).borrow_mut();
+        let mut obj = world.objects().get_mut(self.obj);
 
         obj.fid = if_chain! {
             if let Some(anim) = self.anim;
@@ -85,7 +85,7 @@ impl Sequence for FrameAnim {
         }
 
         let shift = {
-            let mut obj = ctx.world.objects().get(self.obj).borrow_mut();
+            let mut obj = ctx.world.objects().get_mut(self.obj);
 
             let frame_set = ctx.world.frm_db().get(obj.fid).unwrap();
             let frames = &frame_set.frame_lists[obj.direction].frames;

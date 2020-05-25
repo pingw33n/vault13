@@ -45,7 +45,7 @@ impl Fidget {
         for y in hex_rect.top..hex_rect.bottom {
             for x in hex_rect.left..hex_rect.right {
                 for &objh in world.objects().at(EPoint::new(elevation, Point::new(x, y))) {
-                    let obj = world.objects().get(objh).borrow();
+                    let obj = world.objects().get(objh);
                     if obj.flags.contains(Flag::TurnedOff) ||
                         obj.fid.kind() != EntityKind::Critter ||
                         obj.is_critter_dead() ||
@@ -62,7 +62,7 @@ impl Fidget {
 
         if !objs.is_empty() {
             let objh = objs[random(0, objs.len() as i32 - 1) as usize];
-            let mut obj = world.objects().get(objh).borrow_mut();
+            let mut obj = world.objects().get_mut(objh);
 
             if obj.has_running_sequence() {
                 debug!("fidget: object {:?} already has a running sequence", objh);

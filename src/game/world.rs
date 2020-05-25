@@ -185,11 +185,11 @@ impl World {
     }
 
     pub fn get_dude_obj(&self) -> Option<&RefCell<Object>> {
-        self.dude_obj.map(|h| self.objects.get(h))
+        self.dude_obj.map(|h| self.objects.get_ref(h))
     }
 
     pub fn elevation(&self) -> u32 {
-        self.objects.get(self.dude_obj.expect("no dude_obj")).borrow()
+        self.objects.get(self.dude_obj.expect("no dude_obj"))
             .pos.expect("dude_obj has no pos")
             .elevation
     }
@@ -251,7 +251,7 @@ impl World {
             .filter(filter_dude)
             .filter(|(_, h)| !h.translucent && !h.with_egg)
             .filter(|&&(o, _)| {
-                let obj = self.objects.get(o).borrow();
+                let obj = self.objects.get(o);
                 if let SubObject::Critter(critter) = &obj.sub {
                     !critter.combat.damage_flags.intersects(DamageFlag::Dead | DamageFlag::KnockedOut)
                 } else {
@@ -275,7 +275,7 @@ impl World {
         if Some(obj) == self.dude_obj {
             Some(self.dude_name.clone())
         } else {
-            let obj = self.objects.get(obj).borrow();
+            let obj = self.objects.get(obj);
             if_chain! {
                 if obj.kind() == EntityKind::Critter;
                 if let Some((_, prg_id)) = obj.script;
@@ -360,7 +360,7 @@ impl World {
         let mut pos = self.camera.hex().from_screen(self.camera.viewport.center());
         // Original doesn't use tile centers when measuring screen distance between dude and camera.
         let dude_pos_scr = hex::to_screen(
-            self.objects.get(self.dude_obj.unwrap()).borrow().pos.unwrap().point) + hex::TILE_CENTER;
+            self.objects.get(self.dude_obj.unwrap()).pos.unwrap().point) + hex::TILE_CENTER;
         let elevation = self.elevation();
         while scrolled < amount {
             let new_pos = dir.go(pos);
@@ -376,7 +376,7 @@ impl World {
 
             let blocker = self.objects.at(new_pos.elevated(elevation))
                 .iter()
-                .any(|&h| self.objects.get(h).borrow()
+                .any(|&h| self.objects.get(h)
                     .proto_id() == Some(ProtoId::SCROLL_BLOCKER));
             if blocker {
                 break;
@@ -393,7 +393,7 @@ impl World {
 
     fn update_light_grid(objects: &Objects, light_grid: &mut LightGrid, h: object::Handle,
             factor: i32) {
-        let obj = objects.get(h).borrow();
+        let obj = objects.get(h);
         if let Some(pos) = obj.pos {
             light_grid.update(pos,
                 obj.light_emitter.radius,
@@ -405,7 +405,7 @@ impl World {
     fn egg(&self) -> Option<Egg> {
         if let Some(dude_obj) = self.dude_obj {
             Some(Egg {
-                pos: self.objects().get(dude_obj).borrow().pos.unwrap().point,
+                pos: self.objects().get(dude_obj).pos.unwrap().point,
                 fid: FrameId::EGG,
             })
         } else {
@@ -416,7 +416,7 @@ impl World {
     fn render_floating_texts(&self, canvas: &mut dyn Canvas) {
         for floating_text in &self.floating_texts {
             let screen_pos = if let Some(obj) = floating_text.obj {
-                let pos = if let Some(pos) = self.objects.get(obj).borrow().pos {
+                let pos = if let Some(pos) = self.objects.get(obj).pos {
                     pos
                 } else {
                     debug!("not showing floating text for {:?} because it is not on the hex grid",
