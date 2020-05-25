@@ -602,6 +602,13 @@ impl HandleEvent<'_> {
     pub fn release(&mut self) {
         *self.capture = None;
     }
+
+    pub fn out(&mut self, event_data: command::UiCommandData) {
+        self.out.push(UiCommand {
+            source: self.this,
+            data: event_data,
+        });
+    }
 }
 
 pub struct Render<'a> {
@@ -626,7 +633,7 @@ pub trait Widget: Downcast {
 
     fn handle_event(&mut self, ctx: HandleEvent);
 
-    /// Called after `hanled_event()` and before `render()`.
+    /// Called after `handle_event()` and before `render()`.
     /// Should be used to sync the directly altered widget state to the UI.
     fn sync(&mut self, _ctx: Sync) {}
 

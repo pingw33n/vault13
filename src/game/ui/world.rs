@@ -14,7 +14,7 @@ use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render;
 use crate::graphics::sprite::{OutlineStyle, Sprite};
 use crate::ui::*;
-use crate::ui::command::{UiCommand, UiCommandData, ObjectPickKind};
+use crate::ui::command::{UiCommandData, ObjectPickKind};
 
 use super::action_menu::{Action, Placement};
 
@@ -129,17 +129,14 @@ impl Widget for WorldView {
         ctx.base.set_cursor(Some(Cursor::Hidden));
     }
 
-    fn handle_event(&mut self, ctx: HandleEvent) {
+    fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
             Event::MouseMove { pos } => {
                 match self.pick_mode {
                     PickMode::Hex => {
                         let (pos, changed) = self.update_hex_cursor_pos(pos);
                         if changed {
-                            ctx.out.push(UiCommand {
-                                source: ctx.this,
-                                data: UiCommandData::HexPick { action: false, pos },
-                            });
+                            ctx.out(UiCommandData::HexPick { action: false, pos });
                         }
                     }
                     PickMode::Object => {
@@ -164,20 +161,14 @@ impl Widget for WorldView {
                         match self.pick_mode {
                             PickMode::Hex => {
                                 let (pos, _) = self.update_hex_cursor_pos(pos);
-                                ctx.out.push(UiCommand {
-                                    source: ctx.this,
-                                    data: UiCommandData::HexPick { action: true, pos },
-                                });
+                                ctx.out(UiCommandData::HexPick { action: true, pos });
                             }
                             PickMode::Object => {
                                 let world = self.world.borrow();
                                 if let Some(obj) = world.pick_object(pos, true) {
-                                    ctx.out.push(UiCommand {
-                                        source: ctx.this,
-                                        data: UiCommandData::ObjectPick {
-                                            kind: ObjectPickKind::DefaultAction,
-                                            obj,
-                                        },
+                                    ctx.out(UiCommandData::ObjectPick {
+                                        kind: ObjectPickKind::DefaultAction,
+                                        obj,
                                     });
                                 }
                             }
@@ -193,10 +184,7 @@ impl Widget for WorldView {
                                 ctx.base.set_cursor(Some(Cursor::Hidden));
                                 let (pos, changed) = self.update_hex_cursor_pos(pos);
                                 if changed {
-                                    ctx.out.push(UiCommand {
-                                        source: ctx.this,
-                                        data: UiCommandData::HexPick { action: false, pos },
-                                    });
+                                    ctx.out(UiCommandData::HexPick { action: false, pos });
                                 }
                                 PickMode::Hex
                             }
@@ -219,12 +207,9 @@ impl Widget for WorldView {
                         self.action_menu_state = None;
                         self.default_action_icon = None;
 
-                        ctx.out.push(UiCommand {
-                            source: ctx.this,
-                            data: UiCommandData::ObjectPick {
-                                kind: ObjectPickKind::ActionMenu,
-                                obj,
-                            },
+                        ctx.out(UiCommandData::ObjectPick {
+                            kind: ObjectPickKind::ActionMenu,
+                            obj,
                         });
                     }
                 }
@@ -234,12 +219,9 @@ impl Widget for WorldView {
                     PickState::Pending { start, pos } => if ctx.now - start >= Duration::from_millis(500) {
                         let world = self.world.borrow();
                         if let Some(obj) = world.pick_object(pos, true) {
-                            ctx.out.push(UiCommand {
-                                source: ctx.this,
-                                data: UiCommandData::ObjectPick {
-                                    kind: ObjectPickKind::Hover,
-                                    obj,
-                                },
+                            ctx.out(UiCommandData::ObjectPick {
+                                kind: ObjectPickKind::Hover,
+                                obj,
                             });
                         }
                         self.pick_state = PickState::Idle;
