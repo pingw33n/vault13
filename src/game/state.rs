@@ -787,7 +787,6 @@ impl AppState for GameState {
                 let scrolled = self.world.borrow_mut().scroll(dir, 1) > 0;
                 ui.widget_mut::<ScrollArea>(*widg).set_enabled(scrolled);
             }
-            _ => {}
         }
     }
 

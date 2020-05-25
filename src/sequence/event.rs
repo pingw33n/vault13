@@ -5,9 +5,6 @@ use super::*;
 
 #[derive(Clone, Debug)]
 pub enum Event {
-    #[doc(hidden)]
-    __NonExhaustive,
-
     ObjectMoved {
         obj: object::Handle,
         old_pos: EPoint,

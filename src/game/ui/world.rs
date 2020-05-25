@@ -228,7 +228,6 @@ impl Widget for WorldView {
                     }
                 }
             }
-            _ => {}
         }
     }
 
