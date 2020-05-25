@@ -354,10 +354,7 @@ impl Widget for MessagePanel {
                     }
                     MouseControl::Pick => {
                         if let Some(highlighted) = self.highlighted {
-                            ctx.out.push(UiCommand {
-                                source: ctx.this,
-                                data: UiCommandData::Pick { id: highlighted as u32 },
-                            });
+                            ctx.out(UiCommandData::Pick { id: highlighted as u32 });
                         }
                     }
                 }
