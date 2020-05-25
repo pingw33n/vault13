@@ -38,7 +38,7 @@ impl Move {
     }
 
     fn init_step(&mut self, world: &mut World) {
-        let mut obj = world.objects().get(self.obj).borrow_mut();
+        let mut obj = world.objects().get_mut(self.obj);
 
         // Path can be empty in Started state.
         if !self.path.is_empty() {
@@ -89,7 +89,7 @@ impl Sequence for Move {
 
         let new_obj_pos_and_shift = {
             let (shift, pos) = {
-                let mut obj = ctx.world.objects().get(self.obj).borrow_mut();
+                let mut obj = ctx.world.objects().get_mut(self.obj);
 
                 let frame_set = ctx.world.frm_db().get(obj.fid).unwrap();
                 let frames = &frame_set.frame_lists[obj.direction].frames;
@@ -113,7 +113,7 @@ impl Sequence for Move {
                 next_offset.y < 0 && shift.y <= next_offset.y
             {
                 let shift = {
-                    let obj = ctx.world.objects().get(self.obj).borrow();
+                    let obj = ctx.world.objects().get(self.obj);
                     obj.screen_shift - next_offset
                 };
                 let pos = pos.unwrap();
@@ -124,7 +124,7 @@ impl Sequence for Move {
             }
         };
         if let Some((pos, shift)) = new_obj_pos_and_shift {
-            let old_pos = ctx.world.objects().get(self.obj).borrow().pos.unwrap();
+            let old_pos = ctx.world.objects().get(self.obj).pos.unwrap();
             ctx.world.set_object_pos(self.obj, pos);
 
             ctx.out.push(Event::ObjectMoved {
@@ -140,7 +140,7 @@ impl Sequence for Move {
             if self.path_pos >= self.path.len() {
                 if pos.point != self.to {
                     // Make object look into target's direction.
-                    ctx.world.objects().get(self.obj).borrow_mut().direction =
+                    ctx.world.objects().get_mut(self.obj).direction =
                         hex::direction(pos.point, self.to);
                 }
                 self.state = State::Done;

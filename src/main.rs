@@ -340,7 +340,7 @@ fn main() {
             } else {
                 (Point::new(-1, -1), Point::new(-1, -1))
             };
-            let dude_pos = world.objects().get(world.dude_obj().unwrap()).borrow().pos.unwrap().point;
+            let dude_pos = world.objects().get(world.dude_obj().unwrap()).pos.unwrap().point;
             let msg = format!(
                 "mouse: {}, {}\n\
                  mouse hex: {}, {} ({})\n\

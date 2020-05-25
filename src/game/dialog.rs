@@ -55,7 +55,7 @@ impl Dialog {
             Panel::new());
 
         let (obj_pos, sid) = {
-            let obj = world.objects().get(obj).borrow();
+            let obj = world.objects().get(obj);
             let (sid, _) = obj.script.unwrap();
             (obj.pos.unwrap().point, sid)
         };

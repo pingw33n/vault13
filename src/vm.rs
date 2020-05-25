@@ -228,7 +228,7 @@ pub struct Context<'a> {
 
 impl Context<'_> {
     pub fn has_running_sequence(&self, obj: object::Handle) -> bool {
-        self.world.objects().get(obj).borrow().has_running_sequence()
+        self.world.objects().get(obj).has_running_sequence()
     }
 }
 

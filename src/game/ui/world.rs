@@ -71,7 +71,7 @@ impl WorldView {
     pub fn hex_cursor_pos(&self) -> Option<EPoint> {
         if self.pick_mode == PickMode::Hex {
             let world = self.world.borrow();
-            let cursor = world.objects().get(self.hex_cursor).borrow();
+            let cursor = world.objects().get(self.hex_cursor);
             cursor.pos
         } else {
             None
@@ -102,7 +102,7 @@ impl WorldView {
         let mut world = self.world.borrow_mut();
         let hex_pos = world.camera().hex().from_screen(screen_pos);
         let pos = EPoint::new(world.elevation(), hex_pos);
-        let old_pos = world.objects().get(self.hex_cursor).borrow().pos;
+        let old_pos = world.objects().get(self.hex_cursor).pos;
         let changed = if Some(pos) != old_pos {
             world.set_object_pos(self.hex_cursor, pos);
             true
@@ -114,7 +114,7 @@ impl WorldView {
 
     fn update_hex_cursor_visibility(&mut self, force_visible: Option<bool>) {
         let mut world = self.world.borrow_mut();
-        let mut cursor = world.objects_mut().get(self.hex_cursor).borrow_mut();
+        let mut cursor = world.objects_mut().get_mut(self.hex_cursor);
         let visible = force_visible.unwrap_or(self.pick_mode == PickMode::Hex);
         if visible {
             cursor.flags.remove(Flag::TurnedOff);
@@ -268,7 +268,7 @@ impl Widget for WorldView {
 
         match self.pick_mode {
             PickMode::Hex => if self.hex_cursor_style == HexCursorStyle::Blocked {
-                let hex_cursor = world.objects().get(self.hex_cursor).borrow();
+                let hex_cursor = world.objects().get(self.hex_cursor);
                 let pos = hex_cursor.pos.unwrap();
                 if !hex_cursor.flags.contains(Flag::TurnedOff) && pos.elevation == world.elevation() {
                     let center = world.camera().hex().to_screen(pos.point) + Point::new(16, 8);
