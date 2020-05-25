@@ -443,6 +443,14 @@ impl Objects {
         h
     }
 
+    pub fn remove(&mut self, obj: Handle) -> Option<Object> {
+        self.handles.remove(obj.0)?;
+        self.remove_from_tile_grid(obj);
+        let r = self.objects.remove(obj.0);
+        assert!(r.is_some());
+        r.map(|r| r.into_inner())
+    }
+
     pub fn at(&self, pos: EPoint) -> &Vec<Handle> {
         self.by_pos[pos.elevation as usize]
             .get(pos.point.x as usize, pos.point.y as usize)

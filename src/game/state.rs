@@ -146,8 +146,27 @@ impl GameState {
         &self.time
     }
 
-    pub fn new_game(&mut self, map_name: &str, dude_name: &bstr, ui: &mut Ui) {
-        self.world.borrow_mut().clear();
+    pub fn new_game(&mut self) {
+        self.scripts.vars.global_vars =
+            asset::read_game_global_vars(&mut self.fs.reader("data/vault13.gam").unwrap()).unwrap().into();
+
+        let dude_fid = FrameId::from_packed(0x100003E).unwrap();
+        //    let dude_fid = FrameId::from_packed(0x101600A).unwrap();
+        let dude_obj = Object::new(dude_fid, Some(self.proto_db.dude()), Some(Default::default()));
+        self.world.borrow_mut().insert_dude_obj(dude_obj);
+    }
+
+    pub fn switch_map(&mut self, map_name: &str, ui: &mut Ui) {
+        let mut dude_obj = {
+            let mut world = self.world.borrow_mut();
+            let dude_obj = world.remove_dude_obj().unwrap();
+            world.clear();
+            dude_obj
+        };
+
+        self.scripts.reset();
+        self.sequencer.stop_all();
+
         // Reinsert the hex cursor. Needs `world` to be not borrowed.
         ui.widget_mut::<WorldView>(self.world_view).ensure_hex_cursor();
 
@@ -194,38 +213,27 @@ impl GameState {
         world.set_sqr_tiles(map.sqr_tiles);
         world.rebuild_light_grid();
 
-        let dude_fid = FrameId::from_packed(0x100003E).unwrap();
-        //    let dude_fid = FrameId::from_packed(0x101600A).unwrap();
-        let mut dude_obj = Object::new(dude_fid, Some(self.proto_db.dude()), Some(map.entrance));
         dude_obj.direction = Direction::NE;
         dude_obj.light_emitter = LightEmitter {
             intensity: 0x10000,
             radius: 4,
         };
-        let dude_objh = world.insert_object(dude_obj);
-        debug!("dude obj: {:?}", dude_objh);
-        world.set_dude_obj(dude_objh);
-        world.dude_name = dude_name.into();
+        dude_obj.pos = Some(map.entrance);
+        let dude_obj = world.insert_dude_obj(dude_obj);
 
-        world.make_object_standing(dude_objh);
+        world.make_object_standing(dude_obj);
 
         world.camera_mut().look_at(map.entrance.point);
 
-        self.scripts.vars.global_vars = if map.savegame {
-            unimplemented!("read save.dat")
-        } else {
-            asset::read_game_global_vars(&mut self.fs.reader("data/vault13.gam").unwrap()).unwrap().into()
-        };
-        self.scripts.vars.map_vars = if map.savegame {
-            map.map_vars.clone()
-        } else {
+        {
+            assert!(!map.savegame);
             let path = format!("maps/{}.gam", map_name);
-            if self.fs.exists(&path) {
+            self.scripts.vars.map_vars = if self.fs.exists(&path) {
                 asset::read_map_global_vars(&mut self.fs.reader(&path).unwrap()).unwrap().into()
             } else {
                 Vec::new().into()
-            }
-        };
+            };
+        }
 
         // Init scripts.
         {
@@ -294,9 +302,6 @@ impl GameState {
         let mut events = std::mem::replace(&mut self.seq_events, Vec::new());
         for event in events.drain(..) {
             match event {
-                ObjectMoved { obj, old_pos, new_pos } => {
-                    dbg!((obj, old_pos, new_pos));
-                }
                 Talk { talker, talked } => {
                     self.talk(talker, talked, ui);
                 }
