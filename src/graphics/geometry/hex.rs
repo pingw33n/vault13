@@ -132,8 +132,8 @@ pub struct Ray {
 impl Ray {
     fn new(from: Point, via: Point) -> Self {
         assert_ne!(from, via);
-        let from_scr = to_screen(from) + Point::new(16, 8);
-        let via_scr = to_screen(via) + Point::new(16, 8);
+        let from_scr = center_to_screen(from);
+        let via_scr = center_to_screen(via);
 
         let delta_x = via_scr.x - from_scr.x;
         let delta_y = via_scr.y - from_scr.y;
@@ -298,6 +298,10 @@ pub fn to_screen(p: Point) -> Point {
     r
 }
 
+pub fn center_to_screen(p: Point) -> Point {
+    to_screen(p) + TILE_CENTER
+}
+
 #[derive(Clone, Copy, Default)]
 pub struct View {
     pub origin: Point,
@@ -318,6 +322,10 @@ impl TileGridView for View {
 
     fn to_screen(&self, p: Point) -> Point {
         to_screen(p) + self.origin
+    }
+
+    fn center_to_screen(&self, p: Point) -> Point {
+        center_to_screen(p) + self.origin
     }
 }
 

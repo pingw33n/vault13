@@ -426,7 +426,7 @@ impl World {
                 if pos.elevation != self.elevation() {
                     return;
                 }
-                self.camera.hex().to_screen(pos.point) + Point::new(16, 8) - Point::new(0, 60)
+                self.camera.hex().center_to_screen(pos.point) - Point::new(0, 60)
             } else {
                 self.camera.viewport.center()
             };

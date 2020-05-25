@@ -271,7 +271,7 @@ impl Widget for WorldView {
                 let hex_cursor = world.objects().get(self.hex_cursor);
                 let pos = hex_cursor.pos.unwrap();
                 if !hex_cursor.flags.contains(Flag::TurnedOff) && pos.elevation == world.elevation() {
-                    let center = world.camera().hex().to_screen(pos.point) + Point::new(16, 8);
+                    let center = world.camera().hex().center_to_screen(pos.point);
                     ctx.canvas.draw_text(b"X".as_ref().into(), center, FontKey::antialiased(1),
                         color::RED, &DrawOptions {
                             horz_align: HorzAlign::Center,

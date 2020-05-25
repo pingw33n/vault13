@@ -28,7 +28,7 @@ impl Camera {
 
     /// Adjusts the `origin` so the center of tile at `hex_pos` is positioned at the `screen_pos`.
     pub fn align(&mut self, hex_pos: Point, screen_pos: Point) {
-        self.origin = -hex::to_screen(hex_pos) + screen_pos - Point::new(16, 8);
+        self.origin = screen_pos - hex::center_to_screen(hex_pos);
     }
 }
 

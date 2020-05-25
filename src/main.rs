@@ -336,7 +336,7 @@ fn main() {
             let world_view = ui.widget_ref::<WorldView>(state.world_view());
             let (mouse_hex_pos, mouse_sqr_pos) = if let Some(EPoint { point, .. }) = world_view.hex_cursor_pos() {
                 (point, world.camera().sqr().from_screen(
-                    world.camera().hex().to_screen(point) + Point::new(16, 8)))
+                    world.camera().hex().center_to_screen(point)))
             } else {
                 (Point::new(-1, -1), Point::new(-1, -1))
             };

@@ -12,6 +12,9 @@ pub trait TileGridView {
     /// Converts tile coordinates to screen coordinates.
     fn to_screen(&self, p: Point) -> Point;
 
+    /// Converts tile coordinates with origin at the tile center, to screen coordinates.
+    fn center_to_screen(&self, p: Point) -> Point;
+
     /// Returns minimal rectangle in tile coordinates that encloses the specified screen `rect`.
     fn from_screen_rect(&self, rect: Rect) -> Rect {
         from_screen_rect(rect, |p| self.from_screen(p))

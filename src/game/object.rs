@@ -68,7 +68,7 @@ pub struct Egg {
 impl Egg {
     #[must_use]
     pub fn hit_test(&self, p: Point, tile_grid: &impl TileGridView, frm_db: &FrameDb) -> bool {
-        let screen_pos = tile_grid.to_screen(self.pos) + Point::new(16, 8);
+        let screen_pos = tile_grid.center_to_screen(self.pos);
         let frms = frm_db.get(self.fid).unwrap();
         let frml = &frms.frame_lists[Direction::NE];
         let frm = &frml.frames[0];
@@ -257,8 +257,7 @@ impl Object {
     fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &impl TileGridView) -> Rect {
         let mut r = if let Some(pos) = self.pos {
             let top_left =
-                tile_grid.to_screen(pos.point)
-                + Point::new(16, 8)
+                tile_grid.center_to_screen(pos.point)
                 + frame_center
                 + self.screen_shift
                 - Point::new(frame_size.x / 2, frame_size.y - 1);
@@ -282,7 +281,7 @@ impl Object {
 
     fn create_sprite(&self, light: u32, effect: Option<Effect>, tile_grid: &impl TileGridView) -> Sprite {
         let (pos, centered) = if let Some(EPoint { point: hex_pos, .. }) = self.pos {
-            (tile_grid.to_screen(hex_pos) + self.screen_shift + Point::new(16, 8), true)
+            (tile_grid.center_to_screen(hex_pos) + self.screen_shift, true)
         } else {
             (self.screen_pos, false)
         };
@@ -340,7 +339,7 @@ impl Object {
         };
 
         if with_egg {
-            let mask_pos = tile_grid.to_screen(egg.pos) + Point::new(16, 8)/*+ self.screen_shift ??? */;
+            let mask_pos = tile_grid.center_to_screen(egg.pos)/*+ self.screen_shift ??? */;
             Some(Effect::Masked { mask_fid: egg.fid, mask_pos })
         } else {
             self.get_trans_effect()
