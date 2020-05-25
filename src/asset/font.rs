@@ -1,7 +1,6 @@
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use log::*;
 use std::cmp;
-use std::error::{Error as StdError};
 use std::io::{self, Error, ErrorKind, prelude::*};
 
 use crate::fs::FileSystem;
@@ -122,7 +121,7 @@ pub fn load_fonts(fs: &FileSystem, texture_factory: &TextureFactory) -> Fonts {
                 fonts.insert(FontKey { id, antialiased: false }, font);
             }
             Err(e) => {
-                debug!("couldn't load FON font `{}`: {}", name, e.description());
+                debug!("couldn't load FON font `{}`: {}", name, e);
             }
         }
     }
@@ -139,7 +138,7 @@ pub fn load_fonts(fs: &FileSystem, texture_factory: &TextureFactory) -> Fonts {
                 fonts.insert(FontKey { id, antialiased: true }, font);
             }
             Err(e) => {
-                debug!("couldn't load AAF font `{}`: {}", name, e.description());
+                debug!("couldn't load AAF font `{}`: {}", name, e);
             }
         }
     }
