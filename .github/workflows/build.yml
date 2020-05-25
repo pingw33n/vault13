@@ -66,6 +66,7 @@ jobs:
       shell: bash
       run: |
         rustup default ${{ env.RUST_VERSION }}-${{ matrix.target }}
+        rustup component add clippy
         rustc -vV
         cargo -vV
 
