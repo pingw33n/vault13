@@ -144,6 +144,14 @@ impl Scripts {
         self.map_sid
     }
 
+    pub fn reset(&mut self) {
+        self.scripts.clear();
+        self.map_sid = None;
+        self.vars.map_vars = vec![].into();
+        self.vars.external_vars.clear();
+        self.suspend_stack.clear();
+    }
+
     pub fn instantiate(&mut self, sid: Sid, program_id: ProgramId, local_vars: Option<Box<[i32]>>)
         -> io::Result<()>
     {

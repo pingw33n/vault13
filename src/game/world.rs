@@ -4,7 +4,6 @@ use bstring::{bstr, BString};
 use enum_map::Enum;
 use if_chain::if_chain;
 use log::debug;
-use std::cell::RefCell;
 use std::cmp;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -178,14 +177,22 @@ impl World {
         self.dude_obj
     }
 
-    pub fn set_dude_obj(&mut self, obj: object::Handle) {
-        assert!(self.objects.contains(obj));
+    pub fn insert_dude_obj(&mut self, object: object::Object) -> object::Handle {
         assert!(self.dude_obj.is_none());
-        self.dude_obj = Some(obj);
+        let h = self.insert_object(object);
+        debug!("dude obj: {:?}", h);
+        self.dude_obj = Some(h);
+        h
     }
 
-    pub fn get_dude_obj(&self) -> Option<&RefCell<Object>> {
-        self.dude_obj.map(|h| self.objects.get_ref(h))
+    pub fn remove_dude_obj(&mut self) -> Option<object::Object> {
+        let h = self.dude_obj?;
+        self.dude_obj = None;
+        Some(self.objects_mut().remove(h).unwrap())
+    }
+
+    pub fn set_dude_name(&mut self, dude_name: BString) {
+        self.dude_name = dude_name;
     }
 
     pub fn elevation(&self) -> u32 {

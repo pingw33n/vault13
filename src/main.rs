@@ -280,7 +280,9 @@ fn main() {
         ui,
     );
 
-    state.new_game(&map_name, "Narg".into(), ui);
+    state.new_game();
+    state.world().borrow_mut().set_dude_name("Narg".into());
+    state.switch_map(&map_name, ui);
 
     let mut draw_debug = true;
 
