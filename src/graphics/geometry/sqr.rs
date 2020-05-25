@@ -3,6 +3,10 @@ use num_traits::clamp;
 use crate::graphics::Point;
 use crate::graphics::geometry::TileGridView;
 
+pub const TILE_WIDTH: i32 = 80;
+pub const TILE_HEIGHT: i32 = 36;
+pub const TILE_CENTER: Point = Point::new(TILE_WIDTH / 2, TILE_HEIGHT / 2);
+
 // square_xy()
 pub fn from_screen(p: Point) -> Point {
     let x = p.x;
@@ -32,6 +36,10 @@ pub fn to_screen(p: Point) -> Point {
     Point::new(screen_x, screen_y)
 }
 
+pub fn center_to_screen(p: Point) -> Point {
+    p + TILE_CENTER
+}
+
 pub struct View {
     pub origin: Point,
 }
@@ -51,6 +59,10 @@ impl TileGridView for View {
 
     fn to_screen(&self, p: Point) -> Point {
         to_screen(p) + self.origin
+    }
+
+    fn center_to_screen(&self, p: Point) -> Point {
+        center_to_screen(p) + self.origin
     }
 }
 
