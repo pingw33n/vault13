@@ -4,6 +4,7 @@ pub mod message_panel;
 pub mod panel;
 
 pub use sdl2::mouse::MouseButton;
+pub use sdl2::keyboard::Keycode;
 
 use downcast_rs::{Downcast, impl_downcast};
 use enum_map_derive::Enum;
@@ -24,6 +25,9 @@ use crate::util::{SmKey, VecExt};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
+    KeyDown {
+        keycode: Option<Keycode>,
+    },
     MouseDown {
         pos: Point,
         button: MouseButton,
@@ -133,6 +137,7 @@ pub struct Ui {
     /// this event was seen on previous `handle_input()`.
     simulate_mouse_move: bool,
     mouse_focus: Option<Handle>,
+    keyboard_focus: Option<Handle>,
 }
 
 impl Ui {
@@ -151,6 +156,7 @@ impl Ui {
             capture: None,
             simulate_mouse_move: false,
             mouse_focus: None,
+            keyboard_focus: None,
         }
     }
 
@@ -184,6 +190,9 @@ impl Ui {
         }
         if self.mouse_focus == Some(handle) {
             self.mouse_focus = None;
+        }
+        if self.keyboard_focus == Some(handle) {
+            self.keyboard_focus = None;
         }
         self.widget_bases.remove(handle.0);
 
@@ -295,6 +304,15 @@ impl Ui {
         self.capture = None;
     }
 
+    pub fn keyboard_focus(&self) -> Option<Handle> {
+        self.keyboard_focus
+    }
+
+    pub fn set_keyboard_focus(&mut self, widget: Option<Handle>) {
+        assert!(widget.is_none() || self.widgets.contains_key(widget.unwrap().0));
+        self.keyboard_focus = widget;
+    }
+
     /// Limits cursor position to the specified `rect`.
     pub fn set_cursor_constraint(&mut self, rect: Rect) {
         if self.cursor_constraints.len() == 1 {
@@ -326,8 +344,19 @@ impl Ui {
         });
     }
 
+    fn keyboard_event_target(&self) -> Option<Handle> {
+        self.capture.or(self.keyboard_focus)
+    }
+
     pub fn handle_input(&mut self, ctx: HandleInput) -> bool {
-        match ctx.event {
+        match *ctx.event {
+            SdlEvent::KeyDown { keycode, .. } => {
+                if let Some(target) = self.keyboard_event_target() {
+                    self.widget_handle_event(ctx.now, target, Event::KeyDown { keycode }, ctx.out);
+                } else {
+                    return false;
+                }
+            }
             SdlEvent::MouseButtonDown { mouse_btn, .. } => {
                 let target = if let Some(h) = self.update_mouse_focus(ctx.now, ctx.out) {
                     h
@@ -335,12 +364,12 @@ impl Ui {
                     return false;
                 };
                 self.widget_handle_event(ctx.now, target,
-                    Event::MouseDown { pos: self.cursor_pos, button: *mouse_btn }, ctx.out);
+                    Event::MouseDown { pos: self.cursor_pos, button: mouse_btn }, ctx.out);
             }
             SdlEvent::MouseMotion { xrel, yrel, .. } => {
                 self.simulate_mouse_move = false;
 
-                self.update_cursor_pos_rel(Point::new(*xrel, *yrel));
+                self.update_cursor_pos_rel(Point::new(xrel, yrel));
                 if !self.fire_mouse_move(ctx.now, ctx.out) {
                     return false;
                 }
@@ -352,7 +381,7 @@ impl Ui {
                     return false;
                 };
                 self.widget_handle_event(ctx.now, target,
-                    Event::MouseUp { pos: self.cursor_pos, button: *mouse_btn }, ctx.out);
+                    Event::MouseUp { pos: self.cursor_pos, button: mouse_btn }, ctx.out);
             }
             _ => return false,
         }
