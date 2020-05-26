@@ -42,7 +42,7 @@ use crate::graphics::font::{self, FontKey};
 use crate::graphics::geometry::TileGridView;
 use crate::graphics::geometry::sqr;
 use crate::graphics::render::software::Backend;
-use crate::state::AppState;
+use crate::state::{AppState, Update, HandleAppEvent};
 use crate::ui::Ui;
 use crate::asset::map::db::MapDb;
 
@@ -290,8 +290,18 @@ fn main() {
     let mut draw_debug = true;
 
     let ui_commands = &mut Vec::new();
+    let app_events = &mut Vec::new();
 
     'running: loop {
+        // Handle app events.
+
+        for event in app_events.drain(..) {
+            state.handle_app_event(HandleAppEvent {
+                event,
+                ui,
+            });
+        }
+
         // Handle input.
 
         for event in event_pump.poll_iter() {
@@ -324,7 +334,11 @@ fn main() {
             state.handle_ui_command(event, ui);
         }
 
-        state.update(timer.delta(), ui);
+        state.update(Update {
+            delta: timer.delta(),
+            ui,
+            out: app_events,
+        });
 
         ui.sync();
 
