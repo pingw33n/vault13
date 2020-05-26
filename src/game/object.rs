@@ -1141,11 +1141,20 @@ impl Objects {
 pub enum SubObject {
     None,
     Critter(Critter),
+    Exit(MapExit),
 }
 
 impl SubObject {
     pub fn critter(&self) -> Option<&Critter> {
         if let SubObject::Critter(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn map_exit(&self) -> Option<&MapExit> {
+        if let SubObject::Exit(v) = self {
             Some(v)
         } else {
             None
@@ -1219,6 +1228,33 @@ pub enum DamageFlag {
   CripRandom = 0x200000,
   Backwash = 0x400000,
   PerformReverse = 0x800000,
+}
+
+#[derive(Clone, Copy, Eq, Debug, PartialEq)]
+pub enum WorldMapKind {
+    Town,
+    World,
+}
+
+#[derive(Debug, Default)]
+pub struct MapExit {
+    pub map: MapExitTarget,
+    pub pos: EPoint,
+    pub direction: Direction,
+}
+
+#[derive(Clone, Copy, Eq, Debug, PartialEq)]
+pub enum MapExitTarget {
+    WorldMap(WorldMapKind),
+    Map {
+        map_id: u32,
+    },
+}
+
+impl Default for MapExitTarget {
+    fn default() -> Self {
+        Self::WorldMap(WorldMapKind::World)
+    }
 }
 
 #[cfg(test)]
