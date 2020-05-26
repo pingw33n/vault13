@@ -600,7 +600,7 @@ impl GameState {
 }
 
 impl AppState for GameState {
-    fn handle_event(&mut self, event: &Event, ui: &mut Ui) -> bool {
+    fn handle_input(&mut self, event: &Event, ui: &mut Ui) -> bool {
         let mut world = self.world.borrow_mut();
         match event {
             Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
