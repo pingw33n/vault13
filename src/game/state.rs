@@ -3,7 +3,7 @@ use enum_map::{enum_map, EnumMap};
 use if_chain::if_chain;
 use log::*;
 use measure_time::*;
-use sdl2::event::Event;
+use sdl2::event::{Event as SdlEvent};
 use sdl2::keyboard::Keycode;
 use std::cell::RefCell;
 use std::cmp;
@@ -33,7 +33,7 @@ use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::{self, Direction};
 use crate::sequence::{self, *};
 use crate::sequence::event::PushEvent;
-use crate::state::AppState;
+use crate::state::{self, *};
 use crate::ui::{self, Ui};
 use crate::ui::command::{UiCommand, UiCommandData, ObjectPickKind};
 use crate::ui::message_panel::MessagePanel;
@@ -600,22 +600,25 @@ impl GameState {
 }
 
 impl AppState for GameState {
-    fn handle_input(&mut self, event: &Event, ui: &mut Ui) -> bool {
+    fn handle_app_event(&mut self, _ctx: HandleAppEvent) {
+    }
+
+    fn handle_input(&mut self, event: &SdlEvent, ui: &mut Ui) -> bool {
         let mut world = self.world.borrow_mut();
         match event {
-            Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
+            SdlEvent::KeyDown { keycode: Some(Keycode::Right), .. } => {
                 world.scroll(ScrollDirection::E, 1);
             }
-            Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
+            SdlEvent::KeyDown { keycode: Some(Keycode::Left), .. } => {
                 world.scroll(ScrollDirection::W, 1);
             }
-            Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
+            SdlEvent::KeyDown { keycode: Some(Keycode::Up), .. } => {
                 world.scroll(ScrollDirection::N, 1);
             }
-            Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
+            SdlEvent::KeyDown { keycode: Some(Keycode::Down), .. } => {
                 world.scroll(ScrollDirection::S, 1);
             }
-            Event::KeyDown { keycode: Some(Keycode::A), .. } => {
+            SdlEvent::KeyDown { keycode: Some(Keycode::A), .. } => {
                 let dude_obj = world.dude_obj().unwrap();
                 let new_pos = {
                     let obj = world.objects().get_mut(dude_obj);
@@ -630,7 +633,7 @@ impl AppState for GameState {
                     world.objects_mut().set_pos(dude_obj, new_pos);
                 }
             }
-            Event::KeyDown { keycode: Some(Keycode::Z), .. } => {
+            SdlEvent::KeyDown { keycode: Some(Keycode::Z), .. } => {
                 let dude_obj = world.dude_obj().unwrap();
                 let new_pos = {
                     let obj = world.objects().get_mut(dude_obj);
@@ -647,24 +650,24 @@ impl AppState for GameState {
                     world.objects_mut().set_pos(dude_obj, new_pos);
                 }
             }
-            Event::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {
+            SdlEvent::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {
                 world.ambient_light = cmp::max(world.ambient_light as i32 - 1000, 0) as u32;
             }
-            Event::KeyDown { keycode: Some(Keycode::RightBracket), .. } => {
+            SdlEvent::KeyDown { keycode: Some(Keycode::RightBracket), .. } => {
                 world.ambient_light = cmp::min(world.ambient_light + 1000, 0x10000);
             }
-            Event::KeyDown { keycode: Some(Keycode::R), .. } => {
+            SdlEvent::KeyDown { keycode: Some(Keycode::R), .. } => {
                 let mut wv = ui.widget_mut::<WorldView>(self.world_view);
                 wv.roof_visible = wv.roof_visible;
             }
-            Event::KeyDown { keycode: Some(Keycode::P), .. } => {
+            SdlEvent::KeyDown { keycode: Some(Keycode::P), .. } => {
                 self.user_paused = !self.user_paused;
             }
 
-            Event::KeyDown { keycode: Some(Keycode::LShift), .. } |
-            Event::KeyDown { keycode: Some(Keycode::RShift), .. } => self.shift_key_down = true,
-            Event::KeyUp { keycode: Some(Keycode::LShift), .. } |
-            Event::KeyUp { keycode: Some(Keycode::RShift), .. } => self.shift_key_down = false,
+            SdlEvent::KeyDown { keycode: Some(Keycode::LShift), .. } |
+            SdlEvent::KeyDown { keycode: Some(Keycode::RShift), .. } => self.shift_key_down = true,
+            SdlEvent::KeyUp { keycode: Some(Keycode::LShift), .. } |
+            SdlEvent::KeyUp { keycode: Some(Keycode::RShift), .. } => self.shift_key_down = false,
             _ => return false,
         }
         true
@@ -790,8 +793,8 @@ impl AppState for GameState {
         }
     }
 
-    fn update(&mut self, delta: Duration, ui: &mut Ui) {
-        self.time.update(delta);
+    fn update(&mut self, ctx: state::Update) {
+        self.time.update(ctx.delta);
 
         self.time.set_paused(self.user_paused || self.scripts.can_resume());
 
@@ -808,7 +811,7 @@ impl AppState for GameState {
                 });
             }
 
-            self.handle_seq_events(ui);
+            self.handle_seq_events(ctx.ui);
 
             self.fidget.update(self.time.time(), &mut self.world.borrow_mut(), &mut self.sequencer);
         } else {
