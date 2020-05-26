@@ -10,6 +10,7 @@ use std::fmt;
 use std::io::{self, prelude::*};
 use std::rc::Rc;
 
+use crate::asset::map::MapId;
 use crate::asset::proto::ProtoDb;
 use crate::asset::script::ProgramId;
 use crate::asset::script::db::ScriptDb;
@@ -87,7 +88,7 @@ pub struct Context<'a> {
     pub sequencer: &'a mut crate::sequence::Sequencer,
     pub dialog: &'a mut Option<crate::game::dialog::Dialog>,
     pub message_panel: crate::ui::Handle,
-    pub map_id: i32,
+    pub map_id: MapId,
 }
 
 pub struct Vars {

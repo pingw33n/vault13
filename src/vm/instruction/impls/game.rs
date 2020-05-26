@@ -184,7 +184,7 @@ pub fn critter_inven_obj(ctx: Context) -> Result<()> {
 
 pub fn cur_map_index(ctx: Context) -> Result<()> {
     let r = ctx.ext.map_id;
-    ctx.prg.data_stack.push(r.into())?;
+    ctx.prg.data_stack.push(r.try_into().unwrap())?;
     log_r1!(ctx.prg, r);
     Ok(())
 }
