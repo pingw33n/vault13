@@ -301,7 +301,7 @@ fn main() {
                 out: ui_commands,
             });
             if !handled {
-                handled = state.handle_event(&event, ui);
+                handled = state.handle_input(&event, ui);
             }
             if !handled {
                 match event {

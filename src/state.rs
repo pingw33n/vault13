@@ -5,7 +5,7 @@ use crate::ui::Ui;
 use crate::ui::command::UiCommand;
 
 pub trait AppState {
-    fn handle_event(&mut self, event: &Event, ui: &mut Ui) -> bool;
+    fn handle_input(&mut self, event: &Event, ui: &mut Ui) -> bool;
     fn handle_ui_command(&mut self, command: UiCommand, ui: &mut Ui);
     fn update(&mut self, delta: Duration, ui: &mut Ui);
 }
