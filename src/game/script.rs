@@ -212,13 +212,13 @@ impl Scripts {
             &mut self.db,
             &self.proto_db,
             ctx);
+        vm_ctx.self_obj = script.object;
         if !script.inited {
             debug!("[{:?}#{}] running program initialization code", sid, script.program_id.val());
             self.vm.run(script.program, vm_ctx).unwrap()
                 .assert_no_suspend();
             script.inited = true;
         }
-        vm_ctx.self_obj = script.object;
         let prg = self.vm.program_state_mut(script.program);
         debug!("[{:?}#{}:{}] executing proc {:?} ({:?})",
             sid,
