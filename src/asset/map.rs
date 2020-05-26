@@ -1,3 +1,5 @@
+pub mod db;
+
 use byteorder::{BigEndian, ReadBytesExt};
 use enumflags2::BitFlags;
 use enumflags2_derive::EnumFlags;
