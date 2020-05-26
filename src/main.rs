@@ -44,6 +44,7 @@ use crate::graphics::geometry::sqr;
 use crate::graphics::render::software::Backend;
 use crate::state::AppState;
 use crate::ui::Ui;
+use crate::asset::map::db::MapDb;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const GIT_HASH: &str = env!("GIT_HASH");
@@ -217,6 +218,8 @@ fn main() {
     let proto_db = Rc::new(ProtoDb::new(fs.clone(), language).unwrap());
 
     let pal = read_palette(&mut fs.reader("color.pal").unwrap()).unwrap();
+
+    let _map_db = Rc::new(MapDb::new(&fs).unwrap());
 
     log_sdl_info();
 

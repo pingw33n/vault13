@@ -9,6 +9,7 @@ pub mod script;
 use enumflags2_derive::EnumFlags;
 use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
+use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::io::prelude::*;
 
@@ -598,6 +599,53 @@ pub fn read_map_global_vars(rd: &mut impl BufRead) -> io::Result<Vec<i32>> {
     read_gam(rd, "MAP_GLOBAL_VARS:")
 }
 
+#[derive(Default)]
+struct IniParser {
+    sections: HashMap<String, HashMap<String, String>>,
+    section: Option<(String, HashMap<String, String>)>,
+}
+
+impl IniParser {
+    fn line(&mut self, mut line: &str) {
+        if let Some(i) = line.find(';') {
+            line = &line[..i];
+        }
+        let line = line.trim();
+        if line.is_empty() {
+            return;
+        }
+        if line.starts_with('[') && line.ends_with(']') {
+            self.flush();
+            let name = line[1..line.len() - 1].trim().to_owned();
+            self.section = Some((name, HashMap::new()));
+            return;
+        }
+        let mut parts = line.splitn(2, '=');
+        let key = parts.next().unwrap().trim().to_owned();
+        let value = parts.next().map(|s| s.trim()).unwrap_or("").to_owned();
+        let section = &mut self.section.as_mut().unwrap().1;
+        section.insert(key, value);
+    }
+
+    fn flush(&mut self) {
+        if let Some((name, map)) = self.section.take() {
+            self.sections.insert(name, map);
+        }
+    }
+}
+
+pub fn read_ini(rd: &mut impl BufRead) -> io::Result<HashMap<String, HashMap<String, String>>> {
+    let mut parser = IniParser::default();
+
+    for l in rd.lines() {
+        let l = l?;
+        parser.line(&l);
+    }
+    parser.flush();
+
+    Ok(parser.sections)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -637,5 +685,46 @@ MVAR_1             :=0;  //      (1)
 MVAR_2:=-1;    //      (2)";
         assert_eq!(read_map_global_vars(&mut BufReader::new(Cursor::new(s))).unwrap(),
             [123, 0, -1]);
+    }
+
+    #[test]
+    fn read_ini_() {
+        let inp = "
+
+; comment
+   ;  comment
+
+[ sec tion_1\t]
+ \tkey = \t va \t lue \t\x20
+
+key2
+
+     [section2]
+     key2=stuff
+     key=
+        ";
+
+        let exp = &[
+            ("sec tion_1", &[
+                ("key", "va \t lue"),
+                ("key2", ""),
+            ]),
+            ("section2", &[
+                ("key", ""),
+                ("key2", "stuff"),
+            ]),
+        ];
+
+        let mut exp_map = HashMap::new();
+        for &(sect, entries) in exp {
+            let mut exp_entries = HashMap::new();
+            for &(k, v) in entries {
+                assert!(exp_entries.insert(k.to_owned(), v.to_owned()).is_none());
+            }
+            exp_map.insert(sect.to_owned(), exp_entries);
+        }
+
+        let act = read_ini(&mut BufReader::new(Cursor::new(inp))).unwrap();
+        assert_eq!(act, exp_map);
     }
 }
