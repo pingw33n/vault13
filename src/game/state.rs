@@ -12,7 +12,7 @@ use std::time::{Instant, Duration};
 
 use crate::asset::{self, EntityKind, CritterAnim, ItemKind};
 use crate::asset::frame::{FrameDb, FrameId};
-use crate::asset::map::{MapReader, ELEVATION_COUNT};
+use crate::asset::map::{ELEVATION_COUNT, MapId, MapReader};
 use crate::asset::message::{BULLET, Messages};
 use crate::asset::proto::{CritterFlag, ProtoDb};
 use crate::asset::script::db::ScriptDb;
@@ -59,7 +59,7 @@ pub struct GameState {
     last_picked_obj: Option<object::Handle>,
     object_action_menu: Option<ObjectActionMenu>,
     user_paused: bool,
-    map_id: Option<i32>,
+    map_id: Option<MapId>,
     in_combat: bool,
     seq_events: Vec<sequence::Event>,
     misc_msgs: Rc<Messages>,

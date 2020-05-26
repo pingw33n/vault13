@@ -50,8 +50,11 @@ pub enum OutlineFlag {
 
 pub type SqrTiles = Vec<Option<Array2d<(u16, u16)>>>;
 
+/// Unique map ID as defined in `maps.txt`.
+pub type MapId = u32;
+
 pub struct Map {
-    pub id: i32,
+    pub id: MapId,
     pub savegame: bool,
     pub entrance: EPoint,
     pub entrance_direction: Direction,
@@ -95,7 +98,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         let _ = self.reader.read_i32::<BigEndian>()?;
         let map_var_count = cmp::max(self.reader.read_i32::<BigEndian>()?, 0) as usize;
-        let id = self.reader.read_i32::<BigEndian>()?;
+        let id = self.reader.read_i32::<BigEndian>()?.try_into().unwrap();
         let _time = self.reader.read_u32::<BigEndian>()?;
 
         self.reader.read_exact(&mut [0; 44 * 4][..])?;

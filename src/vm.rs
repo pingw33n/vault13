@@ -223,7 +223,7 @@ pub struct Context<'a> {
     pub message_panel: crate::ui::Handle,
     pub script_db: &'a mut crate::asset::script::db::ScriptDb,
     pub proto_db: &'a crate::asset::proto::ProtoDb,
-    pub map_id: i32,
+    pub map_id: crate::asset::map::MapId,
 }
 
 impl Context<'_> {

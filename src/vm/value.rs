@@ -1,6 +1,7 @@
 use bstring::BString;
 use bstring::bfmt::ToBString;
 use std::cmp::Ordering;
+use std::convert::TryFrom;
 use std::rc::Rc;
 
 use super::{BadValue, Error, Result, StringMap};
@@ -310,6 +311,14 @@ impl Value {
 impl From<i32> for Value {
     fn from(v: i32) -> Self {
         Value::Int(v)
+    }
+}
+
+impl TryFrom<u32> for Value {
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(value: u32) -> std::result::Result<Self, Self::Error> {
+        Ok(Value::Int(i32::try_from(value)?))
     }
 }
 
