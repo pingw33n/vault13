@@ -7,6 +7,7 @@ use log::*;
 use measure_time::*;
 use num_traits::FromPrimitive;
 use std::cmp;
+use std::convert::{TryFrom, TryInto};
 use std::io::{self, Error, ErrorKind, prelude::*};
 
 use crate::asset::*;
@@ -20,7 +21,6 @@ use crate::graphics::geometry::hex::{Direction, TileGrid};
 use crate::graphics::sprite::OutlineStyle;
 use crate::util::EnumExt;
 use crate::util::array2d::Array2d;
-use std::convert::TryInto;
 
 pub const ELEVATION_COUNT: u32 = 3;
 
@@ -259,9 +259,13 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
     fn read_object(&mut self, f2: bool) -> io::Result<Object> {
         let id = self.reader.read_u32::<BigEndian>()?;
+
         trace!("object ID {}", id);
-        let pos = self.reader.read_i32::<BigEndian>()?;
-        trace!("hex_pos={}", pos);
+        let pos_lin = self.reader.read_i32::<BigEndian>()?;
+        let pos = u32::try_from(pos_lin).ok()
+            .map(|v| tile_grid().from_linear_inv(v));
+        trace!("hex_pos={} {:?}", pos_lin, pos);
+
         let screen_shift = Point::new(
             self.reader.read_i32::<BigEndian>()?,
             self.reader.read_i32::<BigEndian>()?);
@@ -332,7 +336,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 },
             })
         } else {
-            assert!(updated_flags != 0xcccccccc);
+            assert_ne!(updated_flags, 0xcccccccc);
     //            let update_flags = if updated_flags == 0xcccccccc {
     //                0
     //            } else {
@@ -353,9 +357,11 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                             } else {
                                 ammo_pid
                             };
+                            SubObject::None
                         }
                         SubItem::Ammo(_) => {
                             let _charges = self.reader.read_i32::<BigEndian>()?;
+                            SubObject::None
                         }
                         SubItem::Misc(ref proto) => {
                             let charges = self.reader.read_i32::<BigEndian>()?;
@@ -366,11 +372,13 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                             } else {
                                 charges
                             };
+                            SubObject::None
                         }
                         SubItem::Key(_) => {
                             let _key_code = self.reader.read_i32::<BigEndian>()?;
+                            SubObject::None
                         }
-                        _ => {}
+                        _ => SubObject::None
                     }
                 }
                 EntityKind::Scenery => {
@@ -379,45 +387,67 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                     match kind {
                         SceneryKind::Door => {
                             let _walk_thru = self.reader.read_i32::<BigEndian>()?;
+                            SubObject::None
                         }
                         SceneryKind::Stairs => {
                             let _dest_map_id = self.reader.read_u32::<BigEndian>()?;
                             let _dest_pos_and_elevation = self.reader.read_u32::<BigEndian>()?;
+                            SubObject::None
                         }
                         SceneryKind::Elevator => {
                             let _elevator_kind = self.reader.read_u32::<BigEndian>()?;
                             let _level = self.reader.read_u32::<BigEndian>()?;
+                            SubObject::None
                         }
                         SceneryKind::LadderDown | SceneryKind::LadderUp => {
                             if f2 {
                                 let _dest_pos_and_elevation = self.reader.read_u32::<BigEndian>()?;
                             }
                             let _dest_map_id = self.reader.read_u32::<BigEndian>()?;
+                            SubObject::None
                         }
-                        _ => {}
+                        _ => SubObject::None
                     }
                 }
                 EntityKind::Misc => {
                     if pid.is_exit_area() {
                         // Exit area.
-                        let map_id = self.reader.read_i32::<BigEndian>()?;
-                        trace!("map_id={}", map_id);
-                        assert!(map_id >= 0 || fid.id() >= 33);
+                        let map = self.reader.read_i32::<BigEndian>()?;
+                        trace!("map={}", map);
+                        assert!(map >= 0 || fid.id() >= 33);
+                        let map = match map {
+                            -1 => MapExitTarget::WorldMap(WorldMapKind::Town),
+                            -2 => MapExitTarget::WorldMap(WorldMapKind::World),
+                            map_id if map_id >= 0 => {
+                                MapExitTarget::Map { map_id: map_id as u32 }
+                            }
+                            _ => return Err(Error::new(ErrorKind::InvalidData, format!("invalid exit map {}", map))),
+                        };
                         /* if charges <= 0
     //          {
     //            v7 = obj->art_fid & 0xFFF;
     //            if ( v7 < 33 )
     //              obj->art_fid = art_id_(OBJ_TYPE_MISC, v7 + 16, (obj->art_fid & 0xFF0000) >> 16, 0);
     //          }*/
-                        let _dude_pos = self.reader.read_u32::<BigEndian>()?;
-                        let _elevation = self.reader.read_u32::<BigEndian>()?;
-                        let _direction = Direction::from_u32(self.reader.read_u32::<BigEndian>()?)
-                            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "invalid exit direction"));
+                        let pos = self.reader.read_u32::<BigEndian>()?;
+                        let pos = tile_grid().from_linear_inv(pos as u32);
+                        let elevation = self.reader.read_u32::<BigEndian>()?;
+                        let pos = pos.elevated(elevation);
+                        let direction = Direction::from_u32(self.reader.read_u32::<BigEndian>()?)
+                            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "invalid exit direction"))?;
+                        let exit = MapExit {
+                            map,
+                            pos,
+                            direction,
+                        };
+                        trace!("{:?}", exit);
+                        SubObject::Exit(exit)
+                    } else {
+                        SubObject::None
                     }
                 }
-                _ => {}
+                _ => SubObject::None
             }
-            SubObject::None
         };
 
         // inventory
@@ -438,17 +468,9 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             });
         }
 
-        let pos = if pos >= 0 {
-            Some(EPoint {
-                elevation,
-                point: tile_grid().from_linear_inv(pos as u32),
-            })
-        } else {
-            None
-        };
         Ok(Object {
             flags,
-            pos,
+            pos: pos.map(|p| p.elevated(elevation)),
             screen_pos,
             screen_shift,
             fid,

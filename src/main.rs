@@ -44,7 +44,6 @@ use crate::graphics::geometry::sqr;
 use crate::graphics::render::software::Backend;
 use crate::state::{AppState, Update, HandleAppEvent};
 use crate::ui::Ui;
-use crate::asset::map::db::MapDb;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const GIT_HASH: &str = env!("GIT_HASH");
@@ -219,8 +218,6 @@ fn main() {
 
     let pal = read_palette(&mut fs.reader("color.pal").unwrap()).unwrap();
 
-    let _map_db = Rc::new(MapDb::new(&fs).unwrap());
-
     log_sdl_info();
 
     let sdl = sdl2::init().unwrap();
@@ -359,12 +356,15 @@ fn main() {
             } else {
                 (Point::new(-1, -1), Point::new(-1, -1))
             };
-            let dude_pos = world.objects().get(world.dude_obj().unwrap()).pos.unwrap().point;
+            let (dude_pos, dude_dir) = {
+                let dude_obj = world.objects().get(world.dude_obj().unwrap());
+                (dude_obj.pos.unwrap().point, dude_obj.direction)
+            };
             let msg = format!(
                 "mouse: {}, {}\n\
                  mouse hex: {}, {} ({})\n\
                  mouse sqr: {}, {} ({})\n\
-                 dude hex: {}, {} ({})\n\
+                 dude pos: {}, {} ({}) {:?}\n\
                  ambient: 0x{:x}\n\
                  paused: {}",
                 ui.cursor_pos().x, ui.cursor_pos().y,
@@ -374,6 +374,7 @@ fn main() {
                 sqr::TileGrid::default().to_linear_inv(mouse_sqr_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 dude_pos.x, dude_pos.y,
                 world.hex_grid().to_linear_inv(dude_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
+                dude_dir,
                 world.ambient_light,
                 state.time().is_paused(),
             );

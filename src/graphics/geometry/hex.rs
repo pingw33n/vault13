@@ -39,6 +39,12 @@ impl Direction {
     }
 }
 
+impl Default for Direction {
+    fn default() -> Self {
+        Self::NE
+    }
+}
+
 /// Offset in screen coordinates between to adjacent hexes when going in `direction`.
 pub fn screen_offset(direction: Direction) -> Point {
     const H: i32 = TILE_INNER_HEIGHT + (TILE_HEIGHT - TILE_INNER_HEIGHT) / 2;

@@ -13,13 +13,14 @@ use std::time::{Instant, Duration};
 use crate::asset::{self, EntityKind, CritterAnim, ItemKind};
 use crate::asset::frame::{FrameDb, FrameId};
 use crate::asset::map::{ELEVATION_COUNT, MapId, MapReader};
+use crate::asset::map::db::MapDb;
 use crate::asset::message::{BULLET, Messages};
 use crate::asset::proto::{CritterFlag, ProtoDb};
 use crate::asset::script::db::ScriptDb;
 use crate::fs::FileSystem;
 use crate::game::dialog::Dialog;
 use crate::game::fidget::Fidget;
-use crate::game::object::{self, LightEmitter, Object};
+use crate::game::object::{self, LightEmitter, Object, MapExitTarget};
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
 use crate::game::script::{self, Scripts, ScriptKind};
@@ -48,6 +49,7 @@ pub struct GameState {
     fs: Rc<FileSystem>,
     proto_db: Rc<ProtoDb>,
     frm_db: Rc<FrameDb>,
+    map_db: MapDb,
     world: Rc<RefCell<World>>,
     scripts: Scripts,
     sequencer: Sequencer,
@@ -85,6 +87,7 @@ impl GameState {
 
         let critter_names = Messages::read_file(&fs, language, "game/scrname.msg").unwrap();
 
+        let map_db = MapDb::new(&fs).unwrap();
         let scripts = Scripts::new(
             proto_db.clone(),
             ScriptDb::new(fs.clone(), language).unwrap(),
@@ -115,6 +118,7 @@ impl GameState {
             fs,
             frm_db,
             proto_db,
+            map_db,
             world,
             scripts,
             sequencer,
@@ -157,6 +161,20 @@ impl GameState {
     }
 
     pub fn switch_map(&mut self, map_name: &str, ui: &mut Ui) {
+        debug!("switching map to `{}`", map_name);
+
+        if let Some(map_id) = self.map_id {
+            let ctx = &mut script::Context {
+                world: &mut self.world.borrow_mut(),
+                sequencer: &mut self.sequencer,
+                dialog: &mut self.dialog,
+                message_panel: self.message_panel,
+                ui,
+                map_id,
+            };
+            self.scripts.execute_map_procs(PredefinedProc::MapExit, ctx);
+        }
+
         let mut dude_obj = {
             let mut world = self.world.borrow_mut();
             let dude_obj = world.remove_dude_obj().unwrap();
@@ -213,7 +231,7 @@ impl GameState {
         world.set_sqr_tiles(map.sqr_tiles);
         world.rebuild_light_grid();
 
-        dude_obj.direction = Direction::NE;
+        dude_obj.direction = map.entrance_direction;
         dude_obj.light_emitter = LightEmitter {
             intensity: 0x10000,
             radius: 4,
@@ -297,15 +315,30 @@ impl GameState {
         }
     }
 
-    fn handle_seq_events(&mut self, ui: &mut Ui) {
+    fn handle_seq_events(&mut self, ctx: &mut state::Update) {
         use sequence::Event::*;
         let mut events = std::mem::replace(&mut self.seq_events, Vec::new());
         for event in events.drain(..) {
             match event {
-                Talk { talker, talked } => {
-                    self.talk(talker, talked, ui);
+                ObjectMoved { obj, new_pos, .. } => {
+                    let world = self.world.borrow();
+                    if obj == world.dude_obj().unwrap() {
+                        for &h in world.objects().at(new_pos) {
+                            let obj = world.objects().get(h);
+                            if let Some(map_exit) = obj.sub.map_exit() {
+                                debug!("dude on map exit object at {:?}: {:?}", new_pos, map_exit);
+                                ctx.out.push(AppEvent::MapExit {
+                                    map: map_exit.map,
+                                    pos: map_exit.pos,
+                                    direction: map_exit.direction,
+                                });
+                            }
+                        }
+                    }
                 }
-                _ => {}
+                Talk { talker, talked } => {
+                    self.talk(talker, talked, ctx.ui);
+                }
             }
         }
         std::mem::replace(&mut self.seq_events, events);
@@ -600,7 +633,27 @@ impl GameState {
 }
 
 impl AppState for GameState {
-    fn handle_app_event(&mut self, _ctx: HandleAppEvent) {
+    fn handle_app_event(&mut self, ctx: HandleAppEvent) {
+        match ctx.event {
+            AppEvent::MapExit { map, pos, direction } => {
+                match map {
+                    MapExitTarget::WorldMap(k) => {
+                        warn!("map exit to {:?} is not implemented", k);
+                    }
+                    MapExitTarget::Map { map_id } => {
+                        if self.map_id.unwrap() != map_id {
+                            let map_def = self.map_db.get(map_id).unwrap();
+                            let name = map_def.name.clone();
+                            self.switch_map(&name, ctx.ui);
+                        }
+                        let mut world = self.world.borrow_mut();
+                        let dude_objh = world.dude_obj().unwrap();
+                        world.objects_mut().get_mut(dude_objh).direction = direction;
+                        world.objects_mut().set_pos(dude_objh, pos);
+                    }
+                }
+            }
+        }
     }
 
     fn handle_input(&mut self, event: &SdlEvent, ui: &mut Ui) -> bool {
@@ -793,7 +846,7 @@ impl AppState for GameState {
         }
     }
 
-    fn update(&mut self, ctx: state::Update) {
+    fn update(&mut self, mut ctx: state::Update) {
         self.time.update(ctx.delta);
 
         self.time.set_paused(self.user_paused || self.scripts.can_resume());
@@ -811,7 +864,7 @@ impl AppState for GameState {
                 });
             }
 
-            self.handle_seq_events(ctx.ui);
+            self.handle_seq_events(&mut ctx);
 
             self.fidget.update(self.time.time(), &mut self.world.borrow_mut(), &mut self.sequencer);
         } else {
