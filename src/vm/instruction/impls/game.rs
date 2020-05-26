@@ -109,12 +109,38 @@ pub fn add_mult_objs_to_inven(ctx: Context) -> Result<()> {
     Ok(())
 }
 
-pub fn add_timer_event(ctx: Context) -> Result<()> {
-    let flags = ctx.prg.data_stack.pop()?.into_int()?;
-    let ticks = ctx.prg.data_stack.pop()?.into_int()?;
-    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+pub fn add_obj_to_inven(ctx: Context) -> Result<()> {
+    let item = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    let target = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    log_a2!(ctx.prg, target, item);
+    log_stub!(ctx.prg);
+    Ok(())
+}
 
-    log_a3!(ctx.prg, obj, ticks, flags);
+pub fn add_timer_event(ctx: Context) -> Result<()> {
+    let info = ctx.prg.data_stack.pop()?.into_int()?;
+    let time = ctx.prg.data_stack.pop()?.into_int()?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    log_a3!(ctx.prg, obj, time, info);
+    log_stub!(ctx.prg);
+
+    Ok(())
+}
+
+pub fn anim(ctx: Context) -> Result<()> {
+    let direction = ctx.prg.data_stack.pop()?.into_int()?;
+    let direction = Direction::from_i32(direction)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    let anim = ctx.prg.data_stack.pop()?.into_int()?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    log_a3!(ctx.prg, obj, anim, direction);
     log_stub!(ctx.prg);
 
     Ok(())
@@ -167,6 +193,21 @@ pub fn critter_add_trait(ctx: Context) -> Result<()> {
 
     log_a4r1!(ctx.prg, obj, kind, sub_kind, value, r);
     log_stub!(ctx.prg);
+    Ok(())
+}
+
+pub fn critter_attempt_placement(ctx: Context) -> Result<()> {
+    let elevation = ctx.prg.data_stack.pop()?.into_int()?;
+    let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    let r = 0;
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a3r1!(ctx.prg, obj, tile_num, elevation, r);
+    log_stub!(ctx.prg);
+
     Ok(())
 }
 
@@ -632,6 +673,21 @@ pub fn move_obj_inven_to_obj(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn move_to(ctx: Context) -> Result<()> {
+    let elevation = ctx.prg.data_stack.pop()?.coerce_into_int();
+    let tile_num = ctx.prg.data_stack.pop()?.coerce_into_int();
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    let r = 0;
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a3r1!(ctx.prg, obj, tile_num, elevation, r);
+    log_stub!(ctx.prg);
+
+    Ok(())
+}
+
 pub fn obj_art_fid(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
@@ -838,6 +894,16 @@ pub fn reg_anim_func(ctx: Context) -> Result<()> {
             log_a2!(ctx.prg, op, obj);
         }
     }
+    Ok(())
+}
+
+pub fn rm_timer_event(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+
+    log_a1!(ctx.prg, obj);
+    log_stub!(ctx.prg);
+
     Ok(())
 }
 
