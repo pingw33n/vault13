@@ -66,7 +66,6 @@ jobs:
       shell: bash
       run: |
         rustup default ${{ env.RUST_VERSION }}-${{ matrix.target }}
-        rustup component add clippy
         rustc -vV
         cargo -vV
 
@@ -83,8 +82,12 @@ jobs:
         sudo apt-get install libsndio-dev -y
 
     - name: cargo clippy
+      if: runner.os == 'Linux'
       shell: bash
-      run: cargo clippy --all-targets --all-features --release --verbose -- -D warnings
+      run: |
+        rustup component add clippy
+        cargo clippy -V
+        cargo clippy --all-targets --all-features --release --verbose -- -D warnings
 
     - name: cargo test
       shell: bash
