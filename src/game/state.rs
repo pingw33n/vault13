@@ -29,7 +29,7 @@ use crate::game::ui::hud;
 use crate::game::ui::scroll_area::ScrollArea;
 use crate::game::ui::world::{HexCursorStyle, WorldView};
 use crate::game::world::{ScrollDirection, World};
-use crate::graphics::Rect;
+use crate::graphics::{EPoint, Rect};
 use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::{self, Direction};
 use crate::sequence::{self, *};
@@ -273,6 +273,7 @@ impl GameState {
 
             self.scripts.execute_procs(PredefinedProc::Start, ctx, |sid| sid.kind() != ScriptKind::System);
             self.scripts.execute_map_procs(PredefinedProc::MapEnter, ctx);
+            self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
         }
     }
 
@@ -630,6 +631,28 @@ impl GameState {
                 ScrollNorthWest, ScrollNorthWestX),
         }
     }
+
+    fn move_dude(&mut self, pos: EPoint, direction: Direction, ui: &mut Ui) {
+        let mut world = self.world.borrow_mut();
+        let dude_objh = world.dude_obj().unwrap();
+        let elevation_change = {
+            let mut dude_obj = world.objects_mut().get_mut(dude_objh);
+            dude_obj.direction = direction;
+            dude_obj.pos.unwrap().elevation != pos.elevation
+        };
+        world.objects_mut().set_pos(dude_objh, pos);
+        if elevation_change {
+            let ctx = &mut script::Context {
+                ui,
+                world: &mut self.world.borrow_mut(),
+                sequencer: &mut self.sequencer,
+                dialog: &mut self.dialog,
+                message_panel: self.message_panel,
+                map_id: self.map_id.unwrap(),
+            };
+            self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
+        }
+    }
 }
 
 impl AppState for GameState {
@@ -646,10 +669,7 @@ impl AppState for GameState {
                             let name = map_def.name.clone();
                             self.switch_map(&name, ctx.ui);
                         }
-                        let mut world = self.world.borrow_mut();
-                        let dude_objh = world.dude_obj().unwrap();
-                        world.objects_mut().get_mut(dude_objh).direction = direction;
-                        world.objects_mut().set_pos(dude_objh, pos);
+                        self.move_dude(pos, direction, ctx.ui);
                     }
                 }
             }
@@ -822,18 +842,21 @@ impl AppState for GameState {
                     true
                 };
                 if finished {
-                    self.scripts.resume(&mut script::Context {
+                    let ctx = &mut script::Context {
                         ui,
                         world: &mut self.world.borrow_mut(),
                         sequencer: &mut self.sequencer,
                         dialog: &mut self.dialog,
                         message_panel: self.message_panel,
                         map_id: self.map_id.unwrap(),
-                    }).assert_no_suspend();
+                    };
+                    self.scripts.resume(ctx).assert_no_suspend();
                     assert!(!self.scripts.can_resume());
-                    // TODO call MapUpdate (multiple times?), see gdialogEnter()
-                }
 
+                    // In original MapUpdate is not always called (see gdialogEnter),
+                    // but for now this difference doesn't seem to matter
+                    self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
+                }
             }
             UiCommandData::Scroll => {
                 let (dir, widg) = self.scroll_areas
