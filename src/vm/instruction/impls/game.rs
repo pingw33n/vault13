@@ -4,7 +4,7 @@ use log::*;
 use num_traits::FromPrimitive;
 use static_assertions::const_assert;
 use std::cmp;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 use super::*;
 use crate::asset::{Perk, Stat, Trait};
@@ -40,6 +40,20 @@ fn resolve_script_msg(msg: Value, program_id: ProgramId, ctx: &mut Context) -> R
         }
         _ => return Err(Error::BadValue(BadValue::Content)),
     })
+}
+
+fn tile_grid() -> crate::graphics::geometry::hex::TileGrid {
+    Default::default()
+}
+
+fn to_tile_num(p: Point) -> Option<i32> {
+    tile_grid().to_linear_inv(p).map(|v| v as i32)
+}
+
+fn from_tile_num(tile_num: i32) -> Option<Point> {
+    u32::try_from(tile_num)
+        .ok()
+        .map(|v| tile_grid().from_linear_inv(v))
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
@@ -143,6 +157,14 @@ pub fn anim(ctx: Context) -> Result<()> {
     log_a3!(ctx.prg, obj, anim, direction);
     log_stub!(ctx.prg);
 
+    Ok(())
+}
+
+pub fn combat_is_initialized(ctx: Context) -> Result<()> {
+    let r = false;
+    ctx.prg.data_stack.push(r.into())?;
+    log_r1!(ctx.prg, r);
+    log_stub!(ctx.prg);
     Ok(())
 }
 
@@ -390,6 +412,22 @@ pub fn game_time_in_seconds(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn gdialog_barter(ctx: Context) -> Result<()> {
+    let r = 0;
+    ctx.prg.data_stack.push(r.into())?;
+    log_r1!(ctx.prg, r);
+    log_stub!(ctx.prg);
+    Ok(())
+}
+
+pub fn gdialog_set_barter_mod(ctx: Context) -> Result<()> {
+    let val = ctx.prg.data_stack.pop()?.into_int()?;
+
+    log_a1!(ctx.prg, val);
+    log_stub!(ctx.prg);
+    Ok(())
+}
+
 pub fn get_critter_stat(ctx: Context) -> Result<()> {
     let stat = Stat::from_i32(ctx.prg.data_stack.pop()?.coerce_into_int()?)
         .ok_or(Error::BadValue(BadValue::Content))?;
@@ -549,6 +587,15 @@ pub fn has_trait(ctx: Context) -> Result<()> {
     let r = 0;
     ctx.prg.data_stack.push(Value::Int(r))?;
     log_a2r1!(ctx.prg, family, obj, r);
+    log_stub!(ctx.prg);
+    Ok(())
+}
+
+pub fn item_caps_total(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let r = 0;
+    ctx.prg.data_stack.push(r.into())?;
+    log_a1r1!(ctx.prg, obj, ctx.prg.data_stack.top().unwrap());
     log_stub!(ctx.prg);
     Ok(())
 }
@@ -727,6 +774,24 @@ pub fn obj_is_carrying_obj_pid(ctx: Context) -> Result<()> {
     log_a2r1!(ctx.prg, obj, pid, r);
     log_stub!(ctx.prg);
 
+    Ok(())
+}
+
+pub fn obj_is_locked(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let r = 0;
+    ctx.prg.data_stack.push(r.into())?;
+    log_a1r1!(ctx.prg, obj, r);
+    log_stub!(ctx.prg);
+    Ok(())
+}
+
+pub fn obj_is_open(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let r = 0;
+    ctx.prg.data_stack.push(r.into())?;
+    log_a1r1!(ctx.prg, obj, r);
+    log_stub!(ctx.prg);
     Ok(())
 }
 
@@ -979,6 +1044,68 @@ pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn tile_distance(ctx: Context) -> Result<()> {
+    let tn2 = ctx.prg.data_stack.pop()?.into_int()?;
+    let p2 = from_tile_num(tn2);
+    let tn1 = ctx.prg.data_stack.pop()?.into_int()?;
+    let p1 = from_tile_num(tn1);
+
+    let r = if let (Some(p1), Some(p2)) = (p1, p2) {
+        crate::graphics::geometry::hex::distance(p1, p2)
+    } else {
+        warn!("invalid arguments to {:?}: {:?} ({:?}), {:?} ({:?})",
+            ctx.prg.opcode.unwrap().0, tn1, p1, tn2, p2);
+        9999
+    };
+
+    ctx.prg.data_stack.push(r.try_into().unwrap())?;
+
+    log_a2r1!(ctx.prg, p1, p2, r);
+
+    Ok(())
+}
+
+pub fn tile_distance_objs(ctx: Context) -> Result<()> {
+    let obj2 = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let p2 = obj2.and_then(|obj| ctx.ext.world.objects().get(obj).pos);
+    let obj1 = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let p1 = obj1.and_then(|obj| ctx.ext.world.objects().get(obj).pos);
+
+    let r = if let (Some(pos1), Some(pos2)) = (p1, p2) {
+        crate::graphics::geometry::hex::distance(pos1.point, pos2.point)
+    } else {
+        warn!("invalid arguments to {:?}: {:?} ({:?}), {:?} ({:?})",
+            ctx.prg.opcode.unwrap().0, obj1, p1, obj2, p2);
+        9999
+    };
+
+    ctx.prg.data_stack.push(r.try_into().unwrap())?;
+
+    log_a2r1!(ctx.prg, obj1, obj2, r);
+
+    Ok(())
+}
+
+pub fn rotation_to_tile(ctx: Context) -> Result<()> {
+    let to_tn = ctx.prg.data_stack.pop()?.into_int()?;
+    let to = from_tile_num(to_tn);
+    let from_tn = ctx.prg.data_stack.pop()?.into_int()?;
+    let from = from_tile_num(from_tn);
+
+    let r = if let (Some(from), Some(to)) = (from, to) {
+        crate::graphics::geometry::hex::direction(from, to)
+    } else {
+        warn!("invalid arguments to {:?}: {:?}, {:?}", ctx.prg.opcode.unwrap().0, from_tn, to_tn);
+        Direction::NE
+    };
+
+    ctx.prg.data_stack.push((r as i32).into())?;
+
+    log_a2r1!(ctx.prg, from, to, r);
+
+    Ok(())
+}
+
 pub fn tile_in_tile_rect(ctx: Context) -> Result<()> {
     let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
     let right = ctx.prg.data_stack.pop()?.into_int()?;
@@ -996,35 +1123,33 @@ pub fn tile_in_tile_rect(ctx: Context) -> Result<()> {
 }
 
 pub fn tile_num(ctx: Context) -> Result<()> {
-    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
-        .ok_or(Error::BadValue(BadValue::Content))?;
-    let pos = ctx.ext.world.objects().get(obj).pos;
-    let r = pos.map(|p| {
-        // FIXME clean up this
-        use crate::graphics::geometry::hex::TileGrid;
-        let hex = TileGrid::default();
-        hex.to_linear_inv(p.point).unwrap() as i32
-    }).unwrap();
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let r = obj
+        .and_then(|obj| {
+            let pos = ctx.ext.world.objects().get(obj).pos;
+            pos.and_then(|p| to_tile_num(p.point))
+        })
+        .unwrap_or(-1);
     ctx.prg.data_stack.push(r.into())?;
-    log_a1r1!(ctx.prg, obj, r);
+    log_a1r1!(ctx.prg, obj, ctx.prg.data_stack.top().unwrap());
     Ok(())
 }
 
 pub fn tile_num_in_direction(ctx: Context) -> Result<()> {
-    let distance = ctx.prg.data_stack.pop()?.into_int()?;
+    let distance = u32::try_from(ctx.prg.data_stack.pop()?.into_int()?)
+        .map_err(|_| Error::BadValue(BadValue::Content))?;
     let direction = ctx.prg.data_stack.pop()?.into_int()?;
-    let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
+    let direction = Direction::from_i32(direction)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    let pos = from_tile_num(ctx.prg.data_stack.pop()?.into_int()?);
 
-    // FIXME clean up this, better validate
-    use crate::graphics::geometry::hex::TileGrid;
-    let hex = TileGrid::default();
-    let p = hex.from_linear_inv(tile_num as u32);
-    let r = hex.go(p, Direction::from_i32(direction).unwrap(), distance as u32)
-        .map(|p| hex.to_linear_inv(p).unwrap() as i32)
+    let r = pos
+        .and_then(|pos| tile_grid().go(pos, direction, distance))
+        .and_then(to_tile_num)
         .unwrap_or(-1);
     ctx.prg.data_stack.push(Value::Int(r))?;
 
-    log_a3r1!(ctx.prg, tile_num, direction, distance, ctx.prg.data_stack.top().unwrap());
+    log_a3r1!(ctx.prg, pos, direction, distance, ctx.prg.data_stack.top().unwrap());
 
     Ok(())
 }
