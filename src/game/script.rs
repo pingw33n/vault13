@@ -220,10 +220,13 @@ impl Scripts {
             &mut self.vars,
             &mut self.db,
             &self.proto_db,
+            script.object,
             ctx);
-        vm_ctx.self_obj = script.object;
         if !script.inited {
-            debug!("[{:?}#{}] running program initialization code", sid, script.program_id.val());
+            debug!("[{:?}#{}:{}] running program initialization code",
+                sid,
+                script.program_id.val(),
+                self.vm.program_state(script.program).program().name());
             self.vm.run(script.program, vm_ctx).unwrap()
                 .assert_no_suspend();
             script.inited = true;
@@ -316,6 +319,7 @@ impl Scripts {
             &mut self.vars,
             &mut self.db,
             &self.proto_db,
+            script.object,
             ctx);
         self.vm.program_state_mut(script.program).resume(vm_ctx).unwrap()
     }
@@ -337,6 +341,7 @@ impl Scripts {
         vars: &'a mut Vars,
         script_db: &'a mut ScriptDb,
         proto_db: &'a ProtoDb,
+        self_obj: Option<object::Handle>,
         ctx: &'a mut Context,
     ) -> vm::Context<'a> {
         vm::Context {
@@ -345,7 +350,7 @@ impl Scripts {
             global_vars: &mut vars.global_vars,
             external_vars: &mut vars.external_vars,
 
-            self_obj: None,
+            self_obj,
             ui: ctx.ui,
             world: ctx.world,
             sequencer: ctx.sequencer,
