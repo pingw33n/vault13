@@ -187,9 +187,9 @@ pub enum Suspend {
 pub struct InvocationResult {
     /// Whether the `script_overrides()` instruction has been called at least once.
     /// Note this flag won't be carried over on resume.
-    /// Semantically a set `script_overrides` flag means the caller should not run some default
+    /// Semantically a set `script_overrides` flag means the caller should not run the default
     /// logic. For example for `PredefinedProc::Description` it should assume that the script
-    /// has pushed its description the message panel.
+    /// has pushed its description to the message panel.
     pub script_overrides: bool,
     pub suspend: Option<Suspend>,
 }
