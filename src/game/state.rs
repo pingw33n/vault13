@@ -557,9 +557,7 @@ impl GameState {
                 // TODO original cancels only Walk/Run animation, is this important?
                 objs.get_mut(talker).cancel_sequence();
 
-                let dest = objs.get(talked).pos.unwrap().point;
-                // TODO (move_to_object()) shorten the move path by 1 tile if the `talked` is MultiHex
-                let (seq, cancel) = Move::new(talker, dest, CritterAnim::Running).cancellable();
+                let (seq, cancel) = Move::new(talker, PathTo::Object(talked), CritterAnim::Running).cancellable();
                 objs.get_mut(talker).sequence = Some(cancel);
                 self.sequencer.start(seq
                     .then(Stand::new(talker))
@@ -807,7 +805,10 @@ impl AppState for GameState {
                     } else {
                         CritterAnim::Running
                     };
-                    let (seq, signal) = Move::new(dude_objh, pos.point, anim).cancellable();
+                    let (seq, signal) = Move::new(dude_objh, PathTo::Point {
+                        point: pos.point,
+                        neighbor_if_blocked: true,
+                    }, anim).cancellable();
                     world.objects().get_mut(dude_objh).sequence = Some(signal);
                     self.sequencer.start(seq.then(Stand::new(dude_objh)));
                 } else {
