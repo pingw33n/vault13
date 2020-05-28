@@ -20,7 +20,7 @@ use crate::asset::script::db::ScriptDb;
 use crate::fs::FileSystem;
 use crate::game::dialog::Dialog;
 use crate::game::fidget::Fidget;
-use crate::game::object::{self, LightEmitter, Object, MapExitTarget};
+use crate::game::object::{self, LightEmitter, Object, TargetMap};
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
 use crate::game::script::{self, Scripts, ScriptKind};
@@ -660,10 +660,10 @@ impl AppState for GameState {
         match ctx.event {
             AppEvent::MapExit { map, pos, direction } => {
                 match map {
-                    MapExitTarget::WorldMap(k) => {
+                    TargetMap::WorldMap(k) => {
                         warn!("map exit to {:?} is not implemented", k);
                     }
-                    MapExitTarget::Map { map_id } => {
+                    TargetMap::Map { map_id } => {
                         if self.map_id.unwrap() != map_id {
                             let map_def = self.map_db.get(map_id).unwrap();
                             let name = map_def.name.clone();

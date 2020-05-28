@@ -124,7 +124,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             self.make_map_script(program_id)?;
         }
 
-        self.read_objects(version)?;
+        self.read_objects(version, id)?;
 
         Ok(Map {
             id,
@@ -238,7 +238,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         }
     }
 
-    fn read_objects(&mut self, version: u32) -> io::Result<()> {
+    fn read_objects(&mut self, version: u32, map_id: MapId) -> io::Result<()> {
         let total_obj_count = self.reader.read_i32::<BigEndian>()?;
         debug!("object count: {}", total_obj_count);
         for elev in 0..ELEVATION_COUNT {
@@ -246,7 +246,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             debug!("object count at elevation {}: {}", elev, obj_count);
 
             for _ in 0..obj_count {
-                let obj = self.read_object(version != 19)?;
+                let obj = self.read_object(version != 19, map_id)?;
                 let script = obj.script;
                 let objh = self.objects.insert(obj);
                 if let Some((sid, _)) = script {
@@ -257,7 +257,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         Ok(())
     }
 
-    fn read_object(&mut self, f2: bool) -> io::Result<Object> {
+    fn read_object(&mut self, f2: bool, map_id: MapId) -> io::Result<Object> {
         let id = self.reader.read_u32::<BigEndian>()?;
 
         trace!("object ID {}", id);
@@ -308,6 +308,10 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         let _ = self.reader.read_u32::<BigEndian>()?;
 
         let updated_flags = self.reader.read_u32::<BigEndian>()?;
+        let updated_flags = BitFlags::from_bits(updated_flags)
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                    format!("unknown updated flags: {:x}", updated_flags)))?;
+        trace!("updated_flags: {:?}", updated_flags);
 
         let sub = if pid.kind() == EntityKind::Critter {
             // combat data
@@ -336,7 +340,6 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                 },
             })
         } else {
-            assert_ne!(updated_flags, 0xcccccccc);
     //            let update_flags = if updated_flags == 0xcccccccc {
     //                0
     //            } else {
@@ -382,31 +385,57 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                     }
                 }
                 EntityKind::Scenery => {
+                    fn decode_map_exit(this_map_id: MapId, map: i32, location: u32) -> io::Result<MapExit> {
+                        let map = if map != 0 {
+                            decode_target_map(map)?
+                        } else {
+                            TargetMap::Map { map_id: this_map_id }
+                        };
+                        let elevation = location & 0x3ffffff;
+                        let pos = tile_grid().from_linear_inv((location & 0xE0000000) >> 29)
+                            .elevated(elevation);
+                        let direction = Direction::from_u32((location & 0x1C000000) >> 26)
+                            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "invalid exit direction"))?;
+                        Ok(MapExit {
+                            map,
+                            pos,
+                            direction,
+                        })
+                    }
+
                     let k = proto.borrow().sub.kind();
                     let kind = k.scenery().unwrap();
                     match kind {
                         SceneryKind::Door => {
-                            let _walk_thru = self.reader.read_i32::<BigEndian>()?;
-                            SubObject::None
+                            let flags = self.reader.read_u32::<BigEndian>()?;
+                            let flags = BitFlags::from_bits(flags)
+                                .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                                    format!("unknown door flags: {:x}", flags)))?;
+                            trace!("door flags: {:?}", flags);
+                            SubObject::Scenery(Scenery::Door(Door { flags }))
                         }
                         SceneryKind::Stairs => {
-                            let _dest_map_id = self.reader.read_u32::<BigEndian>()?;
-                            let _dest_pos_and_elevation = self.reader.read_u32::<BigEndian>()?;
-                            SubObject::None
+                            let location = self.reader.read_u32::<BigEndian>()?;
+                            let map = self.reader.read_i32::<BigEndian>()?;
+                            let exit = decode_map_exit(map_id, map, location)?;
+                            SubObject::Scenery(Scenery::Stairs(exit))
                         }
                         SceneryKind::Elevator => {
-                            let _elevator_kind = self.reader.read_u32::<BigEndian>()?;
-                            let _level = self.reader.read_u32::<BigEndian>()?;
-                            SubObject::None
+                            let kind = self.reader.read_u32::<BigEndian>()?;
+                            let level = self.reader.read_u32::<BigEndian>()?;
+                            SubObject::Scenery(Scenery::Elevator(Elevator { kind, level }))
                         }
                         SceneryKind::LadderDown | SceneryKind::LadderUp => {
-                            if f2 {
-                                let _dest_pos_and_elevation = self.reader.read_u32::<BigEndian>()?;
-                            }
-                            let _dest_map_id = self.reader.read_u32::<BigEndian>()?;
-                            SubObject::None
+                            let map = if f2 {
+                                self.reader.read_i32::<BigEndian>()?
+                            } else {
+                                0
+                            };
+                            let location = self.reader.read_u32::<BigEndian>()?;
+                            let exit = decode_map_exit(map_id, map, location)?;
+                            SubObject::Scenery(Scenery::Ladder(exit))
                         }
-                        _ => SubObject::None
+                        SceneryKind::Misc => SubObject::None,
                     }
                 }
                 EntityKind::Misc => {
@@ -415,14 +444,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                         let map = self.reader.read_i32::<BigEndian>()?;
                         trace!("map={}", map);
                         assert!(map >= 0 || fid.id() >= 33);
-                        let map = match map {
-                            -1 => MapExitTarget::WorldMap(WorldMapKind::Town),
-                            -2 => MapExitTarget::WorldMap(WorldMapKind::World),
-                            map_id if map_id >= 0 => {
-                                MapExitTarget::Map { map_id: map_id as u32 }
-                            }
-                            _ => return Err(Error::new(ErrorKind::InvalidData, format!("invalid exit map {}", map))),
-                        };
+                        let map = decode_target_map(map)?;
                         /* if charges <= 0
     //          {
     //            v7 = obj->art_fid & 0xFFF;
@@ -460,7 +482,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             trace!("loading inventory item {}/{}", i, inventory_len);
             let count = self.reader.read_i32::<BigEndian>()? as usize;
             trace!("item count: {}", count);
-            let object = self.read_object(f2)?;
+            let object = self.read_object(f2, map_id)?;
             let object = self.objects.insert(object);
             inventory.items.push(InventoryItem {
                 object,
@@ -470,6 +492,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         Ok(Object {
             flags,
+            updated_flags,
             pos: pos.map(|p| p.elevated(elevation)),
             screen_pos,
             screen_shift,
@@ -584,5 +607,14 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
     }
 }
 
-
+fn decode_target_map(map: i32) -> io::Result<TargetMap> {
+    Ok(match map {
+        -1 => TargetMap::WorldMap(WorldMapKind::Town),
+        -2 => TargetMap::WorldMap(WorldMapKind::World),
+        map_id if map_id >= 0 => {
+            TargetMap::Map { map_id: map_id as u32 }
+        }
+        _ => return Err(Error::new(ErrorKind::InvalidData, format!("invalid exit map {}", map))),
+    })
+}
 
