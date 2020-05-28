@@ -623,11 +623,12 @@ impl Objects {
         self.set_screen_shift(h, shift);
     }
 
+    /// Whether the `pos` hex has any blocker objects other than `excluding_obj`.
     // obj_blocking_at()
     #[must_use]
-    pub fn is_blocked_at(&self, obj: Handle, pos: EPoint) -> bool {
+    pub fn has_blocker_at(&self, pos: EPoint, excluding_obj: Option<Handle>) -> bool {
         let check = |h| {
-            if h == obj {
+            if Some(h) == excluding_obj {
                 return false;
             }
             let o = self.get(h);
@@ -894,7 +895,7 @@ impl Objects {
         let from = o.pos?;
 
         let to_blocked = if allow_neighbor_tile {
-            Some(self.is_blocked_at(obj, to.elevated(from.elevation)))
+            Some(self.has_blocker_at(to.elevated(from.elevation), Some(obj)))
         } else {
             None
         };
@@ -903,7 +904,7 @@ impl Objects {
             |p| {
                 let p = EPoint::new(from.elevation, p);
                 if (!allow_neighbor_tile || p.point != to) &&
-                    self.is_blocked_at(obj, p) // TODO check anim_can_use_door_(obj, v22)
+                    self.has_blocker_at(p, Some(obj)) // TODO check anim_can_use_door_(obj, v22)
                 {
                     TileState::Blocked
                 } else if let Some(proto) = o.proto.as_ref() {
