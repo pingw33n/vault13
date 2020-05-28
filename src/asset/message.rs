@@ -10,9 +10,11 @@ use crate::fs::FileSystem;
 pub const BULLET: u8 = b'\x95';
 pub const BULLET_STR: &[u8] = b"\x95";
 
+pub type MessageId = i32;
+
 #[derive(Debug, Default)]
 pub struct Messages {
-    map: HashMap<i32, Message>,
+    map: HashMap<MessageId, Message>,
 }
 
 impl Messages {
@@ -35,14 +37,14 @@ impl Messages {
         Self::read(&mut fs.reader(&path)?)
     }
 
-    pub fn get(&self, id: i32) -> Option<&Message> {
+    pub fn get(&self, id: MessageId) -> Option<&Message> {
         self.map.get(&id)
     }
 }
 
 #[derive(Debug)]
 pub struct Message {
-    pub id: i32,
+    pub id: MessageId,
     pub audio: BString,
     pub text: BString,
 }

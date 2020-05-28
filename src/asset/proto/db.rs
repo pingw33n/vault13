@@ -11,7 +11,7 @@ use std::str;
 
 use super::*;
 use crate::asset::frame::*;
-use crate::asset::message::Messages;
+use crate::asset::message::{MessageId, Messages};
 use crate::fs::FileSystem;
 
 pub struct ProtoDb {
@@ -549,7 +549,9 @@ impl ProtoDb {
         })
     }
 
-    fn msg(&self, kind: EntityKind, msg_id: i32, base: i32) -> io::Result<Option<&bstr>> {
+    fn msg(&self, kind: EntityKind, msg_id: MessageId, base: MessageId)
+        -> io::Result<Option<&bstr>>
+    {
         Ok(self.entity_messages[kind].get(base + msg_id)
             .map(|m| m.text.as_ref()))
     }
