@@ -171,6 +171,8 @@ impl GameState {
                 message_panel: self.message_panel,
                 ui,
                 map_id,
+                source_obj: None,
+                target_obj: None,
             };
             self.scripts.execute_map_procs(PredefinedProc::MapExit, ctx);
         }
@@ -262,6 +264,8 @@ impl GameState {
                 message_panel: self.message_panel,
                 ui,
                 map_id: map.id,
+                source_obj: None,
+                target_obj: None,
             };
 
             // PredefinedProc::Start for map script is never called.
@@ -425,6 +429,8 @@ impl GameState {
                     ui,
                     message_panel: self.message_panel,
                     map_id: self.map_id.unwrap(),
+                    source_obj: Some(looker),
+                    target_obj: Some(looked),
                 });
             then {
                 assert!(r.suspend.is_none(), "can't suspend");
@@ -486,6 +492,8 @@ impl GameState {
                     ui,
                     message_panel: self.message_panel,
                     map_id: self.map_id.unwrap(),
+                    source_obj: Some(examiner),
+                    target_obj: Some(examined),
                 });
             then {
                 assert!(r.suspend.is_none(), "can't suspend");
@@ -584,6 +592,8 @@ impl GameState {
                         ui,
                         message_panel: self.message_panel,
                         map_id: self.map_id.unwrap(),
+                        source_obj: Some(talker),
+                        target_obj: Some(talked),
                     }).and_then(|r| r.suspend)
                     {
                         None | Some(Suspend::GsayEnd) => {}
@@ -649,6 +659,8 @@ impl GameState {
                 dialog: &mut self.dialog,
                 message_panel: self.message_panel,
                 map_id: self.map_id.unwrap(),
+                source_obj: None,
+                target_obj: None,
             };
             self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
         }
@@ -827,14 +839,19 @@ impl AppState for GameState {
                     (dialog.sid(), proc_id)
                 };
                 let finished = if let Some(proc_id) = proc_id {
+                    let world = &mut self.world.borrow_mut();
+                    let source_obj = Some(world.dude_obj().unwrap());
+                    let target_obj = Some(self.dialog.as_ref().unwrap().obj);
                     self.scripts.execute_proc(sid, proc_id,
                         &mut script::Context {
                             ui,
-                            world: &mut self.world.borrow_mut(),
+                            world: world,
                             sequencer: &mut self.sequencer,
                             dialog: &mut self.dialog,
                             message_panel: self.message_panel,
                             map_id: self.map_id.unwrap(),
+                            source_obj,
+                            target_obj,
                         }).assert_no_suspend();
                     // No dialog options means the dialog is finished.
                     self.dialog.as_ref().unwrap().is_empty()
@@ -849,6 +866,8 @@ impl AppState for GameState {
                         dialog: &mut self.dialog,
                         message_panel: self.message_panel,
                         map_id: self.map_id.unwrap(),
+                        source_obj: None,
+                        target_obj: None,
                     };
                     self.scripts.resume(ctx).assert_no_suspend();
                     assert!(!self.scripts.can_resume());
