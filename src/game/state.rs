@@ -20,7 +20,7 @@ use crate::asset::script::db::ScriptDb;
 use crate::fs::FileSystem;
 use crate::game::dialog::Dialog;
 use crate::game::fidget::Fidget;
-use crate::game::object::{self, LightEmitter, Object, TargetMap};
+use crate::game::object::{self, *};
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
 use crate::game::script::{self, Scripts, ScriptKind};
@@ -814,7 +814,10 @@ impl AppState for GameState {
                     let mut wv = ui.widget_mut::<WorldView>(self.world_view);
                     let dude_obj = self.world.borrow().dude_obj().unwrap();
                     wv.hex_cursor_style = if self.world.borrow()
-                        .path_for_object(dude_obj, pos.point, true, false).is_some()
+                        .path_for_object(dude_obj, PathTo::Point {
+                            point: pos.point,
+                            neighbor_if_blocked: false,
+                        }, false).is_some()
                     {
                         HexCursorStyle::Normal
                     } else {

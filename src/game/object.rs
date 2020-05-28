@@ -26,6 +26,16 @@ use crate::util::array2d::Array2d;
 use crate::vm::PredefinedProc;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PathTo {
+    Object(Handle),
+    Point {
+        point: Point,
+        /// If the `point` hex is blocked, allow path to end at a non-blocked neighbor hex.
+        neighbor_if_blocked: bool,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Outline {
     pub style: OutlineStyle,
     pub translucent: bool,
@@ -886,26 +896,43 @@ impl Objects {
     #[must_use]
     pub fn path(&self,
         obj: Handle,
-        to: Point,
-        smooth: bool,
-        allow_neighbor_tile: bool)
+        to: PathTo,
+        smooth: bool)
         -> Option<Vec<Direction>>
     {
         let o = self.get(obj);
         let from = o.pos?;
 
-        let to_blocked = if allow_neighbor_tile {
-            Some(self.has_blocker_at(to.elevated(from.elevation), Some(obj)))
-        } else {
-            None
+        let (to_point, unblocked_radius) = match to {
+            PathTo::Object(to_obj) => {
+                let to_obj = self.get(to_obj);
+                let to_point = to_obj.pos.unwrap().point;
+                let unblocked_radius = if to_obj.flags.contains(Flag::MultiHex) {
+                    2
+                } else {
+                    1
+                };
+                (to_point, unblocked_radius)
+            }
+            PathTo::Point { point, neighbor_if_blocked } => {
+                let unblocked_radius = if neighbor_if_blocked && self.has_blocker_at(point.elevated(from.elevation), Some(obj)) {
+                    1
+                } else {
+                    0
+                };
+                (point, unblocked_radius)
+            }
         };
 
-        let mut r = self.path_finder.borrow_mut().find(from.point, to, smooth,
+        let mut r = self.path_finder.borrow_mut().find(from.point, to_point, smooth,
             |p| {
-                let p = EPoint::new(from.elevation, p);
-                if (!allow_neighbor_tile || p.point != to) &&
-                    self.has_blocker_at(p, Some(obj)) // TODO check anim_can_use_door_(obj, v22)
-                {
+                let p = p.elevated(from.elevation);
+                let blocked =
+                    // p is not in unblocked_radius
+                    hex::try_distance(p.point, to_point, unblocked_radius).map(|d| d < unblocked_radius) != Some(true) &&
+                    self.has_blocker_at(p, Some(obj));
+                if blocked {
+                    // TODO check anim_can_use_door_(obj, v22)
                     TileState::Blocked
                 } else if let Some(proto) = o.proto.as_ref() {
                     let radioactive_goo = self.at(p)
@@ -933,11 +960,9 @@ impl Objects {
                     TileState::Passable(0)
                 }
             });
-        if to_blocked == Some(true) {
-            if let Some(path) = r.as_mut() {
-                let last = path.len() - 1;
-                path.remove(last);
-            }
+        if let Some(path) = r.as_mut() {
+            let l = path.len() - unblocked_radius as usize;
+            path.truncate(l);
         }
         r
     }

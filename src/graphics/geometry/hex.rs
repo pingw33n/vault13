@@ -353,16 +353,24 @@ pub fn direction(from: Point, to: Point) -> Direction {
     }
 }
 
-/// Returns smallest number of steps needed to reach tile `p2` from `p1`.
+/// Returns smallest number of steps needed to reach tile `p2` from `p1` or `None` if the result
+/// would be larger than `max`.
 // tile_dist()
-pub fn distance(mut p1: Point, p2: Point) -> u32 {
+pub fn try_distance(mut p1: Point, p2: Point, max: u32) -> Option<u32> {
     let mut distance = 0;
     while p1 != p2 {
+        if distance == max {
+            return None;
+        }
         let dir = direction(p1, p2);
         p1 = go(p1, dir, 1);
         distance += 1;
     }
-    distance
+    Some(distance)
+}
+
+pub fn distance(p1: Point, p2: Point) -> u32 {
+    try_distance(p1, p2, u32::max_value()).unwrap()
 }
 
 /// Is `p1` located in front of `p2` if looking in SE direction?
@@ -642,6 +650,12 @@ mod test {
 
         assert_eq!(distance(P(92, 143), P(70, 102)), 52);
         assert_eq!(distance(P(70, 102), P(92, 143)), 52);
+    }
+
+    #[test]
+    fn try_distance_() {
+        assert_eq!(try_distance(P(111, 92), P(98, 105), 19), Some(19));
+        assert_eq!(try_distance(P(111, 92), P(98, 105), 18), None);
     }
 
     #[test]

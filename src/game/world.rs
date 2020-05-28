@@ -14,7 +14,7 @@ use crate::asset::map::ELEVATION_COUNT;
 use crate::asset::message::Messages;
 use crate::asset::proto::{ProtoDb, ProtoId};
 use crate::game::GameTime;
-use crate::game::object::{self, DamageFlag, Egg, Object, Objects, SubObject};
+use crate::game::object::{self, *};
 use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::font::Fonts;
 use crate::graphics::geometry::TileGridView;
@@ -219,11 +219,10 @@ impl World {
 
     pub fn path_for_object(&self,
         obj: object::Handle,
-        to: Point,
+        to: PathTo,
         smooth: bool,
-        allow_neighbor_tile: bool,
     ) -> Option<Vec<Direction>> {
-        self.objects.path(obj, to, smooth, allow_neighbor_tile)
+        self.objects.path(obj, to, smooth)
     }
 
     pub fn rebuild_light_grid(&mut self) {
