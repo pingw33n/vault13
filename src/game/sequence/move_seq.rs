@@ -16,7 +16,8 @@ enum State {
 
 pub struct Move {
     obj: Handle,
-    to: Point,
+    to: PathTo,
+    to_point: Option<Point>,
     anim: CritterAnim,
     frame_len: Duration,
     path: Vec<Direction>,
@@ -25,10 +26,11 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new(obj: Handle, to: Point, anim: CritterAnim) -> Self {
+    pub fn new(obj: Handle, to: PathTo, anim: CritterAnim) -> Self {
         Self {
             obj,
             to,
+            to_point: None,
             anim,
             frame_len: Duration::from_millis(1000 / 10),
             path: Vec::new(),
@@ -59,10 +61,14 @@ impl Move {
 
     fn rebuild_path(&mut self, world: &mut World) {
         // TODO non-smooth
-        self.path = world.path_for_object(self.obj, PathTo::Point {
-            point: self.to,
-            neighbor_if_blocked: true,
-        }, true).unwrap_or(Vec::new())
+        self.path = world.path_for_object(self.obj, self.to, true).unwrap_or(Vec::new());
+    }
+
+    fn to_point(&self, world: &World) -> Point {
+        match self.to {
+            PathTo::Object(h) => world.objects().get(h).pos.unwrap().point,
+            PathTo::Point { point, .. } => point,
+        }
     }
 }
 
@@ -72,6 +78,8 @@ impl Sequence for Move {
         match self.state {
             State::Started => {
                 self.rebuild_path(ctx.world);
+                // TODO Do we need to rebuild path if the object moves?
+                self.to_point = Some(self.to_point(ctx.world));
 
                 self.init_step(ctx.world);
                 ctx.world.objects_mut().reset_screen_shift(self.obj);
@@ -140,10 +148,10 @@ impl Sequence for Move {
 
             self.path_pos += 1;
             if self.path_pos >= self.path.len() {
-                if pos.point != self.to {
+                if pos.point != self.to_point.unwrap() {
                     // Make object look into target's direction.
                     ctx.world.objects().get_mut(self.obj).direction =
-                        hex::direction(pos.point, self.to);
+                        hex::direction(pos.point, self.to_point.unwrap());
                 }
                 self.state = State::Done;
                 return Result::Done;
