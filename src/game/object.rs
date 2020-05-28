@@ -111,6 +111,7 @@ impl Handle {
 #[derive(Debug)]
 pub struct Object {
     pub flags: BitFlags<Flag>,
+    pub updated_flags: BitFlags<UpdatedFlag>,
     pub pos: Option<EPoint>,
     pub screen_pos: Point,
     pub screen_shift: Point,
@@ -136,6 +137,7 @@ impl Object {
             frame_idx: 0,
             direction: Direction::NE,
             flags: BitFlags::empty(),
+            updated_flags: BitFlags::empty(),
             proto,
             inventory: Inventory::new(),
             light_emitter: LightEmitter {
@@ -145,10 +147,7 @@ impl Object {
             outline: None,
             sequence: None,
             script: None,
-            sub: match fid.kind() {
-                EntityKind::Critter => SubObject::Critter(Default::default()),
-                _ => SubObject::None,
-            }
+            sub: SubObject::None,
         }
     }
 
@@ -1142,6 +1141,7 @@ pub enum SubObject {
     None,
     Critter(Critter),
     Exit(MapExit),
+    Scenery(Scenery),
 }
 
 impl SubObject {
@@ -1155,6 +1155,14 @@ impl SubObject {
 
     pub fn map_exit(&self) -> Option<&MapExit> {
         if let SubObject::Exit(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn scenery(&self) -> Option<&Scenery> {
+        if let SubObject::Scenery(v) = self {
             Some(v)
         } else {
             None
@@ -1236,25 +1244,88 @@ pub enum WorldMapKind {
     World,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MapExit {
-    pub map: MapExitTarget,
+    pub map: TargetMap,
     pub pos: EPoint,
     pub direction: Direction,
 }
 
 #[derive(Clone, Copy, Eq, Debug, PartialEq)]
-pub enum MapExitTarget {
+pub enum TargetMap {
     WorldMap(WorldMapKind),
     Map {
         map_id: u32,
     },
 }
 
-impl Default for MapExitTarget {
-    fn default() -> Self {
-        Self::WorldMap(WorldMapKind::World)
+#[derive(Debug)]
+pub enum Scenery {
+    Door(Door),
+    Elevator(Elevator),
+    Ladder(MapExit),
+    Misc,
+    Stairs(MapExit),
+}
+
+impl Scenery {
+    pub fn door(&self) -> Option<&Door> {
+        if let Self::Door(v) = self {
+            Some(v)
+        } else {
+            None
+        }
     }
+
+    pub fn elevator(&self) -> Option<&Elevator> {
+        if let Self::Elevator(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn ladder(&self) -> Option<&MapExit> {
+        if let Self::Ladder(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    pub fn stairs(&self) -> Option<&MapExit> {
+        if let Self::Stairs(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Door {
+    pub flags: BitFlags<DoorFlag>,
+}
+
+#[derive(Clone, Copy, Debug, EnumFlags)]
+#[repr(u32)]
+pub enum DoorFlag {
+    Unk1 = 1,
+    Locked = 0x2_00_00_00,
+    Jammed = 0x4_00_00_00,
+}
+
+#[derive(Clone, Copy, Debug, EnumFlags)]
+#[repr(u32)]
+pub enum UpdatedFlag {
+    Locked = 0x2_00_00_00,
+    Jammed = 0x4_00_00_00,
+}
+
+#[derive(Debug, Default)]
+pub struct Elevator {
+    pub kind: u32,
+    pub level: u32,
 }
 
 #[cfg(test)]
