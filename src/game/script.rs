@@ -89,6 +89,8 @@ pub struct Context<'a> {
     pub dialog: &'a mut Option<crate::game::dialog::Dialog>,
     pub message_panel: crate::ui::Handle,
     pub map_id: MapId,
+    pub source_obj: Option<object::Handle>,
+    pub target_obj: Option<object::Handle>,
 }
 
 pub struct Vars {
@@ -351,6 +353,8 @@ impl Scripts {
             external_vars: &mut vars.external_vars,
 
             self_obj,
+            source_obj: ctx.source_obj,
+            target_obj: ctx.target_obj,
             ui: ctx.ui,
             world: ctx.world,
             sequencer: ctx.sequencer,

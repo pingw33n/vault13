@@ -1106,6 +1106,24 @@ pub fn rotation_to_tile(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn self_obj(ctx: Context) -> Result<()> {
+    ctx.prg.data_stack.push(ctx.ext.self_obj.into())?;
+    log_r1!(ctx.prg, ctx.prg.data_stack.top().unwrap());
+    Ok(())
+}
+
+pub fn source_obj(ctx: Context) -> Result<()> {
+    ctx.prg.data_stack.push(ctx.ext.source_obj.into())?;
+    log_r1!(ctx.prg, ctx.prg.data_stack.top().unwrap());
+    Ok(())
+}
+
+pub fn target_obj(ctx: Context) -> Result<()> {
+    ctx.prg.data_stack.push(ctx.ext.target_obj.into())?;
+    log_r1!(ctx.prg, ctx.prg.data_stack.top().unwrap());
+    Ok(())
+}
+
 pub fn tile_in_tile_rect(ctx: Context) -> Result<()> {
     let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
     let right = ctx.prg.data_stack.pop()?.into_int()?;

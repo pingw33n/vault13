@@ -24,6 +24,7 @@ pub struct Dialog {
     options: Vec<OptionInfo>,
     sid: Sid,
     saved_camera_origin: Point,
+    pub obj: object::Handle,
     pub running: bool,
 }
 
@@ -71,6 +72,7 @@ impl Dialog {
             running: false,
             sid,
             saved_camera_origin,
+            obj,
         }
     }
 

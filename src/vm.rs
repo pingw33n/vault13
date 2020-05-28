@@ -216,6 +216,8 @@ pub struct Context<'a> {
     pub external_vars: &'a mut HashMap<Rc<BString>, Option<Value>>,
 
     pub self_obj: Option<object::Handle>,
+    pub source_obj: Option<object::Handle>,
+    pub target_obj: Option<object::Handle>,
     pub ui: &'a mut crate::ui::Ui,
     pub world: &'a mut crate::game::world::World,
     pub sequencer: &'a mut crate::sequence::Sequencer,
