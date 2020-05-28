@@ -83,8 +83,7 @@ impl PathFinder {
                 break;
             }
             let (idx, pos, cost, direction) = {
-                let last = self.open_steps.len() - 1;
-                let idx = self.open_steps.remove(last);
+                let idx = self.open_steps.pop().unwrap();
                 let step = &self.steps[idx];
                 if step.pos == to {
                     // Found.

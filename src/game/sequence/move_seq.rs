@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use crate::asset::CritterAnim;
-use crate::game::object::Handle;
+use crate::game::object::{Handle, PathTo};
 use crate::game::world::World;
 use crate::graphics::{EPoint, Point};
 use crate::graphics::geometry::hex::{self, Direction};
@@ -59,8 +59,10 @@ impl Move {
 
     fn rebuild_path(&mut self, world: &mut World) {
         // TODO non-smooth
-        self.path = world.path_for_object(self.obj, self.to, true, true)
-            .unwrap_or(Vec::new())
+        self.path = world.path_for_object(self.obj, PathTo::Point {
+            point: self.to,
+            neighbor_if_blocked: true,
+        }, true).unwrap_or(Vec::new())
     }
 }
 
