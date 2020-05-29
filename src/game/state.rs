@@ -640,8 +640,8 @@ impl GameState {
         }
     }
 
-    fn move_dude(&mut self, pos: EPoint, direction: Direction, ui: &mut Ui) {
-        let mut world = self.world.borrow_mut();
+    fn set_dude_pos(&mut self, pos: EPoint, direction: Direction, ui: &mut Ui) {
+        let world = &mut self.world.borrow_mut();
         let dude_objh = world.dude_obj().unwrap();
         let elevation_change = {
             let mut dude_obj = world.objects_mut().get_mut(dude_objh);
@@ -652,7 +652,7 @@ impl GameState {
         if elevation_change {
             let ctx = &mut script::Context {
                 ui,
-                world: &mut self.world.borrow_mut(),
+                world,
                 sequencer: &mut self.sequencer,
                 dialog: &mut self.dialog,
                 message_panel: self.message_panel,
@@ -679,7 +679,7 @@ impl AppState for GameState {
                             let name = map_def.name.clone();
                             self.switch_map(&name, ctx.ui);
                         }
-                        self.move_dude(pos, direction, ctx.ui);
+                        self.set_dude_pos(pos, direction, ctx.ui);
                     }
                 }
             }
