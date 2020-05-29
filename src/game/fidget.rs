@@ -3,7 +3,7 @@ use std::cmp;
 use std::time::{Duration, Instant};
 
 use crate::asset::{CritterAnim, EntityKind, Flag};
-use crate::game::sequence::frame_anim::{AnimDirection, FrameAnim};
+use crate::game::sequence::frame_anim::*;
 use crate::game::sequence::stand::Stand;
 use crate::game::world::World;
 use crate::graphics::{EPoint, Point, Rect};
@@ -83,8 +83,9 @@ impl Fidget {
             //          register_object_play_sfx_((int)obj, (int)sfx_name, 0);
             //        }
 
-            let (seq, cancel) = FrameAnim::new(objh, Some(CritterAnim::Stand),
-                AnimDirection::Forward, false).cancellable();
+            let (seq, cancel) = FrameAnim::new(objh,
+                FrameAnimOptions { anim: Some(CritterAnim::Stand), ..Default::default() })
+                .cancellable();
             obj.sequence = Some(cancel);
             sequencer.start(seq.then(Stand::new(objh)));
 

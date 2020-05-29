@@ -20,25 +20,41 @@ pub enum AnimDirection {
     Backward,
 }
 
+#[derive(Clone, Debug)]
+pub struct FrameAnimOptions {
+    pub anim: Option<CritterAnim>,
+    pub direction: AnimDirection,
+
+    /// If `true` makes the animation loop forever.
+    pub wrap: bool,
+
+    /// Number of frames to skip initially.
+    pub skip: u32,
+}
+
+impl Default for FrameAnimOptions {
+    fn default() -> Self {
+        Self {
+            anim: None,
+            direction: AnimDirection::Forward,
+            wrap: false,
+            skip: 0,
+        }
+    }
+}
+
 pub struct FrameAnim {
     obj: Handle,
-    anim: Option<CritterAnim>,
-    direction: AnimDirection,
-    /// If true makes the animation loop forever.
-    wrap: bool,
+    options: FrameAnimOptions,
     frame_len: Duration,
     state: State,
 }
 
 impl FrameAnim {
-    pub fn new(obj: Handle, anim: Option<CritterAnim>, direction: AnimDirection,
-        wrap: bool) -> Self
-    {
+    pub fn new(obj: Handle, options: FrameAnimOptions) -> Self {
         Self {
             obj,
-            anim,
-            direction,
-            wrap,
+            options,
             frame_len: Duration::from_millis(1000 / 10),
             state: State::Started,
         }
@@ -48,7 +64,7 @@ impl FrameAnim {
         let mut obj = world.objects().get_mut(self.obj);
 
         obj.fid = if_chain! {
-            if let Some(anim) = self.anim;
+            if let Some(anim) = self.options.anim;
             if let Some(fid) = obj.fid.critter();
             then {
                 fid.with_anim(anim).into()
@@ -66,10 +82,15 @@ impl Sequence for FrameAnim {
         let set_frame = match self.state {
             State::Started => {
                 self.init(ctx.world);
-                match self.direction {
-                    AnimDirection::Forward => SetFrame::Index(0),
-                    AnimDirection::Backward => SetFrame::Last,
-                }
+                SetFrame::Index(match self.options.direction {
+                    AnimDirection::Forward => self.options.skip as usize,
+                    AnimDirection::Backward => {
+                        let obj = ctx.world.objects().get(self.obj);
+                        let frame_set = ctx.world.frm_db().get(obj.fid).unwrap();
+                        let frames = &frame_set.frame_lists[obj.direction].frames;
+                        frames.len().checked_sub(1 + self.options.skip as usize).unwrap()
+                    }
+                })
             },
             State::Running(last_time) => {
                 if ctx.time - last_time < self.frame_len {
@@ -82,12 +103,12 @@ impl Sequence for FrameAnim {
                     let frame_set = ctx.world.frm_db().get(obj.fid).unwrap();
                     let frames = &frame_set.frame_lists[obj.direction].frames;
 
-                    let done = match self.direction {
+                    let done = match self.options.direction {
                         AnimDirection::Forward => {
                             if obj.frame_idx + 1 < frames.len() {
                                 obj.frame_idx += 1;
                                 false
-                            } else if self.wrap {
+                            } else if self.options.wrap {
                                 obj.frame_idx = 0;
                                 false
                             } else {
@@ -98,7 +119,7 @@ impl Sequence for FrameAnim {
                             if obj.frame_idx > 0 {
                                 obj.frame_idx -= 1;
                                 false
-                            } else if self.wrap {
+                            } else if self.options.wrap {
                                 obj.frame_idx = frames.len() - 1;
                                 false
                             } else {
