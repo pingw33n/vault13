@@ -10,9 +10,17 @@ pub enum Event {
         old_pos: EPoint,
         new_pos: EPoint,
     },
+    SetDoorState {
+        door: object::Handle,
+        open: bool,
+    },
     Talk {
         talker: object::Handle,
         talked: object::Handle,
+    },
+    Use {
+        user: object::Handle,
+        used: object::Handle,
     },
 }
 

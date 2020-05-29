@@ -8,7 +8,7 @@ use std::cmp;
 use std::mem;
 use std::rc::Rc;
 
-use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, ItemKind, WeaponKind};
+use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, ItemKind, WeaponKind, ExactEntityKind};
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::{self, CritterKillKind, Proto, ProtoId};
 use crate::asset::script::ProgramId;
@@ -244,6 +244,27 @@ impl Object {
     pub fn is_critter_dead(&self) -> bool {
         // FIXME
         false
+    }
+
+    // critter_is_prone()
+    pub fn is_critter_prone(&self) -> bool {
+        if let Some(critter) = self.sub.critter() {
+            critter.combat.damage_flags.contains(DamageFlag::KnockedDown | DamageFlag::KnockedOut)
+                || self.fid.critter().unwrap().anim().is_prone()
+        } else {
+            false
+        }
+    }
+
+    // obj_is_locked()
+    // obj_is_lockable()
+    pub fn is_locked(&self) -> Option<bool> {
+        self.sub.scenery().and_then(|s| s.door()).map(|d| d.flags.contains(DoorFlag::Locked))
+            .or_else(|| if self.proto().map(|p| p.kind()) == Some(ExactEntityKind::Item(ItemKind::Container)) {
+                Some(self.updated_flags.contains(UpdatedFlag::Locked))
+            } else {
+                None
+            })
     }
 
     // obj_intersects_with
@@ -1227,6 +1248,14 @@ impl SubObject {
             None
         }
     }
+
+    pub fn scenery_mut(&mut self) -> Option<&mut Scenery> {
+        if let SubObject::Scenery(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -1336,6 +1365,14 @@ impl Scenery {
         }
     }
 
+    pub fn door_mut(&mut self) -> Option<&mut Door> {
+        if let Self::Door(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
     pub fn elevator(&self) -> Option<&Elevator> {
         if let Self::Elevator(v) = self {
             Some(v)
@@ -1369,7 +1406,7 @@ pub struct Door {
 #[derive(Clone, Copy, Debug, EnumFlags)]
 #[repr(u32)]
 pub enum DoorFlag {
-    Unk1 = 1,
+    Open = 1,
     Locked = 0x2_00_00_00,
     Jammed = 0x4_00_00_00,
 }
