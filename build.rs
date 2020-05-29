@@ -45,12 +45,15 @@ enum GitVersionStatus {
 // Dev:
 // 1.2.3-1-g70e989d
 // 0c6cf14
+// snapshot-2020-05-27-29-g5adcc79
 //
 // Dirty:
 // 1.2.3-dirty
 // 1.2.3-broken
 // 0c6cf14-dirty
 // 0c6cf14-broken
+// snapshot-2020-05-27-29-g5adcc79-dirty
+// snapshot-2020-05-27-29-g5adcc79-broken
 fn git_version_status() -> GitVersionStatus {
     let o = Command::new("git")
         .args(&["describe", "--always", "--dirty", "--broken"])
@@ -58,7 +61,7 @@ fn git_version_status() -> GitVersionStatus {
         .unwrap();
     let o = std::str::from_utf8(&o.stdout).unwrap().trim();
     assert!(!o.is_empty());
-    let re = Regex::new(r#"^(?P<ver>\d+\.\d+\.\d+)?(-(?P<dirty>dirty|broken))?$"#).unwrap();
+    let re = Regex::new(r#"((?P<ver>^\d+\.\d+\.\d+)|g?[a-zA-Z0-9]{7})(-(?P<dirty>dirty|broken))?$"#).unwrap();
     if let Some(caps) = re.captures(o) {
         let has_ver = caps.name("ver").is_some();
         let dirty = caps.name("dirty").is_some();
@@ -72,7 +75,7 @@ fn git_version_status() -> GitVersionStatus {
             (_, true) => GitVersionStatus::Dirty,
         }
     } else {
-        GitVersionStatus::Dev
+        panic!("couldn't parse git output: {}", o);
     }
 }
 
