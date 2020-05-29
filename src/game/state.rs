@@ -156,7 +156,11 @@ impl GameState {
 
         let dude_fid = FrameId::from_packed(0x100003E).unwrap();
         //    let dude_fid = FrameId::from_packed(0x101600A).unwrap();
-        let dude_obj = Object::new(dude_fid, Some(self.proto_db.dude()), Some(Default::default()));
+        let dude_obj = Object::new(
+            dude_fid,
+            Some(self.proto_db.dude()),
+            Some(Default::default()),
+            SubObject::Critter(Default::default()));
         self.world.borrow_mut().insert_dude_obj(dude_obj);
     }
 
@@ -362,7 +366,7 @@ impl GameState {
                         if !self.in_combat {
                             r.push(Action::Talk);
                         }
-                    } else if !obj.proto.as_ref().unwrap().borrow()
+                    } else if !obj.proto().unwrap()
                         .sub.critter().unwrap()
                         .flags.contains(CritterFlag::NoSteal)
                     {
@@ -412,7 +416,7 @@ impl GameState {
             if lookero.sub.critter().map(|c| c.is_dead()).unwrap_or(true)
                 // TODO This is only useful for mapper?
                 || lookedo.kind() == EntityKind::SqrTile
-                || lookedo.proto.is_none()
+                || lookedo.proto_ref().is_none()
             {
                 return None;
             }
@@ -509,9 +513,9 @@ impl GameState {
             let world = self.world.borrow();
             let examinedo = world.objects().get(examined);
             if !examinedo.sub.critter().map(|c| c.is_dead()).unwrap_or(false) {
-                let descr = examinedo.proto.as_ref()
+                let descr = examinedo.proto()
                     .and_then(|p| {
-                        p.borrow().description()
+                        p.description()
                             .filter(|s| {
                                 // Compare to "<None>".
                                 s != &self.proto_db.messages().get(10).unwrap().text

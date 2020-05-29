@@ -213,7 +213,7 @@ impl Stats {
     fn with_critter_proto<F, R>(&self, obj: &Object, f: F) -> R
         where F: FnOnce(&proto::Critter) -> R
     {
-        let proto = obj.proto.as_ref().unwrap().borrow();
+        let proto = obj.proto().unwrap();
         f(proto.sub.critter().unwrap())
     }
 }

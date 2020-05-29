@@ -135,7 +135,7 @@ pub struct Object {
     pub frame_idx: usize,
     pub direction: Direction,
     pub light_emitter: LightEmitter,
-    pub proto: Option<Rc<RefCell<Proto>>>,
+    proto: Option<Rc<RefCell<Proto>>>,
     pub inventory: Inventory,
     pub outline: Option<Outline>,
     pub sequence: Option<Cancel>,
@@ -144,7 +144,12 @@ pub struct Object {
 }
 
 impl Object {
-    pub fn new(fid: FrameId, proto: Option<Rc<RefCell<Proto>>>, pos: Option<EPoint>) -> Self {
+    pub fn new(
+        fid: FrameId,
+        proto: Option<Rc<RefCell<Proto>>>,
+        pos: Option<EPoint>,
+        sub: SubObject,
+    ) -> Self {
         Self {
             pos,
             screen_pos: Point::new(0, 0),
@@ -163,7 +168,7 @@ impl Object {
             outline: None,
             sequence: None,
             script: None,
-            sub: SubObject::None,
+            sub,
         }
     }
 
@@ -171,8 +176,16 @@ impl Object {
         self.fid.kind()
     }
 
+    pub fn proto_ref(&self) -> Option<&RefCell<Proto>> {
+        self.proto.as_ref().map(|v| v.as_ref())
+    }
+
+    pub fn proto(&self) -> Option<Ref<Proto>> {
+        self.proto_ref().map(|v| v.borrow())
+    }
+
     pub fn proto_id(&self) -> Option<ProtoId> {
-        self.proto.as_ref().map(|v| v.borrow().id())
+        self.proto().map(|v| v.id())
     }
 
     pub fn has_running_sequence(&self) -> bool {
@@ -333,7 +346,7 @@ impl Object {
         let egg = egg.unwrap();
 
         let pos = self.pos.unwrap().point;
-        let proto_flags_ext = self.proto.as_ref().unwrap().borrow().flags_ext;
+        let proto_flags_ext = self.proto().unwrap().flags_ext;
 
         let with_egg = if proto_flags_ext.intersects(
                 FlagExt::WallEastOrWest | FlagExt::WallWestCorner) {
@@ -1384,7 +1397,7 @@ mod test {
         let screen_shift = Point::new(10, 20);
         let base = Point::new(2384, 468) + screen_shift;
 
-        let mut obj = Object::new(FrameId::BLANK, None, Some((0, (55, 66)).into()));
+        let mut obj = Object::new(FrameId::BLANK, None, Some((0, (55, 66)).into()), SubObject::None);
         obj.screen_shift = screen_shift;
         assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &View::default()),
             Rect::with_points(Point::new(1, -51), Point::new(30, 12))

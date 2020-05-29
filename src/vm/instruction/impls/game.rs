@@ -11,7 +11,7 @@ use crate::asset::{Perk, Stat, Trait};
 use crate::asset::proto::ProtoId;
 use crate::asset::script::ProgramId;
 use crate::game::dialog::Dialog;
-use crate::game::object::Object;
+use crate::game::object::{Object, SubObject};
 use crate::game::script::Sid;
 use crate::game::world::floating_text;
 use crate::graphics::{EPoint, Point};
@@ -193,7 +193,7 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
     let fid = proto.borrow().fid;
     let pos = ctx.ext.world.hex_grid().from_linear_inv(tile_num);
     let pos = pos.elevated(elevation);
-    let obj = Object::new(fid, proto.into(), Some(pos));
+    let obj = Object::new(fid, proto.into(), Some(pos), SubObject::None);
     let objh = ctx.ext.world.insert_object(obj);
 
     ctx.prg.data_stack.push(Value::Object(Some(objh)))?;
