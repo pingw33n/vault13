@@ -70,6 +70,16 @@ impl Move {
             PathTo::Point { point, .. } => point,
         }
     }
+
+    fn done(&mut self, ctx: &mut Update) {
+        let mut obj = ctx.world.objects().get_mut(self.obj);
+        let pos = obj.pos.unwrap().point;
+        if pos != self.to_point.unwrap() {
+            // Make object look into target's direction.
+            obj.direction = hex::direction(pos, self.to_point.unwrap());
+        }
+        self.state = State::Done;
+    }
 }
 
 impl Sequence for Move {
@@ -85,7 +95,7 @@ impl Sequence for Move {
                 ctx.world.objects_mut().reset_screen_shift(self.obj);
 
                 if self.path.is_empty() {
-                    self.state = State::Done;
+                    self.done(ctx);
                     return Result::Done;
                 }
             },
@@ -148,12 +158,7 @@ impl Sequence for Move {
 
             self.path_pos += 1;
             if self.path_pos >= self.path.len() {
-                if pos.point != self.to_point.unwrap() {
-                    // Make object look into target's direction.
-                    ctx.world.objects().get_mut(self.obj).direction =
-                        hex::direction(pos.point, self.to_point.unwrap());
-                }
-                self.state = State::Done;
+                self.done(ctx);
                 return Result::Done;
             }
             ctx.world.objects_mut().add_screen_shift(self.obj, shift);
