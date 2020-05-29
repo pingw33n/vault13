@@ -88,50 +88,6 @@ impl ProtoDb {
         }
     }
 
-    // proto_action_can_use()
-    pub fn can_use(&self, pid: ProtoId) -> bool {
-        if let Ok(proto) = self.proto(pid) {
-            let proto = proto.borrow();
-            proto.flags_ext.contains(FlagExt::CanUse) ||
-                proto.kind() == ExactEntityKind::Item(ItemKind::Container)
-        } else {
-            false
-        }
-    }
-
-    // proto_action_can_use_on()
-    pub fn can_use_on(&self, pid: ProtoId) -> bool {
-        if let Ok(proto) = self.proto(pid) {
-            let proto = proto.borrow();
-            proto.flags_ext.contains(FlagExt::CanUseOn) ||
-                proto.kind() == ExactEntityKind::Item(ItemKind::Drug)
-        } else {
-            false
-        }
-    }
-
-    // proto_action_can_talk_to()
-    pub fn can_talk_to(&self, pid: ProtoId) -> bool {
-        if let Ok(proto) = self.proto(pid) {
-            let proto = proto.borrow();
-            proto.flags_ext.contains(FlagExt::CanTalk) ||
-                proto.kind() == ExactEntityKind::Critter
-        } else {
-            false
-        }
-    }
-
-    // proto_action_can_pick_up()
-    pub fn can_pick_up(&self, pid: ProtoId) -> bool {
-        if let Ok(proto) = self.proto(pid) {
-            let proto = proto.borrow();
-            proto.flags_ext.contains(FlagExt::CanPickup) ||
-                proto.kind() == ExactEntityKind::Item(ItemKind::Container)
-        } else {
-            false
-        }
-    }
-
     pub fn dude(&self) -> Rc<RefCell<Proto>> {
         self.protos.borrow().get(&ProtoId::DUDE).unwrap().clone()
     }
