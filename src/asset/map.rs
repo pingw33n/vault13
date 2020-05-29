@@ -490,23 +490,20 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             });
         }
 
-        Ok(Object {
-            flags,
-            updated_flags,
-            pos: pos.map(|p| p.elevated(elevation)),
-            screen_pos,
-            screen_shift,
-            fid,
-            frame_idx,
-            direction,
-            light_emitter,
-            proto: proto.into(),
-            inventory,
-            outline,
-            sequence: None,
-            script,
-            sub,
-        })
+        let mut r = Object::new(fid, proto.into(), pos.map(|p| p.elevated(elevation)), sub);
+        r.flags = flags;
+        r.updated_flags = updated_flags;
+        r.screen_pos = screen_pos;
+        r.screen_shift = screen_shift;
+        r.fid = fid;
+        r.frame_idx = frame_idx;
+        r.direction = direction;
+        r.light_emitter = light_emitter;
+        r.inventory = inventory;
+        r.outline = outline;
+        r.script = script;
+
+        Ok(r)
     }
 
     fn read_obj_script(&mut self) -> io::Result<Option<(Sid, ProgramId)>> {
@@ -569,7 +566,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
     fn make_map_script(&mut self, program_id: ProgramId) -> io::Result<()> {
         let sid = self.scripts.instantiate_map_script(program_id)?;
-        let mut obj = Object::new(FrameId::MAPMK, None, Some(Default::default()));
+        let mut obj = Object::new(FrameId::MAPMK, None, Some(Default::default()), SubObject::None);
         obj.flags = BitFlags::from(Flag::LightThru)
             | Flag::WalkThru
             | Flag::TurnedOff;

@@ -289,7 +289,7 @@ impl World {
                 then {
                     Some(msg.text.clone())
                 } else {
-                    obj.proto.as_ref().and_then(|s| s.borrow().name().map(|s| s.to_owned()))
+                    obj.proto().and_then(|s| s.name().map(|s| s.to_owned()))
                 }
             }
         }
