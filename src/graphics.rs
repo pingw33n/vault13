@@ -121,6 +121,12 @@ impl ops::SubAssign for Point {
     }
 }
 
+impl std::iter::Sum for Point {
+    fn sum<I: Iterator<Item=Self>>(iter: I) -> Self {
+        iter.fold(Point::new(0, 0), ops::Add::add)
+    }
+}
+
 impl<'a> From<&'a Point> for Point {
     fn from(v: &'a Point) -> Self {
         *v

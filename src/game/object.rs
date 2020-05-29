@@ -26,6 +26,12 @@ use crate::util::array2d::Array2d;
 use crate::vm::PredefinedProc;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SetFrame {
+    Index(usize),
+    Last,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PathTo {
     Object(Handle),
     Point {
@@ -592,6 +598,20 @@ impl Objects {
     pub fn reset_screen_shift(&mut self, h: Handle) {
         let pos = self.remove_from_tile_grid(h);
         self.insert_into_tile_grid(h, pos, true);
+    }
+
+    pub fn set_frame(&mut self, h: Handle, to: SetFrame) {
+        let shift = {
+            let mut obj = self.get_mut(h);
+            let frame_set = self.frm_db.get(obj.fid).unwrap();
+            let frames = &frame_set.frame_lists[obj.direction].frames;
+            obj.frame_idx = match to {
+                SetFrame::Index(v) => v,
+                SetFrame::Last => frames.len() - 1,
+            };
+            frames.iter().take(obj.frame_idx + 1).map(|f| f.shift).sum()
+        };
+        self.set_screen_shift(h, shift);
     }
 
     // dude_stand()
