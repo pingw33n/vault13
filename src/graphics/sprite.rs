@@ -120,12 +120,15 @@ impl Mask {
     }
 
     #[must_use]
-    pub fn test(&self, point: Point) -> bool {
+    pub fn test(&self, point: Point) -> Option<bool> {
+        if point.x >= self.width {
+            return None;
+        }
         let Point { x, y } = point;
         let i = x + y * self.width;
+        let b = self.bitmask.get(i as usize / 8)?;
         let bit = i % 8;
-        let i = i as usize / 8;
-        self.bitmask[i] & (1 << bit) != 0
+        Some(b & (1 << bit) != 0)
     }
 }
 
@@ -272,10 +275,13 @@ mod test {
         fn test() {
             let mask = Mask::new(3, &[0, 1, 0, 2, 0, 100]);
             assert_eq!(&*mask.bitmask, &[0b101010]);
-            assert_eq!(mask.test((0, 0).into()), false);
-            assert_eq!(mask.test((1, 0).into()), true);
-            assert_eq!(mask.test((0, 1).into()), true);
-            assert_eq!(mask.test((1, 1).into()), false);
+            assert_eq!(mask.test((0, 0).into()), Some(false));
+            assert_eq!(mask.test((1, 0).into()), Some(true));
+            assert_eq!(mask.test((0, 1).into()), Some(true));
+            assert_eq!(mask.test((1, 1).into()), Some(false));
+            assert_eq!(mask.test((2, 1).into()), Some(true));
+            assert_eq!(mask.test((3, 1).into()), None);
+            assert_eq!(mask.test((2, 2).into()), None);
         }
     }
 }

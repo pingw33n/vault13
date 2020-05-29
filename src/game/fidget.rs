@@ -49,7 +49,7 @@ impl Fidget {
                     if obj.flags.contains(Flag::TurnedOff) ||
                         obj.fid.kind() != EntityKind::Critter ||
                         obj.is_critter_dead() ||
-                        !world.object_bounds(objh).intersects(world.camera().viewport)
+                        !world.object_bounds(objh, true).intersects(world.camera().viewport)
                     // FIXME
                     // g_map_header.map_id == MAP_ID_WOODSMAN_ENCOUNTER && obj.pid == Some(Pid::ENCLAVE_PATROL)
                     {
