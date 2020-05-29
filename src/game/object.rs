@@ -94,7 +94,7 @@ impl Egg {
             return false;
         }
         let p = p - bounds.top_left();
-        frm.mask.test(p)
+        frm.mask.test(p).unwrap()
     }
 }
 
@@ -235,9 +235,11 @@ impl Object {
     }
 
     // obj_bound()
-    pub fn bounds(&self, frm_db: &FrameDb, tile_grid: &impl TileGridView) -> Rect {
+    pub fn bounds(&self, frm_db: &FrameDb, tile_grid: &impl TileGridView,
+        include_outline: bool,
+    ) -> Rect {
         self.do_with_frame_list(frm_db, |frml, frm|
-            self.bounds0(frml.center, frm.size(), tile_grid))
+            self.bounds0(frml.center, frm.size(), tile_grid, include_outline))
     }
 
     // critter_is_dead()
@@ -274,13 +276,15 @@ impl Object {
             return None;
         }
 
-        let bounds = self.bounds(frm_db, tile_grid);
+        // TODO The test may return None for outlined objects.
+        // Need to have mask for outlined object.
+        let bounds = self.bounds(frm_db, tile_grid, false);
         if !bounds.contains(p) {
             return None;
         }
 
         let p = p - bounds.top_left();
-        if !self.do_with_frame(frm_db, |frm| frm.mask.test(p)) {
+        if !self.do_with_frame(frm_db, |frm| frm.mask.test(p).unwrap()) {
             return None;
         }
 
@@ -303,7 +307,9 @@ impl Object {
         Some(r)
     }
 
-    fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &impl TileGridView) -> Rect {
+    fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &impl TileGridView,
+        include_outline: bool,
+    ) -> Rect {
         let mut r = if let Some(pos) = self.pos {
             let top_left =
                 tile_grid.center_to_screen(pos.point)
@@ -316,13 +322,15 @@ impl Object {
             Rect::with_points(self.screen_pos, self.screen_pos + frame_size)
         };
 
-        let has_outline = self.outline.map(|o| !o.disabled).unwrap_or(false);
-        if has_outline {
-            // Include 1-pixel outline.
-            r.left -= 1;
-            r.top -= 1;
-            r.right += 1;
-            r.bottom += 1;
+        if include_outline {
+            let has_outline = self.outline.map(|o| !o.disabled).unwrap_or(false);
+            if has_outline {
+                // Include 1-pixel outline.
+                r.left -= 1;
+                r.top -= 1;
+                r.right += 1;
+                r.bottom += 1;
+            }
         }
 
         r
@@ -1021,8 +1029,10 @@ impl Objects {
         r
     }
 
-    pub fn bounds(&self, obj: Handle, tile_grid: &impl TileGridView) -> Rect {
-        self.get(obj).bounds(&self.frm_db, tile_grid)
+    pub fn bounds(&self, obj: Handle, tile_grid: &impl TileGridView,
+        include_outline: bool,
+    ) -> Rect {
+        self.get(obj).bounds(&self.frm_db, tile_grid, include_outline)
     }
 
     pub fn hit_test(&self, p: EPoint, screen_rect: Rect, tile_grid: &impl TileGridView,
@@ -1360,7 +1370,7 @@ mod test {
 
         let mut obj = Object::new(FrameId::BLANK, None, Some((0, (55, 66)).into()), SubObject::None);
         obj.screen_shift = screen_shift;
-        assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &View::default()),
+        assert_eq!(obj.bounds0(Point::new(-1, 3), Point::new(29, 63), &View::default(), true),
             Rect::with_points(Point::new(1, -51), Point::new(30, 12))
                 .translate(base));
     }

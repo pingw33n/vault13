@@ -232,12 +232,12 @@ impl World {
         }
     }
 
-    pub fn object_bounds(&self, obj: object::Handle) -> Rect {
-        self.objects.bounds(obj, &self.camera.hex())
+    pub fn object_bounds(&self, obj: object::Handle, include_outline: bool) -> Rect {
+        self.objects.bounds(obj, &self.camera.hex(), include_outline)
     }
 
     pub fn is_object_in_camera(&self, obj: object::Handle) -> bool {
-        let bounds = self.object_bounds(obj);
+        let bounds = self.object_bounds(obj, true);
         self.camera.viewport.intersects(bounds)
     }
 
