@@ -75,7 +75,7 @@ impl Proto {
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Debug)]
+#[derive(Debug, enum_as_inner::EnumAsInner)]
 pub enum SubProto {
     Item(Item),
     Critter(Critter),
@@ -98,26 +98,6 @@ impl SubProto {
         }
     }
 
-    pub fn item(&self) -> Option<&Item> {
-        if let SubProto::Item(ref v) = self { Some(v) } else { None }
-    }
-
-    pub fn critter(&self) -> Option<&Critter> {
-        if let SubProto::Critter(ref v) = self { Some(v) } else { None }
-    }
-
-    pub fn scenery(&self) -> Option<&Scenery> {
-        if let SubProto::Scenery(ref v) = self { Some(v) } else { None }
-    }
-
-    pub fn wall(&self) -> Option<&Wall> {
-        if let SubProto::Wall(ref v) = self { Some(v) } else { None }
-    }
-
-    pub fn sqr_tile(&self) -> Option<&SqrTile> {
-        if let SubProto::SqrTile(ref v) = self { Some(v) } else { None }
-    }
-
     pub fn is_misc(&self) -> bool {
         if let SubProto::Misc = self { true } else { false }
     }
@@ -134,7 +114,7 @@ pub struct Item {
     pub sub: SubItem,
 }
 
-#[derive(Debug)]
+#[derive(Debug, enum_as_inner::EnumAsInner)]
 pub enum SubItem {
     Armor(Armor),
     Container(Container),
@@ -325,7 +305,7 @@ pub struct Scenery {
     pub sub: SubScenery,
 }
 
-#[derive(Debug)]
+#[derive(Debug, enum_as_inner::EnumAsInner)]
 pub enum SubScenery {
     Door(Door),
     Stairs(Stairs),

@@ -248,7 +248,7 @@ impl Object {
 
     // critter_is_prone()
     pub fn is_critter_prone(&self) -> bool {
-        if let Some(critter) = self.sub.critter() {
+        if let Some(critter) = self.sub.as_critter() {
             critter.combat.damage_flags.contains(DamageFlag::KnockedDown | DamageFlag::KnockedOut)
                 || self.fid.critter().unwrap().anim().is_prone()
         } else {
@@ -259,7 +259,7 @@ impl Object {
     // obj_is_locked()
     // obj_is_lockable()
     pub fn is_locked(&self) -> Option<bool> {
-        self.sub.scenery().and_then(|s| s.door()).map(|d| d.flags.contains(DoorFlag::Locked))
+        self.sub.as_scenery().and_then(|s| s.as_door()).map(|d| d.flags.contains(DoorFlag::Locked))
             .or_else(|| if self.proto().map(|p| p.kind()) == Some(ExactEntityKind::Item(ItemKind::Container)) {
                 Some(self.updated_flags.contains(UpdatedFlag::Locked))
             } else {
@@ -903,7 +903,7 @@ impl Objects {
             obj.proto_id().unwrap() == ProtoId::SHIV
         {
             Some(obj.proto.as_ref().unwrap().borrow()
-                .sub.item().unwrap()
+                .sub.as_item().unwrap()
                 .sub.kind())
         } else {
             None
@@ -917,7 +917,7 @@ impl Objects {
         let pushedo = self.get(pushed);
         if pushedo.kind() != EntityKind::Critter
             || pusher == pushed
-            || !pushedo.sub.critter().unwrap().is_active()
+            || !pushedo.sub.as_critter().unwrap().is_active()
             || self.can_talk(pusher, pushed).is_err()
             || pushedo.script.is_none()
         {
@@ -1216,46 +1216,12 @@ impl Objects {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, enum_as_inner::EnumAsInner)]
 pub enum SubObject {
     None,
     Critter(Critter),
-    Exit(MapExit),
+    MapExit(MapExit),
     Scenery(Scenery),
-}
-
-impl SubObject {
-    pub fn critter(&self) -> Option<&Critter> {
-        if let SubObject::Critter(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn map_exit(&self) -> Option<&MapExit> {
-        if let SubObject::Exit(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn scenery(&self) -> Option<&Scenery> {
-        if let SubObject::Scenery(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn scenery_mut(&mut self) -> Option<&mut Scenery> {
-        if let SubObject::Scenery(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
 }
 
 #[derive(Debug, Default)]
@@ -1347,55 +1313,13 @@ pub enum TargetMap {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, enum_as_inner::EnumAsInner)]
 pub enum Scenery {
     Door(Door),
     Elevator(Elevator),
     Ladder(MapExit),
     Misc,
     Stairs(MapExit),
-}
-
-impl Scenery {
-    pub fn door(&self) -> Option<&Door> {
-        if let Self::Door(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn door_mut(&mut self) -> Option<&mut Door> {
-        if let Self::Door(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn elevator(&self) -> Option<&Elevator> {
-        if let Self::Elevator(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn ladder(&self) -> Option<&MapExit> {
-        if let Self::Ladder(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn stairs(&self) -> Option<&MapExit> {
-        if let Self::Stairs(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
 }
 
 #[derive(Debug, Default)]
