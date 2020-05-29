@@ -348,7 +348,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             match pid.kind() {
                 EntityKind::Item => {
                     let proto = proto.borrow();
-                    match proto.sub.item().unwrap().sub {
+                    match proto.sub.as_item().unwrap().sub {
                         SubItem::Weapon(ref proto) => {
                             let _charges = self.reader.read_i32::<BigEndian>()?;
                             let ammo_pid = ProtoId::from_packed(self.reader.read_u32::<BigEndian>()?);
@@ -463,7 +463,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                             direction,
                         };
                         trace!("{:?}", exit);
-                        SubObject::Exit(exit)
+                        SubObject::MapExit(exit)
                     } else {
                         SubObject::None
                     }

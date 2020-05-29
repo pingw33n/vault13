@@ -85,7 +85,7 @@ impl Stats {
         if stat == ArmorClass /* in_combat && whose_turn != obj */ {
             // TODO
         }
-        if stat == Perception && obj.sub.critter().unwrap().combat.damage_flags.contains(DamageFlag::Blind) {
+        if stat == Perception && obj.sub.as_critter().unwrap().combat.damage_flags.contains(DamageFlag::Blind) {
             r -= 5;
         }
         if stat == ActionPoints {
@@ -197,7 +197,7 @@ impl Stats {
 
     // stat_get_base_direct()
     fn base_stat(&self, stat: Stat, obj: &Object) -> i32 {
-        let critter = || obj.sub.critter().unwrap();
+        let critter = || obj.sub.as_critter().unwrap();
         match stat {
             Stat::CurrentHitPoints => critter().health,
             Stat::CurrentPoison => critter().poison,
@@ -214,6 +214,6 @@ impl Stats {
         where F: FnOnce(&proto::Critter) -> R
     {
         let proto = obj.proto().unwrap();
-        f(proto.sub.critter().unwrap())
+        f(proto.sub.as_critter().unwrap())
     }
 }

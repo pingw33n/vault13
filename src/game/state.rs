@@ -337,7 +337,7 @@ impl GameState {
                     if obj == world.dude_obj().unwrap() {
                         for &h in world.objects().at(new_pos) {
                             let obj = world.objects().get(h);
-                            if let Some(map_exit) = obj.sub.map_exit() {
+                            if let Some(map_exit) = obj.sub.as_map_exit() {
                                 debug!("dude on map exit object at {:?}: {:?}", new_pos, map_exit);
                                 ctx.out.push(AppEvent::MapExit {
                                     map: map_exit.map,
@@ -376,7 +376,7 @@ impl GameState {
                             r.push(Action::Talk);
                         }
                     } else if !obj.proto().unwrap()
-                        .sub.critter().unwrap()
+                        .sub.as_critter().unwrap()
                         .flags.contains(CritterFlag::NoSteal)
                     {
                         r.push(Action::UseHand);
@@ -422,7 +422,7 @@ impl GameState {
             let world = self.world.borrow();
             let lookero = world.objects().get(looker);
             let lookedo = world.objects().get(looked);
-            if lookero.sub.critter().map(|c| c.is_dead()).unwrap_or(true)
+            if lookero.sub.as_critter().map(|c| c.is_dead()).unwrap_or(true)
                 // TODO This is only useful for mapper?
                 || lookedo.kind() == EntityKind::SqrTile
                 || lookedo.proto_ref().is_none()
@@ -455,7 +455,7 @@ impl GameState {
 
         let world = self.world.borrow();
         let lookedo = world.objects().get(looked);
-        let msg_id = if lookedo.sub.critter().map(|c| c.is_dead()).unwrap_or(false) {
+        let msg_id = if lookedo.sub.as_critter().map(|c| c.is_dead()).unwrap_or(false) {
             491 + random(0, 1)
         } else {
             490
@@ -486,7 +486,7 @@ impl GameState {
             let world = self.world.borrow();
             let examinero = world.objects().get(examiner);
             let examinedo = world.objects().get(examined);
-            if examinero.sub.critter().map(|c| c.is_dead()).unwrap_or(false)
+            if examinero.sub.as_critter().map(|c| c.is_dead()).unwrap_or(false)
                 // TODO This is only useful for mapper?
                 || examinedo.kind() == EntityKind::SqrTile
             {
@@ -521,7 +521,7 @@ impl GameState {
         if !script_overrides {
             let world = self.world.borrow();
             let examinedo = world.objects().get(examined);
-            if !examinedo.sub.critter().map(|c| c.is_dead()).unwrap_or(false) {
+            if !examinedo.sub.as_critter().map(|c| c.is_dead()).unwrap_or(false) {
                 let descr = examinedo.proto()
                     .and_then(|p| {
                         p.description()
@@ -742,7 +742,7 @@ impl GameState {
             }
             false
         } else {
-            if dooro.sub.scenery().unwrap().door().unwrap().flags.contains(DoorFlag::Open) {
+            if dooro.sub.as_scenery().unwrap().as_door().unwrap().flags.contains(DoorFlag::Open) {
                 return;
             }
             true
@@ -764,7 +764,7 @@ impl GameState {
             {
                 let mut dooro = world.objects_mut().get_mut(door);
                 {
-                    let door = dooro.sub.scenery_mut().unwrap().door_mut().unwrap();
+                    let door = dooro.sub.as_scenery_mut().unwrap().as_door_mut().unwrap();
                     if open {
                         door.flags.insert(DoorFlag::Open);
                     } else {
