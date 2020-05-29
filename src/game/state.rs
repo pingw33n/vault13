@@ -905,16 +905,25 @@ impl AppState for GameState {
             {
                 let mut world = self.world.borrow_mut();
                 world.update(self.time.time());
-
-                self.seq_events.clear();
-                self.sequencer.update(&mut sequence::Update {
-                    time: self.time.time(),
-                    world: &mut world,
-                    out: &mut self.seq_events,
-                });
             }
 
-            self.handle_seq_events(&mut ctx);
+            const MAX_ITERS: u32 = 1000;
+            for i in 0..MAX_ITERS {
+                assert!(i < MAX_ITERS - 1, "infinite loop in sequencer updating - event handling");
+                {
+                    let world = &mut self.world.borrow_mut();
+                    assert!(self.seq_events.is_empty());
+                    self.sequencer.update(&mut sequence::Update {
+                        time: self.time.time(),
+                        world,
+                        out: &mut self.seq_events,
+                    });
+                }
+                if self.seq_events.is_empty() {
+                    break;
+                }
+                self.handle_seq_events(&mut ctx);
+            }
 
             self.fidget.update(self.time.time(), &mut self.world.borrow_mut(), &mut self.sequencer);
         } else {
