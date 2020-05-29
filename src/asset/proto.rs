@@ -10,9 +10,13 @@ pub use id::ProtoId;
 pub use db::ProtoDb;
 
 use super::*;
-use crate::asset::frame::FrameId;
 use crate::asset::EntityKind;
+use crate::asset::frame::FrameId;
+use crate::asset::message::MessageId;
 use crate::util::{enum_iter, EnumIter};
+
+/// "The doorway seems to be blocked."
+pub const MSG_DOORWAY_SEEMS_TO_BE_BLOCKED: MessageId = 597;
 
 #[derive(Debug)]
 pub struct Proto {

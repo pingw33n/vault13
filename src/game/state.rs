@@ -10,17 +10,18 @@ use std::cmp;
 use std::rc::Rc;
 use std::time::{Instant, Duration};
 
-use crate::asset::{self, EntityKind, CritterAnim, ItemKind};
+use crate::asset::{self, *};
 use crate::asset::frame::{FrameDb, FrameId};
 use crate::asset::map::{ELEVATION_COUNT, MapId, MapReader};
 use crate::asset::map::db::MapDb;
 use crate::asset::message::{BULLET, Messages};
-use crate::asset::proto::{CritterFlag, ProtoDb};
+use crate::asset::proto::*;
 use crate::asset::script::db::ScriptDb;
 use crate::fs::FileSystem;
 use crate::game::dialog::Dialog;
 use crate::game::fidget::Fidget;
 use crate::game::object::{self, *};
+use crate::game::sequence::frame_anim::{AnimDirection, FrameAnim, FrameAnimOptions};
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
 use crate::game::script::{self, Scripts, ScriptKind};
@@ -34,6 +35,7 @@ use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::{self, Direction};
 use crate::sequence::{self, *};
 use crate::sequence::event::PushEvent;
+use crate::sequence::chain::Chain;
 use crate::state::{self, *};
 use crate::ui::{self, Ui};
 use crate::ui::command::{UiCommand, UiCommandData, ObjectPickKind};
@@ -316,7 +318,8 @@ impl GameState {
                 self.action_talk(talker, obj, ui);
             }
             Action::UseHand => {
-                // TODO
+                let user = self.world.borrow().dude_obj().unwrap();
+                self.action_use_obj(user, obj);
             }
             Action::UseSkill => {
                 // TODO
@@ -347,6 +350,12 @@ impl GameState {
                 }
                 Talk { talker, talked } => {
                     self.talk(talker, talked, ctx.ui);
+                }
+                SetDoorState { door, open } => {
+                    self.set_door_state(door, open);
+                }
+                Use { user, used } => {
+                    self.use_obj(user, used, ctx.ui);
                 }
             }
         }
@@ -608,6 +617,187 @@ impl GameState {
         }
     }
 
+    //  action_use_an_item_on_object_
+    fn action_use_obj(&mut self, user: object::Handle, used: object::Handle) {
+        let world = self.world.borrow();
+        let objs = world.objects();
+        let mut usero = objs.get_mut(user);
+        let usedo = objs.get(used);
+
+        let used_kind = usedo.proto().map(|p| p.kind()).unwrap();
+        if used_kind == ExactEntityKind::Scenery(SceneryKind::LadderDown) {
+            // TODO action_climb_ladder
+            return;
+        }
+
+        let (mut seq, _) = Chain::oneshot();
+
+        // TODO original cancels only Walk/Run animation for dude, is this important?
+        usero.cancel_sequence();
+
+        let move_anim = if usero.distance(&usedo).unwrap() < 5 {
+            CritterAnim::Walk
+        } else {
+            CritterAnim::Running
+        };
+        let (move_seq, move_cancel) = Move::new(user, PathTo::Object(used), move_anim)
+            .cancellable();
+        usero.sequence = Some(move_cancel);
+        seq.push(move_seq);
+
+        let weapon = usero.fid.critter().unwrap().weapon();
+        if weapon != WeaponKind::Unarmed {
+            seq.push(FrameAnim::new(user,
+                FrameAnimOptions { anim: Some(CritterAnim::PutAway), ..Default::default() }));
+        }
+
+        if used_kind != ExactEntityKind::Scenery(SceneryKind::Stairs) {
+            let use_anim = if usedo.is_critter_prone() ||
+                usedo.kind() == EntityKind::Scenery && usedo.proto().unwrap().flags_ext.contains(FlagExt::Prone)
+            {
+                CritterAnim::MagicHandsGround
+            } else {
+                CritterAnim::MagicHandsMiddle
+            };
+            seq.push(FrameAnim::new(user,
+                FrameAnimOptions { anim: Some(use_anim), ..Default::default() }));
+        }
+
+        seq.push(PushEvent::new(sequence::Event::Use { user, used }));
+        if weapon != WeaponKind::Unarmed {
+            seq.push(FrameAnim::new(user,
+                FrameAnimOptions { anim: Some(CritterAnim::TakeOut), ..Default::default() }));
+        }
+
+        self.sequencer.start(seq);
+    }
+
+    // obj_use
+    fn use_obj(&mut self, user: object::Handle, used: object::Handle, ui: &mut Ui) {
+        if !self.check_next_to(user, used, ui) {
+            return;
+        }
+        // TODO why different results?
+        // if ( user == g_obj_dude )
+        //   {
+        //     if ( used_type != OBJ_TYPE_SCENERY )
+        //       return -1;
+        //   }
+        //   else if ( used_type != OBJ_TYPE_SCENERY )
+        //   {
+        //     return 0;
+        //   }
+
+        let used_kind = {
+            let world = self.world.borrow();
+            let usedo = world.objects().get(used);
+            if let Some(ExactEntityKind::Scenery(v)) = usedo.proto().map(|p| p.kind()) {
+                v
+            } else {
+                return;
+            }
+        };
+
+        if used_kind == SceneryKind::Door {
+            self.use_door(user, used, ui);
+        } else {
+            // TODO
+        }
+    }
+
+    fn use_door(&mut self, user: object::Handle, door: object::Handle, ui: &mut Ui) {
+        let world = &mut self.world.borrow_mut();
+
+        let script = {
+            let dooro = world.objects().get(door);
+            if dooro.is_locked().unwrap() {
+                // TODO sfx
+            }
+            dooro.script
+        };
+
+        if let Some((sid, _)) = script {
+            let script_overrides = self.scripts.execute_predefined_proc(sid, PredefinedProc::Use,
+                &mut script::Context {
+                    world,
+                    sequencer: &mut self.sequencer,
+                    dialog: &mut self.dialog,
+                    ui,
+                    message_panel: self.message_panel,
+                    map_id: self.map_id.unwrap(),
+                    source_obj: Some(user),
+                    target_obj: Some(door),
+                }).unwrap().assert_no_suspend().script_overrides;
+            if script_overrides {
+                return;
+            }
+        }
+
+        let dooro = world.objects().get(door);
+        let need_open = if dooro.frame_idx > 0 { // Indicates the door is open
+            if world.objects().has_blocker_at(dooro.pos.unwrap(), None) {
+                let msg = &self.proto_db.messages().get(MSG_DOORWAY_SEEMS_TO_BE_BLOCKED).unwrap().text;
+                self.push_message(&msg, ui);
+                return
+            }
+            false
+        } else {
+            if dooro.sub.scenery().unwrap().door().unwrap().flags.contains(DoorFlag::Open) {
+                return;
+            }
+            true
+        };
+
+        let seq = FrameAnim::new(door, FrameAnimOptions {
+            direction: if need_open { AnimDirection::Forward } else { AnimDirection::Backward },
+            skip: 1,
+            ..Default::default()
+        }).then(PushEvent::new(sequence::Event::SetDoorState { door, open: need_open }));
+
+        self.sequencer.start(seq);
+    }
+
+    // set_door_open, set_door_closed, check_door_state
+    fn set_door_state(&mut self, door: object::Handle, open: bool) {
+        let mut world = self.world.borrow_mut();
+        {
+            {
+                let mut dooro = world.objects_mut().get_mut(door);
+                {
+                    let door = dooro.sub.scenery_mut().unwrap().door_mut().unwrap();
+                    if open {
+                        door.flags.insert(DoorFlag::Open);
+                    } else {
+                        door.flags.remove(DoorFlag::Open);
+                    }
+                }
+                if open {
+                    dooro.flags.insert(Flag::ShootThru | Flag::LightThru | Flag::NoBlock);
+                } else {
+                    dooro.flags.remove(Flag::ShootThru | Flag::LightThru | Flag::NoBlock);
+                }
+            }
+
+            world.objects_mut().set_frame(door, if open {
+                SetFrame::Last
+            } else {
+                SetFrame::Index(0)
+            });
+        }
+        world.rebuild_light_grid();
+    }
+
+    // is_next_to
+    fn check_next_to(&mut self, obj1: object::Handle, obj2: object::Handle, ui: &mut Ui) -> bool {
+        if self.world.borrow().objects().distance(obj1, obj2).unwrap() > 1 {
+            let msg = &self.misc_msgs.get(2000).unwrap().text;
+            self.push_message(&msg, ui);
+            false
+        } else {
+            true
+        }
+    }
+
     fn create_scroll_areas(rect: Rect, ui: &mut Ui) -> EnumMap<ScrollDirection, ui::Handle> {
         let mut new = |rect, cur, curx| {
             let win = ui.new_window(rect, None);
@@ -853,7 +1043,7 @@ impl AppState for GameState {
                     self.scripts.execute_proc(sid, proc_id,
                         &mut script::Context {
                             ui,
-                            world: world,
+                            world,
                             sequencer: &mut self.sequencer,
                             dialog: &mut self.dialog,
                             message_panel: self.message_panel,

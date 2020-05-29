@@ -651,7 +651,7 @@ pub(in super) mod instructions {
         i!(RmObjFromInven,              unimplemented),
         i!(RmTimerEvent,                rm_timer_event),
         i!(RollDice,                    unimplemented),
-        i!(RollVsSkill,                 unimplemented),
+        i!(RollVsSkill,                 roll_vs_skill),
         i!(RotationToTile,              rotation_to_tile),
         i!(RunningBurningGuy,           unimplemented),
         i!(Sayborder,                   unimplemented),

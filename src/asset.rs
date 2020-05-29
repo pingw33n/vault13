@@ -189,6 +189,11 @@ impl CritterAnim {
         assert!(c.is_ascii());
         c as char
     }
+
+    pub fn is_prone(self) -> bool {
+        self >= Self::FallBack && self <= Self::FallFrontBlood ||
+            self >= Self::FallBackSf && self <= Self::FallFrontBloodSf
+    }
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
@@ -491,7 +496,10 @@ pub enum Flag {
 #[derive(Clone, Copy, Debug, EnumFlags)]
 #[repr(u32)]
 pub enum FlagExt {
-    Unk1                            = 0x1,
+    /// Tells an object (probably always a scenery) is lying on the ground.
+    /// Affects whether `MagicHandsGround` or `MagicHandsMiddle` animation is played when dude
+    /// uses a scenery object.
+    Prone                           = 0x1,
     Unk2                            = 0x2,
     Unk4                            = 0x4,
     Unk8                            = 0x8,

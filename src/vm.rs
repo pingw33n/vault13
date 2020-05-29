@@ -163,8 +163,8 @@ impl PredefinedProc {
             Start => "start",
             Talk => "talk_p_proc",
             TimedEvent => "timed_event_p_proc",
-            Use => "use_obj_on_p_proc",
-            UseObjOn => "use_p_proc",
+            Use => "use_p_proc",
+            UseObjOn => "use_obj_on_p_proc",
             UseSkillOn => "use_skill_on_p_proc",
         }
     }
@@ -195,10 +195,11 @@ pub struct InvocationResult {
 }
 
 impl InvocationResult {
-    pub fn assert_no_suspend(self) {
+    pub fn assert_no_suspend(&self) -> &Self {
         if let Some(s) = self.suspend {
             panic!("unexpected suspend: {:?}", s);
         }
+        self
     }
 }
 

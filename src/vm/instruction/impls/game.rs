@@ -779,19 +779,27 @@ pub fn obj_is_carrying_obj_pid(ctx: Context) -> Result<()> {
 
 pub fn obj_is_locked(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
-    let r = 0;
+    let r = if let Some(obj) = obj {
+        ctx.ext.world.objects().get(obj).is_locked() == Some(true)
+    } else {
+        log_error!(ctx.prg, "object is null");
+        false
+    };
     ctx.prg.data_stack.push(r.into())?;
     log_a1r1!(ctx.prg, obj, r);
-    log_stub!(ctx.prg);
     Ok(())
 }
 
 pub fn obj_is_open(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
-    let r = 0;
+    let r = if let Some(obj) = obj {
+        ctx.ext.world.objects().get(obj).frame_idx > 0
+    } else {
+        log_error!(ctx.prg, "object is null");
+        false
+    };
     ctx.prg.data_stack.push(r.into())?;
     log_a1r1!(ctx.prg, obj, r);
-    log_stub!(ctx.prg);
     Ok(())
 }
 
@@ -1083,6 +1091,20 @@ pub fn tile_distance_objs(ctx: Context) -> Result<()> {
     ctx.prg.data_stack.push(r.try_into().unwrap())?;
 
     log_a2r1!(ctx.prg, obj1, obj2, r);
+
+    Ok(())
+}
+
+pub fn roll_vs_skill(ctx: Context) -> Result<()> {
+    let bonus = ctx.prg.data_stack.pop()?.into_int()?;
+    let skill = ctx.prg.data_stack.pop()?.into_int()?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    let r = 0;
+    ctx.prg.data_stack.push(r.into())?;
+
+    log_a3r1!(ctx.prg, obj, skill, bonus, ctx.prg.data_stack.top().unwrap());
+    log_stub!(ctx.prg);
 
     Ok(())
 }
