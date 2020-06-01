@@ -91,6 +91,7 @@ pub struct Context<'a> {
     pub map_id: MapId,
     pub source_obj: Option<object::Handle>,
     pub target_obj: Option<object::Handle>,
+    pub stats: &'a mut crate::game::stats::Stats,
 }
 
 pub struct Vars {
@@ -363,6 +364,7 @@ impl Scripts {
             script_db,
             proto_db,
             map_id: ctx.map_id,
+            stats: ctx.stats,
         }
     }
 }
