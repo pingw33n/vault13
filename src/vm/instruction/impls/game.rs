@@ -600,6 +600,20 @@ pub fn item_caps_total(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn jam_lock(ctx: Context) -> Result<()> {
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    if let Some(obj) = obj {
+        ctx.ext.world.objects().get_mut(obj).set_lock_jammed(true);
+    } else {
+        log_error!(ctx.prg, "object is null");
+    }
+
+    log_a1!(ctx.prg, obj);
+
+    Ok(())
+}
+
 pub fn message_str(mut ctx: Context) -> Result<()> {
     let msg_id = ctx.prg.data_stack.pop()?.into_int()?;
     let program_id = pop_program_id(&mut ctx)?;
@@ -804,11 +818,15 @@ pub fn obj_is_open(ctx: Context) -> Result<()> {
 }
 
 pub fn obj_lock(ctx: Context) -> Result<()> {
-    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
-        .ok_or(Error::BadValue(BadValue::Content))?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    if let Some(obj) = obj {
+        ctx.ext.world.objects().get_mut(obj).set_locked(true);
+    } else {
+        log_error!(ctx.prg, "object is null");
+    }
 
     log_a1!(ctx.prg, obj);
-    log_stub!(ctx.prg);
 
     Ok(())
 }
@@ -855,11 +873,15 @@ pub fn obj_pid(ctx: Context) -> Result<()> {
 }
 
 pub fn obj_unlock(ctx: Context) -> Result<()> {
-    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
-        .ok_or(Error::BadValue(BadValue::Content))?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    if let Some(obj) = obj {
+        ctx.ext.world.objects().get_mut(obj).set_locked(false);
+    } else {
+        log_error!(ctx.prg, "object is null");
+    }
 
     log_a1!(ctx.prg, obj);
-    log_stub!(ctx.prg);
 
     Ok(())
 }
