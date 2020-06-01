@@ -1021,6 +1021,11 @@ impl AppState for GameState {
                         self.time.set_paused(true);
                     }
                     ObjectPickKind::DefaultAction => if let Some(a) = default_action {
+                        ui.widget_mut::<WorldView>(self.world_view).default_action_icon = if self.object_action_menu.is_none() {
+                            default_action
+                        }  else {
+                            None
+                        };
                         self.handle_action(ui, objh, a);
                     }
                 }
