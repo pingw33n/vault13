@@ -187,8 +187,6 @@ fn main() {
     info!("Version: {}", version());
     info!("Build: {}", env!("BUILD_TARGET"));
 
-    util::random::check_chi_square();
-
     let mut fs = fs::FileSystem::new();
 
     let map_name: String;
