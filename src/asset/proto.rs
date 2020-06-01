@@ -18,6 +18,9 @@ use crate::util::{enum_iter, EnumIter};
 /// "The doorway seems to be blocked."
 pub const MSG_DOORWAY_SEEMS_TO_BE_BLOCKED: MessageId = 597;
 
+/// "You see: %s."
+pub const MSG_YOU_SEE_X: MessageId = 480;
+
 #[derive(Debug)]
 pub struct Proto {
     id: ProtoId,

@@ -688,20 +688,59 @@ impl GameState {
         //     return 0;
         //   }
 
-        let used_kind = {
+        let (used_kind, script) = {
             let world = self.world.borrow();
             let usedo = world.objects().get(used);
-            if let Some(ExactEntityKind::Scenery(v)) = usedo.proto().map(|p| p.kind()) {
-                v
-            } else {
-                return;
-            }
+            let used_kind = unwrap_or_return!(
+                usedo.proto().map(|p| p.kind()),
+                Some(ExactEntityKind::Scenery(v)) => v);
+            (used_kind, usedo.script)
         };
 
         if used_kind == SceneryKind::Door {
             self.use_door(user, used, ui);
         } else {
-            // TODO
+            let world = &mut self.world.borrow_mut();
+
+            let script_overrides = if let Some((sid, _)) = script {
+                self.scripts.execute_predefined_proc(sid, PredefinedProc::Use,
+                    &mut script::Context {
+                        world,
+                        sequencer: &mut self.sequencer,
+                        dialog: &mut self.dialog,
+                        ui,
+                        message_panel: self.message_panel,
+                        map_id: self.map_id.unwrap(),
+                        source_obj: Some(user),
+                        target_obj: Some(used),
+                    }).unwrap().assert_no_suspend().script_overrides
+            } else {
+                false
+            };
+            let script_overrides = if !script_overrides {
+                match used_kind {
+                    SceneryKind::Door => unreachable!(),
+                    // TODO
+                    | SceneryKind::Stairs
+                    | SceneryKind::Elevator
+                    | SceneryKind::LadderDown
+                    | SceneryKind::LadderUp
+                    => {
+                        warn!("{:?} use is not implemented", used_kind);
+                        false
+                    }
+                    SceneryKind::Misc => false,
+                }
+            } else {
+                false
+            };
+            if !script_overrides && user == world.dude_obj().unwrap() {
+                if let Some(obj_name) = world.object_name(used) {
+                    let msg = &self.proto_db.messages().get(MSG_YOU_SEE_X).unwrap().text;
+                    let msg = sprintf(msg, &[&obj_name]);
+                    self.push_message(&msg, ui);
+                }
+            }
         }
     }
 
