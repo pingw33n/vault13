@@ -1,3 +1,5 @@
+use enum_map::enum_map;
+
 use super::*;
 
 #[derive(Clone)]
@@ -24,11 +26,11 @@ impl StatDef {
     }
 
     pub fn defaults() -> EnumMap<Stat, StatDef> {
-        EnumMap::from(|stat| DEFS[stat as usize].clone())
+        EnumMap::from(|stat| STAT_DEFS[stat as usize].clone())
     }
 }
 
-const DEFS: &[StatDef] = &[
+static STAT_DEFS: &[StatDef] = &[
     StatDef::new(0, 1, 10, 5), // Strength
     StatDef::new(1, 1, 10, 5), // Perception
     StatDef::new(2, 1, 10, 5), // Endurance
@@ -68,3 +70,184 @@ const DEFS: &[StatDef] = &[
     StatDef::new(11, 0, 2000, 0), // CurrentPoison
     StatDef::new(12, 0, 2000, 0), // CurrentRad
 ];
+
+pub struct SkillDef {
+    pub image_fid_id: u32,
+    pub base: i32,
+    pub stat_multiplier: i32,
+    pub stat1: Stat,
+    pub stat2: Option<Stat>,
+    pub experience: i32,
+    pub flags: u32,
+}
+
+impl SkillDef {
+    pub fn defaults() -> EnumMap<Skill, Self> {
+        use Skill::*;
+        use Stat::*;
+        enum_map! {
+            SmallGuns => Self {
+                image_fid_id: 0x1c,
+                base: 5,
+                stat_multiplier: 4,
+                stat1: Agility,
+                stat2: None,
+                experience: 0,
+                flags: 0,
+            },
+            BigGuns => Self {
+                image_fid_id: 0x1d,
+                base: 0,
+                stat_multiplier: 2,
+                stat1: Agility,
+                stat2: None,
+                experience: 0,
+                flags: 0,
+            },
+            EnergyWeapons => Self {
+                image_fid_id: 0x1e,
+                base: 0,
+                stat_multiplier: 2,
+                stat1: Agility,
+                stat2: None,
+                experience: 0,
+                flags: 0,
+            },
+            UnarmedCombat => Self {
+                image_fid_id: 0x1f,
+                base: 30,
+                stat_multiplier: 2,
+                stat1: Agility,
+                stat2: Some(Strength),
+                experience: 0,
+                flags: 0,
+            },
+            Melee => Self {
+                image_fid_id: 0x20,
+                base: 20,
+                stat_multiplier: 2,
+                stat1: Agility,
+                stat2: Some(Strength),
+                experience: 0,
+                flags: 0,
+            },
+            Throwing => Self {
+                image_fid_id: 0x21,
+                base: 0,
+                stat_multiplier: 4,
+                stat1: Agility,
+                stat2: None,
+                experience: 0,
+                flags: 0,
+            },
+            FirstAid => Self {
+                image_fid_id: 0x22,
+                base: 0,
+                stat_multiplier: 2,
+                stat1: Perception,
+                stat2: Some(Intelligence),
+                experience: 25,
+                flags: 0,
+            },
+            Doctor => Self {
+                image_fid_id: 0x23,
+                base: 5,
+                stat_multiplier: 1,
+                stat1: Perception,
+                stat2: Some(Intelligence),
+                experience: 50,
+                flags: 0,
+            },
+            Sneak => Self {
+                image_fid_id: 0x24,
+                base: 5,
+                stat_multiplier: 3,
+                stat1: Agility,
+                stat2: None,
+                experience: 0,
+                flags: 0,
+            },
+            Lockpick => Self {
+                image_fid_id: 0x25,
+                base: 10,
+                stat_multiplier: 1,
+                stat1: Perception,
+                stat2: Some(Intelligence),
+                experience: 25,
+                flags: 1,
+            },
+            Steal => Self {
+                image_fid_id: 0x26,
+                base: 0,
+                stat_multiplier: 3,
+                stat1: Agility,
+                stat2: None,
+                experience: 25,
+                flags: 1,
+            },
+            Traps => Self {
+                image_fid_id: 0x27,
+                base: 10,
+                stat_multiplier: 1,
+                stat1: Perception,
+                stat2: Some(Agility),
+                experience: 25,
+                flags: 1,
+            },
+            Science => Self {
+                image_fid_id: 0x28,
+                base: 0,
+                stat_multiplier: 4,
+                stat1: Intelligence,
+                stat2: None,
+                experience: 0,
+                flags: 0,
+            },
+            Repair => Self {
+                image_fid_id: 0x29,
+                base: 0,
+                stat_multiplier: 3,
+                stat1: Intelligence,
+                stat2: None,
+                experience: 0,
+                flags: 0,
+            },
+            Conversant => Self {
+                image_fid_id: 0x2a,
+                base: 0,
+                stat_multiplier: 5,
+                stat1: Charisma,
+                stat2: None,
+                experience: 0,
+                flags: 0,
+            },
+            Barter => Self {
+                image_fid_id: 0x2b,
+                base: 0,
+                stat_multiplier: 4,
+                stat1: Charisma,
+                stat2: None,
+                experience: 0,
+                flags: 0,
+            },
+            Gambling => Self {
+                image_fid_id: 0x2c,
+                base: 0,
+                stat_multiplier: 5,
+                stat1: Luck,
+                stat2: None,
+                experience: 0,
+                flags: 0,
+            },
+            Outdoorsman => Self {
+                image_fid_id: 0x2d,
+                base: 0,
+                stat_multiplier: 2,
+                stat1: Endurance,
+                stat2: Some(Intelligence),
+                experience: 100,
+                flags: 0,
+            },
+        }
+    }
+}

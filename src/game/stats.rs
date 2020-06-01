@@ -1,30 +1,52 @@
 mod def;
 
+use bstring::bstr;
 use enum_map::EnumMap;
 use num_traits::clamp;
+use std::cmp;
 use std::collections::HashMap;
 use std::io;
 
-use crate::asset::{Stat, Trait, Perk};
-use crate::asset::message::Messages;
+use crate::asset::{Perk, Skill, Stat, Trait};
+use crate::asset::message::{Messages, MessageId};
 use crate::asset::proto::{self, ProtoId};
 use crate::game::object::{DamageFlag, Object};
 use crate::fs::FileSystem;
 
-use def::StatDef;
+use def::*;
 
-const STAT_NAME_MSG_BASE: u32 = 100;
-const STAT_DESCR_MSG_BASE: u32 = 200;
-const STAT_LEVEL_DESCR_BASE: u32 = 300;
-const PC_STAT_NAME_MSG_BASE: u32 = 400;
-const PC_STAT_DESCR_MSG_BASE: u32 = 500;
-const LEVEL_UP_MSG: u32 = 600;
+const STAT_NAME_MSG_BASE: MessageId = 100;
+const STAT_DESCR_MSG_BASE: MessageId = 200;
+const STAT_LEVEL_DESCR_BASE: MessageId = 300;
+const PC_STAT_NAME_MSG_BASE: MessageId = 400;
+const PC_STAT_DESCR_MSG_BASE: MessageId = 500;
+const SKILL_NAME_MSG_BASE: MessageId = 100;
+const SKILL_DESCR_MSG_BASE: MessageId = 200;
+const SKILL_FORMULA_MSG_BASE: MessageId = 300;
+const LEVEL_UP_MSG: MessageId = 600;
+
+struct Tagged {
+    tagged: bool,
+    inc_base: bool,
+}
+
+impl Default for Tagged {
+    fn default() -> Self {
+        Self {
+            tagged: false,
+            inc_base: true,
+        }
+    }
+}
 
 pub struct Stats {
     stat_msgs: Messages,
+    skill_msgs: Messages,
     stat_defs: EnumMap<Stat, StatDef>,
-    traits: Vec<Trait>,
+    skill_defs: EnumMap<Skill, SkillDef>,
+    traits: EnumMap<Trait, bool>,
     perks: HashMap<ProtoId, EnumMap<Perk, bool>>,
+    tagged: EnumMap<Skill, Tagged>,
 }
 
 impl Stats {
@@ -32,14 +54,32 @@ impl Stats {
         let stat_msgs = Messages::read_file(fs, language, "game/stat.msg")?;
         let stat_defs = StatDef::defaults();
 
+        let skill_msgs = Messages::read_file(fs, language, "game/skill.msg")?;
+        let skill_defs = SkillDef::defaults();
+
         let mut perks = HashMap::new();
         perks.insert(ProtoId::DUDE, Default::default());
         Ok(Self {
             stat_msgs,
+            skill_msgs,
             stat_defs,
-            traits: Vec::new(),
+            skill_defs,
+            traits: Default::default(),
             perks,
+            tagged: Default::default(),
         })
+    }
+
+    pub fn skill_name(&self, skill: Skill) -> &bstr {
+        &self.skill_msgs.get(SKILL_NAME_MSG_BASE + skill as MessageId).unwrap().text
+    }
+
+    pub fn skill_description(&self, skill: Skill) -> &bstr {
+        &self.skill_msgs.get(SKILL_DESCR_MSG_BASE + skill as MessageId).unwrap().text
+    }
+
+    pub fn skill_formula(&self, skill: Skill) -> &bstr {
+        &self.skill_msgs.get(SKILL_FORMULA_MSG_BASE + skill as MessageId).unwrap().text
     }
 
     pub fn has_perk(&self, perk: Perk, pid: ProtoId) -> bool {
@@ -47,7 +87,7 @@ impl Stats {
     }
 
     pub fn has_trait(&self, tr: Trait) -> bool {
-        self.traits.contains(&tr)
+        self.traits[tr]
     }
 
     // stat_level()
@@ -77,7 +117,7 @@ impl Stats {
             }
         }
         if obj.proto_id() == Some(ProtoId::DUDE) {
-            r += self.trait_modifier(stat, obj);
+            r += self.trait_stat_mod(stat, obj);
 
             r += match stat {
                 Strength => {
@@ -144,8 +184,37 @@ impl Stats {
         clamp(r, stat_def.min, stat_def.max)
     }
 
+    // skill_level
+    pub fn skill(&self, skill: Skill, obj: &Object) -> Option<i32> {
+        let level = obj.proto()?.sub.as_critter()?.skills[skill];
+
+        let def = &self.skill_defs[skill];
+
+        let mut from_stats = self.stat(def.stat1, obj);
+        if let Some(stat) = def.stat2 {
+            from_stats += self.stat(stat, obj);
+        }
+
+        let mut r = def.base + def.stat_multiplier * from_stats + level;
+
+        if obj.proto_id().unwrap().is_dude() {
+            if self.tagged[skill].tagged {
+                r += level;
+            }
+            if self.tagged[skill].inc_base {
+                r += 20;
+            }
+            r += self.trait_skill_mod(skill) + self.perk_skill_mod(skill, obj);
+            // TODO r+= skill_game_difficulty()
+        }
+
+        let r = cmp::min(r, 300);
+
+        Some(r)
+    }
+
     // trait_adjust_stat()
-    fn trait_modifier(&self, stat: Stat, obj: &Object) -> i32 {
+    fn trait_stat_mod(&self, stat: Stat, obj: &Object) -> i32 {
         let tr = |tr| {
             self.has_trait(tr) as i32
         };
@@ -172,6 +241,64 @@ impl Stats {
             BetterCrit => 30 * tr(HeavyHanded),
             RadResist => -st(RadResist) * tr(FastMetabolism),
             PoisonResist => -st(PoisonResist) * tr(FastMetabolism),
+            _ => 0,
+        }
+    }
+
+    // trait_adjust_skill
+    fn trait_skill_mod(&self, skill: Skill) -> i32 {
+        let mut r = 0;
+        if self.has_trait(Trait::Gifted) {
+            r -= 10;
+        }
+        if self.has_trait(Trait::GoodNatured) {
+            match skill {
+                | Skill::SmallGuns
+                | Skill::BigGuns
+                | Skill::EnergyWeapons
+                | Skill::UnarmedCombat
+                | Skill::Melee
+                | Skill::Throwing
+                => r -= 10,
+
+                | Skill::FirstAid
+                | Skill::Doctor
+                | Skill::Conversant
+                | Skill::Barter
+                => r += 15,
+
+                _ => {}
+            }
+        }
+        r
+    }
+
+    // perk_adjust_skill
+    fn perk_skill_mod(&self, skill: Skill, obj: &Object) -> i32 {
+        let pid = obj.proto_id().unwrap();
+        let p = |p| {
+            self.has_perk(p, pid) as i32
+        };
+
+        let thief = || p(Thief) * 10;
+        let master_thief = || p(MasterThief) * 15;
+        let harmless = || p(Harmless) * 20;
+        let negotiator = || p(Negotiator) * 10;
+
+        use Skill::*;
+        use Perk::*;
+        match skill {
+            Science | Repair => p(MrFixit) * 10,
+            FirstAid => p(Medic) * 10 + p(VaultCityTraining) * 5,
+            Doctor => p(Medic) * 10 + p(VaultCityTraining) * 5 + p(LivingAnatomy) * 10,
+            Sneak => (self.has_perk(Ghost, pid) /* && TODO obj_get_visible_light_(g_obj_dude) <= 45875 */ as i32) * 20
+                + thief() + harmless(),
+            Lockpick => thief() + master_thief(),
+            Steal => thief() + master_thief() + harmless(),
+            Traps => thief(),
+            Conversant => p(Speaker) * 20 + p(ExpertExcrementExpediter) * 5 + negotiator(),
+            Barter => negotiator() + p(Salesman) * 20,
+            Outdoorsman => p(Ranger) * 15 + p(Survivalist) * 25,
             _ => 0,
         }
     }
