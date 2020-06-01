@@ -3,12 +3,11 @@ mod def;
 use enum_map::EnumMap;
 use num_traits::clamp;
 use std::collections::HashMap;
-use std::rc::Rc;
 use std::io;
 
 use crate::asset::{Stat, Trait, Perk};
 use crate::asset::message::Messages;
-use crate::asset::proto::{self, ProtoDb, ProtoId};
+use crate::asset::proto::{self, ProtoId};
 use crate::game::object::{DamageFlag, Object};
 use crate::fs::FileSystem;
 
@@ -21,24 +20,7 @@ const PC_STAT_NAME_MSG_BASE: u32 = 400;
 const PC_STAT_DESCR_MSG_BASE: u32 = 500;
 const LEVEL_UP_MSG: u32 = 600;
 
-impl StatDef {
-    const fn new(
-        image_fid_id: u32,
-        min: i32,
-        max: i32,
-        default: i32,
-    ) -> Self {
-        Self {
-            image_fid_id,
-            min,
-            max,
-            default
-        }
-    }
-}
-
 pub struct Stats {
-    proto_db: Rc<ProtoDb>,
     stat_msgs: Messages,
     stat_defs: EnumMap<Stat, StatDef>,
     traits: Vec<Trait>,
@@ -46,14 +28,13 @@ pub struct Stats {
 }
 
 impl Stats {
-    pub fn new(fs: &FileSystem, proto_db: Rc<ProtoDb>, language: &str) -> io::Result<Self> {
+    pub fn new(fs: &FileSystem, language: &str) -> io::Result<Self> {
         let stat_msgs = Messages::read_file(fs, language, "game/stat.msg")?;
         let stat_defs = StatDef::defaults();
 
         let mut perks = HashMap::new();
         perks.insert(ProtoId::DUDE, Default::default());
         Ok(Self {
-            proto_db,
             stat_msgs,
             stat_defs,
             traits: Vec::new(),

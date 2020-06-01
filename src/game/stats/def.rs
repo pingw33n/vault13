@@ -9,6 +9,20 @@ pub struct StatDef {
 }
 
 impl StatDef {
+    const fn new(
+        image_fid_id: u32,
+        min: i32,
+        max: i32,
+        default: i32,
+    ) -> Self {
+        Self {
+            image_fid_id,
+            min,
+            max,
+            default
+        }
+    }
+
     pub fn defaults() -> EnumMap<Stat, StatDef> {
         EnumMap::from(|stat| DEFS[stat as usize].clone())
     }
