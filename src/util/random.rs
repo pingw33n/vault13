@@ -74,30 +74,6 @@ impl Random {
     }
 }
 
-pub fn check_chi_square() {
-    const ITER_COUNT: usize = 100_000;
-    const RANGE: usize = 25;
-    const MAX: f64 = 36.42;
-    const EXPECTED: f64 = 4000.0;
-
-    let mut freqs = [0i32; RANGE];
-
-    for _ in 0..ITER_COUNT {
-        let i = random(1, RANGE as i32) - 1;
-        assert!(i >= 0 && i < RANGE as i32);
-        freqs[i as usize] += 1;
-    }
-
-    let actual: f64 = freqs.iter()
-        .map(|&f| (f as f64 - EXPECTED) * (f as f64 - EXPECTED) / EXPECTED)
-        .sum();
-    if actual <= MAX {
-        debug!("RNG is good: {} <= {}", actual, MAX);
-    } else {
-        warn!("RNG is bad: {} > {}", actual, MAX);
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -118,5 +94,26 @@ mod test {
         let mut r = Random::with_seed(0x031006DE);
         assert_eq!(r.gen(1, 25), 22);
         assert_eq!(r.gen(1, 25), 19);
+    }
+
+    #[test]
+    fn rng_quality() {
+        const ITER_COUNT: usize = 100_000;
+        const RANGE: usize = 25;
+        const MAX: f64 = 36.42;
+        const EXPECTED: f64 = 4000.0;
+
+        let mut freqs = [0i32; RANGE];
+
+        for _ in 0..ITER_COUNT {
+            let i = random(1, RANGE as i32) - 1;
+            assert!(i >= 0 && i < RANGE as i32);
+            freqs[i as usize] += 1;
+        }
+
+        let actual: f64 = freqs.iter()
+            .map(|&f| (f as f64 - EXPECTED) * (f as f64 - EXPECTED) / EXPECTED)
+            .sum();
+        assert!(actual <= MAX);
     }
 }
