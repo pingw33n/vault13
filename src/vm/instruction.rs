@@ -559,7 +559,7 @@ pub(in super) mod instructions {
         i!(IsSuccess,                   unimplemented),
         i!(ItemCapsAdjust,              unimplemented),
         i!(ItemCapsTotal,               item_caps_total),
-        i!(JamLock,                     unimplemented),
+        i!(JamLock,                     jam_lock),
         i!(Jmp,                         jmp),
         i!(KillCritter,                 unimplemented),
         i!(KillCritterType,             unimplemented),

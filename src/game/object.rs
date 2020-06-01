@@ -260,6 +260,7 @@ impl Object {
 
     // obj_is_locked()
     // obj_is_lockable()
+    #[must_use]
     pub fn is_locked(&self) -> Option<bool> {
         self.sub.as_scenery().and_then(|s| s.as_door()).map(|d| d.flags.contains(DoorFlag::Locked))
             .or_else(|| if self.proto().map(|p| p.kind()) == Some(ExactEntityKind::Item(ItemKind::Container)) {
@@ -267,6 +268,71 @@ impl Object {
             } else {
                 None
             })
+    }
+
+    // obj_lock
+    // obj_unlock
+    pub fn set_locked(&mut self, locked: bool) {
+        match self.kind() {
+            EntityKind::Item => {
+                if locked {
+                    self.updated_flags.insert(UpdatedFlag::Locked);
+                } else {
+                    self.updated_flags.remove(UpdatedFlag::Locked);
+                }
+            }
+            EntityKind::Scenery => {
+                let door = self.sub.as_scenery_mut().unwrap().as_door_mut().unwrap();
+                if locked {
+                    door.flags.insert(DoorFlag::Locked);
+                } else {
+                    door.flags.remove(DoorFlag::Locked);
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    // obj_lock_is_jammed
+    #[must_use]
+    pub fn is_lock_jammed(&self) -> Option<bool> {
+        self.is_locked()?;
+        Some(match self.kind() {
+            EntityKind::Item => {
+                self.updated_flags.contains(UpdatedFlag::Jammed)
+            }
+            EntityKind::Scenery => {
+                let door = self.sub.as_scenery().unwrap().as_door().unwrap();
+                 door.flags.contains(DoorFlag::Jammed)
+            }
+            _ => unreachable!(),
+        })
+    }
+
+    // obj_jam_lock
+    // obj_jam_unlock
+    pub fn set_lock_jammed(&mut self, jammed: bool) {
+        if self.is_locked().is_none() {
+            return;
+        }
+        match self.kind() {
+            EntityKind::Item => {
+                if jammed {
+                    self.updated_flags.insert(UpdatedFlag::Jammed);
+                } else {
+                    self.updated_flags.remove(UpdatedFlag::Jammed);
+                }
+            }
+            EntityKind::Scenery => {
+                let door = self.sub.as_scenery_mut().unwrap().as_door_mut().unwrap();
+                if jammed {
+                    door.flags.insert(DoorFlag::Jammed);
+                } else {
+                    door.flags.remove(DoorFlag::Jammed);
+                }
+            }
+            _ => {}
+        }
     }
 
     // obj_intersects_with
