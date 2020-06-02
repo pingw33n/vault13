@@ -1,3 +1,5 @@
+use crate::util::random::RollChecker;
+
 pub mod dialog;
 pub mod fidget;
 pub mod object;
@@ -58,6 +60,10 @@ impl GameTime {
 
     pub fn decisecond(self) -> u8 {
         (self.as_decis() % 10) as u8
+    }
+
+    pub fn roll_checker(self) -> RollChecker {
+        RollChecker::new(self.as_hours() >= 1)
     }
 
     fn ydm(self) -> (u16, u8, u8) {

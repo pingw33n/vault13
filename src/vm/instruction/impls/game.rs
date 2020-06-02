@@ -1,5 +1,6 @@
 use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
+use if_chain::if_chain;
 use log::*;
 use num_traits::FromPrimitive;
 use static_assertions::const_assert;
@@ -7,7 +8,7 @@ use std::cmp;
 use std::convert::{TryFrom, TryInto};
 
 use super::*;
-use crate::asset::{Perk, Stat, Trait};
+use crate::asset::{Flag, Perk, Skill, Stat, Trait};
 use crate::asset::proto::ProtoId;
 use crate::asset::script::ProgramId;
 use crate::game::dialog::Dialog;
@@ -20,7 +21,24 @@ use crate::graphics::font::FontKey;
 use crate::graphics::geometry::hex::Direction;
 use crate::sequence::Sequence;
 use crate::sequence::chain::Chain;
-use crate::util::random::{random as rand};
+use crate::util::random::{random as rand, RollCheckResult};
+
+/// This is also known as "trait" by `has_trait()`, `critter_add_trait` etc instructions.
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+enum Attribute {
+    Perk = 0,
+    Object = 1,
+    Trait = 2,
+}
+
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+enum ObjectTrait {
+    AiPacket = 5,
+    TeamNum = 6,
+    Direction = 10,
+    IsTurnedOff = 666,
+    ItemTotalWeight = 669,
+}
 
 fn pop_program_id(ctx: &mut Context) -> Result<ProgramId> {
     ctx.prg.data_stack.pop()?.into_int()?
@@ -276,6 +294,28 @@ pub fn dude_obj(ctx: Context) -> Result<()> {
     let obj = ctx.ext.world.dude_obj();
     ctx.prg.data_stack.push(Value::Object(obj))?;
     log_r1!(ctx.prg, obj);
+    Ok(())
+}
+
+pub fn do_check(ctx: Context) -> Result<()> {
+    let bonus = ctx.prg.data_stack.pop()?.into_int()?;
+    let stat = ctx.prg.data_stack.pop()?.into_int()?;
+    let stat = Stat::from_i32(stat)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+
+    let r = if let Some(obj) = obj {
+        let obj = ctx.ext.world.objects().get(obj);
+        let (r, _) = ctx.ext.stats.roll_check_stat(stat, bonus, &obj);
+        r
+    } else {
+        RollCheckResult::CriticalFailure
+    };
+
+    ctx.prg.data_stack.push((r as i32).into())?;
+
+    log_a3r1!(ctx.prg, obj, stat, bonus, ctx.prg.data_stack.top().unwrap());
+
     Ok(())
 }
 
@@ -541,53 +581,82 @@ pub fn gsay_reply(mut ctx: Context) -> Result<()> {
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
-enum TraitFamilyKind {
-    Perk = 0,
-    Object = 1,
-    Trait = 2,
-}
-
-#[derive(Clone, Copy, Debug)]
-enum TraitFamily {
-    Perk(Perk),
-    PerkUnknown(i32),
-    Object(ObjectTrait),
-    ObjectUnknown(i32),
-    Trait(Trait),
-    TraitUnknown(i32),
-    Unknown(i32),
-}
-
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
-enum ObjectTrait {
-    AiPacket = 5,
-    TeamNum = 6,
-    Direction = 10,
-    IsTurnedOff = 666,
-    ItemTotalWeight = 669,
+pub fn has_skill(ctx: Context) -> Result<()> {
+    let skill = ctx.prg.data_stack.pop()?.into_int()?;
+    let skill = Skill::from_i32(skill)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
+    let r = if let Some(obj) = obj {
+        ctx.ext.stats.skill(skill, &ctx.ext.world.objects().get(obj))
+    } else {
+        log_error!(ctx.prg, "object is null");
+        0
+    };
+    ctx.prg.data_stack.push(r.into())?;
+    log_a2r1!(ctx.prg, obj, skill, r);
+    Ok(())
 }
 
 pub fn has_trait(ctx: Context) -> Result<()> {
     let kind = ctx.prg.data_stack.pop()?.into_int()?;
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
-    let family_kind = ctx.prg.data_stack.pop()?.coerce_into_int()?;
-    let family = match TraitFamilyKind::from_i32(family_kind) {
-        Some(TraitFamilyKind::Perk) => Perk::from_i32(kind)
-            .map(TraitFamily::Perk)
-            .unwrap_or(TraitFamily::PerkUnknown(kind)),
-        Some(TraitFamilyKind::Object) => ObjectTrait::from_i32(kind)
-            .map(TraitFamily::Object)
-            .unwrap_or(TraitFamily::ObjectUnknown(kind)),
-        Some(TraitFamilyKind::Trait) => Trait::from_i32(kind)
-            .map(TraitFamily::Trait)
-            .unwrap_or(TraitFamily::TraitUnknown(kind)),
-        None => TraitFamily::Unknown(family_kind),
+    let attr = ctx.prg.data_stack.pop()?.coerce_into_int()?;
+    let attr = Attribute::from_i32(attr)
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    let r = match attr {
+        Attribute::Perk => {
+            let perk = Perk::from_i32(kind)
+                .ok_or(Error::BadValue(BadValue::Content))?;
+            let r = if_chain! {
+                if let Some(obj) = obj;
+                if let Some(proto_id) = ctx.ext.world.objects().get(obj).proto_id();
+                then {
+                    ctx.ext.stats.has_perk(perk, proto_id).into()
+                } else {
+                    log_error!(ctx.prg, "object is null or doesn't have proto");
+                    false.into()
+                }
+            };
+            log_a3r1!(ctx.prg, attr, obj, perk, r);
+            r
+        }
+        Attribute::Trait => {
+            let tr = Trait::from_i32(kind)
+                .ok_or(Error::BadValue(BadValue::Content))?;
+            let r = ctx.ext.stats.has_trait(tr).into();
+            log_a3r1!(ctx.prg, attr, obj, tr, r);
+            r
+        }
+        Attribute::Object => {
+            let otr = ObjectTrait::from_i32(kind)
+                .ok_or(Error::BadValue(BadValue::Content))?;
+            let r = if let Some(obj) = obj {
+                let obj = ctx.ext.world.objects().get(obj);
+                use ObjectTrait::*;
+                match otr {
+                    AiPacket => obj.sub.as_critter().map(|c| c.combat.ai_packet)
+                        .unwrap_or_else(|| { log_error!(ctx.prg, "object is not a Critter"); 0 })
+                        .into(),
+                    TeamNum => obj.sub.as_critter().map(|c| c.combat.team_num)
+                        .unwrap_or_else(|| { log_error!(ctx.prg, "object is not a Critter"); 0 })
+                        .into(),
+                    Direction => (obj.direction as i32).into(),
+                    IsTurnedOff => obj.flags.contains(Flag::TurnedOff).into(),
+                    ItemTotalWeight => {
+                        // TODO item_total_weight(obj)
+                        log_stub!(ctx.prg);
+                        0.into()
+                    },
+                }
+            } else {
+                log_error!(ctx.prg, "object is null");
+                0.into()
+            };
+            log_a3r1!(ctx.prg, attr, obj, otr, r);
+            r
+        }
     };
-    let r = 0;
-    ctx.prg.data_stack.push(Value::Int(r))?;
-    log_a2r1!(ctx.prg, family, obj, r);
-    log_stub!(ctx.prg);
+    ctx.prg.data_stack.push(r)?;
     Ok(())
 }
 
@@ -629,50 +698,58 @@ pub fn message_str(mut ctx: Context) -> Result<()> {
 
 pub fn metarule(ctx: Context) -> Result<()> {
     let arg = ctx.prg.data_stack.pop()?;
+    let arg_clone = arg.clone();
     let id = ctx.prg.data_stack.pop()?.into_int()?;
 
     use self::Metarule::*;
     let mr = Metarule::from_i32(id);
+    let mut stub = true;
     let r = if let Some(mr) = mr {
         match mr {
-            SignalEndGame   => 0,
-            TestFirstrun    => 1,
-            Elevator        => 0,
-            PartyCount      => 0,
-            AreaKnown       => 1,
-            WhoOnDrugs      => 0,
-            MapKnown        => 1,
-            IsLoadgame      => 0,
-            CarCurrentTown  => 0,
-            GiveCarToParty  => 0,
-            GiveCarGas      => 0,
-            SkillCheckTag   => 0,
-            DropAllInven    => 0,
-            InvenUnwieldWho => 0,
-            GetWorldmapXpos => 0,
-            GetWorldmapYpos => 0,
-            CurrentTown     => 0,
-            LanguageFilter  => 0,
-            ViolenceFilter  => 0,
-            WDamageType     => 0,
-            CritterBarters  => 0,
-            CritterKillType => 0,
-            CarTrunkSetAnim => 0,
-            CarTrunkGetAnim => 0,
+            SignalEndGame   => 0.into(),
+            TestFirstrun    => 1.into(),
+            Elevator        => 0.into(),
+            PartyCount      => 0.into(),
+            AreaKnown       => 1.into(),
+            WhoOnDrugs      => 0.into(),
+            MapKnown        => 1.into(),
+            IsLoadgame      => 0.into(),
+            CarCurrentTown  => 0.into(),
+            GiveCarToParty  => 0.into(),
+            GiveCarGas      => 0.into(),
+            SkillCheckTag   => {
+                stub = false;
+                ctx.ext.stats.is_tagged(Skill::from_i32(arg.coerce_into_int()?)
+                    .ok_or(Error::BadValue(BadValue::Content))?).into()
+            }
+            DropAllInven    => 0.into(),
+            InvenUnwieldWho => 0.into(),
+            GetWorldmapXpos => 0.into(),
+            GetWorldmapYpos => 0.into(),
+            CurrentTown     => 0.into(),
+            LanguageFilter  => 0.into(),
+            ViolenceFilter  => 0.into(),
+            WDamageType     => 0.into(),
+            CritterBarters  => 0.into(),
+            CritterKillType => 0.into(),
+            CarTrunkSetAnim => 0.into(),
+            CarTrunkGetAnim => 0.into(),
         }
     } else {
         error!("unknown Metarule ID {}", id);
-        0
+        0.into()
     };
 
-    ctx.prg.data_stack.push(Value::Int(r))?;
+    ctx.prg.data_stack.push(r)?;
 
     if let Some(mr) = mr {
-        log_a2r1!(ctx.prg, mr, arg, ctx.prg.data_stack.top().unwrap());
+        log_a2r1!(ctx.prg, mr, arg_clone, ctx.prg.data_stack.top().unwrap());
     } else {
-        log_a2r1!(ctx.prg, id, arg, ctx.prg.data_stack.top().unwrap());
+        log_a2r1!(ctx.prg, id, arg_clone, ctx.prg.data_stack.top().unwrap());
     }
-    log_stub!(ctx.prg);
+    if stub {
+        log_stub!(ctx.prg);
+    }
 
     Ok(())
 }
@@ -1120,13 +1197,22 @@ pub fn tile_distance_objs(ctx: Context) -> Result<()> {
 pub fn roll_vs_skill(ctx: Context) -> Result<()> {
     let bonus = ctx.prg.data_stack.pop()?.into_int()?;
     let skill = ctx.prg.data_stack.pop()?.into_int()?;
+    let skill = Skill::from_i32(skill)
+        .ok_or(Error::BadValue(BadValue::Content))?;
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
 
-    let r = 0;
-    ctx.prg.data_stack.push(r.into())?;
+    let r = if let Some(obj) = obj {
+        let obj = ctx.ext.world.objects().get(obj);
+        let roll_checker = ctx.ext.world.game_time.roll_checker();
+        let (r, _) = ctx.ext.stats.roll_check_skill(skill, bonus, &obj, roll_checker);
+        r
+    } else {
+        RollCheckResult::CriticalFailure
+    };
+
+    ctx.prg.data_stack.push((r as i32).into())?;
 
     log_a3r1!(ctx.prg, obj, skill, bonus, ctx.prg.data_stack.top().unwrap());
-    log_stub!(ctx.prg);
 
     Ok(())
 }

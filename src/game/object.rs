@@ -1326,17 +1326,11 @@ impl Critter {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CritterCombat {
     pub damage_flags: BitFlags<DamageFlag>,
-}
-
-impl Default for CritterCombat {
-    fn default() -> Self {
-        Self {
-            damage_flags: BitFlags::empty(),
-        }
-    }
+    pub ai_packet: i32,
+    pub team_num: i32,
 }
 
 #[derive(Clone, Copy, Debug, EnumFlags, Primitive)]

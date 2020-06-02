@@ -7,12 +7,13 @@ thread_local! {
     static RANDOM: RefCell<Random> = RefCell::new(Random::new());
 }
 
+// roll_random()
 pub fn random(from_inclusive: i32, to_inclusive: i32) -> i32 {
     RANDOM.with(|rand| rand.borrow_mut().gen(from_inclusive, to_inclusive))
 }
 
 /// Pseudo-random generator based on Minimal Standard by Lewis, Goodman, and Miller in 1969.
-pub struct Random {
+struct Random {
     seed: i32,
     y: i32,
     table: [i32; 32],
@@ -71,6 +72,43 @@ impl Random {
         self.y = next_y;
         self.seed = next_seed;
         next_y % upper_bound
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, enum_primitive_derive::Primitive)]
+pub enum RollCheckResult {
+    CriticalFailure = 0,
+    Failure = 1,
+    Success = 2,
+    CriticalSuccess = 3,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct RollChecker {
+    disable_crits: bool,
+}
+
+impl RollChecker {
+    pub fn new(disable_crits: bool) -> Self {
+        Self {
+            disable_crits,
+        }
+    }
+
+    pub fn roll_check(self, target: i32, crit: i32) -> (RollCheckResult, i32) {
+        let roll = target - random(1, 100);
+        let r = if roll < 0 {
+            if !self.disable_crits && random(1, 100) <= -roll / 10 {
+                RollCheckResult::CriticalFailure
+            } else {
+                RollCheckResult::Failure
+            }
+        } else if !self.disable_crits && random(1, 100) <= roll / 10 + crit {
+            RollCheckResult::CriticalSuccess
+        } else {
+            RollCheckResult::Success
+        };
+        (r, roll)
     }
 }
 

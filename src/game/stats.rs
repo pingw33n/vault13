@@ -12,6 +12,7 @@ use crate::asset::message::{Messages, MessageId};
 use crate::asset::proto::{self, ProtoId};
 use crate::game::object::{DamageFlag, Object};
 use crate::fs::FileSystem;
+use crate::util::random::*;
 
 use def::*;
 
@@ -88,6 +89,10 @@ impl Stats {
 
     pub fn has_trait(&self, tr: Trait) -> bool {
         self.traits[tr]
+    }
+
+    pub fn is_tagged(&self, skill: Skill) -> bool {
+        self.tagged[skill].tagged
     }
 
     // stat_level()
@@ -185,8 +190,8 @@ impl Stats {
     }
 
     // skill_level
-    pub fn skill(&self, skill: Skill, obj: &Object) -> Option<i32> {
-        let level = obj.proto()?.sub.as_critter()?.skills[skill];
+    pub fn skill(&self, skill: Skill, obj: &Object) -> i32 {
+        let level = obj.proto().unwrap().sub.as_critter().unwrap().skills[skill];
 
         let def = &self.skill_defs[skill];
 
@@ -208,9 +213,50 @@ impl Stats {
             // TODO r+= skill_game_difficulty()
         }
 
-        let r = cmp::min(r, 300);
+        cmp::min(r, 300)
+    }
 
-        Some(r)
+    // stat_result
+    pub fn roll_check_stat(&self, stat: Stat, bonus: i32, obj: &Object) -> (RollCheckResult, i32) {
+        let level = self.stat(stat, obj) + bonus;
+        let rnd = random(1, 10);
+        let diff = level - rnd;
+        let r = if rnd <= level {
+            RollCheckResult::Success
+        } else {
+            RollCheckResult::Failure
+        };
+        (r, diff)
+    }
+
+    // skill_result
+    pub fn roll_check_skill(&self,
+        skill: Skill,
+        bonus: i32,
+        obj: &Object,
+        roll_checker: RollChecker,
+    ) -> (RollCheckResult, i32) {
+        if obj.proto_id().unwrap().is_dude() && skill != Skill::Steal {
+            // TODO
+            // pm = partyMemberWithHighestSkill_(skill);
+            // v10 = pm;
+            // if ( pm )
+            // {
+            //   if ( partyMemberSkill_(pm) == skill )
+            //     critter = v10;
+            // }
+        }
+        let level = self.skill(skill, obj);
+
+        // TODO
+        // if ( critter == g_obj_dude && skill == SKILL_STEAL && is_pc_flag_(0) )
+        // {
+        //   if ( is_pc_sneak_working_() )
+        //     skill_level += 30;
+        // }
+
+        let crit_level = self.stat(Stat::CritChance, obj);
+        roll_checker.roll_check(bonus + level, crit_level)
     }
 
     // trait_adjust_stat()
