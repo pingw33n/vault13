@@ -373,6 +373,16 @@ impl Object {
         Some(r)
     }
 
+    // item_get_type
+    pub fn item_kind(&self) -> Option<ItemKind> {
+        let proto = self.proto()?;
+        Some(if proto.id() == ProtoId::SHIV {
+            ItemKind::Misc
+        } else {
+            proto.sub.as_item()?.sub.kind()
+        })
+    }
+
     fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &impl TileGridView,
         include_outline: bool,
     ) -> Rect {
@@ -967,20 +977,6 @@ impl Objects {
             }
         } else {
             false
-        }
-    }
-
-    // item_get_type()
-    pub fn item_kind(&self, obj: Handle) -> Option<ItemKind> {
-        let obj = self.get(obj);
-        if obj.kind() == EntityKind::Item &&
-            obj.proto_id().unwrap() == ProtoId::SHIV
-        {
-            Some(obj.proto.as_ref().unwrap().borrow()
-                .sub.as_item().unwrap()
-                .sub.kind())
-        } else {
-            None
         }
     }
 
