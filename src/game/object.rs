@@ -1292,6 +1292,7 @@ impl Objects {
 pub enum SubObject {
     None,
     Critter(Critter),
+    Item(Item),
     MapExit(MapExit),
     Scenery(Scenery),
 }
@@ -1412,6 +1413,12 @@ pub enum UpdatedFlag {
 pub struct Elevator {
     pub kind: u32,
     pub level: u32,
+}
+
+#[derive(Debug)]
+pub struct Item {
+    pub ammo_count: u32,
+    pub ammo_proto: Option<Rc<RefCell<Proto>>>,
 }
 
 #[cfg(test)]

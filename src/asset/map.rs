@@ -352,32 +352,30 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                     let proto = proto.borrow();
                     match proto.sub.as_item().unwrap().sub {
                         SubItem::Weapon(ref proto) => {
-                            let _charges = self.reader.read_i32::<BigEndian>()?;
-                            let ammo_pid = ProtoId::from_packed(self.reader.read_u32::<BigEndian>()?);
+                            let _ammo_count = self.reader.read_i32::<BigEndian>()?;
+                            let ammo_proto_id = ProtoId::from_packed(self.reader.read_u32::<BigEndian>()?);
 
                             // object_fix_weapon_ammo()
-                            let _charges = proto.max_ammo;
-                            let _ammo_pid = if ammo_pid.is_none() {
-                                proto.ammo_pid
+                            let ammo_count = proto.max_ammo_count;
+                            let ammo_proto_id = ammo_proto_id.or(proto.ammo_proto_id);
+                            let ammo_proto = if let Some(pid) = ammo_proto_id {
+                                Some(self.proto_db.proto(pid)?)
                             } else {
-                                ammo_pid
+                                None
                             };
-                            SubObject::None
+                            SubObject::Item(Item { ammo_count, ammo_proto })
                         }
                         SubItem::Ammo(_) => {
-                            let _charges = self.reader.read_i32::<BigEndian>()?;
-                            SubObject::None
+                            let ammo_count = self.reader.read_i32::<BigEndian>()?.try_into().unwrap();
+                            SubObject::Item(Item { ammo_count, ammo_proto: None })
                         }
                         SubItem::Misc(ref proto) => {
-                            let charges = self.reader.read_i32::<BigEndian>()?;
+                            let ammo_count = self.reader.read_i32::<BigEndian>()?;
 
                             // object_fix_weapon_ammo()
-                            let _charges = if charges < 0 {
-                                proto.max_charges
-                            } else {
-                                charges
-                            };
-                            SubObject::None
+                            let ammo_count = ammo_count.try_into()
+                                .unwrap_or(proto.max_ammo_count);
+                            SubObject::Item(Item { ammo_count, ammo_proto: None })
                         }
                         SubItem::Key(_) => {
                             let _key_code = self.reader.read_i32::<BigEndian>()?;
