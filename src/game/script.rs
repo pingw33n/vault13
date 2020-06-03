@@ -18,6 +18,8 @@ use crate::game::object;
 use crate::vm::{self, *};
 use crate::vm::value::Value;
 
+pub const GVAR_PLAYER_REPUTATION: i32 = 0;
+
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum ScriptKind {
     System = 0x0,
