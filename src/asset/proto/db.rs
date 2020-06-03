@@ -3,8 +3,8 @@ use byteorder::{BigEndian, ReadBytesExt};
 use enum_map::EnumMap;
 use num_traits::FromPrimitive;
 use std::cell::RefCell;
-use std::cmp;
 use std::collections::hash_map::{self, HashMap};
+use std::convert::TryInto;
 use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
 use std::str;
@@ -337,8 +337,8 @@ impl ProtoDb {
         let perk = read_opt_enum(rd, "invalid weapon perk")?;
         let burst_bullet_count = rd.read_i32::<BigEndian>()?;
         let caliber = rd.read_i32::<BigEndian>()?;
-        let ammo_pid = ProtoId::read_opt(rd)?;
-        let max_ammo = rd.read_i32::<BigEndian>()?;
+        let ammo_proto_id = ProtoId::read_opt(rd)?;
+        let max_ammo_count = rd.read_i32::<BigEndian>()?.try_into().unwrap();
         let sound_id = rd.read_u8()?;
 
         Ok(Weapon {
@@ -354,8 +354,8 @@ impl ProtoDb {
             perk,
             burst_bullet_count,
             caliber,
-            ammo_pid,
-            max_ammo,
+            ammo_proto_id,
+            max_ammo_count,
             sound_id,
         })
     }
@@ -378,13 +378,13 @@ impl ProtoDb {
     }
 
     fn read_misc_item(rd: &mut impl Read) -> io::Result<MiscItem> {
-        let charge_pid = ProtoId::read_opt(rd)?;
-        let charge_kind = rd.read_u32::<BigEndian>()?;
-        let max_charges = cmp::max(rd.read_i32::<BigEndian>()?, 0);
+        let ammo_proto_id = ProtoId::read_opt(rd)?;
+        let ammo_kind = rd.read_u32::<BigEndian>()?;
+        let max_ammo_count = rd.read_i32::<BigEndian>()?.try_into().unwrap_or(0);
         Ok(MiscItem {
-            charge_pid,
-            charge_kind,
-            max_charges,
+            ammo_proto_id,
+            ammo_kind,
+            max_ammo_count,
         })
     }
 
