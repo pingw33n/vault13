@@ -25,6 +25,8 @@ const SKILL_NAME_MSG_BASE: MessageId = 100;
 const SKILL_DESCR_MSG_BASE: MessageId = 200;
 const SKILL_FORMULA_MSG_BASE: MessageId = 300;
 const LEVEL_UP_MSG: MessageId = 600;
+const PERK_NAME_MSG_BASE: MessageId = 101;
+const PERK_DESCR_MSG_BASE: MessageId = 1101;
 
 struct Tagged {
     tagged: bool,
@@ -43,8 +45,10 @@ impl Default for Tagged {
 pub struct Stats {
     stat_msgs: Messages,
     skill_msgs: Messages,
+    perk_msgs: Messages,
     stat_defs: EnumMap<Stat, StatDef>,
     skill_defs: EnumMap<Skill, SkillDef>,
+    perk_defs: EnumMap<Perk, PerkDef>,
     traits: EnumMap<Trait, bool>,
     perks: HashMap<ProtoId, EnumMap<Perk, bool>>,
     tagged: EnumMap<Skill, Tagged>,
@@ -58,13 +62,18 @@ impl Stats {
         let skill_msgs = Messages::read_file(fs, language, "game/skill.msg")?;
         let skill_defs = SkillDef::defaults();
 
+        let perk_msgs = Messages::read_file(fs, language, "game/perk.msg")?;
+        let perk_defs = PerkDef::defaults();
+
         let mut perks = HashMap::new();
         perks.insert(ProtoId::DUDE, Default::default());
         Ok(Self {
             stat_msgs,
             skill_msgs,
+            perk_msgs,
             stat_defs,
             skill_defs,
+            perk_defs,
             traits: Default::default(),
             perks,
             tagged: Default::default(),
@@ -81,6 +90,14 @@ impl Stats {
 
     pub fn skill_formula(&self, skill: Skill) -> &bstr {
         &self.skill_msgs.get(SKILL_FORMULA_MSG_BASE + skill as MessageId).unwrap().text
+    }
+
+    pub fn perk_name(&self, perk: Perk) -> &bstr {
+        &self.perk_msgs.get(PERK_NAME_MSG_BASE + perk as MessageId).unwrap().text
+    }
+
+    pub fn perk_description(&self, perk: Perk) -> &bstr {
+        &self.perk_msgs.get(PERK_DESCR_MSG_BASE + perk as MessageId).unwrap().text
     }
 
     pub fn has_perk(&self, perk: Perk, pid: ProtoId) -> bool {
