@@ -398,7 +398,7 @@ impl GameState {
             }
             EntityKind::Item => {
                 r.extend_from_slice(&[Action::UseHand, Action::Look]);
-                if world.objects().item_kind(objh) == Some(ItemKind::Container) {
+                if world.objects().get(objh).item_kind() == Some(ItemKind::Container) {
                     r.extend_from_slice(&[Action::UseSkill, Action::Inventory]);
                 }
             }
