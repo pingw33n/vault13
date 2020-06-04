@@ -916,8 +916,8 @@ impl AppState for GameState {
         match ctx.event {
             AppEvent::MapExit { map, pos, direction } => {
                 match map {
-                    TargetMap::WorldMap(k) => {
-                        warn!("map exit to {:?} is not implemented", k);
+                    TargetMap::CurrentMap => {
+                        self.set_dude_pos(pos, direction, ctx.ui);
                     }
                     TargetMap::Map { map_id } => {
                         if self.map_id.unwrap() != map_id {
@@ -926,6 +926,9 @@ impl AppState for GameState {
                             self.switch_map(&name, ctx.ui);
                         }
                         self.set_dude_pos(pos, direction, ctx.ui);
+                    }
+                    TargetMap::WorldMap(k) => {
+                        warn!("map exit to {:?} is not implemented", k);
                     }
                 }
             }

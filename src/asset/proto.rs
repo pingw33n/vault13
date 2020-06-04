@@ -4,6 +4,7 @@ mod id;
 use bstring::{bstr, BString};
 use enumflags2::BitFlags;
 use enum_map::EnumMap;
+use num_traits::cast::FromPrimitive;
 use std::ops::RangeInclusive;
 
 pub use id::ProtoId;
@@ -13,6 +14,7 @@ use super::*;
 use crate::asset::EntityKind;
 use crate::asset::frame::FrameId;
 use crate::asset::message::MessageId;
+use crate::graphics::geometry::hex::TileGrid;
 use crate::util::{enum_iter, EnumIter};
 
 /// "The doorway seems to be blocked."
@@ -343,8 +345,7 @@ pub struct Door {
 
 #[derive(Debug)]
 pub struct Stairs {
-    pub elevation_and_tile: u32,
-    pub map_id: u32,
+    pub exit: Option<MapExit>,
 }
 
 #[derive(Debug)]
@@ -362,7 +363,7 @@ pub enum LadderKind {
 #[derive(Debug)]
 pub struct Ladder {
     pub kind: LadderKind,
-    pub elevation_and_tile: u32,
+    pub exit: Option<MapExit>,
 }
 
 #[derive(Debug)]
@@ -373,6 +374,60 @@ pub struct Wall {
 #[derive(Debug)]
 pub struct SqrTile {
     pub material: Material,
+}
+
+#[derive(Clone, Copy, Eq, Debug, PartialEq)]
+pub enum WorldMapKind {
+    Town,
+    World,
+}
+
+#[derive(Debug)]
+pub struct MapExit {
+    pub map: TargetMap,
+    pub pos: EPoint,
+    pub direction: Direction,
+}
+
+impl MapExit {
+    pub fn decode(map: i32, location: u32) -> Option<MapExit> {
+        let map = if map != 0 {
+            TargetMap::decode(map)?
+        } else {
+            TargetMap::CurrentMap
+        };
+        let elevation = location & 0x3ffffff;
+        let pos = TileGrid::default().from_linear_inv((location & 0xE0000000) >> 29)
+            .elevated(elevation);
+        let direction = Direction::from_u32((location & 0x1C000000) >> 26)?;
+        Some(MapExit {
+            map,
+            pos,
+            direction,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Eq, Debug, PartialEq)]
+pub enum TargetMap {
+    Map {
+        map_id: u32,
+    },
+    CurrentMap,
+    WorldMap(WorldMapKind),
+}
+
+impl TargetMap {
+    pub fn decode(map: i32) -> Option<TargetMap> {
+        Some(match map {
+            -1 => TargetMap::WorldMap(WorldMapKind::Town),
+            -2 => TargetMap::WorldMap(WorldMapKind::World),
+            map_id if map_id >= 0 => {
+                TargetMap::Map { map_id: map_id as u32 }
+            }
+            _ => return None,
+        })
+    }
 }
 
 // Subset that has prototypes.
