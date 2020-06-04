@@ -305,8 +305,8 @@ pub fn do_check(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
 
     let r = if let Some(obj) = obj {
-        let obj = ctx.ext.world.objects().get(obj);
-        let (r, _) = ctx.ext.stats.roll_check_stat(stat, bonus, &obj);
+        let (r, _) = ctx.ext.stats.roll_check_stat(stat, bonus,
+            &ctx.ext.world.objects().get(obj), ctx.ext.world.objects());
         r
     } else {
         RollCheckResult::CriticalFailure
@@ -587,7 +587,7 @@ pub fn has_skill(ctx: Context) -> Result<()> {
         .ok_or(Error::BadValue(BadValue::Content))?;
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
     let r = if let Some(obj) = obj {
-        ctx.ext.stats.skill(skill, &ctx.ext.world.objects().get(obj))
+        ctx.ext.stats.skill(skill, &ctx.ext.world.objects().get(obj), ctx.ext.world.objects())
     } else {
         log_error!(ctx.prg, "object is null");
         0
@@ -1202,9 +1202,9 @@ pub fn roll_vs_skill(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
 
     let r = if let Some(obj) = obj {
-        let obj = ctx.ext.world.objects().get(obj);
         let roll_checker = ctx.ext.world.game_time.roll_checker();
-        let (r, _) = ctx.ext.stats.roll_check_skill(skill, bonus, &obj, roll_checker);
+        let (r, _) = ctx.ext.stats.roll_check_skill(skill, bonus, roll_checker,
+            &ctx.ext.world.objects().get(obj), ctx.ext.world.objects());
         r
     } else {
         RollCheckResult::CriticalFailure
