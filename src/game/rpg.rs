@@ -156,18 +156,10 @@ impl Rpg {
                 Perception => pei(GainPerception),
                 Endurance => pei(GainEndurance),
                 Charisma => {
-                    pei(GainCharisma)
-
-                    // TODO
-//                    bonus_for_shades = 0;
-//                  obj_in_right_hand = inven_right_hand_(obj);
-//                  if ( obj_in_right_hand && obj_in_right_hand->_.pid == PID_MIRRORED_SHADES )
-//                    bonus_for_shades = 1;
-//                  obj_in_left_hand = inven_left_hand_(obj);
-//                  if ( obj_in_left_hand && obj_in_left_hand->_.pid == PID_MIRRORED_SHADES )
-//                    bonus_for_shades = 1;
-//                  if ( bonus_for_shades )
-//                    ++v7;
+                    let wearing_shades =
+                        obj.in_left_hand(objs).and_then(|o| objs.get(o).proto_id()) == Some(ProtoId::MIRRORED_SHADES) ||
+                        obj.in_right_hand(objs).and_then(|o| objs.get(o).proto_id()) == Some(ProtoId::MIRRORED_SHADES);
+                    pei(GainCharisma) + wearing_shades as i32
                 }
                 Intelligence => pei(GainIntelligence),
                 Agility => pei(GainAgility),
