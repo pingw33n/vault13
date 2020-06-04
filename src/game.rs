@@ -3,7 +3,7 @@ use crate::util::random::RollChecker;
 pub mod dialog;
 pub mod fidget;
 pub mod object;
-pub mod stats;
+pub mod rpg;
 pub mod script;
 pub mod sequence;
 pub mod state;

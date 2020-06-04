@@ -21,11 +21,11 @@ use crate::fs::FileSystem;
 use crate::game::dialog::Dialog;
 use crate::game::fidget::Fidget;
 use crate::game::object::{self, *};
+use crate::game::rpg::Rpg;
 use crate::game::sequence::frame_anim::{AnimDirection, FrameAnim, FrameAnimOptions};
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
 use crate::game::script::{self, Scripts, ScriptKind};
-use crate::game::stats::Stats;
 use crate::game::ui::action_menu::{self, Action};
 use crate::game::ui::hud;
 use crate::game::ui::scroll_area::ScrollArea;
@@ -69,7 +69,7 @@ pub struct GameState {
     seq_events: Vec<sequence::Event>,
     misc_msgs: Rc<Messages>,
     scroll_areas: EnumMap<ScrollDirection, ui::Handle>,
-    stats: Stats,
+    rpg: Rpg,
 }
 
 impl GameState {
@@ -117,7 +117,7 @@ impl GameState {
 
         let scroll_areas = Self::create_scroll_areas(Rect::with_size(0, 0, 640, 480), ui);
 
-        let stats = Stats::new(&fs, language).unwrap();
+        let rpg = Rpg::new(&fs, language).unwrap();
 
         Self {
             time,
@@ -141,7 +141,7 @@ impl GameState {
             seq_events: Vec::new(),
             misc_msgs,
             scroll_areas,
-            stats,
+            rpg,
         }
     }
 
@@ -184,7 +184,7 @@ impl GameState {
                 map_id,
                 source_obj: None,
                 target_obj: None,
-                stats: &mut self.stats,
+                rpg: &mut self.rpg,
             };
             self.scripts.execute_map_procs(PredefinedProc::MapExit, ctx);
         }
@@ -278,7 +278,7 @@ impl GameState {
                 map_id: map.id,
                 source_obj: None,
                 target_obj: None,
-                stats: &mut self.stats,
+                rpg: &mut self.rpg,
             };
 
             // PredefinedProc::Start for map script is never called.
@@ -451,7 +451,7 @@ impl GameState {
                     map_id: self.map_id.unwrap(),
                     source_obj: Some(looker),
                     target_obj: Some(looked),
-                    stats: &mut self.stats,
+                    rpg: &mut self.rpg,
                 });
             then {
                 assert!(r.suspend.is_none(), "can't suspend");
@@ -515,7 +515,7 @@ impl GameState {
                     map_id: self.map_id.unwrap(),
                     source_obj: Some(examiner),
                     target_obj: Some(examined),
-                    stats: &mut self.stats,
+                    rpg: &mut self.rpg,
                 });
             then {
                 assert!(r.suspend.is_none(), "can't suspend");
@@ -614,7 +614,7 @@ impl GameState {
                         map_id: self.map_id.unwrap(),
                         source_obj: Some(talker),
                         target_obj: Some(talked),
-                        stats: &mut self.stats,
+                        rpg: &mut self.rpg,
                     }).and_then(|r| r.suspend)
                     {
                         None | Some(Suspend::GsayEnd) => {}
@@ -723,7 +723,7 @@ impl GameState {
                         map_id: self.map_id.unwrap(),
                         source_obj: Some(user),
                         target_obj: Some(used),
-                        stats: &mut self.stats,
+                        rpg: &mut self.rpg,
                     }).unwrap().assert_no_suspend().script_overrides
             } else {
                 false
@@ -777,7 +777,7 @@ impl GameState {
                     map_id: self.map_id.unwrap(),
                     source_obj: Some(user),
                     target_obj: Some(door),
-                    stats: &mut self.stats,
+                    rpg: &mut self.rpg,
                 }).unwrap().assert_no_suspend().script_overrides;
             if script_overrides {
                 return;
@@ -904,7 +904,7 @@ impl GameState {
                 map_id: self.map_id.unwrap(),
                 source_obj: None,
                 target_obj: None,
-                stats: &mut self.stats,
+                rpg: &mut self.rpg,
             };
             self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
         }
@@ -1107,7 +1107,7 @@ impl AppState for GameState {
                             map_id: self.map_id.unwrap(),
                             source_obj,
                             target_obj,
-                            stats: &mut self.stats,
+                            rpg: &mut self.rpg,
                         }).assert_no_suspend();
                     // No dialog options means the dialog is finished.
                     self.dialog.as_ref().unwrap().is_empty()
@@ -1124,7 +1124,7 @@ impl AppState for GameState {
                         map_id: self.map_id.unwrap(),
                         source_obj: None,
                         target_obj: None,
-                        stats: &mut self.stats,
+                        rpg: &mut self.rpg,
                     };
                     self.scripts.resume(ctx).assert_no_suspend();
                     assert!(!self.scripts.can_resume());
