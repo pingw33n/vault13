@@ -182,7 +182,7 @@ impl ProtoDb {
         let item_kind = read_enum(rd, "invalid item kind")?;
         let material = read_enum(rd, "invalid item material")?;
         let size = rd.read_i32::<BigEndian>()?;
-        let weight = rd.read_i32::<BigEndian>()?;
+        let weight = rd.read_i32::<BigEndian>()?.try_into().unwrap();
         let price = rd.read_i32::<BigEndian>()?;
         let inventory_fid = FrameId::read_opt(rd)?;
         let sound_id = rd.read_u8()?;
@@ -362,7 +362,7 @@ impl ProtoDb {
 
     fn read_ammo(rd: &mut impl Read) -> io::Result<Ammo> {
         let caliber = rd.read_i32::<BigEndian>()?;
-        let magazine_size = rd.read_i32::<BigEndian>()?;
+        let magazine_size = rd.read_i32::<BigEndian>()?.try_into().unwrap();
         let ac_modifier = rd.read_i32::<BigEndian>()?;
         let dr_modifier = rd.read_i32::<BigEndian>()?;
         let damage_mult = rd.read_i32::<BigEndian>()?;

@@ -480,7 +480,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         };
         for i in 0..inventory_len {
             trace!("loading inventory item {}/{}", i, inventory_len);
-            let count = self.reader.read_i32::<BigEndian>()? as usize;
+            let count = self.reader.read_i32::<BigEndian>()?.try_into().unwrap();
             trace!("item count: {}", count);
             let object = self.read_object(f2, map_id)?;
             let object = self.objects.insert(object);

@@ -110,7 +110,7 @@ impl SubProto {
 pub struct Item {
     pub material: Material,
     pub size: i32,
-    pub weight: i32,
+    pub weight: u32,
     pub price: i32,
     pub inventory_fid: Option<FrameId>,
     pub sound_id: u8,
@@ -223,7 +223,7 @@ pub struct Weapon {
 #[derive(Debug)]
 pub struct Ammo {
     pub caliber: i32,
-    pub magazine_size: i32,
+    pub magazine_size: u32,
     pub ac_modifier: i32,
     pub dr_modifier: i32,
     pub damage_mult: i32,

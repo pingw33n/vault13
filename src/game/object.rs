@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, ItemKind, WeaponKind, ExactEntityKind};
 use crate::asset::frame::{FrameId, FrameDb};
-use crate::asset::proto::{self, CritterKillKind, Proto, ProtoId};
+use crate::asset::proto::{self, CritterKillKind, Proto, ProtoId, SubItem};
 use crate::asset::script::ProgramId;
 use crate::game::script::{Scripts, Sid};
 use crate::graphics::{EPoint, Point, Rect};
@@ -61,12 +61,23 @@ impl Inventory {
             items: Vec::new(),
         }
     }
+
+    // item_total_weight
+    pub fn weight(&self, objects: &Objects) -> u32 {
+        let mut weight = 0;
+        for item in &self.items {
+            weight += objects.get(item.object).item_weight(objects).unwrap() * item.count;
+        }
+        weight
+
+        // See https://trello.com/c/ksAC8gWn
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct InventoryItem {
     pub object: Handle,
-    pub count: usize,
+    pub count: u32,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -381,6 +392,67 @@ impl Object {
         } else {
             proto.sub.as_item()?.sub.kind()
         })
+    }
+
+    // item_weight
+    pub fn item_weight(&self, objects: &Objects) -> Option<u32> {
+        let proto = self.proto()?;
+        let item = proto.sub.as_item()?;
+        let mut weight = if proto.flags_ext.contains(FlagExt::WallEastOrWest) { // TODO overloaded: ItemHidden
+            0
+        } else {
+            item.weight
+        };
+        match &item.sub {
+            SubItem::Container(_) => weight += self.inventory.weight(objects),
+            SubItem::Weapon(_) => {
+                let item_obj = self.sub.as_item().unwrap();
+                if item_obj.ammo_count > 0 {
+                    let ammo = if self.item_kind() == Some(ItemKind::Weapon) {
+                        item_obj.ammo_proto.as_ref()
+                    } else {
+                        None
+                    };
+                    if let Some(ammo) = ammo {
+                        let ammo = ammo.borrow();
+                        let ammo = ammo.sub.as_item().unwrap();
+                        weight += ammo.weight * ((item_obj.ammo_count - 1) /
+                            ammo.sub.as_ammo().unwrap().magazine_size + 1);
+                    }
+                }
+            }
+            SubItem::Armor(_) => match proto.id() {
+                | ProtoId::POWER_ARMOR
+                | ProtoId::HARDENED_POWER_ARMOR
+                | ProtoId::ADVANCED_POWER_ARMOR
+                | ProtoId::ADVANCED_POWER_ARMOR_MK2
+                => weight /= 2,
+                _ => {}
+            }
+            _ => {}
+        }
+        Some(weight)
+    }
+
+    // inven_left_hand
+    pub fn in_left_hand(&self, objects: &Objects) -> Option<Handle> {
+        self.find_inventory_item(objects, |o| o.flags.contains(Flag::LeftHand))
+    }
+
+    // inven_right_hand
+    pub fn in_right_hand(&self, objects: &Objects) -> Option<Handle> {
+        self.find_inventory_item(objects, |o| o.flags.contains(Flag::RightHand))
+    }
+
+    // inven_worn
+    pub fn wearing(&self, objects: &Objects) -> Option<Handle> {
+        self.find_inventory_item(objects, |o| o.flags.contains(Flag::Worn))
+    }
+
+    fn find_inventory_item(&self, objects: &Objects, f: impl Fn(&Object) -> bool) -> Option<Handle> {
+        self.inventory.items.iter()
+            .map(|i| i.object)
+            .find(|&o| f(&objects.get(o)))
     }
 
     fn bounds0(&self, frame_center: Point, frame_size: Point, tile_grid: &impl TileGridView,
