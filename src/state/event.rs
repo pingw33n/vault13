@@ -1,4 +1,4 @@
-use crate::game::object::TargetMap;
+use crate::asset::proto::TargetMap;
 use crate::graphics::EPoint;
 use crate::graphics::geometry::hex::Direction;
 

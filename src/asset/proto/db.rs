@@ -4,7 +4,7 @@ use enum_map::EnumMap;
 use num_traits::FromPrimitive;
 use std::cell::RefCell;
 use std::collections::hash_map::{self, HashMap};
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 use std::io::{self, Error, ErrorKind, prelude::*};
 use std::rc::Rc;
 use std::str;
@@ -454,11 +454,18 @@ impl ProtoDb {
                 })
             }
             SceneryKind::Stairs => {
-                let elevation_and_tile = rd.read_u32::<BigEndian>()?;
-                let map_id = rd.read_u32::<BigEndian>()?;
+                let location = rd.read_i32::<BigEndian>()?;
+                let map = rd.read_i32::<BigEndian>()?;
+
+                let exit = if let Ok(location) = u32::try_from(location) {
+                    Some(MapExit::decode(map, location)
+                        .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                            format!("invalid map exit: map={} location={}", map, location)))?)
+                } else {
+                    None
+                };
                 SubScenery::Stairs(Stairs {
-                    elevation_and_tile,
-                    map_id,
+                    exit,
                 })
             }
             SceneryKind::Elevator => {
@@ -475,10 +482,17 @@ impl ProtoDb {
                     SceneryKind::LadderDown => LadderKind::Down,
                     _ => unreachable!(),
                 };
-                let elevation_and_tile = rd.read_u32::<BigEndian>()?;
+                let location = rd.read_i32::<BigEndian>()?;
+                let exit = if let Ok(location) = u32::try_from(location) {
+                    Some(MapExit::decode(0, location)
+                        .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                            format!("invalid map exit location: {}", location)))?)
+                } else {
+                    None
+                };
                 SubScenery::Ladder(Ladder {
                     kind: ladder_kind,
-                    elevation_and_tile,
+                    exit,
                 })
             }
             SceneryKind::Misc => {

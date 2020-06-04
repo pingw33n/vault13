@@ -3,6 +3,7 @@ use std::io::{self, BufRead};
 
 use crate::fs::FileSystem;
 use crate::graphics::EPoint;
+use crate::graphics::geometry::hex::TileGrid;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct MapDef {
@@ -109,7 +110,7 @@ impl MapDb {
                     }
                     let elev = elev.unwrap();
                     let tile_num = tile_num.unwrap();
-                    let pos = EPoint::new(elev, super::tile_grid().from_linear_inv(tile_num));
+                    let pos = EPoint::new(elev, TileGrid::default().from_linear_inv(tile_num));
 
                     random_start_points.push(pos);
                 } else {

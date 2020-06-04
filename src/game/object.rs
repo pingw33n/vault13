@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use crate::asset::*;
 use crate::asset::frame::{FrameId, FrameDb};
-use crate::asset::proto::{self, CritterKillKind, Proto, ProtoId, ProtoRef, SubItem};
+use crate::asset::proto::*;
 use crate::asset::script::ProgramId;
 use crate::game::script::{Scripts, Sid};
 use crate::graphics::{EPoint, Point, Rect};
@@ -1141,7 +1141,7 @@ impl Objects {
                             .map(|pid| pid.is_radioactive_goo())
                             .unwrap_or(false));
                     let cost = if radioactive_goo {
-                        let gecko = if let proto::SubProto::Critter(ref c) = proto.borrow().sub {
+                        let gecko = if let SubProto::Critter(ref c) = proto.borrow().sub {
                             c.kill_kind == CritterKillKind::Gecko
                         } else {
                             false
@@ -1433,27 +1433,6 @@ pub enum DamageFlag {
   CripRandom = 0x200000,
   Backwash = 0x400000,
   PerformReverse = 0x800000,
-}
-
-#[derive(Clone, Copy, Eq, Debug, PartialEq)]
-pub enum WorldMapKind {
-    Town,
-    World,
-}
-
-#[derive(Debug)]
-pub struct MapExit {
-    pub map: TargetMap,
-    pub pos: EPoint,
-    pub direction: Direction,
-}
-
-#[derive(Clone, Copy, Eq, Debug, PartialEq)]
-pub enum TargetMap {
-    WorldMap(WorldMapKind),
-    Map {
-        map_id: u32,
-    },
 }
 
 #[derive(Debug, enum_as_inner::EnumAsInner)]

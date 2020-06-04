@@ -13,6 +13,9 @@ use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::io::prelude::*;
 
+use crate::graphics::EPoint;
+use crate::graphics::geometry::hex::Direction;
+
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum EntityKind {
     Item = 0x0,
