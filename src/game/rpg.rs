@@ -43,7 +43,7 @@ impl Default for Tagged {
     }
 }
 
-pub struct Stats {
+pub struct Rpg {
     stat_msgs: Messages,
     skill_msgs: Messages,
     perk_msgs: Messages,
@@ -55,7 +55,7 @@ pub struct Stats {
     tagged: EnumMap<Skill, Tagged>,
 }
 
-impl Stats {
+impl Rpg {
     pub fn new(fs: &FileSystem, language: &str) -> io::Result<Self> {
         let stat_msgs = Messages::read_file(fs, language, "game/stat.msg")?;
         let stat_defs = StatDef::defaults();

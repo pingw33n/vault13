@@ -305,7 +305,7 @@ pub fn do_check(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
 
     let r = if let Some(obj) = obj {
-        let (r, _) = ctx.ext.stats.roll_check_stat(stat, bonus,
+        let (r, _) = ctx.ext.rpg.roll_check_stat(stat, bonus,
             &ctx.ext.world.objects().get(obj), ctx.ext.world.objects());
         r
     } else {
@@ -587,7 +587,7 @@ pub fn has_skill(ctx: Context) -> Result<()> {
         .ok_or(Error::BadValue(BadValue::Content))?;
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
     let r = if let Some(obj) = obj {
-        ctx.ext.stats.skill(skill, &ctx.ext.world.objects().get(obj), ctx.ext.world.objects())
+        ctx.ext.rpg.skill(skill, &ctx.ext.world.objects().get(obj), ctx.ext.world.objects())
     } else {
         log_error!(ctx.prg, "object is null");
         0
@@ -611,7 +611,7 @@ pub fn has_trait(ctx: Context) -> Result<()> {
                 if let Some(obj) = obj;
                 if let Some(proto_id) = ctx.ext.world.objects().get(obj).proto_id();
                 then {
-                    ctx.ext.stats.has_perk(perk, proto_id).into()
+                    ctx.ext.rpg.has_perk(perk, proto_id).into()
                 } else {
                     log_error!(ctx.prg, "object is null or doesn't have proto");
                     false.into()
@@ -623,7 +623,7 @@ pub fn has_trait(ctx: Context) -> Result<()> {
         Attribute::Trait => {
             let tr = Trait::from_i32(kind)
                 .ok_or(Error::BadValue(BadValue::Content))?;
-            let r = ctx.ext.stats.has_trait(tr).into();
+            let r = ctx.ext.rpg.has_trait(tr).into();
             log_a3r1!(ctx.prg, attr, obj, tr, r);
             r
         }
@@ -719,7 +719,7 @@ pub fn metarule(ctx: Context) -> Result<()> {
             GiveCarGas      => 0.into(),
             SkillCheckTag   => {
                 stub = false;
-                ctx.ext.stats.is_tagged(Skill::from_i32(arg.coerce_into_int()?)
+                ctx.ext.rpg.is_tagged(Skill::from_i32(arg.coerce_into_int()?)
                     .ok_or(Error::BadValue(BadValue::Content))?).into()
             }
             DropAllInven    => 0.into(),
@@ -1203,7 +1203,7 @@ pub fn roll_vs_skill(ctx: Context) -> Result<()> {
 
     let r = if let Some(obj) = obj {
         let roll_checker = ctx.ext.world.game_time.roll_checker();
-        let (r, _) = ctx.ext.stats.roll_check_skill(skill, bonus, roll_checker,
+        let (r, _) = ctx.ext.rpg.roll_check_skill(skill, bonus, roll_checker,
             &ctx.ext.world.objects().get(obj), ctx.ext.world.objects());
         r
     } else {

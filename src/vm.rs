@@ -227,7 +227,7 @@ pub struct Context<'a> {
     pub script_db: &'a mut crate::asset::script::db::ScriptDb,
     pub proto_db: &'a crate::asset::proto::ProtoDb,
     pub map_id: crate::asset::map::MapId,
-    pub stats: &'a mut crate::game::stats::Stats,
+    pub rpg: &'a mut crate::game::rpg::Rpg,
 }
 
 impl Context<'_> {
