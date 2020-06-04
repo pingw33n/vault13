@@ -125,7 +125,7 @@ impl Rpg {
             return 35;
         }
 
-        let mut r = self.base_stat(stat, obj) + self.bonus_stat(stat, obj);
+        let mut r = self.stat_base(stat, obj) + self.bonus_stat(stat, obj);
         if stat == ArmorClass /* in_combat && whose_turn != obj */ {
             // TODO
         }
@@ -140,8 +140,6 @@ impl Rpg {
             }
         }
         if obj.proto_id() == Some(ProtoId::DUDE) {
-            r += self.trait_stat_mod(stat, obj);
-
             r += match stat {
                 Strength => {
                     pei(GainStrength) +
@@ -275,13 +273,39 @@ impl Rpg {
         roll_checker.roll_check(bonus + level, crit_level)
     }
 
+    pub fn recalc_derived_stats(&self, obj: &mut Object, objs: &Objects) {
+        use Stat::*;
+
+        let str = self.stat(Strength, obj, objs);
+        let per = self.stat(Perception, obj, objs);
+        let end = self.stat(Endurance, obj, objs);
+        let agi = self.stat(Agility, obj, objs);
+        let luck = self.stat(Luck, obj, objs);
+
+        let hp = self.stat_base(Endurance, obj) * 2 + self.stat_base(Strength, obj) + 15;
+
+        let mut proto = obj.proto_mut().unwrap();
+        let bs = &mut proto.sub.as_critter_mut().unwrap().base_stats;
+
+        bs[ActionPoints] = agi / 2 + 5;
+        bs[ArmorClass] = agi;
+        bs[CarryWeight] = 25 * str + 25;
+        bs[CritChance] = luck;
+        bs[HealRate] = cmp::max(end / 3, 1);
+        bs[HitPoints] = hp;
+        bs[MeleeDmg] = cmp::max(str - 5, 1);
+        bs[PoisonResist] = 5 * end;
+        bs[RadResist] = 2 * end;
+        bs[Sequence] = 2 * per;
+    }
+
     // trait_adjust_stat()
     fn trait_stat_mod(&self, stat: Stat, obj: &Object) -> i32 {
         let tr = |tr| {
             self.has_trait(tr) as i32
         };
         let st = |stat| {
-            self.base_stat(stat, obj)
+            self.stat_base_direct(stat, obj)
         };
         use Stat::*;
         use Trait::*;
@@ -366,7 +390,7 @@ impl Rpg {
     }
 
     // stat_get_base_direct()
-    fn base_stat(&self, stat: Stat, obj: &Object) -> i32 {
+    fn stat_base_direct(&self, stat: Stat, obj: &Object) -> i32 {
         let critter = || obj.sub.as_critter().unwrap();
         match stat {
             Stat::CurrentHitPoints => critter().health,
@@ -374,6 +398,15 @@ impl Rpg {
             Stat::CurrentRad => critter().radiation,
             _ =>  self.with_critter_proto(obj, |c| c.base_stats[stat]),
         }
+    }
+
+    // stat_get_base
+    fn stat_base(&self, stat: Stat, obj: &Object) -> i32 {
+        let mut r = self.stat_base_direct(stat, obj);
+        if obj.proto_id() == Some(ProtoId::DUDE) {
+            r += self.trait_stat_mod(stat, obj);
+        }
+        r
     }
 
     fn bonus_stat(&self, stat: Stat, obj: &Object) -> i32 {
