@@ -64,6 +64,10 @@ pub struct ProtoId(u32);
 impl ProtoId {
     pub const DUDE: Self = unsafe { Self::from_packed_unchecked(0x1000000) };
     pub const SHIV: Self = unsafe { Self::from_packed_unchecked(0x17F) };
+    pub const POWER_ARMOR: Self = unsafe { Self::from_packed_unchecked(3) };
+    pub const HARDENED_POWER_ARMOR: Self = unsafe { Self::from_packed_unchecked(0xE8) };
+    pub const ADVANCED_POWER_ARMOR: Self = unsafe { Self::from_packed_unchecked(0x15C) };
+    pub const ADVANCED_POWER_ARMOR_MK2: Self = unsafe { Self::from_packed_unchecked(0x15D) };
     pub const EXIT_AREA_FIRST: Self = unsafe { Self::from_packed_unchecked(0x5000010) };
     pub const EXIT_AREA_LAST: Self = unsafe { Self::from_packed_unchecked(0x5000017) };
     pub const RADIOACTIVE_GOO_FIRST: Self = unsafe { Self::from_packed_unchecked(0x20003D9) };
