@@ -19,7 +19,7 @@ pub struct ProtoDb {
     lst: Lst,
     messages: Messages,
     entity_messages: EnumMap<EntityKind, Messages>,
-    protos: RefCell<HashMap<ProtoId, Rc<RefCell<Proto>>>>,
+    protos: RefCell<HashMap<ProtoId, ProtoRef>>,
 }
 
 impl ProtoDb {
@@ -71,7 +71,7 @@ impl ProtoDb {
         &self.messages
     }
 
-    pub fn proto(&self, pid: ProtoId) -> io::Result<Rc<RefCell<Proto>>> {
+    pub fn proto(&self, pid: ProtoId) -> io::Result<ProtoRef> {
         let mut protos = self.protos.borrow_mut();
         match protos.entry(pid) {
             hash_map::Entry::Occupied(e) => Ok(e.get().clone()),
@@ -88,7 +88,7 @@ impl ProtoDb {
         }
     }
 
-    pub fn dude(&self) -> Rc<RefCell<Proto>> {
+    pub fn dude(&self) -> ProtoRef {
         self.protos.borrow().get(&ProtoId::DUDE).unwrap().clone()
     }
 

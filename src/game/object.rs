@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, ItemKind, WeaponKind, ExactEntityKind};
 use crate::asset::frame::{FrameId, FrameDb};
-use crate::asset::proto::{self, CritterKillKind, Proto, ProtoId, SubItem};
+use crate::asset::proto::{self, CritterKillKind, Proto, ProtoId, ProtoRef, SubItem};
 use crate::asset::script::ProgramId;
 use crate::game::script::{Scripts, Sid};
 use crate::graphics::{EPoint, Point, Rect};
@@ -146,7 +146,7 @@ pub struct Object {
     pub frame_idx: usize,
     pub direction: Direction,
     pub light_emitter: LightEmitter,
-    proto: Option<Rc<RefCell<Proto>>>,
+    proto: Option<ProtoRef>,
     pub inventory: Inventory,
     pub outline: Option<Outline>,
     pub sequence: Option<Cancel>,
@@ -157,7 +157,7 @@ pub struct Object {
 impl Object {
     pub fn new(
         fid: FrameId,
-        proto: Option<Rc<RefCell<Proto>>>,
+        proto: Option<ProtoRef>,
         pos: Option<EPoint>,
         sub: SubObject,
     ) -> Self {
@@ -1494,7 +1494,7 @@ pub struct Elevator {
 #[derive(Debug)]
 pub struct Item {
     pub ammo_count: u32,
-    pub ammo_proto: Option<Rc<RefCell<Proto>>>,
+    pub ammo_proto: Option<ProtoRef>,
 }
 
 #[cfg(test)]

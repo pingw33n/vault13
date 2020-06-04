@@ -21,6 +21,8 @@ pub const MSG_DOORWAY_SEEMS_TO_BE_BLOCKED: MessageId = 597;
 /// "You see: %s."
 pub const MSG_YOU_SEE_X: MessageId = 480;
 
+pub type ProtoRef = std::rc::Rc<std::cell::RefCell<Proto>>;
+
 #[derive(Debug)]
 pub struct Proto {
     id: ProtoId,
