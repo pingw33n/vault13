@@ -8,7 +8,7 @@ use std::cmp;
 use std::mem;
 use std::rc::Rc;
 
-use crate::asset::{CritterAnim, EntityKind, Flag, FlagExt, ItemKind, WeaponKind, ExactEntityKind};
+use crate::asset::*;
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::{self, CritterKillKind, Proto, ProtoId, ProtoRef, SubItem};
 use crate::asset::script::ProgramId;
@@ -1468,14 +1468,6 @@ pub enum Scenery {
 #[derive(Debug, Default)]
 pub struct Door {
     pub flags: BitFlags<DoorFlag>,
-}
-
-#[derive(Clone, Copy, Debug, EnumFlags)]
-#[repr(u32)]
-pub enum DoorFlag {
-    Open = 1,
-    Locked = 0x2_00_00_00,
-    Jammed = 0x4_00_00_00,
 }
 
 #[derive(Clone, Copy, Debug, EnumFlags)]
