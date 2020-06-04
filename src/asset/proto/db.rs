@@ -444,7 +444,10 @@ impl ProtoDb {
         let sub = match kind {
             SceneryKind::Door => {
                 let flags = rd.read_u32::<BigEndian>()?;
-                let key_id = rd.read_u32::<BigEndian>()?;
+                let flags = BitFlags::from_bits(flags)
+                    .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                        format!("invalid door flags: {:x}", flags)))?;
+                let key_id = rd.read_i32::<BigEndian>()?;
                 SubScenery::Door(Door {
                     flags,
                     key_id,

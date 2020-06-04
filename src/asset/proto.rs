@@ -337,8 +337,8 @@ impl SubScenery {
 
 #[derive(Debug)]
 pub struct Door {
-    pub flags: u32,
-    pub key_id: u32,
+    pub flags: BitFlags<DoorFlag>,
+    pub key_id: i32,
 }
 
 #[derive(Debug)]

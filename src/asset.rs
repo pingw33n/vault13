@@ -538,6 +538,14 @@ impl FlagExt {
     pub const ITEM_HIDDEN: Self = FlagExt::WallEastOrWest;
 }
 
+#[derive(Clone, Copy, Debug, EnumFlags)]
+#[repr(u32)]
+pub enum DoorFlag {
+    Open = 1,
+    Locked = 0x2_00_00_00,
+    Jammed = 0x4_00_00_00,
+}
+
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
 pub enum AttackKind {
     Stand           = 0,
