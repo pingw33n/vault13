@@ -195,6 +195,10 @@ impl Object {
         self.proto_ref().map(|v| v.borrow())
     }
 
+    pub fn proto_mut(&self) -> Option<RefMut<Proto>> {
+        self.proto_ref().map(|v| v.borrow_mut())
+    }
+
     pub fn proto_id(&self) -> Option<ProtoId> {
         self.proto().map(|v| v.id())
     }
