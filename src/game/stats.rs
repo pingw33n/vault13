@@ -5,12 +5,13 @@ use enum_map::EnumMap;
 use num_traits::clamp;
 use std::cmp;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::io;
 
 use crate::asset::{Perk, Skill, Stat, Trait};
 use crate::asset::message::{Messages, MessageId};
 use crate::asset::proto::{self, ProtoId};
-use crate::game::object::{DamageFlag, Object};
+use crate::game::object::{DamageFlag, Object, Objects};
 use crate::fs::FileSystem;
 use crate::util::random::*;
 
@@ -113,7 +114,7 @@ impl Stats {
     }
 
     // stat_level()
-    pub fn stat(&self, stat: Stat, obj: &Object) -> i32 {
+    pub fn stat(&self, stat: Stat, obj: &Object, objs: &Objects) -> i32 {
         use Perk::*;
         use Stat::*;
 
@@ -132,8 +133,8 @@ impl Stats {
             r -= 5;
         }
         if stat == ActionPoints {
-            let carry_weight = self.stat(CarryWeight, obj);
-            let left = carry_weight /* - item_total_weight_(obj)    TODO */;
+            let carry_weight = self.stat(CarryWeight, obj, objs);
+            let left = carry_weight - i32::try_from(obj.inventory.weight(objs)).unwrap();
             if left < 0 {
                 r -= -left / 40 + 1;
             }
@@ -145,7 +146,7 @@ impl Stats {
                 Strength => {
                     pei(GainStrength) +
                         if self.has_perk(AdrenalineRush, obj.proto_id().unwrap()) &&
-                            self.stat(CurrentHitPoints, obj) < self.stat(HitPoints, obj) / 2
+                            self.stat(CurrentHitPoints, obj, objs) < self.stat(HitPoints, obj, objs) / 2
                         {
                             1
                         } else {
@@ -207,14 +208,14 @@ impl Stats {
     }
 
     // skill_level
-    pub fn skill(&self, skill: Skill, obj: &Object) -> i32 {
+    pub fn skill(&self, skill: Skill, obj: &Object, objs: &Objects) -> i32 {
         let level = obj.proto().unwrap().sub.as_critter().unwrap().skills[skill];
 
         let def = &self.skill_defs[skill];
 
-        let mut from_stats = self.stat(def.stat1, obj);
+        let mut from_stats = self.stat(def.stat1, obj, objs);
         if let Some(stat) = def.stat2 {
-            from_stats += self.stat(stat, obj);
+            from_stats += self.stat(stat, obj, objs);
         }
 
         let mut r = def.base + def.stat_multiplier * from_stats + level;
@@ -234,8 +235,13 @@ impl Stats {
     }
 
     // stat_result
-    pub fn roll_check_stat(&self, stat: Stat, bonus: i32, obj: &Object) -> (RollCheckResult, i32) {
-        let level = self.stat(stat, obj) + bonus;
+    pub fn roll_check_stat(&self,
+        stat: Stat,
+        bonus: i32,
+        obj: &Object,
+        objs: &Objects,
+    ) -> (RollCheckResult, i32) {
+        let level = self.stat(stat, obj, objs) + bonus;
         let rnd = random(1, 10);
         let diff = level - rnd;
         let r = if rnd <= level {
@@ -250,8 +256,9 @@ impl Stats {
     pub fn roll_check_skill(&self,
         skill: Skill,
         bonus: i32,
-        obj: &Object,
         roll_checker: RollChecker,
+        obj: &Object,
+        objs: &Objects,
     ) -> (RollCheckResult, i32) {
         if obj.proto_id().unwrap().is_dude() && skill != Skill::Steal {
             // TODO
@@ -263,7 +270,7 @@ impl Stats {
             //     critter = v10;
             // }
         }
-        let level = self.skill(skill, obj);
+        let level = self.skill(skill, obj, objs);
 
         // TODO
         // if ( critter == g_obj_dude && skill == SKILL_STEAL && is_pc_flag_(0) )
@@ -272,7 +279,7 @@ impl Stats {
         //     skill_level += 30;
         // }
 
-        let crit_level = self.stat(Stat::CritChance, obj);
+        let crit_level = self.stat(Stat::CritChance, obj, objs);
         roll_checker.roll_check(bonus + level, crit_level)
     }
 
