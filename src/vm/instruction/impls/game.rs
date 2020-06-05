@@ -60,18 +60,14 @@ fn resolve_script_msg(msg: Value, program_id: ProgramId, ctx: &mut Context) -> R
     })
 }
 
-fn tile_grid() -> crate::graphics::geometry::hex::TileGrid {
-    Default::default()
+fn to_tile_num(ctx: &Context, p: Point) -> Option<i32> {
+    ctx.ext.world.hex_grid().to_linear_inv(p).map(|v| v as i32)
 }
 
-fn to_tile_num(p: Point) -> Option<i32> {
-    tile_grid().to_linear_inv(p).map(|v| v as i32)
-}
-
-fn from_tile_num(tile_num: i32) -> Option<Point> {
+fn from_tile_num(ctx: &Context, tile_num: i32) -> Option<Point> {
     u32::try_from(tile_num)
         .ok()
-        .map(|v| tile_grid().from_linear_inv(v))
+        .map(|v| ctx.ext.world.hex_grid().from_linear_inv(v))
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
@@ -1154,9 +1150,9 @@ pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
 
 pub fn tile_distance(ctx: Context) -> Result<()> {
     let tn2 = ctx.prg.data_stack.pop()?.into_int()?;
-    let p2 = from_tile_num(tn2);
+    let p2 = from_tile_num(&ctx, tn2);
     let tn1 = ctx.prg.data_stack.pop()?.into_int()?;
-    let p1 = from_tile_num(tn1);
+    let p1 = from_tile_num(&ctx, tn1);
 
     let r = if let (Some(p1), Some(p2)) = (p1, p2) {
         crate::graphics::geometry::hex::distance(p1, p2)
@@ -1219,9 +1215,9 @@ pub fn roll_vs_skill(ctx: Context) -> Result<()> {
 
 pub fn rotation_to_tile(ctx: Context) -> Result<()> {
     let to_tn = ctx.prg.data_stack.pop()?.into_int()?;
-    let to = from_tile_num(to_tn);
+    let to = from_tile_num(&ctx, to_tn);
     let from_tn = ctx.prg.data_stack.pop()?.into_int()?;
-    let from = from_tile_num(from_tn);
+    let from = from_tile_num(&ctx, from_tn);
 
     let r = if let (Some(from), Some(to)) = (from, to) {
         crate::graphics::geometry::hex::direction(from, to)
@@ -1276,7 +1272,7 @@ pub fn tile_num(ctx: Context) -> Result<()> {
     let r = obj
         .and_then(|obj| {
             let pos = ctx.ext.world.objects().get(obj).pos;
-            pos.and_then(|p| to_tile_num(p.point))
+            pos.and_then(|p| to_tile_num(&ctx, p.point))
         })
         .unwrap_or(-1);
     ctx.prg.data_stack.push(r.into())?;
@@ -1290,11 +1286,12 @@ pub fn tile_num_in_direction(ctx: Context) -> Result<()> {
     let direction = ctx.prg.data_stack.pop()?.into_int()?;
     let direction = Direction::from_i32(direction)
         .ok_or(Error::BadValue(BadValue::Content))?;
-    let pos = from_tile_num(ctx.prg.data_stack.pop()?.into_int()?);
+    let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
+    let pos = from_tile_num(&ctx, tile_num);
 
     let r = pos
-        .and_then(|pos| tile_grid().go(pos, direction, distance))
-        .and_then(to_tile_num)
+        .and_then(|pos| ctx.ext.world.hex_grid().go(pos, direction, distance))
+        .and_then(|pos| to_tile_num(&ctx, pos))
         .unwrap_or(-1);
     ctx.prg.data_stack.push(Value::Int(r))?;
 
