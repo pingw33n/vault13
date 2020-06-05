@@ -1,5 +1,6 @@
 use bstring::BString;
 use byteorder::{BigEndian, ReadBytesExt};
+use enum_map::EnumMap;
 use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
 use num_traits::FromPrimitive;
@@ -15,6 +16,7 @@ use crate::asset::proto::ProtoDb;
 use crate::asset::script::ProgramId;
 use crate::asset::script::db::ScriptDb;
 use crate::game::object;
+use crate::util::EnumExt;
 use crate::vm::{self, *};
 use crate::vm::value::Value;
 
@@ -185,6 +187,52 @@ pub struct Script {
     pub object: Option<object::Handle>,
 }
 
+/// Interface for instantiating new scripts from within a script context.
+/// The instantiation itself is deferred until the script procedure returns.
+pub struct NewScripts {
+    unused_sids: EnumMap<ScriptKind, ScriptIId>,
+    new_scripts: Vec<(ScriptIId, ProgramId)>,
+}
+
+impl NewScripts {
+    fn new(scripts: &Scripts) -> Self {
+        let mut unused_sids = EnumMap::from(|k| ScriptIId::new(k, 0));
+        for &sid in scripts.scripts.keys() {
+            if sid.id() > unused_sids[sid.kind()].id() {
+                unused_sids[sid.kind()] = sid;
+            }
+        }
+        let mut r = Self { unused_sids, new_scripts: Vec::new() };
+        for k in ScriptKind::iter() {
+            r.bump(k);
+        }
+        r
+    }
+
+    #[must_use]
+    pub fn new_script(&mut self, kind: ScriptKind, prg_id: ProgramId) -> ScriptIId {
+        let sid = self.unused_sid(kind);
+        self.bump(kind);
+        self.new_scripts.push((sid, prg_id));
+        sid
+    }
+
+    fn unused_sid(&self, kind: ScriptKind) -> ScriptIId {
+        self.unused_sids[kind]
+    }
+
+    fn bump(&mut self, kind: ScriptKind) {
+        let cur = self.unused_sids[kind].id();
+        self.unused_sids[kind] = ScriptIId::new(kind, cur.checked_add(1).unwrap());
+    }
+
+    fn instantiate(self, scripts: &mut Scripts) {
+        for (sid, prg_id) in self.new_scripts {
+            scripts.instantiate(sid, prg_id, None).unwrap();
+        }
+    }
+}
+
 pub struct Scripts {
     proto_db: Rc<ProtoDb>,
     db: ScriptDb,
@@ -260,7 +308,7 @@ impl Scripts {
             object: None,
         });
         if let Some(existing) = existing {
-            panic!("{:?} #{} duplicates existing #{}",
+            panic!("{:?} program #{} duplicates existing program #{}",
                 sid, program_id.val(), existing.program_id.val());
         }
         Ok(())
@@ -268,7 +316,7 @@ impl Scripts {
 
     pub fn instantiate_map_script(&mut self, program_id: ProgramId) -> io::Result<ScriptIId> {
         assert!(self.map_sid.is_none());
-        let sid = self.next_sid(ScriptKind::System);
+        let sid = NewScripts::new(self).unused_sid(ScriptKind::System);
         self.instantiate(sid, program_id, None)?;
         self.map_sid = Some(sid);
         Ok(sid)
@@ -285,34 +333,40 @@ impl Scripts {
     pub fn execute_proc(&mut self, sid: ScriptIId, proc_id: ProcedureId,
         ctx: &mut Context) -> InvocationResult
     {
-        let script = self.scripts.get_mut(&sid).unwrap();
-        let vm_ctx = &mut Self::make_vm_ctx(
-            &mut script.local_vars,
-            &mut self.vars,
-            &mut self.db,
-            &self.proto_db,
-            script.object,
-            ctx);
-        if !script.inited {
-            debug!("[{:?}#{}:{}] running program initialization code",
+        let (r, new_scripts) = {
+            let new_scripts = NewScripts::new(self);
+            let script = self.scripts.get_mut(&sid).unwrap();
+            let mut vm_ctx = Self::make_vm_ctx(
+                &mut script.local_vars,
+                &mut self.vars,
+                &mut self.db,
+                new_scripts,
+                &self.proto_db,
+                script.object,
+                ctx);
+            if !script.inited {
+                debug!("[{:?}#{}:{}] running program initialization code",
+                    sid,
+                    script.program_id.val(),
+                    self.vm.program_state(script.program).program().name());
+                self.vm.run(script.program, &mut vm_ctx).unwrap()
+                    .assert_no_suspend();
+                script.inited = true;
+            }
+            let prg = self.vm.program_state_mut(script.program);
+            debug!("[{:?}#{}:{}] executing proc {:?} ({:?})",
                 sid,
                 script.program_id.val(),
-                self.vm.program_state(script.program).program().name());
-            self.vm.run(script.program, vm_ctx).unwrap()
-                .assert_no_suspend();
-            script.inited = true;
-        }
-        let prg = self.vm.program_state_mut(script.program);
-        debug!("[{:?}#{}:{}] executing proc {:?} ({:?})",
-            sid,
-            script.program_id.val(),
-            prg.program().name(),
-            proc_id,
-            prg.program().proc(proc_id).map(|p| p.name()));
-        let r = prg.execute_proc(proc_id, vm_ctx).unwrap();
-        if r.suspend.is_some() {
-            self.suspend_stack.push(sid);
-        }
+                prg.program().name(),
+                proc_id,
+                prg.program().proc(proc_id).map(|p| p.name()));
+            let r = prg.execute_proc(proc_id, &mut vm_ctx).unwrap();
+            if r.suspend.is_some() {
+                self.suspend_stack.push(sid);
+            }
+            (r, vm_ctx.new_scripts)
+        };
+        new_scripts.instantiate(self);
         r
     }
 
@@ -383,27 +437,23 @@ impl Scripts {
     }
 
     pub fn resume(&mut self, ctx: &mut Context) -> InvocationResult {
-        let sid = self.suspend_stack.pop().unwrap();
-        let script = self.scripts.get_mut(&sid).unwrap();
-        let vm_ctx = &mut Self::make_vm_ctx(
-            &mut script.local_vars,
-            &mut self.vars,
-            &mut self.db,
-            &self.proto_db,
-            script.object,
-            ctx);
-        self.vm.program_state_mut(script.program).resume(vm_ctx).unwrap()
-    }
-
-    fn next_sid(&self, kind: ScriptKind) -> ScriptIId {
-        let id = self.scripts.keys()
-            .cloned()
-            .filter(|sid| sid.kind() == kind)
-            .map(|sid| sid.id())
-            .max()
-            .map(|v| v + 1)
-            .unwrap_or(0);
-        ScriptIId::new(kind, id)
+        let (r, new_scripts) = {
+            let sid = self.suspend_stack.pop().unwrap();
+            let new_scripts = NewScripts::new(self);
+            let script = self.scripts.get_mut(&sid).unwrap();
+            let mut vm_ctx = Self::make_vm_ctx(
+                &mut script.local_vars,
+                &mut self.vars,
+                &mut self.db,
+                new_scripts,
+                &self.proto_db,
+                script.object,
+                ctx);
+            let r = self.vm.program_state_mut(script.program).resume(&mut vm_ctx).unwrap();
+            (r, vm_ctx.new_scripts)
+        };
+        new_scripts.instantiate(self);
+        r
     }
 
     #[inline]
@@ -411,6 +461,7 @@ impl Scripts {
         local_vars: &'a mut [i32],
         vars: &'a mut Vars,
         script_db: &'a mut ScriptDb,
+        new_scripts: NewScripts,
         proto_db: &'a ProtoDb,
         self_obj: Option<object::Handle>,
         ctx: &'a mut Context,
@@ -430,6 +481,7 @@ impl Scripts {
             dialog: ctx.dialog,
             message_panel: ctx.message_panel,
             script_db,
+            new_scripts,
             proto_db,
             map_id: ctx.map_id,
             rpg: ctx.rpg,
