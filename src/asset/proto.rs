@@ -14,6 +14,7 @@ use super::*;
 use crate::asset::EntityKind;
 use crate::asset::frame::FrameId;
 use crate::asset::message::MessageId;
+use crate::game::script::ScriptPId;
 use crate::graphics::geometry::hex::TileGrid;
 use crate::util::{enum_iter, EnumIter};
 
@@ -35,7 +36,7 @@ pub struct Proto {
     pub light_intensity: i32,
     pub flags: BitFlags<Flag>,
     pub flags_ext: BitFlags<FlagExt>,
-    pub script_id: Option<u32>,
+    pub script: Option<ScriptPId>,
     pub sub: SubProto,
 }
 
@@ -227,7 +228,7 @@ pub struct Weapon {
 #[derive(Debug)]
 pub struct Ammo {
     pub caliber: i32,
-    pub magazine_size: u32,
+    pub max_ammo_count: u32,
     pub ac_modifier: i32,
     pub dr_modifier: i32,
     pub damage_mult: i32,
@@ -262,8 +263,8 @@ pub struct Critter {
     pub kill_kind: CritterKillKind,
     pub damage_kind: DamageKind,
     pub head_fid: Option<FrameId>,
-    pub ai_packet: u32,
-    pub team_id: u32,
+    pub ai_packet: i32,
+    pub team_id: i32,
 }
 
 #[derive(Clone, Copy, Debug, EnumFlags, Eq, PartialEq)]
@@ -382,7 +383,7 @@ pub enum WorldMapKind {
     World,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MapExit {
     pub map: TargetMap,
     pub pos: EPoint,

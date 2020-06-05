@@ -8,11 +8,11 @@ use std::cmp;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use crate::asset::EntityKind;
+use crate::asset::{EntityKind, Flag, ExactEntityKind, Stat};
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::map::ELEVATION_COUNT;
 use crate::asset::message::Messages;
-use crate::asset::proto::{ProtoDb, ProtoId};
+use crate::asset::proto::{ProtoDb, ProtoId, ProtoRef, SubProto, SubItem, SubScenery};
 use crate::game::GameTime;
 use crate::game::object::{self, *};
 use crate::graphics::{EPoint, Point, Rect};
@@ -27,6 +27,7 @@ use crate::util::VecExt;
 use crate::util::array2d::Array2d;
 
 use floating_text::FloatingText;
+use crate::game::rpg::Rpg;
 
 // scr_game_init()
 const START_GAME_TIME: GameTime = GameTime::from_decis(302400);
@@ -163,6 +164,131 @@ impl World {
     pub fn set_sqr_tiles(&mut self, sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>) {
         assert_eq!(sqr_tiles.len(), ELEVATION_COUNT as usize);
         self.sqr_tiles = sqr_tiles;
+    }
+
+    // obj_new but without script initialization.
+    pub fn new_object(&mut self,
+        fid: FrameId,
+        proto: Option<ProtoRef>,
+        pos: Option<EPoint>,
+        rpg: &Rpg,
+    ) -> object::Handle {
+        let mut obj = Object::new(fid, proto, pos, SubObject::None);
+        if let Some(proto_flags) = obj.proto().map(|p| p.flags) {
+            let flags = proto_flags & (
+                Flag::Flat |
+                Flag::NoBlock |
+                Flag::MultiHex |
+                Flag::LightThru |
+                Flag::ShootThru |
+                Flag::WallTransEnd);
+            obj.flags.insert(flags);
+
+            for &flag in &[
+                Flag::TransNone,
+                Flag::TransEnergy,
+                Flag::TransGlass,
+                Flag::TransRed,
+                Flag::TransSteam,
+                Flag::TransWall]
+            {
+                if proto_flags.contains(flag) {
+                    obj.flags.insert(flag);
+                    break;
+                }
+            }
+        }
+        let objh = self.insert_object(obj);
+        let obj = &mut self.objects().get_mut(objh);
+        let sub = if let Some(proto) = obj.proto() {
+            if proto.kind() == ExactEntityKind::SqrTile {
+                return objh;
+            }
+            // proto_update_init
+            match &proto.sub {
+                SubProto::Critter(p) => {
+                    SubObject::Critter(object::Critter {
+                        hit_points: rpg.stat(Stat::HitPoints, obj, self.objects()),
+                        radiation: 0,
+                        poison: 0,
+                        combat: CritterCombat {
+                            damage_flags: Default::default(),
+                            ai_packet: p.ai_packet,
+                            team_id: p.team_id,
+                            who_hit_me: 0,
+                        },
+                    })
+                }
+                // proto_update_gen
+                SubProto::Item(p) => {
+                    match &p.sub {
+                        SubItem::Ammo(p) => {
+                            SubObject::Item(object::Item {
+                                ammo_count: p.max_ammo_count,
+                                ammo_proto: None,
+                            })
+                        }
+                        SubItem::Key(p) => {
+                            SubObject::Key(object::Key {
+                                id: p.id,
+                            })
+                        }
+                        SubItem::Misc(p) => {
+                            SubObject::Item(object::Item {
+                                ammo_count: p.max_ammo_count,
+                                ammo_proto: p.ammo_proto_id.map(|pid| self.proto_db().proto(pid).unwrap()),
+                            })
+                        }
+                        SubItem::Weapon(p) => {
+                            SubObject::Item(object::Item {
+                                ammo_count: p.max_ammo_count,
+                                ammo_proto: p.ammo_proto_id.map(|pid| self.proto_db().proto(pid).unwrap()),
+                            })
+                        }
+                        | SubItem::Armor(_)
+                        | SubItem::Container(_)
+                        | SubItem::Drug(_)
+                        => SubObject::None,
+                    }
+                }
+                SubProto::Scenery(p) => {
+                    match &p.sub {
+                        SubScenery::Door(proto) => {
+                            SubObject::Scenery(object::Scenery::Door(object::Door {
+                                flags: proto.flags,
+                            }))
+                        }
+                        SubScenery::Stairs(proto) => {
+                            SubObject::Scenery(object::Scenery::Stairs(proto.exit.clone().unwrap()))
+                        }
+                        SubScenery::Elevator(proto) => {
+                            SubObject::Scenery(object::Scenery::Elevator(object::Elevator {
+                                kind: proto.kind,
+                                level: proto.level,
+                            }))
+                        }
+                        SubScenery::Ladder(proto) => {
+                            SubObject::Scenery(object::Scenery::Ladder(proto.exit.clone().unwrap()))
+                        }
+                        SubScenery::Misc => {
+                            SubObject::None
+                        }
+                    }
+                }
+                SubProto::Wall(_)
+                | SubProto::SqrTile(_)
+                | SubProto::Misc
+                => SubObject::None,
+            }
+        } else {
+            SubObject::None
+        };
+        obj.sub = sub;
+        if obj.sub.as_critter().is_some() {
+            rpg.recalc_derived_stats(obj, self.objects());
+        }
+        // Not initializing script here.
+        objh
     }
 
     pub fn insert_object(&mut self, object: Object) -> object::Handle {

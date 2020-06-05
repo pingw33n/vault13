@@ -34,7 +34,7 @@ enum Attribute {
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
 enum ObjectTrait {
     AiPacket = 5,
-    TeamNum = 6,
+    TeamId = 6,
     Direction = 10,
     IsTurnedOff = 666,
     ItemTotalWeight = 669,
@@ -637,7 +637,7 @@ pub fn has_trait(ctx: Context) -> Result<()> {
                     AiPacket => obj.sub.as_critter().map(|c| c.combat.ai_packet)
                         .unwrap_or_else(|| { log_error!(ctx.prg, "object is not a Critter"); 0 })
                         .into(),
-                    TeamNum => obj.sub.as_critter().map(|c| c.combat.team_num)
+                    TeamId => obj.sub.as_critter().map(|c| c.combat.team_id)
                         .unwrap_or_else(|| { log_error!(ctx.prg, "object is not a Critter"); 0 })
                         .into(),
                     Direction => (obj.direction as i32).into(),

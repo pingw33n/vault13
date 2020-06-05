@@ -393,7 +393,7 @@ impl Rpg {
     fn stat_base_direct(&self, stat: Stat, obj: &Object) -> i32 {
         let critter = || obj.sub.as_critter().unwrap();
         match stat {
-            Stat::CurrentHitPoints => critter().health,
+            Stat::CurrentHitPoints => critter().hit_points,
             Stat::CurrentPoison => critter().poison,
             Stat::CurrentRad => critter().radiation,
             _ =>  self.with_critter_proto(obj, |c| c.base_stats[stat]),

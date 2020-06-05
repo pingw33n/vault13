@@ -1,5 +1,3 @@
-use crate::util::random::RollChecker;
-
 pub mod dialog;
 pub mod fidget;
 pub mod object;
@@ -9,6 +7,8 @@ pub mod sequence;
 pub mod state;
 pub mod ui;
 pub mod world;
+
+use crate::util::random::RollChecker;
 
 #[derive(Clone, Copy)]
 pub struct GameTime(u32);

@@ -421,7 +421,7 @@ impl Object {
                         let ammo = ammo.borrow();
                         let ammo = ammo.sub.as_item().unwrap();
                         weight += ammo.weight * ((item_obj.ammo_count - 1) /
-                            ammo.sub.as_ammo().unwrap().magazine_size + 1);
+                            ammo.sub.as_ammo().unwrap().max_ammo_count + 1);
                     }
                 }
             }
@@ -1369,13 +1369,14 @@ pub enum SubObject {
     None,
     Critter(Critter),
     Item(Item),
+    Key(Key),
     MapExit(MapExit),
     Scenery(Scenery),
 }
 
 #[derive(Debug, Default)]
 pub struct Critter {
-    pub health: i32,
+    pub hit_points: i32,
     pub radiation: i32,
     pub poison: i32,
     pub combat: CritterCombat,
@@ -1403,7 +1404,8 @@ impl Critter {
 pub struct CritterCombat {
     pub damage_flags: BitFlags<DamageFlag>,
     pub ai_packet: i32,
-    pub team_num: i32,
+    pub team_id: i32,
+    pub who_hit_me: i32,
 }
 
 #[derive(Clone, Copy, Debug, EnumFlags, Primitive)]
@@ -1440,7 +1442,6 @@ pub enum Scenery {
     Door(Door),
     Elevator(Elevator),
     Ladder(MapExit),
-    Misc,
     Stairs(MapExit),
 }
 
@@ -1466,6 +1467,11 @@ pub struct Elevator {
 pub struct Item {
     pub ammo_count: u32,
     pub ammo_proto: Option<ProtoRef>,
+}
+
+#[derive(Debug)]
+pub struct Key {
+    pub id: i32,
 }
 
 #[cfg(test)]
