@@ -8,11 +8,10 @@ use std::cmp;
 use std::convert::{TryFrom, TryInto};
 
 use super::*;
-use crate::asset::{Flag, Perk, Skill, Stat, Trait};
+use crate::asset::{ExactEntityKind, Flag, Perk, Skill, Stat, Trait};
 use crate::asset::proto::ProtoId;
 use crate::asset::script::ProgramId;
 use crate::game::dialog::Dialog;
-use crate::game::object::{Object, SubObject};
 use crate::game::script::ScriptPId;
 use crate::game::world::floating_text;
 use crate::graphics::{EPoint, Point};
@@ -183,9 +182,9 @@ pub fn combat_is_initialized(ctx: Context) -> Result<()> {
 }
 
 pub fn create_object_sid(ctx: Context) -> Result<()> {
-    let sid = ctx.prg.data_stack.pop()?.into_int()?;
-    let sid = if sid >= 0 {
-        Some(ScriptPId::from_packed(sid as u32)
+    let prg_id = ctx.prg.data_stack.pop()?.into_int()?;
+    let prg_id = if prg_id >= 0 {
+        Some(ProgramId::new(prg_id as u32)
             .ok_or(Error::BadValue(BadValue::Content))?)
     } else {
         None
@@ -203,17 +202,33 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
             Error::BadValue(BadValue::Content)
         })?;
 
-    // FIXME add proper impl
-    let fid = proto.borrow().fid;
+    let (fid, spid) = {
+        let proto = proto.borrow();
+        let fid = proto.fid;
+        let kind = match proto.kind() {
+            ExactEntityKind::Item(_) | ExactEntityKind::Scenery(_) => ScriptKind::Item,
+            ExactEntityKind::Critter => ScriptKind::Critter,
+            _ => ScriptKind::System,
+        };
+        let prg_id = prg_id.or_else(|| proto.script.map(|sid| {
+            assert_eq!(sid.kind(), kind);
+            sid.program_id()
+        }));
+        (fid, prg_id.map(|prg_id| ScriptPId::new(kind, prg_id)))
+    };
+
     let pos = ctx.ext.world.hex_grid().from_linear_inv(tile_num);
     let pos = pos.elevated(elevation);
-    let obj = Object::new(fid, proto.into(), Some(pos), SubObject::None);
-    let objh = ctx.ext.world.insert_object(obj);
+    let objh = ctx.ext.world.new_object(fid, Some(proto), Some(pos), ctx.ext.rpg);
+    if let Some(spid) = spid {
+        let mut obj = ctx.ext.world.objects().get_mut(objh);
+        let siid = ctx.ext.new_scripts.new_script(spid.kind(), spid.program_id());
+        obj.script = Some((siid, spid.program_id()));
+    }
 
     ctx.prg.data_stack.push(Value::Object(Some(objh)))?;
 
-    log_a4r1!(ctx.prg, pid, tile_num, elevation, sid, objh);
-    log_stub!(ctx.prg);
+    log_a4r1!(ctx.prg, pid, tile_num, elevation, spid, objh);
 
     Ok(())
 }
