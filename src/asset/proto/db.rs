@@ -12,6 +12,7 @@ use std::str;
 use super::*;
 use crate::asset::frame::*;
 use crate::asset::message::{MessageId, Messages};
+use crate::game::script::ScriptPId;
 use crate::fs::FileSystem;
 
 pub struct ProtoDb {
@@ -38,7 +39,7 @@ impl ProtoDb {
             light_intensity: 0,
             flags: Flag::LightThru.into(),
             flags_ext: BitFlags::empty(),
-            script_id: None,
+            script: None,
             sub: SubProto::Critter(Critter {
                 flags: BitFlags::empty(),
                 base_stats: EnumMap::new(),
@@ -122,13 +123,13 @@ impl ProtoDb {
                 format!("invalid proto flags ext: {:x}", v)))?;
 
         let kind = pid.kind();
-        let script_id = match kind {
+        let script = match kind {
             | EntityKind::Item
             | EntityKind::Critter
             | EntityKind::Scenery
             | EntityKind::Wall
             => {
-                Some(rd.read_u32::<BigEndian>()?)
+                ScriptPId::read_opt(rd)?
             }
             | EntityKind::SqrTile
             | EntityKind::Misc
@@ -173,7 +174,7 @@ impl ProtoDb {
             light_intensity,
             flags,
             flags_ext,
-            script_id,
+            script,
             sub,
         })
     }
@@ -362,14 +363,14 @@ impl ProtoDb {
 
     fn read_ammo(rd: &mut impl Read) -> io::Result<Ammo> {
         let caliber = rd.read_i32::<BigEndian>()?;
-        let magazine_size = rd.read_i32::<BigEndian>()?.try_into().unwrap();
+        let max_ammo_count = rd.read_i32::<BigEndian>()?.try_into().unwrap();
         let ac_modifier = rd.read_i32::<BigEndian>()?;
         let dr_modifier = rd.read_i32::<BigEndian>()?;
         let damage_mult = rd.read_i32::<BigEndian>()?;
         let damage_div = rd.read_i32::<BigEndian>()?;
         Ok(Ammo {
             caliber,
-            magazine_size,
+            max_ammo_count,
             ac_modifier,
             dr_modifier,
             damage_mult,
@@ -397,8 +398,8 @@ impl ProtoDb {
 
     fn read_critter(rd: &mut impl Read) -> io::Result<Critter> {
         let head_fid = FrameId::read_opt(rd)?;
-        let ai_packet = rd.read_u32::<BigEndian>()?;
-        let team_id = rd.read_u32::<BigEndian>()?;
+        let ai_packet = rd.read_i32::<BigEndian>()?;
+        let team_id = rd.read_i32::<BigEndian>()?;
 
         let v = rd.read_u32::<BigEndian>()?;
         let flags = BitFlags::from_bits(v)

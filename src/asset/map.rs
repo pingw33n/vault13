@@ -321,20 +321,21 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                     format!("unknown damage flags: {:x}", damage_flags)))?;
 
             let ai_packet = self.reader.read_i32::<BigEndian>()?;
-            let team_num = self.reader.read_i32::<BigEndian>()?;
-            let _who_hit_me = self.reader.read_u32::<BigEndian>()?;
+            let team_id = self.reader.read_i32::<BigEndian>()?;
+            let who_hit_me = self.reader.read_i32::<BigEndian>()?;
 
             let health = self.reader.read_i32::<BigEndian>()?;
             let radiation = self.reader.read_i32::<BigEndian>()?;
             let poison = self.reader.read_i32::<BigEndian>()?;
             SubObject::Critter(object::Critter {
-                health,
+                hit_points: health,
                 radiation,
                 poison,
                 combat: CritterCombat {
                     damage_flags,
                     ai_packet,
-                    team_num,
+                    team_id,
+                    who_hit_me,
                 },
             })
         } else {
