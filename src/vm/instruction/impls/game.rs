@@ -13,7 +13,7 @@ use crate::asset::proto::ProtoId;
 use crate::asset::script::ProgramId;
 use crate::game::dialog::Dialog;
 use crate::game::object::{Object, SubObject};
-use crate::game::script::Sid;
+use crate::game::script::ScriptPId;
 use crate::game::world::floating_text;
 use crate::graphics::{EPoint, Point};
 use crate::graphics::color::*;
@@ -189,7 +189,7 @@ pub fn combat_is_initialized(ctx: Context) -> Result<()> {
 pub fn create_object_sid(ctx: Context) -> Result<()> {
     let sid = ctx.prg.data_stack.pop()?.into_int()?;
     let sid = if sid >= 0 {
-        Some(Sid::from_packed(sid as u32)
+        Some(ScriptPId::from_packed(sid as u32)
             .ok_or(Error::BadValue(BadValue::Content))?)
     } else {
         None

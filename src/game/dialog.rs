@@ -3,7 +3,7 @@ use bstring::{bstr, BString};
 use crate::asset::frame::FrameId;
 use crate::asset::message::BULLET_STR;
 use crate::game::object;
-use crate::game::script::Sid;
+use crate::game::script::ScriptIId;
 use crate::game::world::World;
 use crate::graphics::{Point, Rect};
 use crate::graphics::color::{Rgb15, GREEN};
@@ -22,7 +22,7 @@ pub struct Dialog {
     reply: Handle,
     options_widget: Handle,
     options: Vec<OptionInfo>,
-    sid: Sid,
+    sid: ScriptIId,
     saved_camera_origin: Point,
     pub obj: object::Handle,
     pub running: bool,
@@ -112,7 +112,7 @@ impl Dialog {
         self.options.is_empty()
     }
 
-    pub fn sid(&self) -> Sid {
+    pub fn sid(&self) -> ScriptIId {
         self.sid
     }
 

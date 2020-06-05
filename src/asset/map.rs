@@ -25,7 +25,7 @@ use crate::util::array2d::Array2d;
 pub const ELEVATION_COUNT: u32 = 3;
 
 struct ScriptInfo {
-    sid: Sid,
+    sid: ScriptIId,
     program_id: ProgramId,
     local_var_count: usize,
     local_var_offset: usize,
@@ -179,7 +179,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         // Maps contain garbage in unused slots but the exact size of the data to skip depends
         // on the script kinds.
 
-        let sid = Sid::read(self.reader);
+        let sid = ScriptIId::read(self.reader);
         let sid = match sid {
             Ok(sid) => sid,
             Err(ref e) if e.kind() == ErrorKind::InvalidData => {
@@ -490,8 +490,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         Ok(r)
     }
 
-    fn read_obj_script(&mut self) -> io::Result<Option<(Sid, ProgramId)>> {
-        let sid = Sid::read_opt(self.reader)?;
+    fn read_obj_script(&mut self) -> io::Result<Option<(ScriptIId, ProgramId)>> {
+        let sid = ScriptIId::read_opt(self.reader)?;
         trace!("sid: {:?}", sid);
 
         let program_id = self.read_program_id(1)?;

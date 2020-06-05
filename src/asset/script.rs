@@ -2,6 +2,7 @@ pub mod db;
 
 use std::num::NonZeroU32;
 
+/// Program ID is the identifier of script bytecode file in `scripts.lst`.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ProgramId(NonZeroU32);
 
