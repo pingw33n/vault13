@@ -29,22 +29,18 @@ pub enum ScriptKind {
     Critter = 0x4,
 }
 
-/// Script ID carries different semantics than other identifiers (`FrameId`, `ProtoId`). It is a unique
-/// identifier of a program instance within a single map, while the aforementioned identifiers
-/// refer to static assets. For the reference to the script bytecode file there's another
-/// identifier - program ID that maps to file name in `scripts.lst`.
-#[derive(Clone, Copy, Default, Eq, Hash, PartialEq, Ord, PartialOrd)]
-pub struct Sid(u32);
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+struct SidInternal(u32);
 
-impl Sid {
+impl SidInternal {
     pub fn new(kind: ScriptKind, id: u32) -> Self {
         assert!(id <= 0xffffff);
-        Sid((kind as u32) << 24 | id)
+        Self((kind as u32) << 24 | id)
     }
 
     pub fn from_packed(v: u32) -> Option<Self> {
         ScriptKind::from_u32(v >> 24)?;
-        Some(Sid(v))
+        Some(Self(v))
     }
 
     pub fn pack(self) -> u32 {
@@ -78,9 +74,77 @@ impl Sid {
     }
 }
 
-impl fmt::Debug for Sid {
+/// Script instance ID is unique identifier of a program instance within a single map and can be
+/// created dynamically at runtime. Multiple different script instance IDs can refer to the same
+/// program.
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+pub struct ScriptIId(SidInternal);
+
+impl ScriptIId {
+    pub fn new(kind: ScriptKind, id: u32) -> Self {
+        Self(SidInternal::new(kind, id))
+    }
+
+    pub fn from_packed(v: u32) -> Option<Self> {
+        SidInternal::from_packed(v).map(Self)
+    }
+
+    pub fn read(rd: &mut impl Read) -> io::Result<Self> {
+        SidInternal::read(rd).map(Self)
+    }
+
+    pub fn read_opt(rd: &mut impl Read) -> io::Result<Option<Self>> {
+        Ok(SidInternal::read_opt(rd)?.map(Self))
+    }
+
+    pub fn kind(self) -> ScriptKind {
+        self.0.kind()
+    }
+
+    pub fn id(self) -> u32 {
+        self.0.id()
+    }
+}
+
+impl fmt::Debug for ScriptIId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Sid(0x{:08x})", self.0)
+        write!(f, "ScriptIId({:?}, {})", self.kind(), self.id())
+    }
+}
+
+/// Script program ID is a unique identifier of a program source file, bundled with the script kind.
+#[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
+pub struct ScriptPId(SidInternal);
+
+impl ScriptPId {
+    pub fn new(kind: ScriptKind, program_id: ProgramId) -> Self {
+        Self(SidInternal::new(kind, program_id.val()))
+    }
+
+    pub fn from_packed(v: u32) -> Option<Self> {
+        SidInternal::from_packed(v).map(Self)
+    }
+
+    pub fn read(rd: &mut impl Read) -> io::Result<Self> {
+        SidInternal::read(rd).map(Self)
+    }
+
+    pub fn read_opt(rd: &mut impl Read) -> io::Result<Option<Self>> {
+        Ok(SidInternal::read_opt(rd)?.map(Self))
+    }
+
+    pub fn kind(self) -> ScriptKind {
+        self.0.kind()
+    }
+
+    pub fn program_id(self) -> ProgramId {
+        ProgramId::new(self.0.id()).unwrap()
+    }
+}
+
+impl fmt::Debug for ScriptPId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ScriptPId({:?}, {})", self.kind(), self.program_id().val())
     }
 }
 
@@ -126,10 +190,10 @@ pub struct Scripts {
     db: ScriptDb,
     vm: Vm,
     programs: HashMap<ProgramId, Rc<vm::Program>>,
-    scripts: HashMap<Sid, Script>,
-    map_sid: Option<Sid>,
+    scripts: HashMap<ScriptIId, Script>,
+    map_sid: Option<ScriptIId>,
     pub vars: Vars,
-    suspend_stack: Vec<Sid>,
+    suspend_stack: Vec<ScriptIId>,
 }
 
 impl Scripts {
@@ -146,7 +210,7 @@ impl Scripts {
         }
     }
 
-    pub fn map_sid(&self) -> Option<Sid> {
+    pub fn map_sid(&self) -> Option<ScriptIId> {
         self.map_sid
     }
 
@@ -158,9 +222,11 @@ impl Scripts {
         self.suspend_stack.clear();
     }
 
-    pub fn instantiate(&mut self, sid: Sid, program_id: ProgramId, local_vars: Option<Box<[i32]>>)
-        -> io::Result<()>
-    {
+    pub fn instantiate(&mut self,
+        sid: ScriptIId,
+        program_id: ProgramId,
+        local_vars: Option<Box<[i32]>>,
+    ) -> io::Result<()> {
         let program = match self.programs.entry(program_id) {
             Entry::Occupied(e) => e.get().clone(),
             Entry::Vacant(e) => {
@@ -200,7 +266,7 @@ impl Scripts {
         Ok(())
     }
 
-    pub fn instantiate_map_script(&mut self, program_id: ProgramId) -> io::Result<Sid> {
+    pub fn instantiate_map_script(&mut self, program_id: ProgramId) -> io::Result<ScriptIId> {
         assert!(self.map_sid.is_none());
         let sid = self.next_sid(ScriptKind::System);
         self.instantiate(sid, program_id, None)?;
@@ -208,15 +274,15 @@ impl Scripts {
         Ok(sid)
     }
 
-    pub fn get(&self, sid: Sid) -> Option<&Script> {
+    pub fn get(&self, sid: ScriptIId) -> Option<&Script> {
         self.scripts.get(&sid)
     }
 
-    pub fn attach_to_object(&mut self, sid: Sid, obj: object::Handle) {
+    pub fn attach_to_object(&mut self, sid: ScriptIId, obj: object::Handle) {
         self.scripts.get_mut(&sid).unwrap().object = Some(obj);
     }
 
-    pub fn execute_proc(&mut self, sid: Sid, proc_id: ProcedureId,
+    pub fn execute_proc(&mut self, sid: ScriptIId, proc_id: ProcedureId,
         ctx: &mut Context) -> InvocationResult
     {
         let script = self.scripts.get_mut(&sid).unwrap();
@@ -251,7 +317,7 @@ impl Scripts {
     }
 
     #[must_use]
-    pub fn execute_proc_name(&mut self, sid: Sid, proc: &Rc<BString>,
+    pub fn execute_proc_name(&mut self, sid: ScriptIId, proc: &Rc<BString>,
         ctx: &mut Context)-> Option<InvocationResult>
     {
         let script = self.scripts.get_mut(&sid).unwrap();
@@ -262,14 +328,14 @@ impl Scripts {
     }
 
     #[must_use]
-    pub fn has_predefined_proc(&self, sid: Sid, proc: PredefinedProc) -> bool {
+    pub fn has_predefined_proc(&self, sid: ScriptIId, proc: PredefinedProc) -> bool {
         let script = self.scripts.get(&sid).unwrap();
         self.vm.program_state(script.program).program()
             .predefined_proc_id(proc)
             .is_some()
     }
 
-    pub fn execute_predefined_proc(&mut self, sid: Sid, proc: PredefinedProc,
+    pub fn execute_predefined_proc(&mut self, sid: ScriptIId, proc: PredefinedProc,
         ctx: &mut Context) -> Option<InvocationResult>
     {
         let script = self.scripts.get_mut(&sid).unwrap();
@@ -280,7 +346,7 @@ impl Scripts {
     }
 
     pub fn execute_procs(&mut self, proc: PredefinedProc, ctx: &mut Context,
-        filter: impl Fn(Sid) -> bool)
+        filter: impl Fn(ScriptIId) -> bool)
     {
         // TODO avoid allocation
         let sids: Vec<_> = self.scripts.keys().cloned().collect();
@@ -329,7 +395,7 @@ impl Scripts {
         self.vm.program_state_mut(script.program).resume(vm_ctx).unwrap()
     }
 
-    fn next_sid(&self, kind: ScriptKind) -> Sid {
+    fn next_sid(&self, kind: ScriptKind) -> ScriptIId {
         let id = self.scripts.keys()
             .cloned()
             .filter(|sid| sid.kind() == kind)
@@ -337,7 +403,7 @@ impl Scripts {
             .max()
             .map(|v| v + 1)
             .unwrap_or(0);
-        Sid::new(kind, id)
+        ScriptIId::new(kind, id)
     }
 
     #[inline]
