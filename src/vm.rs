@@ -104,13 +104,15 @@ use std::rc::Rc;
 use std::str;
 use std::time::Duration;
 
-pub use error::*;
-pub use value::Value;
+use crate::game::object;
+use crate::game::script::{NewScripts, ScriptKind};
+use crate::util::SmKey;
 
 use instruction::{Instruction, instruction_map, Opcode};
 use stack::{Stack, StackId};
-use crate::game::object;
-use crate::util::SmKey;
+
+pub use error::*;
+pub use value::Value;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PredefinedProc {
@@ -225,6 +227,7 @@ pub struct Context<'a> {
     pub dialog: &'a mut Option<crate::game::dialog::Dialog>,
     pub message_panel: crate::ui::Handle,
     pub script_db: &'a mut crate::asset::script::db::ScriptDb,
+    pub new_scripts: NewScripts,
     pub proto_db: &'a crate::asset::proto::ProtoDb,
     pub map_id: crate::asset::map::MapId,
     pub rpg: &'a mut crate::game::rpg::Rpg,
