@@ -658,7 +658,7 @@ pub struct Sync<'a> {
 pub trait Widget: Downcast {
     fn init(&mut self, _ctx: Init) {}
 
-    fn handle_event(&mut self, ctx: HandleEvent);
+    fn handle_event(&mut self, _ctx: HandleEvent) {}
 
     /// Called after `handle_event()` and before `render()`.
     /// Should be used to sync the directly altered widget state to the UI.
