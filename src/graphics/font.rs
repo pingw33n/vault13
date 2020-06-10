@@ -61,14 +61,14 @@ pub struct FontKey {
 }
 
 impl FontKey {
-    pub fn non_antialiased(id: u32) -> Self {
+    pub const fn non_antialiased(id: u32) -> Self {
         Self {
             id,
             antialiased: false,
         }
     }
 
-    pub fn antialiased(id: u32) -> Self {
+    pub const fn antialiased(id: u32) -> Self {
         Self {
             id,
             antialiased: true,

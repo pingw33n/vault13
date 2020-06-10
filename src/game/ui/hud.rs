@@ -6,6 +6,7 @@ use crate::graphics::sprite::Sprite;
 use crate::ui::*;
 use crate::ui::button::Button;
 use crate::ui::message_panel::{MessagePanel, Anchor};
+use crate::ui::command::{SkilldexCommand, UiCommandData};
 
 pub fn create(ui: &mut Ui) -> Handle {
     let main_hud = ui.new_window(Rect::with_size(0, 379, 640, 100), Some(Sprite::new(FrameId::IFACE)));
@@ -32,7 +33,8 @@ pub fn create(ui: &mut Ui) -> Handle {
 
     // Skilldex button.
     ui.new_widget(main_hud, Rect::with_size(523, 6, 22, 21), None, None,
-        Button::new(FrameId::BIG_RED_BUTTON_UP, FrameId::BIG_RED_BUTTON_DOWN, None));
+        Button::new(FrameId::BIG_RED_BUTTON_UP, FrameId::BIG_RED_BUTTON_DOWN,
+            Some(UiCommandData::Skilldex(SkilldexCommand::Show))));
 
     // MAP button.
     ui.new_widget(main_hud, Rect::with_size(526, 40, 41, 19), None, None,
