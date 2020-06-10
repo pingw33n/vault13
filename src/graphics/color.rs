@@ -100,40 +100,69 @@ pub trait ColorPrecision: Clone + Copy + Eq + PartialEq + Ord + PartialOrd {
             v >> (Self::BITS - P::BITS)
         }
     }
+
+    #[inline(always)]
+    fn unpack(rgb: u32) -> (u8, u8, u8) {
+        unpack(rgb, Self::BITS, Self::MASK)
+    }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+const fn unpack(rgb: u32, bits: u32, mask: u32) -> (u8, u8, u8) {
+    ((rgb >> (bits * 2)) as u8,
+        (rgb >> bits & mask) as u8,
+        (rgb & mask) as u8)
+}
+
+#[derive(Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Color5;
 impl ColorPrecision for Color5 {
     const BITS: u32 = 5;
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Color6;
 impl ColorPrecision for Color6 {
     const BITS: u32 = 6;
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Color8;
 impl ColorPrecision for Color8 {
     const BITS: u32 = 8;
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Rgb<P: ColorPrecision> {
+#[derive(Clone, Copy, Default, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Rgb<P> {
     r: u8,
     g: u8,
     b: u8,
     _p: PhantomData<P>,
 }
 
+impl<P> Rgb<P> {
+    #[inline(always)]
+    pub const unsafe fn new_unchecked(r: u8, g: u8, b: u8) -> Self {
+        Self {
+            r,
+            g,
+            b,
+            _p: PhantomData,
+        }
+    }
+
+    #[inline(always)]
+    pub const unsafe fn rgb15_from_packed_unchecked(rgb: u32) -> Self {
+        let (r, g, b) = unpack(rgb, Color5::BITS, Color5::MASK);
+        Self::new_unchecked(r, g, b)
+    }
+}
+
 impl<P: ColorPrecision> Rgb<P> {
     #[inline(always)]
     pub fn new(r: u8, g: u8, b: u8) -> Self {
-        debug_assert!(r <= P::MAX);
-        debug_assert!(g <= P::MAX);
-        debug_assert!(b <= P::MAX);
+        assert!(r <= P::MAX);
+        assert!(g <= P::MAX);
+        assert!(b <= P::MAX);
         Self {
             r,
             g,
@@ -149,10 +178,8 @@ impl<P: ColorPrecision> Rgb<P> {
 
     #[inline(always)]
     pub fn from_packed(rgb: u32) -> Self {
-        Self::new(
-            (rgb >> (P::BITS * 2)) as u8,
-            (rgb >> P::BITS & P::MASK) as u8,
-            (rgb & P::MASK) as u8)
+        let (r, g, b) = P::unpack(rgb);
+        Self::new(r, g, b)
     }
 
     #[inline(always)]
