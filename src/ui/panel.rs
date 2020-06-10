@@ -39,8 +39,6 @@ impl Panel {
 }
 
 impl Widget for Panel {
-    fn handle_event(&mut self, _ctx: HandleEvent) {}
-
     fn render(&mut self, ctx: Render) {
         if let Some(text) = self.text() {
             ctx.canvas.draw_text(
