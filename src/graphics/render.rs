@@ -6,7 +6,7 @@ use std::fmt;
 use std::rc::Rc;
 use std::time::Instant;
 
-use crate::graphics::Point;
+use crate::graphics::{Point, Rect};
 use crate::graphics::color::Rgb15;
 use crate::graphics::font::{self, FontKey, Fonts};
 use crate::util::SmKey;
@@ -64,6 +64,9 @@ pub trait Canvas {
     fn update(&mut self, time: Instant);
 
     fn fonts(&self) -> &Rc<Fonts>;
+
+    fn set_clip_rect(&mut self, rect: Rect);
+    fn reset_clip_rect(&mut self);
 
     fn clear(&mut self, color: Rgb15);
 
