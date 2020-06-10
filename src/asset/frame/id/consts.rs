@@ -9,8 +9,8 @@ impl FrameId {
     pub const ACTIONM: FrameId = FrameId::Generic(Generic(0x6000_005));
     pub const BIG_RED_BUTTON_UP: FrameId = FrameId::Generic(Generic(0x6000_006));
     pub const BIG_RED_BUTTON_DOWN: FrameId = FrameId::Generic(Generic(0x6000_007));
-    pub const LILREDUP: FrameId = FrameId::Generic(Generic(0x6000_008));
-    pub const LILREDDN: FrameId = FrameId::Generic(Generic(0x6000_009));
+    pub const SMALL_RED_BUTTON_UP: FrameId = FrameId::Generic(Generic(0x6000_008));
+    pub const SMALL_RED_BUTTON_DOWN: FrameId = FrameId::Generic(Generic(0x6000_009));
     pub const MAP_BUTTON_DOWN: FrameId = FrameId::Generic(Generic(0x6000_00a));
     pub const AMAPHV: FrameId = FrameId::Generic(Generic(0x6000_00b));
     pub const MAPMK: FrameId = FrameId::Generic(Generic(0x6000_00c));
@@ -120,9 +120,9 @@ impl FrameId {
     pub const HILIGHT2: FrameId = FrameId::Generic(Generic(0x6000_074));
     pub const THROW: FrameId = FrameId::Generic(Generic(0x6000_075));
     pub const CALLED: FrameId = FrameId::Generic(Generic(0x6000_076));
-    pub const SKLDXON: FrameId = FrameId::Generic(Generic(0x6000_077));
-    pub const SKLDXOFF: FrameId = FrameId::Generic(Generic(0x6000_078));
-    pub const SKLDXBOX: FrameId = FrameId::Generic(Generic(0x6000_079));
+    pub const SKILLDEX_BUTTON_DOWN: FrameId = FrameId::Generic(Generic(0x6000_077));
+    pub const SKILLDEX_BUTTON_UP: FrameId = FrameId::Generic(Generic(0x6000_078));
+    pub const SKILLDEX_WINDOW: FrameId = FrameId::Generic(Generic(0x6000_079));
     pub const SLU: FrameId = FrameId::Generic(Generic(0x6000_07a));
     pub const SLD: FrameId = FrameId::Generic(Generic(0x6000_07b));
     pub const SRU: FrameId = FrameId::Generic(Generic(0x6000_07c));
@@ -171,7 +171,7 @@ impl FrameId {
     pub const TWNV15: FrameId = FrameId::Generic(Generic(0x6000_0a7));
     pub const HOTSPOT1: FrameId = FrameId::Generic(Generic(0x6000_0a8));
     pub const EDTRCRTE: FrameId = FrameId::Generic(Generic(0x6000_0a9));
-    pub const BIGNUM: FrameId = FrameId::Generic(Generic(0x6000_0aa));
+    pub const BIG_NUMBERS: FrameId = FrameId::Generic(Generic(0x6000_0aa));
     pub const AUTOMAP: FrameId = FrameId::Generic(Generic(0x6000_0ab));
     pub const AUTOUP: FrameId = FrameId::Generic(Generic(0x6000_0ac));
     pub const AUTODWN: FrameId = FrameId::Generic(Generic(0x6000_0ad));

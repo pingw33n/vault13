@@ -27,6 +27,7 @@ pub enum UiCommandData {
         id: u32,
     },
     Scroll,
+    Skilldex(SkilldexCommand),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -34,4 +35,14 @@ pub enum ObjectPickKind {
     Hover,
     DefaultAction,
     ActionMenu,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SkilldexCommand {
+    Cancel,
+    Show,
+    Skill {
+        skill: crate::asset::Skill,
+        target: Option<object::Handle>,
+    },
 }

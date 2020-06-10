@@ -26,6 +26,7 @@ use crate::game::sequence::frame_anim::{AnimDirection, FrameAnim, FrameAnimOptio
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
 use crate::game::script::{self, Scripts, ScriptKind};
+use crate::game::skilldex::{self, Skilldex};
 use crate::game::ui::action_menu::{self, Action};
 use crate::game::ui::hud;
 use crate::game::ui::scroll_area::ScrollArea;
@@ -39,7 +40,7 @@ use crate::sequence::event::PushEvent;
 use crate::sequence::chain::Chain;
 use crate::state::{self, *};
 use crate::ui::{self, Ui};
-use crate::ui::command::{UiCommand, UiCommandData, ObjectPickKind};
+use crate::ui::command::{ObjectPickKind, SkilldexCommand, UiCommand, UiCommandData};
 use crate::ui::message_panel::MessagePanel;
 use crate::util::{EnumExt, sprintf};
 use crate::util::random::random;
@@ -70,6 +71,7 @@ pub struct GameState {
     misc_msgs: Rc<Messages>,
     scroll_areas: EnumMap<ScrollDirection, ui::Handle>,
     rpg: Rpg,
+    skilldex: Skilldex,
 }
 
 impl GameState {
@@ -119,6 +121,8 @@ impl GameState {
 
         let rpg = Rpg::new(&fs, language).unwrap();
 
+        let skilldex = Skilldex::new(&fs, language);
+
         Self {
             time,
             fs,
@@ -142,6 +146,7 @@ impl GameState {
             misc_msgs,
             scroll_areas,
             rpg,
+            skilldex,
         }
     }
 
@@ -329,7 +334,7 @@ impl GameState {
                 self.action_use_obj(user, obj);
             }
             Action::UseSkill => {
-                // TODO
+                self.show_skilldex(ui, Some(obj));
             }
         }
     }
@@ -909,6 +914,14 @@ impl GameState {
             self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
         }
     }
+
+    fn show_skilldex(&mut self, ui: &mut Ui, target: Option<object::Handle>) {
+        let world = self.world.borrow();
+        let dude_obj = world.objects().get(world.dude_obj().unwrap());
+        let levels = EnumMap::from(
+            |skill: skilldex::Skill| self.rpg.skill(skill.into(), &dude_obj, world.objects()));
+        self.skilldex.show(ui, levels, target);
+    }
 }
 
 impl AppState for GameState {
@@ -1145,13 +1158,26 @@ impl AppState for GameState {
                 let scrolled = self.world.borrow_mut().scroll(dir, 1) > 0;
                 ui.widget_mut::<ScrollArea>(*widg).set_enabled(scrolled);
             }
+            UiCommandData::Skilldex(cmd) => match cmd {
+                SkilldexCommand::Cancel => self.skilldex.hide(ui),
+                SkilldexCommand::Show => {
+                    self.show_skilldex(ui, None);
+                },
+                SkilldexCommand::Skill { skill: _, target: _ } => {
+                    self.skilldex.hide(ui);
+                    // TODO
+                }
+            }
         }
     }
 
     fn update(&mut self, mut ctx: state::Update) {
         self.time.update(ctx.delta);
 
-        self.time.set_paused(self.user_paused || self.scripts.can_resume());
+        self.time.set_paused(
+            self.user_paused ||
+            self.scripts.can_resume() ||
+            self.skilldex.is_visible());
 
         if self.time.is_running() {
             {

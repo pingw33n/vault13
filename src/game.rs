@@ -4,6 +4,7 @@ pub mod object;
 pub mod rpg;
 pub mod script;
 pub mod sequence;
+pub mod skilldex;
 pub mod state;
 pub mod ui;
 pub mod world;

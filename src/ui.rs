@@ -1,5 +1,6 @@
 pub mod button;
 pub mod command;
+pub mod image_text;
 pub mod message_panel;
 pub mod panel;
 
@@ -162,6 +163,10 @@ impl Ui {
 
     pub fn fonts(&self) -> &Rc<Fonts> {
         &self.fonts
+    }
+
+    pub fn frm_db(&self) -> &Rc<FrameDb> {
+        &self.frm_db
     }
 
     pub fn new_window(&mut self, rect: Rect, background: Option<Sprite>) -> Handle {
