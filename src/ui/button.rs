@@ -2,6 +2,7 @@ use enum_map::{enum_map, EnumMap};
 
 use super::*;
 use crate::graphics::sprite::Sprite;
+use crate::ui::command::UiCommandData;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd)]
 enum State {
@@ -11,16 +12,18 @@ enum State {
 
 pub struct Button {
     sprites: EnumMap<State, Sprite>,
+    command: Option<UiCommandData>,
     state: State,
 }
 
 impl Button {
-    pub fn new(up: FrameId, down: FrameId) -> Self {
+    pub fn new(up: FrameId, down: FrameId, command: Option<UiCommandData>) -> Self {
         Self {
             sprites: enum_map! {
                 State::Up => Sprite::new(up),
                 State::Down => Sprite::new(down),
             },
+            command,
             state: State::Up,
         }
     }
@@ -45,7 +48,9 @@ impl Widget for Button {
                 self.state = State::Up;
                 // FIXME should optionally hit test the frame as in original.
                 if ctx.base.rect.contains(pos) {
-                    dbg!("clicked");
+                    if let Some(cmd) = self.command.clone() {
+                        ctx.out(cmd);
+                    }
                 }
                 ctx.release();
             }
