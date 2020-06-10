@@ -254,6 +254,16 @@ impl Canvas for CanvasImpl {
         &self.fonts
     }
 
+    fn set_clip_rect(&mut self, rect: Rect) {
+        self.reset_clip_rect();
+        self.clip_rect = rect.intersect(self.clip_rect);
+    }
+
+    fn reset_clip_rect(&mut self) {
+        let (w, h) = self.canvas.window().size();
+        self.clip_rect = Rect::with_size(0, 0, w as i32, h as i32);
+    }
+
     fn clear(&mut self, color: Rgb15) {
         let v = self.palette.color_idx(color);
         for b in self.back_buf.data.iter_mut() {
