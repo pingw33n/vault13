@@ -20,36 +20,36 @@ pub fn create(ui: &mut Ui) -> Handle {
     // Inventory button.
     // Original location is a bit off, at y=41.
     ui.new_widget(main_hud, Rect::with_size(211, 40, 32, 21), None, None,
-        Button::new(FrameId::INVENTORY_BUTTON_UP, FrameId::INVENTORY_BUTTON_DOWN));
+        Button::new(FrameId::INVENTORY_BUTTON_UP, FrameId::INVENTORY_BUTTON_DOWN, None));
 
     // Options button.
     ui.new_widget(main_hud, Rect::with_size(210, 62, 34, 34), None, None,
-        Button::new(FrameId::OPTIONS_BUTTON_UP, FrameId::OPTIONS_BUTTON_DOWN));
+        Button::new(FrameId::OPTIONS_BUTTON_UP, FrameId::OPTIONS_BUTTON_DOWN, None));
 
     // Single/burst switch button.
     ui.new_widget(main_hud, Rect::with_size(218, 6, 22, 21), None, None,
-        Button::new(FrameId::BIG_RED_BUTTON_UP, FrameId::BIG_RED_BUTTON_DOWN));
+        Button::new(FrameId::BIG_RED_BUTTON_UP, FrameId::BIG_RED_BUTTON_DOWN, None));
 
     // Skilldex button.
     ui.new_widget(main_hud, Rect::with_size(523, 6, 22, 21), None, None,
-        Button::new(FrameId::BIG_RED_BUTTON_UP, FrameId::BIG_RED_BUTTON_DOWN));
+        Button::new(FrameId::BIG_RED_BUTTON_UP, FrameId::BIG_RED_BUTTON_DOWN, None));
 
     // MAP button.
     ui.new_widget(main_hud, Rect::with_size(526, 40, 41, 19), None, None,
-        Button::new(FrameId::MAP_BUTTON_UP, FrameId::MAP_BUTTON_DOWN));
+        Button::new(FrameId::MAP_BUTTON_UP, FrameId::MAP_BUTTON_DOWN, None));
 
     // CHA button.
     ui.new_widget(main_hud, Rect::with_size(526, 59, 41, 19), None, None,
-        Button::new(FrameId::CHARACTER_BUTTON_UP, FrameId::CHARACTER_BUTTON_DOWN));
+        Button::new(FrameId::CHARACTER_BUTTON_UP, FrameId::CHARACTER_BUTTON_DOWN, None));
 
     // PIP button.
     ui.new_widget(main_hud, Rect::with_size(526, 78, 41, 19), None, None,
-        Button::new(FrameId::PIP_BUTTON_UP, FrameId::PIP_BUTTON_DOWN));
+        Button::new(FrameId::PIP_BUTTON_UP, FrameId::PIP_BUTTON_DOWN, None));
 
     // Attack button.
     // FIXME this should be a custom button with overlay text images.
     ui.new_widget(main_hud, Rect::with_size(267, 26, 188, 67), None, None,
-        Button::new(FrameId::SINGLE_ATTACK_BUTTON_UP, FrameId::SINGLE_ATTACK_BUTTON_DOWN));
+        Button::new(FrameId::SINGLE_ATTACK_BUTTON_UP, FrameId::SINGLE_ATTACK_BUTTON_DOWN, None));
 
     message_panel
 }
