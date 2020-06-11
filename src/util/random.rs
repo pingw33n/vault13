@@ -83,6 +83,22 @@ pub enum RollCheckResult {
     CriticalSuccess = 3,
 }
 
+impl RollCheckResult {
+    pub fn is_success(self) -> bool {
+        match self {
+            Self::Success | Self::CriticalSuccess => true,
+            Self::Failure | Self::CriticalFailure => false,
+        }
+    }
+
+    pub fn is_critical(self) -> bool {
+        match self {
+            Self::CriticalSuccess | Self::CriticalFailure => true,
+            Self::Success | Self::Failure => false,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct RollChecker {
     disable_crits: bool,
