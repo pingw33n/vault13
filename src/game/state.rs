@@ -1227,6 +1227,9 @@ impl AppState for GameState {
                             None
                         };
                         self.handle_action(ui, objh, a);
+                    },
+                    ObjectPickKind::Skill(skill) => {
+                        self.action_use_skill_on(skill, objh);
                     }
                 }
             }
@@ -1341,7 +1344,7 @@ impl AppState for GameState {
                     if let Some(target) = target {
                         self.action_use_skill_on(skill, target);
                     } else {
-                        // TODO
+                        ui.widget_mut::<WorldView>(self.world_view).enter_skill_target_pick_mode(skill);
                     }
                 }
             }
