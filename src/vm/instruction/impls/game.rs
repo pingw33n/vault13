@@ -113,6 +113,17 @@ enum Metarule3 {
     MapTargetLoadArea   = 111,
 }
 
+pub fn action_being_used(ctx: Context) -> Result<()> {
+    let r = ctx.ext.skill.map(|s| s as i32)
+        .unwrap_or_else(|| {
+            log_error!(ctx.prg, "`skill` was not set");
+            -1
+        });
+    ctx.prg.data_stack.push(r.into())?;
+    log_r1!(ctx.prg, ctx.ext.skill);
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 enum RegAnimFuncOp {
     Begin = 1,

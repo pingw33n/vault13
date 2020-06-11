@@ -189,6 +189,7 @@ impl GameState {
                 map_id,
                 source_obj: None,
                 target_obj: None,
+                skill: None,
                 rpg: &mut self.rpg,
             };
             self.scripts.execute_map_procs(PredefinedProc::MapExit, ctx);
@@ -283,6 +284,7 @@ impl GameState {
                 map_id: map.id,
                 source_obj: None,
                 target_obj: None,
+                skill: None,
                 rpg: &mut self.rpg,
             };
 
@@ -456,6 +458,7 @@ impl GameState {
                     map_id: self.map_id.unwrap(),
                     source_obj: Some(looker),
                     target_obj: Some(looked),
+                    skill: None,
                     rpg: &mut self.rpg,
                 });
             then {
@@ -520,6 +523,7 @@ impl GameState {
                     map_id: self.map_id.unwrap(),
                     source_obj: Some(examiner),
                     target_obj: Some(examined),
+                    skill: None,
                     rpg: &mut self.rpg,
                 });
             then {
@@ -619,6 +623,7 @@ impl GameState {
                         map_id: self.map_id.unwrap(),
                         source_obj: Some(talker),
                         target_obj: Some(talked),
+                        skill: None,
                         rpg: &mut self.rpg,
                     }).and_then(|r| r.suspend)
                     {
@@ -728,6 +733,7 @@ impl GameState {
                         map_id: self.map_id.unwrap(),
                         source_obj: Some(user),
                         target_obj: Some(used),
+                        skill: None,
                         rpg: &mut self.rpg,
                     }).unwrap().assert_no_suspend().script_overrides
             } else {
@@ -782,6 +788,7 @@ impl GameState {
                     map_id: self.map_id.unwrap(),
                     source_obj: Some(user),
                     target_obj: Some(door),
+                    skill: None,
                     rpg: &mut self.rpg,
                 }).unwrap().assert_no_suspend().script_overrides;
             if script_overrides {
@@ -909,6 +916,7 @@ impl GameState {
                 map_id: self.map_id.unwrap(),
                 source_obj: None,
                 target_obj: None,
+                skill: None,
                 rpg: &mut self.rpg,
             };
             self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
@@ -1123,6 +1131,7 @@ impl AppState for GameState {
                             map_id: self.map_id.unwrap(),
                             source_obj,
                             target_obj,
+                            skill: None,
                             rpg: &mut self.rpg,
                         }).assert_no_suspend();
                     // No dialog options means the dialog is finished.
@@ -1140,6 +1149,7 @@ impl AppState for GameState {
                         map_id: self.map_id.unwrap(),
                         source_obj: None,
                         target_obj: None,
+                        skill: None,
                         rpg: &mut self.rpg,
                     };
                     self.scripts.resume(ctx).assert_no_suspend();

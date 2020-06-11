@@ -403,7 +403,7 @@ pub(in super) mod instructions {
     use self::impls::*;
 
     pub static INSTRUCTIONS: [Instruction; enum_len!(Opcode)] = [
-        i!(ActionBeingUsed,             unimplemented),
+        i!(ActionBeingUsed,             action_being_used),
         i!(Activateregion,              unimplemented),
         i!(Add,                         add),
         i!(Addbutton,                   unimplemented),
