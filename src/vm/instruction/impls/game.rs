@@ -680,6 +680,28 @@ pub fn item_caps_total(ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn is_critical(ctx: Context) -> Result<()> {
+    let v = RollCheckResult::from_i32(ctx.prg.data_stack.pop()?.coerce_into_int()?);
+    if v.is_none() {
+        log_error!(ctx.prg, "arg is invalid");
+    }
+    let r = v.map(|v| v.is_critical());
+    ctx.prg.data_stack.push(r.map(|r| r.into()).unwrap_or(Value::from(-1)))?;
+    log_a1r1!(ctx.prg, v, r);
+    Ok(())
+}
+
+pub fn is_success(ctx: Context) -> Result<()> {
+    let v = RollCheckResult::from_i32(ctx.prg.data_stack.pop()?.coerce_into_int()?);
+    if v.is_none() {
+        log_error!(ctx.prg, "arg is invalid");
+    }
+    let r = v.map(|v| v.is_success());
+    ctx.prg.data_stack.push(r.map(|r| r.into()).unwrap_or(Value::from(-1)))?;
+    log_a1r1!(ctx.prg, v, r);
+    Ok(())
+}
+
 pub fn jam_lock(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
 
