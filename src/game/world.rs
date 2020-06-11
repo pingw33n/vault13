@@ -343,14 +343,6 @@ impl World {
         self.objects.make_standing(h, &self.frm_db);
     }
 
-    pub fn path_for_object(&self,
-        obj: object::Handle,
-        to: PathTo,
-        smooth: bool,
-    ) -> Option<Vec<Direction>> {
-        self.objects.path(obj, to, smooth)
-    }
-
     pub fn rebuild_light_grid(&mut self) {
         self.light_grid.clear();
         for h in self.objects.iter() {
