@@ -81,6 +81,10 @@ impl Rpg {
         })
     }
 
+    pub fn skill_msgs(&self) -> &Messages {
+        &self.skill_msgs
+    }
+
     pub fn skill_name(&self, skill: Skill) -> &bstr {
         &self.skill_msgs.get(SKILL_NAME_MSG_BASE + skill as MessageId).unwrap().text
     }

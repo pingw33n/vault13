@@ -545,6 +545,15 @@ pub fn giq_option(mut ctx: Context) -> Result<()> {
     Ok(())
 }
 
+pub fn give_exp_points(ctx: Context) -> Result<()> {
+    let points = ctx.prg.data_stack.pop()?.into_int()?;
+
+    log_a1!(ctx.prg, points);
+    log_stub!(ctx.prg);
+
+    Ok(())
+}
+
 pub fn gsay_message(mut ctx: Context) -> Result<()> {
     // FIXME display reaction with Empathy perk.
     let reaction = ctx.prg.data_stack.pop()?.into_int()?;
