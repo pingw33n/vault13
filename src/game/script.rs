@@ -159,6 +159,7 @@ pub struct Context<'a> {
     pub map_id: MapId,
     pub source_obj: Option<object::Handle>,
     pub target_obj: Option<object::Handle>,
+    pub skill: Option<crate::asset::Skill>,
     pub rpg: &'a mut crate::game::rpg::Rpg,
 }
 
@@ -475,6 +476,7 @@ impl Scripts {
             self_obj,
             source_obj: ctx.source_obj,
             target_obj: ctx.target_obj,
+            skill: ctx.skill,
             ui: ctx.ui,
             world: ctx.world,
             sequencer: ctx.sequencer,

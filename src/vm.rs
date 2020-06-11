@@ -221,6 +221,7 @@ pub struct Context<'a> {
     pub self_obj: Option<object::Handle>,
     pub source_obj: Option<object::Handle>,
     pub target_obj: Option<object::Handle>,
+    pub skill: Option<crate::asset::Skill>,
     pub ui: &'a mut crate::ui::Ui,
     pub world: &'a mut crate::game::world::World,
     pub sequencer: &'a mut crate::sequence::Sequencer,
