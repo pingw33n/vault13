@@ -1,3 +1,4 @@
+use matches::matches;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
@@ -21,7 +22,13 @@ use super::action_menu::{Action, Placement};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum PickMode {
     Hex,
-    Object,
+    Object(ObjectPickMode),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ObjectPickMode {
+    Action,
+    Skill(crate::asset::Skill),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -42,6 +49,7 @@ enum PickState {
 pub struct WorldView {
     world: Rc<RefCell<World>>,
     pick_mode: PickMode,
+    saved_pick_mode: Option<PickMode>,
     hex_cursor: object::Handle,
     pub hex_cursor_style: HexCursorStyle,
     pub roof_visible: bool,
@@ -59,6 +67,7 @@ impl WorldView {
         Self {
             world,
             pick_mode: PickMode::Hex,
+            saved_pick_mode: None,
             hex_cursor,
             hex_cursor_style: HexCursorStyle::Normal,
             roof_visible: false,
@@ -83,6 +92,11 @@ impl WorldView {
         if !world.objects().contains(self.hex_cursor) {
             self.hex_cursor = Self::insert_hex_cursor(world);
         }
+    }
+
+    pub fn enter_skill_target_pick_mode(&mut self, skill: crate::asset::Skill) {
+        self.saved_pick_mode = Some(self.pick_mode);
+        self.pick_mode = PickMode::Object(ObjectPickMode::Skill(skill));
     }
 
     fn insert_hex_cursor(world: &mut World) -> object::Handle {
@@ -125,10 +139,6 @@ impl WorldView {
 }
 
 impl Widget for WorldView {
-    fn init(&mut self, ctx: Init) {
-        ctx.base.set_cursor(Some(Cursor::Hidden));
-    }
-
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
             Event::MouseMove { pos } => {
@@ -139,15 +149,18 @@ impl Widget for WorldView {
                             ctx.out(UiCommandData::HexPick { action: false, pos });
                         }
                     }
-                    PickMode::Object => {
+                    PickMode::Object(ObjectPickMode::Action) => {
                         self.pick_state = PickState::Pending { start: ctx.now, pos };
                         self.default_action_icon = None;
                     }
+                    PickMode::Object(ObjectPickMode::Skill(_)) => {}
                 }
                 self.update_hex_cursor_visibility(None);
             }
             Event::MouseDown { pos, button } => {
-                if button == MouseButton::Left && self.pick_mode == PickMode::Object {
+                if button == MouseButton::Left &&
+                    matches!(self.pick_mode, PickMode::Object(ObjectPickMode::Action))
+                {
                     let world = self.world.borrow();
                     if let Some(obj) = world.pick_object(pos, true) {
                         self.action_menu_state = Some((ctx.now, obj));
@@ -163,13 +176,24 @@ impl Widget for WorldView {
                                 let (pos, _) = self.update_hex_cursor_pos(pos);
                                 ctx.out(UiCommandData::HexPick { action: true, pos });
                             }
-                            PickMode::Object => {
-                                let world = self.world.borrow();
-                                if let Some(obj) = world.pick_object(pos, true) {
-                                    ctx.out(UiCommandData::ObjectPick {
-                                        kind: ObjectPickKind::DefaultAction,
-                                        obj,
-                                    });
+                            PickMode::Object(mode) => {
+                                let picked_obj = self.world.borrow().pick_object(pos, true);
+                                if let Some(obj) = picked_obj {
+                                    let kind = match mode {
+                                        ObjectPickMode::Action => ObjectPickKind::DefaultAction,
+                                        ObjectPickMode::Skill(skill) => {
+                                            self.pick_mode = self.saved_pick_mode.take().unwrap();
+                                            ObjectPickKind::Skill(skill)
+                                        }
+                                    };
+                                    ctx.out(UiCommandData::ObjectPick { kind, obj });
+                                    if self.pick_mode == PickMode::Hex {
+                                        self.update_hex_cursor_visibility(None);
+                                        let (pos, changed) = self.update_hex_cursor_pos(pos);
+                                        if changed {
+                                            ctx.out(UiCommandData::HexPick { action: false, pos });
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -177,11 +201,9 @@ impl Widget for WorldView {
                     MouseButton::Right => {
                         self.pick_mode = match self.pick_mode {
                             PickMode::Hex => {
-                                ctx.base.set_cursor(Some(Cursor::ActionArrow));
-                                PickMode::Object
+                                PickMode::Object(ObjectPickMode::Action)
                             }
-                            PickMode::Object => {
-                                ctx.base.set_cursor(Some(Cursor::Hidden));
+                            PickMode::Object(_) => {
                                 let (pos, changed) = self.update_hex_cursor_pos(pos);
                                 if changed {
                                     ctx.out(UiCommandData::HexPick { action: false, pos });
@@ -233,14 +255,16 @@ impl Widget for WorldView {
     }
 
     fn sync(&mut self, ctx: Sync) {
-        if ctx.base.cursor() != Some(Cursor::Hidden) {
-            ctx.base.set_cursor(Some(
-                if self.default_action_icon.is_some() {
-                    Placement::new(1, ctx.cursor_pos, ctx.base.rect()).cursor
-                } else {
-                    Cursor::ActionArrow
-                }))
-        }
+        ctx.base.set_cursor(Some(
+            if self.default_action_icon.is_some() {
+                Placement::new(1, ctx.cursor_pos, ctx.base.rect()).cursor
+            } else {
+                match self.pick_mode {
+                    PickMode::Hex => Cursor::Hidden,
+                    PickMode::Object(ObjectPickMode::Action) => Cursor::ActionArrow,
+                    PickMode::Object(ObjectPickMode::Skill(_)) => Cursor::CrosshairUse,
+                }
+            }));
     }
 
     fn render(&mut self, ctx: Render) {
@@ -267,7 +291,7 @@ impl Widget for WorldView {
                         });
                 }
             }
-            PickMode::Object => if let Some(action) = self.default_action_icon {
+            PickMode::Object(ObjectPickMode::Action) => if let Some(action) = self.default_action_icon {
                 let fid = action.icons().0;
                 let pos = Placement::new(1, ctx.cursor_pos, ctx.base.unwrap().rect()).rect.top_left();
                 Sprite {
@@ -280,6 +304,7 @@ impl Widget for WorldView {
                     effect: None,
                 }.render(ctx.canvas, ctx.frm_db);
             }
+            PickMode::Object(ObjectPickMode::Skill(_)) => {}
         }
     }
 }

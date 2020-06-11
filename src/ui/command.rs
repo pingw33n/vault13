@@ -35,6 +35,7 @@ pub enum ObjectPickKind {
     Hover,
     DefaultAction,
     ActionMenu,
+    Skill(crate::asset::Skill),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

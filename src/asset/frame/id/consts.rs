@@ -280,7 +280,7 @@ impl FrameId {
     pub const SCRSWEST: FrameId = FrameId::Generic(Generic(0x6000_114));
     pub const SCRWEST: FrameId = FrameId::Generic(Generic(0x6000_115));
     pub const WAIT: FrameId = FrameId::Generic(Generic(0x6000_116));
-    pub const CRSSHAIR: FrameId = FrameId::Generic(Generic(0x6000_117));
+    pub const CROSSHAIR_ATTACK: FrameId = FrameId::Generic(Generic(0x6000_117));
     pub const PLUS: FrameId = FrameId::Generic(Generic(0x6000_118));
     pub const DESTROY: FrameId = FrameId::Generic(Generic(0x6000_119));
     pub const ACTPICK: FrameId = FrameId::Generic(Generic(0x6000_11a));
@@ -294,7 +294,7 @@ impl FrameId {
     pub const MVENUM: FrameId = FrameId::Generic(Generic(0x6000_122));
     pub const RELOAD: FrameId = FrameId::Generic(Generic(0x6000_123));
     pub const USET: FrameId = FrameId::Generic(Generic(0x6000_124));
-    pub const CROSSUSE: FrameId = FrameId::Generic(Generic(0x6000_125));
+    pub const CROSSHAIR_USE: FrameId = FrameId::Generic(Generic(0x6000_125));
     pub const USEON: FrameId = FrameId::Generic(Generic(0x6000_126));
     pub const WAIT2: FrameId = FrameId::Generic(Generic(0x6000_127));
     pub const FALLTEXT: FrameId = FrameId::Generic(Generic(0x6000_128));
