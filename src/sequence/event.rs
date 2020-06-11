@@ -22,6 +22,11 @@ pub enum Event {
         user: object::Handle,
         used: object::Handle,
     },
+    UseSkill {
+        skill: crate::asset::Skill,
+        user: object::Handle,
+        target: object::Handle,
+    }
 }
 
 pub struct PushEvent {

@@ -45,7 +45,7 @@ impl ProtoDb {
                 base_stats: EnumMap::new(),
                 bonus_stats: EnumMap::new(),
                 skills: EnumMap::new(),
-                body_kind: 0,
+                body_kind: BodyKind::Biped,
                 experience: 0,
                 kill_kind: CritterKillKind::Man,
                 damage_kind: DamageKind::Melee,
@@ -418,7 +418,7 @@ impl ProtoDb {
         for skill in 0..18 {
             skills[Skill::from_usize(skill).unwrap()] = rd.read_i32::<BigEndian>()?;
         }
-        let body_kind = rd.read_u32::<BigEndian>()?;
+        let body_kind = read_enum(rd, "invalid body kind in critter proto")?;
         let experience = rd.read_i32::<BigEndian>()?;
         let kill_kind = read_enum(rd, "invalid kill kind in critter proto")?;
         let damage_kind = read_enum(rd, "invalid damage kind in critter proto")?;

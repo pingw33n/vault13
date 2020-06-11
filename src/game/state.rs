@@ -371,6 +371,9 @@ impl GameState {
                 Use { user, used } => {
                     self.use_obj(user, used, ctx.ui);
                 }
+                UseSkill { skill, user, target } => {
+                    self.use_skill_on(skill, user, target, ctx.ui);
+                }
             }
         }
         std::mem::replace(&mut self.seq_events, events);
@@ -672,6 +675,7 @@ impl GameState {
         }
 
         if used_kind != ExactEntityKind::Scenery(SceneryKind::Stairs) {
+            // FIXME must call check_next_to() before running this animation
             let use_anim = if usedo.is_critter_prone() ||
                 usedo.kind() == EntityKind::Scenery && usedo.proto().unwrap().flags_ext.contains(FlagExt::Prone)
             {
@@ -854,7 +858,7 @@ impl GameState {
     fn check_next_to(&mut self, obj1: object::Handle, obj2: object::Handle, ui: &mut Ui) -> bool {
         if self.world.borrow().objects().distance(obj1, obj2).unwrap() > 1 {
             let msg = &self.misc_msgs.get(2000).unwrap().text;
-            self.push_message(&msg, ui);
+            self.push_message(msg, ui);
             false
         } else {
             true
@@ -929,6 +933,165 @@ impl GameState {
         let levels = EnumMap::from(
             |skill: skilldex::Skill| self.rpg.skill(skill.into(), &dude_obj, world.objects()));
         self.skilldex.show(ui, levels, target);
+    }
+
+    // action_use_skill_on
+    fn action_use_skill_on(&mut self, skill: Skill, target: object::Handle) {
+        let world = self.world.borrow();
+        let objs = world.objects();
+        let user = world.dude_obj().unwrap();
+        let mut usero = objs.get_mut(user);
+        let targeto = objs.get(target);
+
+        match skill {
+            Skill::Lockpick => {
+                // TODO check combat state
+                match targeto.kind() {
+                    EntityKind::Item | EntityKind::Scenery => {}
+                    _ => {
+                        debug!("{:?} can't use Lockpick on non-item/non-scenery {:?}", user, target);
+                        return;
+                    }
+                }
+            }
+            // TODO
+            Skill::Steal => {}
+            Skill::Traps => {}
+            Skill::FirstAid | Skill::Doctor => {}
+            Skill::Science | Skill::Repair => {}
+            _ => return,
+        }
+
+        // TODO handle party members
+
+        usero.cancel_sequence();
+
+        let (mut seq, _) = Chain::oneshot();
+
+
+        let move_anim = if usero.distance(&targeto).unwrap() < 5 {
+            CritterAnim::Walk
+        } else {
+            CritterAnim::Running
+        };
+        seq.push(Move::new(user, PathTo::Object(target), move_anim));
+
+        let use_anim = if targeto.is_critter_prone() {
+            CritterAnim::MagicHandsGround
+        } else {
+            CritterAnim::MagicHandsMiddle
+        };
+        // FIXME must call check_next_to() before running this animation
+        seq.push(FrameAnim::new(user,
+            FrameAnimOptions { anim: Some(use_anim), ..Default::default() }));
+
+        seq.push(PushEvent::new(sequence::Event::UseSkill { skill, user, target }));
+
+        let (seq, cancel) = seq.cancellable();
+        usero.sequence = Some(cancel);
+
+        self.sequencer.start(seq);
+    }
+
+    // obj_use_skill_on
+    fn use_skill_on(&mut self,
+        skill: Skill,
+        user: object::Handle,
+        target: object::Handle,
+        ui: &mut Ui,
+    ) {
+        let script_overrides = {
+            let world = &mut self.world.borrow_mut();
+            let script = {
+                let targeto = world.objects().get(target);
+                if user == world.dude_obj().unwrap() && targeto.is_lock_jammed() == Some(true)
+                {
+                    let msg = &self.misc_msgs.get(2001).unwrap().text;
+                    self.push_message(msg, ui);
+                    return;
+                }
+                targeto.script
+            };
+
+            if let Some((sid, _)) = script {
+                self.scripts.execute_predefined_proc(sid, PredefinedProc::UseSkillOn,
+                    &mut script::Context {
+                        world,
+                        sequencer: &mut self.sequencer,
+                        dialog: &mut self.dialog,
+                        ui,
+                        message_panel: self.message_panel,
+                        map_id: self.map_id.unwrap(),
+                        source_obj: Some(user),
+                        target_obj: Some(target),
+                        skill: Some(skill),
+                        rpg: &mut self.rpg,
+                    }).unwrap().assert_no_suspend().script_overrides
+            } else {
+                false
+            }
+        };
+        if !script_overrides {
+            self.default_use_skill_on(skill, user, target, ui);
+        }
+    }
+
+    fn default_use_skill_on(&mut self,
+        skill: Skill,
+        _user: object::Handle,
+        target: object::Handle,
+        ui: &mut Ui,
+    ) {
+        let world = &mut self.world.borrow_mut();
+        {
+            let targeto = world.objects().get(target);
+            match skill {
+                Skill::FirstAid => {
+                    // TODO if !skill_use_slot_available {
+                    let msg_id = 590 + random(0, 2);
+                    let msg = &self.rpg.skill_msgs().get(msg_id).unwrap().text;
+                    self.push_message(msg, ui);
+                    return;
+
+                    // TODO call MapUpdate after fade out - fade in
+                }
+                Skill::Doctor => {
+                    // TODO if !skill_use_slot_available {
+                    let msg_id = 590 + random(0, 2);
+                    let msg = &self.rpg.skill_msgs().get(msg_id).unwrap().text;
+                    self.push_message(msg, ui);
+                    return;
+
+                    // TODO call MapUpdate after fade out - fade in
+                }
+                Skill::Sneak | Skill::Lockpick => {}
+                Skill::Repair => {
+                    if targeto.proto().and_then(|p| p.sub.as_critter().map(|c| c.body_kind)) != Some(BodyKind::Robotic) {
+                        self.push_message(&self.rpg.skill_msgs().get(553).unwrap().text, ui);
+                        return;
+                    }
+                    // TODO
+                    return;
+                }
+                Skill::Steal => {
+                    // TODO
+                }
+                Skill::Traps => {
+                    self.push_message(&self.rpg.skill_msgs().get(551).unwrap().text, ui);
+                    return;
+                }
+                Skill::Science => {
+                    self.push_message(&self.rpg.skill_msgs().get(552).unwrap().text, ui);
+                    return;
+                }
+                _ => {
+                    error!("[default_use_skill_on] invalid skill used: {:?}", skill);
+                    return;
+                }
+            }
+            // TODO show_skill_use_messages
+            debug!("TODO");
+        }
     }
 }
 
@@ -1173,9 +1336,13 @@ impl AppState for GameState {
                 SkilldexCommand::Show => {
                     self.show_skilldex(ui, None);
                 },
-                SkilldexCommand::Skill { skill: _, target: _ } => {
+                SkilldexCommand::Skill { skill, target } => {
                     self.skilldex.hide(ui);
-                    // TODO
+                    if let Some(target) = target {
+                        self.action_use_skill_on(skill, target);
+                    } else {
+                        // TODO
+                    }
                 }
             }
         }

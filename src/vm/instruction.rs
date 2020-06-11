@@ -538,7 +538,7 @@ pub(in super) mod instructions {
         i!(GfadeIn,                     unimplemented),
         i!(GfadeOut,                    unimplemented),
         i!(GiqOption,                   giq_option),
-        i!(GiveExpPoints,               unimplemented),
+        i!(GiveExpPoints,               give_exp_points),
         i!(GlobalVar,                   global_var),
         i!(Gotoxy,                      unimplemented),
         i!(Greater,                     greater),

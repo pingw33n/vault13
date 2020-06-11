@@ -247,17 +247,20 @@ pub struct Key {
     pub id: i32,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Primitive)]
+pub enum BodyKind {
+    Biped = 0,
+    Quadruped = 1,
+    Robotic = 2,
+}
+
 #[derive(Debug)]
 pub struct Critter {
     pub flags: BitFlags<CritterFlag>,
     pub base_stats: EnumMap<Stat, i32>,
     pub bonus_stats: EnumMap<Stat, i32>,
     pub skills: EnumMap<Skill, i32>,
-    //proto.msg:400
-    //0x0 - biped (двуногие)
-    //0x1 - quadruped (четвероногие)
-    //0x2 - robotic (роботы)
-    pub body_kind: u32,
+    pub body_kind: BodyKind,
     pub experience: i32,
     //proto.msg:1450
     pub kill_kind: CritterKillKind,
