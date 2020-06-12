@@ -18,7 +18,6 @@ use crate::graphics::{EPoint, Point};
 use crate::graphics::color::*;
 use crate::graphics::font::FontKey;
 use crate::graphics::geometry::hex::Direction;
-use crate::sequence::Sequence;
 use crate::sequence::chain::Chain;
 use crate::util::random::{random as rand, RollCheckResult};
 
@@ -1072,14 +1071,13 @@ pub fn reg_anim_animate_forever(ctx: Context) -> Result<()> {
         .ok_or(Error::BadValue(BadValue::Content))?;
     let obj = ctx.prg.data_stack.pop()?.into_object()?;
     if let Some(obj) = obj {
-        if !ctx.ext.has_running_sequence(obj) {
-            if !ctx.prg.instr_state.sequences.contains_key(obj) {
-                ctx.prg.instr_state.sequences.insert(obj, Chain::new());
-            }
-            let chain = ctx.prg.instr_state.sequences.get_mut(obj).unwrap();
-            let seq = FrameAnim::new(obj,
-                FrameAnimOptions { anim: Some(critter_anim), wrap: true, ..Default::default() });
-            chain.control().cancellable(seq);
+        if !ctx.ext.obj_sequencer.is_running(obj) &&
+            !ctx.prg.instr_state.sequences.contains_key(obj)
+        {
+            let seq = Chain::new();
+            seq.control().cancellable(FrameAnim::new(obj,
+                FrameAnimOptions { anim: Some(critter_anim), wrap: true, ..Default::default() }));
+            ctx.prg.instr_state.sequences.insert(obj, seq);
         } else {
             debug!("reg_anim_animate_forever: object {:?} already has running sequence", obj);
         }
@@ -1092,32 +1090,26 @@ pub fn reg_anim_func(ctx: Context) -> Result<()> {
     let arg = ctx.prg.data_stack.pop()?;
     let op = RegAnimFuncOp::from_i32(ctx.prg.data_stack.pop()?.into_int()?)
         .ok_or(Error::BadValue(BadValue::Content))?;
+    let seqs = &mut ctx.prg.instr_state.sequences;
     match op {
         RegAnimFuncOp::Begin => {
             let flags = arg.into_int()?;
-            if !ctx.prg.instr_state.sequences.is_empty() {
+            if !seqs.is_empty() {
                 warn!("RegAnimFunc(Begin, ...): previous session wasn't ended properly with RegAnimFunc(End)");
             }
-            ctx.prg.instr_state.sequences.clear();
+            seqs.clear();
             log_a2!(ctx.prg, op, flags);
         }
         RegAnimFuncOp::End => {
-            for (objh, seq) in ctx.prg.instr_state.sequences.drain() {
-                let (seq, cancel) = seq.cancellable();
-                let mut obj = ctx.ext.world.objects().get_mut(objh);
-                assert!(obj.sequence.is_none());
-                obj.sequence = Some(cancel);
-                ctx.ext.sequencer.start(seq);
+            for (objh, seq) in seqs.drain() {
+                ctx.ext.obj_sequencer.replace(objh, seq);
             }
-
             log_a2!(ctx.prg, op, arg);
         }
         RegAnimFuncOp::Clear => {
-            let obj = arg.into_object()?;
+            let obj = arg.coerce_into_object()?;
             if let Some(obj) = obj {
-                if let Some(s) = ctx.ext.world.objects().get_mut(obj).sequence.take() {
-                    s.cancel();
-                }
+                ctx.ext.obj_sequencer.cancel(obj);
             }
             log_a2!(ctx.prg, op, obj);
         }

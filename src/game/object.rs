@@ -20,7 +20,6 @@ use crate::graphics::geometry::hex::path_finder::*;
 use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::*;
-use crate::sequence::cancellable::Cancel;
 use crate::util::{EnumExt, VecExt};
 use crate::util::array2d::Array2d;
 use crate::vm::PredefinedProc;
@@ -142,7 +141,6 @@ pub struct Object {
     proto: Option<ProtoRef>,
     pub inventory: Inventory,
     pub outline: Option<Outline>,
-    pub sequence: Option<Cancel>,
     pub script: Option<(ScriptIId, ProgramId)>,
     pub sub: SubObject,
 }
@@ -170,7 +168,6 @@ impl Object {
                 radius: 0,
             },
             outline: None,
-            sequence: None,
             script: None,
             sub,
         }
@@ -194,16 +191,6 @@ impl Object {
 
     pub fn proto_id(&self) -> Option<ProtoId> {
         self.proto().map(|v| v.id())
-    }
-
-    pub fn has_running_sequence(&self) -> bool {
-        self.sequence.as_ref().map(|seq| seq.is_running()).unwrap_or(false)
-    }
-
-    pub fn cancel_sequence(&mut self) {
-        if let Some(signal) = self.sequence.take() {
-            signal.cancel();
-        }
     }
 
     pub fn render(&mut self, canvas: &mut dyn Canvas, light: u32,

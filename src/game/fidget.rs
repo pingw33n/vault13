@@ -3,12 +3,13 @@ use std::cmp;
 use std::time::{Duration, Instant};
 
 use crate::asset::{CritterAnim, EntityKind, Flag};
+use crate::game::sequence::ObjSequencer;
 use crate::game::sequence::frame_anim::*;
 use crate::game::sequence::stand::Stand;
 use crate::game::world::World;
 use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::TileGridView;
-use crate::sequence::{Sequence, Sequencer};
+use crate::sequence::chain::Chain;
 use crate::util::random::random;
 
 pub struct Fidget {
@@ -26,7 +27,7 @@ impl Fidget {
     pub fn update(&mut self,
         time: Instant,
         world: &mut World,
-        sequencer: &mut Sequencer)
+        obj_sequencer: &mut ObjSequencer)
     {
         if time < self.next_time {
             return;
@@ -41,6 +42,7 @@ impl Fidget {
             bottom: world.camera().viewport.height() + 190
         });
 
+        // TODO don't store the objects
         let mut objs = Vec::new();
         for y in hex_rect.top..hex_rect.bottom {
             for x in hex_rect.left..hex_rect.right {
@@ -62,9 +64,8 @@ impl Fidget {
 
         if !objs.is_empty() {
             let objh = objs[random(0, objs.len() as i32 - 1) as usize];
-            let mut obj = world.objects().get_mut(objh);
 
-            if obj.has_running_sequence() {
+            if obj_sequencer.is_running(objh) {
                 debug!("fidget: object {:?} already has a running sequence", objh);
                 return;
             }
@@ -83,11 +84,12 @@ impl Fidget {
             //          register_object_play_sfx_((int)obj, (int)sfx_name, 0);
             //        }
 
-            let (seq, cancel) = FrameAnim::new(objh,
-                FrameAnimOptions { anim: Some(CritterAnim::Stand), ..Default::default() })
-                .cancellable();
-            obj.sequence = Some(cancel);
-            sequencer.start(seq.then(Stand::new(objh)));
+            let seq = Chain::new();
+            seq.control()
+                .cancellable(FrameAnim::new(objh,
+                    FrameAnimOptions { anim: Some(CritterAnim::Stand), ..Default::default() }))
+                .finalizing(Stand::new(objh));
+            obj_sequencer.replace(objh, seq);
 
             debug!("fidget: started fidget animation for object {:?}", objh);
         } else {

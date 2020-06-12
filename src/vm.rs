@@ -223,7 +223,7 @@ pub struct Context<'a> {
     pub skill: Option<crate::asset::Skill>,
     pub ui: &'a mut crate::ui::Ui,
     pub world: &'a mut crate::game::world::World,
-    pub sequencer: &'a mut crate::sequence::Sequencer,
+    pub obj_sequencer: &'a mut crate::game::sequence::ObjSequencer,
     pub dialog: &'a mut Option<crate::game::dialog::Dialog>,
     pub message_panel: crate::ui::Handle,
     pub script_db: &'a mut crate::asset::script::db::ScriptDb,
@@ -231,12 +231,6 @@ pub struct Context<'a> {
     pub proto_db: &'a crate::asset::proto::ProtoDb,
     pub map_id: crate::asset::map::MapId,
     pub rpg: &'a mut crate::game::rpg::Rpg,
-}
-
-impl Context<'_> {
-    pub fn has_running_sequence(&self, obj: object::Handle) -> bool {
-        self.world.objects().get(obj).has_running_sequence()
-    }
 }
 
 pub struct VmConfig {

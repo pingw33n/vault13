@@ -153,7 +153,7 @@ impl fmt::Debug for ScriptPId {
 pub struct Context<'a> {
     pub ui: &'a mut crate::ui::Ui,
     pub world: &'a mut crate::game::world::World,
-    pub sequencer: &'a mut crate::sequence::Sequencer,
+    pub obj_sequencer: &'a mut crate::game::sequence::ObjSequencer,
     pub dialog: &'a mut Option<crate::game::dialog::Dialog>,
     pub message_panel: crate::ui::Handle,
     pub map_id: MapId,
@@ -479,7 +479,7 @@ impl Scripts {
             skill: ctx.skill,
             ui: ctx.ui,
             world: ctx.world,
-            sequencer: ctx.sequencer,
+            obj_sequencer: ctx.obj_sequencer,
             dialog: ctx.dialog,
             message_panel: ctx.message_panel,
             script_db,
