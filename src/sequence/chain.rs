@@ -12,6 +12,7 @@ enum State {
 }
 
 struct Inner {
+    on_done: Option<Box<dyn FnOnce()>>,
     new_cancellable: Vec<Box<dyn Sequence>>,
     new_finalizing: Vec<Box<dyn Sequence>>,
     state: State,
@@ -20,6 +21,7 @@ struct Inner {
 impl Inner {
     fn new() -> Self {
         Self {
+            on_done: None,
             new_cancellable: Vec::new(),
             new_finalizing: Vec::new(),
             state: State::Cancellable,
@@ -42,7 +44,7 @@ impl Control {
     /// Appends a new sequence to the cancellable sub-chain.
     /// Calling `cancel()` will cancel any running or pending cancellable sequence.
     /// Panics if the cancellable sub-chain has already finished running.
-    pub fn push_cancellable(&self, seq: impl 'static + Sequence) {
+    pub fn cancellable(&self, seq: impl 'static + Sequence) -> &Self {
         let mut inner = self.0.borrow_mut();
         match inner.state {
             State::Cancellable => {},
@@ -50,13 +52,14 @@ impl Control {
                 "can't push cancellable sequence because the cancellable sub-chain has already finished running"),
         }
         inner.new_cancellable.push(Box::new(seq));
+        self
     }
 
     /// Appends a new sequence to the finalizing sub-chain.
     /// Finalizing sequences run after all cancellable sequences finished.
     /// Finalizing sequences can't be cancelled.
     /// Panics if the chain has already finished running.
-    pub fn push_finalizing(&self, seq: impl 'static + Sequence) {
+    pub fn finalizing(&self, seq: impl 'static + Sequence) -> &Self {
         let mut inner = self.0.borrow_mut();
         match inner.state {
             State::Cancellable | State::Finalizing => {}
@@ -64,20 +67,44 @@ impl Control {
                 "can't push finalizing sequence because the chain has already finished running"),
         }
         inner.new_finalizing.push(Box::new(seq));
+        self
     }
 
     /// Cancels any running or pending cancellable sequence.
     /// Idempotent, has no effect if already cancelled or the chain is finished running.
-    pub fn cancel(&self) {
+    pub fn cancel(&self) -> &Self {
         let mut inner = self.0.borrow_mut();
         match inner.state {
             State::Cancellable => inner.state = State::Finalizing,
             State::Finalizing | State::Done => {}
         }
+        self
+    }
+
+    /// Sets a callback to be called when the chain finishes.
+    pub fn on_done(&self, f: impl 'static + FnOnce()) -> &Self {
+        let mut inner = self.0.borrow_mut();
+        match inner.state {
+            State::Cancellable | State::Finalizing => {},
+            State::Done => panic!("already done"),
+        }
+        assert!(inner.on_done.replace(Box::new(f)).is_none());
+        self
     }
 
     fn new() -> Self {
         Control(Rc::new(RefCell::new(Inner::new())))
+    }
+
+    fn done(&self) {
+        let on_done = {
+            let mut inner = self.0.borrow_mut();
+            inner.state = State::Done;
+            inner.on_done.take()
+        };
+        if let Some(on_done) = on_done {
+            on_done();
+        }
     }
 }
 
@@ -145,7 +172,7 @@ impl Sequence for Chain {
                         None => Result::Done,
                     };
                     match r {
-                        Result::Done => self.control.0.borrow_mut().state = State::Done,
+                        Result::Done => self.control.done(),
                         Result::Running(_) => break r,
                     }
                 }

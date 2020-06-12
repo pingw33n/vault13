@@ -666,11 +666,11 @@ impl GameState {
         let (move_seq, move_cancel) = Move::new(user, PathTo::Object(used), move_anim)
             .cancellable();
         usero.sequence = Some(move_cancel);
-        seq.control().push_cancellable(move_seq);
+        seq.control().cancellable(move_seq);
 
         let weapon = usero.fid.critter().unwrap().weapon();
         if weapon != WeaponKind::Unarmed {
-            seq.control().push_cancellable(FrameAnim::new(user,
+            seq.control().cancellable(FrameAnim::new(user,
                 FrameAnimOptions { anim: Some(CritterAnim::PutAway), ..Default::default() }));
         }
 
@@ -684,13 +684,13 @@ impl GameState {
             } else {
                 CritterAnim::MagicHandsMiddle
             };
-            seq.control().push_cancellable(FrameAnim::new(user,
+            seq.control().cancellable(FrameAnim::new(user,
                 FrameAnimOptions { anim: Some(use_anim), ..Default::default() }));
         }
 
-        seq.control().push_cancellable(PushEvent::new(sequence::Event::Use { user, used }));
+        seq.control().cancellable(PushEvent::new(sequence::Event::Use { user, used }));
         if weapon != WeaponKind::Unarmed {
-            seq.control().push_cancellable(FrameAnim::new(user,
+            seq.control().cancellable(FrameAnim::new(user,
                 FrameAnimOptions { anim: Some(CritterAnim::TakeOut), ..Default::default() }));
         }
 
@@ -974,7 +974,7 @@ impl GameState {
         } else {
             CritterAnim::Running
         };
-        seq.control().push_cancellable(Move::new(user, PathTo::Object(target), move_anim));
+        seq.control().cancellable(Move::new(user, PathTo::Object(target), move_anim));
 
         let use_anim = if targeto.is_critter_prone() {
             CritterAnim::MagicHandsGround
@@ -982,10 +982,10 @@ impl GameState {
             CritterAnim::MagicHandsMiddle
         };
         // FIXME must call check_next_to() before running this animation
-        seq.control().push_cancellable(FrameAnim::new(user,
+        seq.control().cancellable(FrameAnim::new(user,
             FrameAnimOptions { anim: Some(use_anim), ..Default::default() }));
 
-        seq.control().push_cancellable(
+        seq.control().cancellable(
             PushEvent::new(sequence::Event::UseSkill { skill, user, target }));
 
         let (seq, cancel) = seq.cancellable();

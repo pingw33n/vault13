@@ -118,7 +118,7 @@ impl<T: Enum<()>> Iterator for EnumIter<T> {
     }
 }
 
-#[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
 pub struct SmKey(slotmap::KeyData);
 

@@ -12,7 +12,6 @@ use crate::graphics::color::palette::overlay::PaletteOverlay;
 use crate::graphics::font::{self, FontKey, Fonts};
 use crate::graphics::lighting::light_map::{self, LightMap};
 use crate::graphics::{Point, Rect};
-use crate::util::SmKey;
 
 pub struct Backend {
     canvas: WindowCanvas,
@@ -71,9 +70,9 @@ impl Texture {
 }
 
 struct TexturesInner {
-    handles: SlotMap<SmKey, ()>,
-    textures: SecondaryMap<SmKey, Texture>,
-    drop_list: Rc<RefCell<Vec<SmKey>>>,
+    handles: SlotMap<Key, ()>,
+    textures: SecondaryMap<Key, Texture>,
+    drop_list: Rc<RefCell<Vec<Key>>>,
 }
 
 impl TexturesInner {
