@@ -122,9 +122,11 @@ impl ActionMenu {
         }
     }
 
-    fn update_selection(&mut self, base: &Base, pos: Point) {
-        let rel = pos - base.rect().top_left();
-        self.selection = clamp(rel.y / Action::ICON_HEIGHT, 0, self.actions.len() as i32 - 1) as u32;
+    fn update_selection(&mut self, base: &Base, mouse_pos: Point) {
+        let rel_y = mouse_pos.y - base.rect().top;
+        // Apply speed up to mouse movement.
+        let rel_y = (rel_y as f64 * 1.5) as i32;
+        self.selection = clamp(rel_y / Action::ICON_HEIGHT, 0, self.actions.len() as i32 - 1) as u32;
     }
 }
 
