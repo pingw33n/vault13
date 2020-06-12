@@ -611,7 +611,7 @@ impl GameState {
             for obj in world.objects().iter() {
                 world.objects().get_mut(obj).cancel_sequence();
             }
-            self.sequencer.cleanup(&mut sequence::Cleanup {
+            self.sequencer.sync(&mut sequence::Sync {
                 world,
             });
             let script = world.objects().get(talked).script;
@@ -1386,7 +1386,7 @@ impl AppState for GameState {
 
             self.fidget.update(self.time.time(), &mut self.world.borrow_mut(), &mut self.sequencer);
         } else {
-            self.sequencer.cleanup(&mut sequence::Cleanup {
+            self.sequencer.sync(&mut sequence::Sync {
                 world: &mut self.world.borrow_mut(),
             });
         }
