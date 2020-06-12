@@ -106,7 +106,6 @@ use std::time::Duration;
 
 use crate::game::object;
 use crate::game::script::{NewScripts, ScriptKind};
-use crate::util::SmKey;
 
 use instruction::{Instruction, instruction_map, Opcode};
 use stack::{Stack, StackId};
@@ -689,14 +688,15 @@ impl StackId for ReturnStackId {
     const VALUE: &'static str = "return";
 }
 
-/// Program state handle.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Handle(SmKey);
+new_handle_type! {
+    /// Program state handle.
+    pub struct Handle;
+}
 
 pub struct Vm {
     config: Rc<VmConfig>,
-    program_handles: SlotMap<SmKey, ()>,
-    program_states: SecondaryMap<SmKey, ProgramState>,
+    program_handles: SlotMap<Handle, ()>,
+    program_states: SecondaryMap<Handle, ProgramState>,
 }
 
 impl Vm {
@@ -714,9 +714,9 @@ impl Vm {
 
     pub fn insert(&mut self, program: Rc<Program>) -> Handle {
         let program_state = ProgramState::new(program);
-        let k = self.program_handles.insert(());
-        self.program_states.insert(k, program_state);
-        Handle(k)
+        let h = self.program_handles.insert(());
+        self.program_states.insert(h, program_state);
+        h
     }
 
     pub fn run(&mut self, program: Handle, ctx: &mut Context) -> Result<InvocationResult> {
@@ -724,12 +724,12 @@ impl Vm {
     }
 
     pub fn program_state(&self, handle: Handle) -> &ProgramState {
-         self.program_states.get(handle.0)
+         self.program_states.get(handle)
             .expect("invalid program handle")
     }
 
     pub fn program_state_mut(&mut self, handle: Handle) -> &mut ProgramState {
-         self.program_states.get_mut(handle.0)
+         self.program_states.get_mut(handle)
             .expect("invalid program handle")
     }
 }

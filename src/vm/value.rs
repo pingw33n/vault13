@@ -388,6 +388,7 @@ impl StringValue {
 
 #[cfg(test)]
 mod test {
+    use slotmap::Key;
     use super::*;
     use self::Value::*;
     use self::StringValue::*;

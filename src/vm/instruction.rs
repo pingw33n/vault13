@@ -9,7 +9,7 @@ use crate::game::object;
 use crate::sequence::chain::Chain;
 
 pub struct State {
-    pub sequences: HashMap<object::Handle, Chain>,
+    pub sequences: SecondaryMap<object::Handle, Chain>,
 
     /// Keeps the `script_overrides` flag state.
     /// It is cleared on each invocation of the program initialization code or a procedure.
@@ -19,7 +19,7 @@ pub struct State {
 impl State {
     pub fn new() -> Self {
         Self {
-            sequences: HashMap::new(),
+            sequences: Default::default(),
             script_overrides: false,
         }
     }

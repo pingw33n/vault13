@@ -21,7 +21,7 @@ use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::*;
 use crate::sequence::cancellable::Cancel;
-use crate::util::{EnumExt, SmKey, VecExt};
+use crate::util::{EnumExt, VecExt};
 use crate::util::array2d::Array2d;
 use crate::vm::PredefinedProc;
 
@@ -124,15 +124,8 @@ pub enum CantTalkSpatial {
     TooFar,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
-pub struct Handle(SmKey);
-
-impl Handle {
-    #[cfg(test)]
-    pub fn null() -> Self {
-        use slotmap::Key;
-        Handle(Key::null())
-    }
+new_handle_type! {
+    pub struct Handle;
 }
 
 #[derive(Debug)]
@@ -593,8 +586,8 @@ impl Object {
 pub struct Objects {
     tile_grid: TileGrid,
     frm_db: Rc<FrameDb>,
-    handles: SlotMap<SmKey, ()>,
-    objects: SecondaryMap<SmKey, RefCell<Object>>,
+    handles: SlotMap<Handle, ()>,
+    objects: SecondaryMap<Handle, RefCell<Object>>,
     // Objects attached to tile (Object::pos is Some).
     by_pos: Box<[Array2d<Vec<Handle>>]>,
     // Objects not attached to tile (Object::pos is None).
@@ -626,7 +619,7 @@ impl Objects {
     }
 
     pub fn contains(&self, obj: Handle) -> bool {
-        self.objects.contains_key(obj.0)
+        self.objects.contains_key(obj)
     }
 
     pub fn clear(&mut self) {
@@ -643,9 +636,8 @@ impl Objects {
     pub fn insert(&mut self, obj: Object) -> Handle {
         let pos = obj.pos;
 
-        let k = self.handles.insert(());
-        let h = Handle(k);
-        self.objects.insert(k, RefCell::new(obj));
+        let h = self.handles.insert(());
+        self.objects.insert(h, RefCell::new(obj));
 
         self.insert_into_tile_grid(h, pos, true);
 
@@ -653,9 +645,9 @@ impl Objects {
     }
 
     pub fn remove(&mut self, obj: Handle) -> Option<Object> {
-        self.handles.remove(obj.0)?;
+        self.handles.remove(obj)?;
         self.remove_from_tile_grid(obj);
-        let r = self.objects.remove(obj.0);
+        let r = self.objects.remove(obj);
         assert!(r.is_some());
         r.map(|r| r.into_inner())
     }
@@ -667,7 +659,7 @@ impl Objects {
     }
 
     pub fn get_ref(&self, h: Handle) -> &RefCell<Object> {
-        &self.objects[h.0]
+        &self.objects[h]
     }
 
     pub fn get(&self, h: Handle) -> Ref<Object> {
@@ -764,7 +756,7 @@ impl Objects {
 
     pub fn iter(&self) -> impl Iterator<Item=Handle> + '_ {
         // FIXME this should come from by_pos.
-        self.handles.keys().map(Handle)
+        self.handles.keys()
     }
 
     pub fn set_pos(&mut self, h: Handle, pos: EPoint) {

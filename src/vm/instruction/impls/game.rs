@@ -1073,11 +1073,13 @@ pub fn reg_anim_animate_forever(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.into_object()?;
     if let Some(obj) = obj {
         if !ctx.ext.has_running_sequence(obj) {
-            let chain = ctx.prg.instr_state.sequences.entry(obj)
-                .or_insert_with(|| Chain::new());
+            if !ctx.prg.instr_state.sequences.contains_key(obj) {
+                ctx.prg.instr_state.sequences.insert(obj, Chain::new());
+            }
+            let chain = ctx.prg.instr_state.sequences.get_mut(obj).unwrap();
             let seq = FrameAnim::new(obj,
                 FrameAnimOptions { anim: Some(critter_anim), wrap: true, ..Default::default() });
-            chain.control().push_cancellable(seq);
+            chain.control().cancellable(seq);
         } else {
             debug!("reg_anim_animate_forever: object {:?} already has running sequence", obj);
         }

@@ -9,7 +9,6 @@ use std::time::Instant;
 use crate::graphics::{Point, Rect};
 use crate::graphics::color::Rgb15;
 use crate::graphics::font::{self, FontKey, Fonts};
-use crate::util::SmKey;
 
 #[derive(Clone)]
 pub struct TextureHandle(Rc<TextureHandleInner>);
@@ -20,10 +19,14 @@ impl fmt::Debug for TextureHandle {
     }
 }
 
+new_handle_type! {
+    struct Key;
+}
+
 #[derive(Clone)]
 struct TextureHandleInner {
-    key: SmKey,
-    drop_list: Rc<RefCell<Vec<SmKey>>>,
+    key: Key,
+    drop_list: Rc<RefCell<Vec<Key>>>,
 }
 
 impl Drop for TextureHandleInner {

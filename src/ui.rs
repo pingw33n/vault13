@@ -22,7 +22,7 @@ use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::Sprite;
 use crate::ui::command::UiCommand;
-use crate::util::{SmKey, VecExt};
+use crate::util::VecExt;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
@@ -115,8 +115,9 @@ impl Cursor {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Ord, PartialOrd)]
-pub struct Handle(SmKey);
+new_handle_type! {
+    pub struct Handle;
+}
 
 pub struct HandleInput<'a> {
     pub now: Instant,
@@ -127,9 +128,9 @@ pub struct HandleInput<'a> {
 pub struct Ui {
     frm_db: Rc<FrameDb>,
     fonts: Rc<Fonts>,
-    widget_handles: SlotMap<SmKey, ()>,
-    widget_bases: SecondaryMap<SmKey, RefCell<Base>>,
-    widgets: SecondaryMap<SmKey, RefCell<Box<dyn Widget>>>,
+    widget_handles: SlotMap<Handle, ()>,
+    widget_bases: SecondaryMap<Handle, RefCell<Base>>,
+    widgets: SecondaryMap<Handle, RefCell<Box<dyn Widget>>>,
     windows_order: Vec<Handle>,
     cursor_pos: Point,
     cursor_constraints: Vec<Rect>,
@@ -187,7 +188,7 @@ impl Ui {
     }
 
     pub fn remove(&mut self, handle: Handle) -> bool {
-        let widg = if let Some(v) = self.widgets.remove(handle.0) {
+        let widg = if let Some(v) = self.widgets.remove(handle) {
             v
         } else {
             return false;
@@ -201,7 +202,7 @@ impl Ui {
         if self.keyboard_focus == Some(handle) {
             self.keyboard_focus = None;
         }
-        self.widget_bases.remove(handle.0);
+        self.widget_bases.remove(handle);
 
         let widg = widg.borrow();
         if let Some(win) = widg.downcast_ref::<Window>() {
@@ -211,7 +212,7 @@ impl Ui {
             }
         } else if let Some(win) = self.window_of(handle) {
             // Remove widget from its window.
-            let mut win = self.widgets[win.0].borrow_mut();
+            let mut win = self.widgets[win].borrow_mut();
             let win = win.downcast_mut::<Window>().unwrap();
             win.widgets.remove_first(&handle).unwrap();
         }
@@ -230,7 +231,7 @@ impl Ui {
         -> Handle
     {
         let rect = {
-            let win_base = self.widget_bases[window.0].borrow();
+            let win_base = self.widget_bases[window].borrow();
             let top_left = win_base.rect.top_left();
             rect.translate(top_left)
         };
@@ -247,11 +248,11 @@ impl Ui {
     }
 
     pub fn widget_base(&self, handle: Handle) -> &RefCell<Base> {
-        &self.widget_bases[handle.0]
+        &self.widget_bases[handle]
     }
 
     pub fn widget(&self, handle: Handle) -> &RefCell<Box<dyn Widget>> {
-        &self.widgets[handle.0]
+        &self.widgets[handle]
     }
 
     pub fn widget_ref<T: Widget>(&self, handle: Handle) -> Ref<T> {
@@ -316,7 +317,7 @@ impl Ui {
     }
 
     pub fn set_keyboard_focus(&mut self, widget: Option<Handle>) {
-        assert!(widget.is_none() || self.widgets.contains_key(widget.unwrap().0));
+        assert!(widget.is_none() || self.widgets.contains_key(widget.unwrap()));
         self.keyboard_focus = widget;
     }
 
@@ -340,10 +341,10 @@ impl Ui {
         event: Event,
         out: &mut Vec<command::UiCommand>)
     {
-        self.widgets[target.0].borrow_mut().handle_event(HandleEvent {
+        self.widgets[target].borrow_mut().handle_event(HandleEvent {
             now,
             this: target,
-            base: &mut self.widget_bases[target.0].borrow_mut(),
+            base: &mut self.widget_bases[target].borrow_mut(),
             event,
             capture: &mut self.capture,
             out,
@@ -404,7 +405,7 @@ impl Ui {
         // FIXME avoid copy/allocation
         let handles: Vec<_> = self.widgets.keys().collect();
         for h in handles {
-            self.widget_handle_event(now, Handle(h), Event::Tick, out);
+            self.widget_handle_event(now, h, Event::Tick, out);
         }
     }
 
@@ -419,11 +420,11 @@ impl Ui {
 
     pub fn render(&mut self, canvas: &mut dyn Canvas) {
         for &winh in &self.windows_order {
-            let mut win = self.widgets[winh.0].borrow_mut();
+            let mut win = self.widgets[winh].borrow_mut();
             let win = win.downcast_mut::<Window>().unwrap();
             let has_mouse_focus = self.mouse_focus.is_some() &&
                 win.widgets.contains(&self.mouse_focus.unwrap());
-            self.widget_bases[winh.0].borrow_mut().render(Render {
+            self.widget_bases[winh].borrow_mut().render(Render {
                 frm_db: &self.frm_db,
                 canvas,
                 base: None,
@@ -433,23 +434,23 @@ impl Ui {
             win.render(Render {
                 frm_db: &self.frm_db,
                 canvas,
-                base: Some(&self.widget_bases[winh.0].borrow()),
+                base: Some(&self.widget_bases[winh].borrow()),
                 cursor_pos: self.cursor_pos,
                 has_mouse_focus,
             });
             for &widgh in &win.widgets {
                 let has_mouse_focus = self.mouse_focus == Some(widgh);
-                self.widget_bases[widgh.0].borrow_mut().render(Render {
+                self.widget_bases[widgh].borrow_mut().render(Render {
                     frm_db: &self.frm_db,
                     canvas,
-                    base: Some(&self.widget_bases[winh.0].borrow()),
+                    base: Some(&self.widget_bases[winh].borrow()),
                     cursor_pos: self.cursor_pos,
                     has_mouse_focus,
                 });
-                self.widgets[widgh.0].borrow_mut().render(Render {
+                self.widgets[widgh].borrow_mut().render(Render {
                     frm_db: &self.frm_db,
                     canvas,
-                    base: Some(&self.widget_bases[widgh.0].borrow()),
+                    base: Some(&self.widget_bases[widgh].borrow()),
                     cursor_pos: self.cursor_pos,
                     has_mouse_focus,
                 });
@@ -467,7 +468,7 @@ impl Ui {
     fn effective_cursor(&self) -> Cursor {
         self.capture
             .or_else(|| self.widget_at(self.cursor_pos))
-            .and_then(|h| self.widget_bases[h.0].borrow().cursor)
+            .and_then(|h| self.widget_bases[h].borrow().cursor)
             .unwrap_or(self.cursor)
     }
 
@@ -486,12 +487,12 @@ impl Ui {
 
     fn widget_at(&self, point: Point) -> Option<Handle> {
         for &winh in self.windows_order.iter().rev() {
-            let win_base = self.widget_bases[winh.0].borrow();
+            let win_base = self.widget_bases[winh].borrow();
             if win_base.rect.contains(point) {
-                let mut win = self.widgets[winh.0].borrow_mut();
+                let mut win = self.widgets[winh].borrow_mut();
                 let win = win.downcast_mut::<Window>().unwrap();
                 for &widgh in win.widgets.iter().rev() {
-                    let widg_base = self.widget_bases[widgh.0].borrow();
+                    let widg_base = self.widget_bases[widgh].borrow();
                     if widg_base.rect.contains(point) {
                         return Some(widgh);
                     }
@@ -542,20 +543,18 @@ impl Ui {
     }
 
     fn insert_widget(&mut self, window: Option<Handle>, base: Base, widget: Box<dyn Widget>) -> Handle {
-        let k = self.widget_handles.insert(());
-        self.widget_bases.insert(k, RefCell::new(base));
-        self.widgets.insert(k, RefCell::new(widget));
-
-        let h = Handle(k);
+        let h = self.widget_handles.insert(());
+        self.widget_bases.insert(h, RefCell::new(base));
+        self.widgets.insert(h, RefCell::new(widget));
 
         if let Some(winh) = window {
-            let mut win = self.widgets[winh.0].borrow_mut();
+            let mut win = self.widgets[winh].borrow_mut();
             let win = win.downcast_mut::<Window>().unwrap();
             win.widgets.push(h);
         }
 
-        self.widgets[k].borrow_mut().init(Init {
-            base: &mut self.widget_bases[k].borrow_mut(),
+        self.widgets[h].borrow_mut().init(Init {
+            base: &mut self.widget_bases[h].borrow_mut(),
         });
 
         h
