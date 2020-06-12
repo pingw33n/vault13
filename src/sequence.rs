@@ -62,7 +62,7 @@ impl<T: Sequence + ?Sized> Sequence for Box<T> {
     }
 }
 
-pub struct Cleanup<'a> {
+pub struct Sync<'a> {
     pub world: &'a mut World,
 }
 
@@ -108,8 +108,8 @@ impl Sequencer {
         }
     }
 
-    /// Executes a no-advance update so the cancelled sequenced can get cleaned up.
-    pub fn cleanup(&mut self, ctx: &mut Cleanup) {
+    /// Executes a no-advance update so the effect of cancellation can be seen immediately.
+    pub fn sync(&mut self, ctx: &mut Sync) {
         let out = &mut Vec::new();
         self.update(&mut Update {
             time: self.last_time,
