@@ -22,6 +22,7 @@ use crate::game::dialog::Dialog;
 use crate::game::fidget::Fidget;
 use crate::game::object::{self, *};
 use crate::game::rpg::Rpg;
+use crate::game::sequence::ObjSequencer;
 use crate::game::sequence::frame_anim::{AnimDirection, FrameAnim, FrameAnimOptions};
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
@@ -35,7 +36,7 @@ use crate::game::world::{ScrollDirection, World};
 use crate::graphics::{EPoint, Rect};
 use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::{self, Direction};
-use crate::sequence::{self, *};
+use crate::sequence;
 use crate::sequence::event::PushEvent;
 use crate::sequence::chain::Chain;
 use crate::state::{self, *};
@@ -56,7 +57,7 @@ pub struct GameState {
     map_db: MapDb,
     world: Rc<RefCell<World>>,
     scripts: Scripts,
-    sequencer: Sequencer,
+    obj_sequencer: ObjSequencer,
     fidget: Fidget,
     message_panel: ui::Handle,
     world_view: ui::Handle,
@@ -107,7 +108,7 @@ impl GameState {
             now,
             fonts);
         let world = Rc::new(RefCell::new(world));
-        let sequencer = Sequencer::new(now);
+        let obj_sequencer = ObjSequencer::new(now);
         let fidget = Fidget::new(now);
 
         let world_view_rect = Rect::with_size(0, 0, 640, 379);
@@ -131,7 +132,7 @@ impl GameState {
             map_db,
             world,
             scripts,
-            sequencer,
+            obj_sequencer,
             fidget,
             message_panel,
             world_view,
@@ -182,7 +183,7 @@ impl GameState {
         if let Some(map_id) = self.map_id {
             let ctx = &mut script::Context {
                 world: &mut self.world.borrow_mut(),
-                sequencer: &mut self.sequencer,
+                obj_sequencer: &mut self.obj_sequencer,
                 dialog: &mut self.dialog,
                 message_panel: self.message_panel,
                 ui,
@@ -203,7 +204,7 @@ impl GameState {
         };
 
         self.scripts.reset();
-        self.sequencer.stop_all();
+        self.obj_sequencer.clear();
 
         // Reinsert the hex cursor. Needs `world` to be not borrowed.
         ui.widget_mut::<WorldView>(self.world_view).ensure_hex_cursor();
@@ -277,7 +278,7 @@ impl GameState {
         {
             let ctx = &mut script::Context {
                 world,
-                sequencer: &mut self.sequencer,
+                obj_sequencer: &mut self.obj_sequencer,
                 dialog: &mut self.dialog,
                 message_panel: self.message_panel,
                 ui,
@@ -320,11 +321,9 @@ impl GameState {
                 // TODO
             }
             Action::Rotate => {
+                self.obj_sequencer.cancel(obj);
                 let world = self.world.borrow_mut();
                 let mut obj = world.objects().get_mut(obj);
-                if let Some(signal) = obj.sequence.take() {
-                    signal.cancel();
-                }
                 obj.direction = obj.direction.rotate_cw();
             }
             Action::Talk => {
@@ -454,7 +453,7 @@ impl GameState {
             if let Some(r) = self.scripts.execute_predefined_proc(sid, PredefinedProc::LookAt,
                 &mut script::Context {
                     world: &mut self.world.borrow_mut(),
-                    sequencer: &mut self.sequencer,
+                    obj_sequencer: &mut self.obj_sequencer,
                     dialog: &mut self.dialog,
                     ui,
                     message_panel: self.message_panel,
@@ -519,7 +518,7 @@ impl GameState {
             if let Some(r) = self.scripts.execute_predefined_proc(sid, PredefinedProc::Description,
                 &mut script::Context {
                     world: &mut self.world.borrow_mut(),
-                    sequencer: &mut self.sequencer,
+                    obj_sequencer: &mut self.obj_sequencer,
                     dialog: &mut self.dialog,
                     ui,
                     message_panel: self.message_panel,
@@ -588,14 +587,12 @@ impl GameState {
             if objs.distance(talker, talked).unwrap() >= 9 || // TODO this value is different (12) in can_talk2()
                 objs.is_shot_blocked(talker, talked)
             {
-                // TODO original cancels only Walk/Run animation, is this important?
-                objs.get_mut(talker).cancel_sequence();
-
-                let (seq, cancel) = Move::new(talker, PathTo::Object(talked), CritterAnim::Running).cancellable();
-                objs.get_mut(talker).sequence = Some(cancel);
-                self.sequencer.start(seq
-                    .then(Stand::new(talker))
-                    .then(PushEvent::new(sequence::Event::Talk { talker, talked })));
+                let chain = Chain::new();
+                chain.control()
+                    .cancellable(Move::new(talker, PathTo::Object(talked), CritterAnim::Running))
+                    .finalizing(Stand::new(talker))
+                    .finalizing(PushEvent::new(sequence::Event::Talk { talker, talked }));
+                self.obj_sequencer.replace(talker, chain);
                 return;
             }
         }
@@ -607,11 +604,8 @@ impl GameState {
     fn talk(&mut self, talker: object::Handle, talked: object::Handle, ui: &mut Ui) {
         if self.world.borrow().objects().can_talk_now(talker, talked) {
             let world = &mut self.world.borrow_mut();
-            // TODO optimize this.
-            for obj in world.objects().iter() {
-                world.objects().get_mut(obj).cancel_sequence();
-            }
-            self.sequencer.sync(&mut sequence::Sync {
+            self.obj_sequencer.clear();
+            self.obj_sequencer.sync(&mut sequence::Sync {
                 world,
             });
             let script = world.objects().get(talked).script;
@@ -619,7 +613,7 @@ impl GameState {
                 match self.scripts.execute_predefined_proc(sid, PredefinedProc::Talk,
                     &mut script::Context {
                         world,
-                        sequencer: &mut self.sequencer,
+                        obj_sequencer: &mut self.obj_sequencer,
                         dialog: &mut self.dialog,
                         ui,
                         message_panel: self.message_panel,
@@ -644,7 +638,7 @@ impl GameState {
     fn action_use_obj(&mut self, user: object::Handle, used: object::Handle) {
         let world = self.world.borrow();
         let objs = world.objects();
-        let mut usero = objs.get_mut(user);
+        let usero = objs.get(user);
         let usedo = objs.get(used);
 
         let used_kind = usedo.proto().map(|p| p.kind()).unwrap();
@@ -655,18 +649,12 @@ impl GameState {
 
         let seq = Chain::new();
 
-        // TODO original cancels only Walk/Run animation for dude, is this important?
-        usero.cancel_sequence();
-
         let move_anim = if usero.distance(&usedo).unwrap() < 5 {
             CritterAnim::Walk
         } else {
             CritterAnim::Running
         };
-        let (move_seq, move_cancel) = Move::new(user, PathTo::Object(used), move_anim)
-            .cancellable();
-        usero.sequence = Some(move_cancel);
-        seq.control().cancellable(move_seq);
+        seq.control().cancellable(Move::new(user, PathTo::Object(used), move_anim));
 
         let weapon = usero.fid.critter().unwrap().weapon();
         if weapon != WeaponKind::Unarmed {
@@ -693,8 +681,9 @@ impl GameState {
             seq.control().cancellable(FrameAnim::new(user,
                 FrameAnimOptions { anim: Some(CritterAnim::TakeOut), ..Default::default() }));
         }
+        seq.control().finalizing(Stand::new(user));
 
-        self.sequencer.start(seq);
+        self.obj_sequencer.replace(user, seq);
     }
 
     // obj_use
@@ -731,7 +720,7 @@ impl GameState {
                 self.scripts.execute_predefined_proc(sid, PredefinedProc::Use,
                     &mut script::Context {
                         world,
-                        sequencer: &mut self.sequencer,
+                        obj_sequencer: &mut self.obj_sequencer,
                         dialog: &mut self.dialog,
                         ui,
                         message_panel: self.message_panel,
@@ -786,7 +775,7 @@ impl GameState {
             let script_overrides = self.scripts.execute_predefined_proc(sid, PredefinedProc::Use,
                 &mut script::Context {
                     world,
-                    sequencer: &mut self.sequencer,
+                    obj_sequencer: &mut self.obj_sequencer,
                     dialog: &mut self.dialog,
                     ui,
                     message_panel: self.message_panel,
@@ -816,13 +805,16 @@ impl GameState {
             true
         };
 
-        let seq = FrameAnim::new(door, FrameAnimOptions {
-            direction: if need_open { AnimDirection::Forward } else { AnimDirection::Backward },
-            skip: 1,
-            ..Default::default()
-        }).then(PushEvent::new(sequence::Event::SetDoorState { door, open: need_open }));
+        let seq = Chain::new();
+        seq.control()
+            .cancellable(FrameAnim::new(door, FrameAnimOptions {
+                direction: if need_open { AnimDirection::Forward } else { AnimDirection::Backward },
+                skip: 1,
+                ..Default::default()
+            }))
+            .finalizing(PushEvent::new(sequence::Event::SetDoorState { door, open: need_open }));
 
-        self.sequencer.start(seq);
+        self.obj_sequencer.replace(door, seq);
     }
 
     // set_door_open, set_door_closed, check_door_state
@@ -915,7 +907,7 @@ impl GameState {
             let ctx = &mut script::Context {
                 ui,
                 world,
-                sequencer: &mut self.sequencer,
+                obj_sequencer: &mut self.obj_sequencer,
                 dialog: &mut self.dialog,
                 message_panel: self.message_panel,
                 map_id: self.map_id.unwrap(),
@@ -941,7 +933,7 @@ impl GameState {
         let world = self.world.borrow();
         let objs = world.objects();
         let user = world.dude_obj().unwrap();
-        let mut usero = objs.get_mut(user);
+        let usero = objs.get(user);
         let targeto = objs.get(target);
 
         match skill {
@@ -965,8 +957,6 @@ impl GameState {
 
         // TODO handle party members
 
-        usero.cancel_sequence();
-
         let seq = Chain::new();
 
         let move_anim = if usero.distance(&targeto).unwrap() < 5 {
@@ -982,16 +972,13 @@ impl GameState {
             CritterAnim::MagicHandsMiddle
         };
         // FIXME must call check_next_to() before running this animation
-        seq.control().cancellable(FrameAnim::new(user,
-            FrameAnimOptions { anim: Some(use_anim), ..Default::default() }));
+        seq.control()
+            .cancellable(FrameAnim::new(user,
+                FrameAnimOptions { anim: Some(use_anim), ..Default::default() }))
+            .cancellable(PushEvent::new(sequence::Event::UseSkill { skill, user, target }))
+            .finalizing(Stand::new(user));
 
-        seq.control().cancellable(
-            PushEvent::new(sequence::Event::UseSkill { skill, user, target }));
-
-        let (seq, cancel) = seq.cancellable();
-        usero.sequence = Some(cancel);
-
-        self.sequencer.start(seq);
+        self.obj_sequencer.replace(user, seq);
     }
 
     // obj_use_skill_on
@@ -1018,7 +1005,7 @@ impl GameState {
                 self.scripts.execute_predefined_proc(sid, PredefinedProc::UseSkillOn,
                     &mut script::Context {
                         world,
-                        sequencer: &mut self.sequencer,
+                        obj_sequencer: &mut self.obj_sequencer,
                         dialog: &mut self.dialog,
                         ui,
                         message_panel: self.message_panel,
@@ -1236,23 +1223,22 @@ impl AppState for GameState {
             }
             UiCommandData::HexPick { action, pos } => {
                 if action {
-                    let world = self.world.borrow();
-                    let dude_objh = world.dude_obj().unwrap();
-                    if let Some(signal) = world.objects().get_mut(dude_objh).sequence.take() {
-                        signal.cancel();
-                    }
+                    let dude_objh = self.world.borrow().dude_obj().unwrap();
+
+                    let seq = Chain::new();
 
                     let anim = if self.shift_key_down {
                         CritterAnim::Walk
                     } else {
                         CritterAnim::Running
                     };
-                    let (seq, signal) = Move::new(dude_objh, PathTo::Point {
-                        point: pos.point,
-                        neighbor_if_blocked: true,
-                    }, anim).cancellable();
-                    world.objects().get_mut(dude_objh).sequence = Some(signal);
-                    self.sequencer.start(seq.then(Stand::new(dude_objh)));
+                    seq.control()
+                        .cancellable(Move::new(dude_objh, PathTo::Point {
+                            point: pos.point,
+                            neighbor_if_blocked: true,
+                        }, anim))
+                        .finalizing(Stand::new(dude_objh));
+                    self.obj_sequencer.replace(dude_objh, seq);
                 } else {
                     let mut wv = ui.widget_mut::<WorldView>(self.world_view);
                     let dude_obj = self.world.borrow().dude_obj().unwrap();
@@ -1292,7 +1278,7 @@ impl AppState for GameState {
                         &mut script::Context {
                             ui,
                             world,
-                            sequencer: &mut self.sequencer,
+                            obj_sequencer: &mut self.obj_sequencer,
                             dialog: &mut self.dialog,
                             message_panel: self.message_panel,
                             map_id: self.map_id.unwrap(),
@@ -1310,7 +1296,7 @@ impl AppState for GameState {
                     let ctx = &mut script::Context {
                         ui,
                         world: &mut self.world.borrow_mut(),
-                        sequencer: &mut self.sequencer,
+                        obj_sequencer: &mut self.obj_sequencer,
                         dialog: &mut self.dialog,
                         message_panel: self.message_panel,
                         map_id: self.map_id.unwrap(),
@@ -1372,7 +1358,7 @@ impl AppState for GameState {
                 {
                     let world = &mut self.world.borrow_mut();
                     assert!(self.seq_events.is_empty());
-                    self.sequencer.update(&mut sequence::Update {
+                    self.obj_sequencer.update(&mut sequence::Update {
                         time: self.time.time(),
                         world,
                         out: &mut self.seq_events,
@@ -1384,9 +1370,12 @@ impl AppState for GameState {
                 self.handle_seq_events(&mut ctx);
             }
 
-            self.fidget.update(self.time.time(), &mut self.world.borrow_mut(), &mut self.sequencer);
+            self.fidget.update(
+                self.time.time(),
+                &mut self.world.borrow_mut(),
+                &mut self.obj_sequencer);
         } else {
-            self.sequencer.sync(&mut sequence::Sync {
+            self.obj_sequencer.sync(&mut sequence::Sync {
                 world: &mut self.world.borrow_mut(),
             });
         }
