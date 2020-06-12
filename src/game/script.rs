@@ -80,9 +80,9 @@ impl SidInternal {
 /// created dynamically at runtime. Multiple different script instance IDs can refer to the same
 /// program.
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
-pub struct ScriptIId(SidInternal);
+pub struct ScriptIid(SidInternal);
 
-impl ScriptIId {
+impl ScriptIid {
     pub fn new(kind: ScriptKind, id: u32) -> Self {
         Self(SidInternal::new(kind, id))
     }
@@ -108,7 +108,7 @@ impl ScriptIId {
     }
 }
 
-impl fmt::Debug for ScriptIId {
+impl fmt::Debug for ScriptIid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ScriptIId({:?}, {})", self.kind(), self.id())
     }
@@ -116,9 +116,9 @@ impl fmt::Debug for ScriptIId {
 
 /// Script program ID is a unique identifier of a program source file, bundled with the script kind.
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
-pub struct ScriptPId(SidInternal);
+pub struct ScriptPid(SidInternal);
 
-impl ScriptPId {
+impl ScriptPid {
     pub fn new(kind: ScriptKind, program_id: ProgramId) -> Self {
         Self(SidInternal::new(kind, program_id.val()))
     }
@@ -144,7 +144,7 @@ impl ScriptPId {
     }
 }
 
-impl fmt::Debug for ScriptPId {
+impl fmt::Debug for ScriptPid {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "ScriptPId({:?}, {})", self.kind(), self.program_id().val())
     }
@@ -191,13 +191,13 @@ pub struct Script {
 /// Interface for instantiating new scripts from within a script context.
 /// The instantiation itself is deferred until the script procedure returns.
 pub struct NewScripts {
-    unused_sids: EnumMap<ScriptKind, ScriptIId>,
-    new_scripts: Vec<(ScriptIId, ProgramId)>,
+    unused_sids: EnumMap<ScriptKind, ScriptIid>,
+    new_scripts: Vec<(ScriptIid, ProgramId)>,
 }
 
 impl NewScripts {
     fn new(scripts: &Scripts) -> Self {
-        let mut unused_sids = EnumMap::from(|k| ScriptIId::new(k, 0));
+        let mut unused_sids = EnumMap::from(|k| ScriptIid::new(k, 0));
         for &sid in scripts.scripts.keys() {
             if sid.id() > unused_sids[sid.kind()].id() {
                 unused_sids[sid.kind()] = sid;
@@ -211,20 +211,20 @@ impl NewScripts {
     }
 
     #[must_use]
-    pub fn new_script(&mut self, kind: ScriptKind, prg_id: ProgramId) -> ScriptIId {
+    pub fn new_script(&mut self, kind: ScriptKind, prg_id: ProgramId) -> ScriptIid {
         let sid = self.unused_sid(kind);
         self.bump(kind);
         self.new_scripts.push((sid, prg_id));
         sid
     }
 
-    fn unused_sid(&self, kind: ScriptKind) -> ScriptIId {
+    fn unused_sid(&self, kind: ScriptKind) -> ScriptIid {
         self.unused_sids[kind]
     }
 
     fn bump(&mut self, kind: ScriptKind) {
         let cur = self.unused_sids[kind].id();
-        self.unused_sids[kind] = ScriptIId::new(kind, cur.checked_add(1).unwrap());
+        self.unused_sids[kind] = ScriptIid::new(kind, cur.checked_add(1).unwrap());
     }
 
     fn instantiate(self, scripts: &mut Scripts) {
@@ -239,10 +239,10 @@ pub struct Scripts {
     db: ScriptDb,
     vm: Vm,
     programs: HashMap<ProgramId, Rc<vm::Program>>,
-    scripts: HashMap<ScriptIId, Script>,
-    map_sid: Option<ScriptIId>,
+    scripts: HashMap<ScriptIid, Script>,
+    map_sid: Option<ScriptIid>,
     pub vars: Vars,
-    suspend_stack: Vec<ScriptIId>,
+    suspend_stack: Vec<ScriptIid>,
 }
 
 impl Scripts {
@@ -259,7 +259,7 @@ impl Scripts {
         }
     }
 
-    pub fn map_sid(&self) -> Option<ScriptIId> {
+    pub fn map_sid(&self) -> Option<ScriptIid> {
         self.map_sid
     }
 
@@ -272,7 +272,7 @@ impl Scripts {
     }
 
     pub fn instantiate(&mut self,
-        sid: ScriptIId,
+        sid: ScriptIid,
         program_id: ProgramId,
         local_vars: Option<Box<[i32]>>,
     ) -> io::Result<()> {
@@ -315,7 +315,7 @@ impl Scripts {
         Ok(())
     }
 
-    pub fn instantiate_map_script(&mut self, program_id: ProgramId) -> io::Result<ScriptIId> {
+    pub fn instantiate_map_script(&mut self, program_id: ProgramId) -> io::Result<ScriptIid> {
         assert!(self.map_sid.is_none());
         let sid = NewScripts::new(self).unused_sid(ScriptKind::System);
         self.instantiate(sid, program_id, None)?;
@@ -323,15 +323,15 @@ impl Scripts {
         Ok(sid)
     }
 
-    pub fn get(&self, sid: ScriptIId) -> Option<&Script> {
+    pub fn get(&self, sid: ScriptIid) -> Option<&Script> {
         self.scripts.get(&sid)
     }
 
-    pub fn attach_to_object(&mut self, sid: ScriptIId, obj: object::Handle) {
+    pub fn attach_to_object(&mut self, sid: ScriptIid, obj: object::Handle) {
         self.scripts.get_mut(&sid).unwrap().object = Some(obj);
     }
 
-    pub fn execute_proc(&mut self, sid: ScriptIId, proc_id: ProcedureId,
+    pub fn execute_proc(&mut self, sid: ScriptIid, proc_id: ProcedureId,
         ctx: &mut Context) -> InvocationResult
     {
         let (r, new_scripts) = {
@@ -372,7 +372,7 @@ impl Scripts {
     }
 
     #[must_use]
-    pub fn execute_proc_name(&mut self, sid: ScriptIId, proc: &Rc<BString>,
+    pub fn execute_proc_name(&mut self, sid: ScriptIid, proc: &Rc<BString>,
         ctx: &mut Context)-> Option<InvocationResult>
     {
         let script = self.scripts.get_mut(&sid).unwrap();
@@ -383,14 +383,14 @@ impl Scripts {
     }
 
     #[must_use]
-    pub fn has_predefined_proc(&self, sid: ScriptIId, proc: PredefinedProc) -> bool {
+    pub fn has_predefined_proc(&self, sid: ScriptIid, proc: PredefinedProc) -> bool {
         let script = self.scripts.get(&sid).unwrap();
         self.vm.program_state(script.program).program()
             .predefined_proc_id(proc)
             .is_some()
     }
 
-    pub fn execute_predefined_proc(&mut self, sid: ScriptIId, proc: PredefinedProc,
+    pub fn execute_predefined_proc(&mut self, sid: ScriptIid, proc: PredefinedProc,
         ctx: &mut Context) -> Option<InvocationResult>
     {
         let script = self.scripts.get_mut(&sid).unwrap();
@@ -401,7 +401,7 @@ impl Scripts {
     }
 
     pub fn execute_procs(&mut self, proc: PredefinedProc, ctx: &mut Context,
-        filter: impl Fn(ScriptIId) -> bool)
+        filter: impl Fn(ScriptIid) -> bool)
     {
         // TODO avoid allocation
         let sids: Vec<_> = self.scripts.keys().cloned().collect();

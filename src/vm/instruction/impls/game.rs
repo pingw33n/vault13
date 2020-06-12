@@ -12,7 +12,7 @@ use crate::asset::{ExactEntityKind, Flag, Perk, Skill, Stat, Trait};
 use crate::asset::proto::ProtoId;
 use crate::asset::script::ProgramId;
 use crate::game::dialog::Dialog;
-use crate::game::script::ScriptPId;
+use crate::game::script::ScriptPid;
 use crate::game::world::floating_text;
 use crate::graphics::{EPoint, Point};
 use crate::graphics::color::*;
@@ -224,7 +224,7 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
             assert_eq!(sid.kind(), kind);
             sid.program_id()
         }));
-        (fid, prg_id.map(|prg_id| ScriptPId::new(kind, prg_id)))
+        (fid, prg_id.map(|prg_id| ScriptPid::new(kind, prg_id)))
     };
 
     let pos = ctx.ext.world.hex_grid().from_linear_inv(tile_num);

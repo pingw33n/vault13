@@ -12,7 +12,7 @@ use crate::asset::*;
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::*;
 use crate::asset::script::ProgramId;
-use crate::game::script::{Scripts, ScriptIId};
+use crate::game::script::{Scripts, ScriptIid};
 use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::TileGridView;
 use crate::graphics::geometry::hex::{self, Direction, TileGrid};
@@ -141,7 +141,7 @@ pub struct Object {
     proto: Option<ProtoRef>,
     pub inventory: Inventory,
     pub outline: Option<Outline>,
-    pub script: Option<(ScriptIId, ProgramId)>,
+    pub script: Option<(ScriptIid, ProgramId)>,
     pub sub: SubObject,
 }
 

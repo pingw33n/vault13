@@ -14,7 +14,7 @@ use super::*;
 use crate::asset::EntityKind;
 use crate::asset::frame::FrameId;
 use crate::asset::message::MessageId;
-use crate::game::script::ScriptPId;
+use crate::game::script::ScriptPid;
 use crate::graphics::geometry::hex::TileGrid;
 use crate::util::{enum_iter, EnumIter};
 
@@ -36,7 +36,7 @@ pub struct Proto {
     pub light_intensity: i32,
     pub flags: BitFlags<Flag>,
     pub flags_ext: BitFlags<FlagExt>,
-    pub script: Option<ScriptPId>,
+    pub script: Option<ScriptPid>,
     pub sub: SubProto,
 }
 

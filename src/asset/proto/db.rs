@@ -12,7 +12,7 @@ use std::str;
 use super::*;
 use crate::asset::frame::*;
 use crate::asset::message::{MessageId, Messages};
-use crate::game::script::ScriptPId;
+use crate::game::script::ScriptPid;
 use crate::fs::FileSystem;
 
 pub struct ProtoDb {
@@ -129,7 +129,7 @@ impl ProtoDb {
             | EntityKind::Scenery
             | EntityKind::Wall
             => {
-                ScriptPId::read_opt(rd)?
+                ScriptPid::read_opt(rd)?
             }
             | EntityKind::SqrTile
             | EntityKind::Misc
