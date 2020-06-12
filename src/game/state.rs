@@ -653,7 +653,7 @@ impl GameState {
             return;
         }
 
-        let (mut seq, _) = Chain::oneshot();
+        let seq = Chain::new();
 
         // TODO original cancels only Walk/Run animation for dude, is this important?
         usero.cancel_sequence();
@@ -666,30 +666,31 @@ impl GameState {
         let (move_seq, move_cancel) = Move::new(user, PathTo::Object(used), move_anim)
             .cancellable();
         usero.sequence = Some(move_cancel);
-        seq.push(move_seq);
+        seq.control().push_cancellable(move_seq);
 
         let weapon = usero.fid.critter().unwrap().weapon();
         if weapon != WeaponKind::Unarmed {
-            seq.push(FrameAnim::new(user,
+            seq.control().push_cancellable(FrameAnim::new(user,
                 FrameAnimOptions { anim: Some(CritterAnim::PutAway), ..Default::default() }));
         }
 
         if used_kind != ExactEntityKind::Scenery(SceneryKind::Stairs) {
             // FIXME must call check_next_to() before running this animation
             let use_anim = if usedo.is_critter_prone() ||
-                usedo.kind() == EntityKind::Scenery && usedo.proto().unwrap().flags_ext.contains(FlagExt::Prone)
+                usedo.kind() == EntityKind::Scenery &&
+                    usedo.proto().unwrap().flags_ext.contains(FlagExt::Prone)
             {
                 CritterAnim::MagicHandsGround
             } else {
                 CritterAnim::MagicHandsMiddle
             };
-            seq.push(FrameAnim::new(user,
+            seq.control().push_cancellable(FrameAnim::new(user,
                 FrameAnimOptions { anim: Some(use_anim), ..Default::default() }));
         }
 
-        seq.push(PushEvent::new(sequence::Event::Use { user, used }));
+        seq.control().push_cancellable(PushEvent::new(sequence::Event::Use { user, used }));
         if weapon != WeaponKind::Unarmed {
-            seq.push(FrameAnim::new(user,
+            seq.control().push_cancellable(FrameAnim::new(user,
                 FrameAnimOptions { anim: Some(CritterAnim::TakeOut), ..Default::default() }));
         }
 
@@ -966,15 +967,14 @@ impl GameState {
 
         usero.cancel_sequence();
 
-        let (mut seq, _) = Chain::oneshot();
-
+        let seq = Chain::new();
 
         let move_anim = if usero.distance(&targeto).unwrap() < 5 {
             CritterAnim::Walk
         } else {
             CritterAnim::Running
         };
-        seq.push(Move::new(user, PathTo::Object(target), move_anim));
+        seq.control().push_cancellable(Move::new(user, PathTo::Object(target), move_anim));
 
         let use_anim = if targeto.is_critter_prone() {
             CritterAnim::MagicHandsGround
@@ -982,10 +982,11 @@ impl GameState {
             CritterAnim::MagicHandsMiddle
         };
         // FIXME must call check_next_to() before running this animation
-        seq.push(FrameAnim::new(user,
+        seq.control().push_cancellable(FrameAnim::new(user,
             FrameAnimOptions { anim: Some(use_anim), ..Default::default() }));
 
-        seq.push(PushEvent::new(sequence::Event::UseSkill { skill, user, target }));
+        seq.control().push_cancellable(
+            PushEvent::new(sequence::Event::UseSkill { skill, user, target }));
 
         let (seq, cancel) = seq.cancellable();
         usero.sequence = Some(cancel);
