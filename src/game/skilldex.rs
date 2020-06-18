@@ -57,7 +57,7 @@ pub enum Command {
 
 pub struct Skilldex {
     msgs: Messages,
-    ui: Option<SkilldexUi>,
+    window: Option<Handle>,
 }
 
 impl Skilldex {
@@ -65,12 +65,12 @@ impl Skilldex {
         let msgs = Messages::read_file(fs, language, "game/skilldex.msg").unwrap();
         Self {
             msgs,
-            ui: None,
+            window: None,
         }
     }
 
     pub fn is_visible(&self) -> bool {
-        self.ui.is_some()
+        self.window.is_some()
     }
 
     pub fn show(&mut self,
@@ -78,14 +78,13 @@ impl Skilldex {
         levels: EnumMap<Skill, i32>,
         target: Option<object::Handle>,
     ) {
-        assert!(self.ui.is_none());
-
-        let underlay = ui.new_window(Rect::with_size(0, 0, 640, 480), None);
+        assert!(self.window.is_none());
 
         let win_size = ui.frm_db().get(FrameId::SKILLDEX_WINDOW).unwrap().first().size();
         let window = ui.new_window(Rect::with_size(
             640 - win_size.x - 4, 379 - win_size.y - 6, win_size.x, win_size.y),
             Some(Sprite::new(FrameId::SKILLDEX_WINDOW)));
+        ui.set_modal_window(Some(window));
 
         let mut header = Panel::new();
         header.set_text(Some(panel::Text {
@@ -132,20 +131,11 @@ impl Skilldex {
         cancel.set_text(Some(text));
         ui.new_widget(window, Rect::with_size(48, 338, 90, btn_size.y), None, None, cancel);
 
-        self.ui = Some(SkilldexUi {
-            underlay,
-            window,
-        });
+        self.window = Some(window);
     }
 
     pub fn hide(&mut self, ui: &mut Ui) {
-        let the_ui = self.ui.take().unwrap();
-        ui.remove(the_ui.underlay);
-        ui.remove(the_ui.window);
+        let window = self.window.take().unwrap();
+        ui.remove(window);
     }
-}
-
-struct SkilldexUi {
-    underlay: Handle,
-    window: Handle,
 }

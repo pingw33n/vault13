@@ -142,6 +142,7 @@ pub struct Ui {
     simulate_mouse_move: bool,
     mouse_focus: Option<Handle>,
     keyboard_focus: Option<Handle>,
+    modal_window: Option<Handle>,
 }
 
 impl Ui {
@@ -161,6 +162,7 @@ impl Ui {
             simulate_mouse_move: false,
             mouse_focus: None,
             keyboard_focus: None,
+            modal_window: None,
         }
     }
 
@@ -201,6 +203,9 @@ impl Ui {
         }
         if self.keyboard_focus == Some(handle) {
             self.keyboard_focus = None;
+        }
+        if self.modal_window == Some(handle) {
+            self.modal_window = None;
         }
         self.widget_bases.remove(handle);
 
@@ -333,6 +338,17 @@ impl Ui {
     /// Removes constraint set by `set_cursor_constraint()`.
     pub fn clear_cursor_constraint(&mut self) {
         self.cursor_constraints.truncate(1);
+    }
+
+    pub fn is_window(&self, handle: Handle) -> bool {
+        self.widget(handle).borrow().downcast_ref::<Window>().is_some()
+    }
+
+    pub fn set_modal_window(&mut self, win: Option<Handle>) {
+        if let Some(win) = win {
+            assert!(self.is_window(win));
+        }
+        self.modal_window = win;
     }
 
     fn widget_handle_event(&mut self,
@@ -498,6 +514,9 @@ impl Ui {
                     }
                 }
                 return Some(winh);
+            }
+            if Some(winh) == self.modal_window {
+                break;
             }
         }
         None
