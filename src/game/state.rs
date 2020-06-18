@@ -262,8 +262,6 @@ impl GameState {
 
         world.make_object_standing(dude_obj);
 
-        world.camera_mut().look_at(map.entrance.point);
-
         {
             assert!(!map.savegame);
             let path = format!("maps/{}.gam", map_name);
@@ -300,6 +298,8 @@ impl GameState {
             self.scripts.execute_map_procs(PredefinedProc::MapEnter, ctx);
             self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
         }
+
+        world.camera_look_at_dude();
     }
 
     fn handle_action(
@@ -918,6 +918,7 @@ impl GameState {
             };
             self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
         }
+        world.camera_look_at_dude();
     }
 
     fn show_skilldex(&mut self, ui: &mut Ui, target: Option<object::Handle>) {
@@ -1086,6 +1087,8 @@ impl GameState {
 impl AppState for GameState {
     fn handle_app_event(&mut self, ctx: HandleAppEvent) {
         match ctx.event {
+            // map_check_state
+            // TODO handle special map ids: 19, 37
             AppEvent::MapExit { map, pos, direction } => {
                 match map {
                     TargetMap::CurrentMap => {

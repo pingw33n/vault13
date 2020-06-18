@@ -515,6 +515,11 @@ impl World {
         scrolled
     }
 
+    pub fn camera_look_at_dude(&mut self) {
+        let p = self.objects.get(self.dude_obj.unwrap()).pos.unwrap().point;
+        self.camera.look_at(p);
+    }
+
     fn update_light_grid(objects: &Objects, light_grid: &mut LightGrid, h: object::Handle,
             factor: i32) {
         let obj = objects.get(h);
