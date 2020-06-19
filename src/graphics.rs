@@ -262,7 +262,7 @@ impl Rect {
             p.y >= self.top && p.y < self.bottom
     }
 
-    pub fn intersects(&self, other: Rect) -> bool {
+    pub fn intersects(&self, other: Self) -> bool {
         self.left < other.right &&
             self.right > other.left &&
             self.top < other.bottom &&
@@ -287,6 +287,20 @@ impl Rect {
 
     pub fn center(&self) -> Point {
         Point::new(self.left + self.width() / 2, self.top + self.height() / 2)
+    }
+
+    /// Scales and translates this non-empty rect so it's contained with the `other` non-empty rect.
+    /// Scaling preserves the aspect ratio of this rect.
+    pub fn fit(&self, mut other: Self) -> Self {
+        assert!(!self.is_empty() && !other.is_empty());
+        let this_ar = self.width() as f64 / self.height() as f64;
+        let other_ar = other.width() as f64 / other.height() as f64;
+        if this_ar >= other_ar {
+            other.bottom = other.top + (other.width() as f64 / this_ar) as i32;
+        } else {
+            other.right = other.left + (other.height() as f64 * this_ar) as i32;
+        }
+        other
     }
 }
 

@@ -35,7 +35,7 @@ use crate::asset::palette::read_palette;
 use crate::asset::proto::ProtoDb;
 use crate::game::state::GameState;
 use crate::game::ui::world::WorldView;
-use crate::graphics::{EPoint, Point};
+use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::color::{BLACK, GREEN};
 use crate::graphics::color::palette::overlay::PaletteOverlay;
 use crate::graphics::font::{self, FontKey};
@@ -271,7 +271,7 @@ fn main() {
         fs,
         language,
         proto_db,
-        frm_db,
+        frm_db.clone(),
         fonts,
         misc_msgs,
         start,
@@ -382,6 +382,12 @@ fn main() {
                     outline: Some(graphics::render::Outline::Fixed { color: BLACK, trans_color: None }),
                     .. Default::default()
                 });
+
+            {
+                let f = frm_db.get(FrameId::from_packed(0x700000d).unwrap()).unwrap();
+                let f = f.first();
+                canvas.draw_scaled(&f.texture, Rect::with_size(0, 0, f.width, f.height).fit(Rect::with_size(100, 100, 56, 40)));
+            }
         }
 
         canvas.present();

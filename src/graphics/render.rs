@@ -99,4 +99,6 @@ pub trait Canvas {
     fn draw_outline(&mut self, tex: &TextureHandle, pos: Point, outline: Outline);
     fn draw_text(&mut self, text: &bstr, pos: Point, font: FontKey, color: Rgb15,
         options: &font::DrawOptions);
+
+    fn draw_scaled(&mut self, src: &TextureHandle, dst: Rect);
 }
