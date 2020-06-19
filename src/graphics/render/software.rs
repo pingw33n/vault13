@@ -502,4 +502,35 @@ impl Canvas for CanvasImpl {
         let fonts = self.fonts.clone();
         fonts.get(font).draw(self, text, pos, color, options);
     }
+
+    fn draw_scaled(&mut self, src: &TextureHandle, dst: Rect) {
+        let src = self.textures.get(src);
+
+        let clipped = dst.intersect(self.clip_rect);
+
+        if clipped.is_empty() {
+            return;
+        }
+
+        let dst_buf = &mut self.back_buf.data[(dst.top * self.back_buf.width + dst.left) as usize..];
+
+        let wf = (src.width << 16) / dst.width();
+        let hf = (src.height << 16) / dst.height();
+        for dst_y in (clipped.top - dst.top)..(clipped.bottom - dst.top) {
+            let src_y = (hf * dst_y) >> 16;
+            for (dst_x, dst) in dst_buf[(self.back_buf.width * dst_y) as usize..]
+                .iter_mut()
+                .skip((clipped.left - dst.left) as usize)
+                .take((clipped.right - dst.left) as usize)
+                .enumerate()
+            {
+                let src_x = (wf * dst_x as i32) >> 16;
+                let src_i = src_y * src.width + src_x;
+                let src = src.data[src_i as usize];
+                if src != 0 {
+                    *dst = src;
+                }
+            }
+        }
+    }
 }
