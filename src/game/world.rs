@@ -63,6 +63,8 @@ impl ScrollDirection {
     }
 }
 
+pub type WorldRef = std::rc::Rc<std::cell::RefCell<World>>;
+
 pub struct World {
     proto_db: Rc<ProtoDb>,
     frm_db: Rc<FrameDb>,

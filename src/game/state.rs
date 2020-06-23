@@ -32,7 +32,7 @@ use crate::game::ui::action_menu::{self, Action};
 use crate::game::ui::hud;
 use crate::game::ui::scroll_area::ScrollArea;
 use crate::game::ui::world::{HexCursorStyle, WorldView};
-use crate::game::world::{ScrollDirection, World};
+use crate::game::world::{ScrollDirection, World, WorldRef};
 use crate::graphics::{EPoint, Rect};
 use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::{self, Direction};
@@ -55,7 +55,7 @@ pub struct GameState {
     proto_db: Rc<ProtoDb>,
     frm_db: Rc<FrameDb>,
     map_db: MapDb,
-    world: Rc<RefCell<World>>,
+    world: WorldRef,
     scripts: Scripts,
     obj_sequencer: ObjSequencer,
     fidget: Fidget,
