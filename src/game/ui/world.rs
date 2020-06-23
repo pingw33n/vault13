@@ -1,11 +1,9 @@
 use matches::matches;
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
 use crate::asset::Flag;
 use crate::asset::frame::FrameId;
-use crate::game::world::World;
+use crate::game::world::{World, WorldRef};
 use crate::game::object::{self, Object, SubObject};
 use crate::graphics::{EPoint, Point};
 use crate::graphics::color;
@@ -47,7 +45,7 @@ enum PickState {
 }
 
 pub struct WorldView {
-    world: Rc<RefCell<World>>,
+    world: WorldRef,
     pick_mode: PickMode,
     saved_pick_mode: Option<PickMode>,
     hex_cursor: object::Handle,
@@ -61,7 +59,7 @@ pub struct WorldView {
 }
 
 impl WorldView {
-    pub fn new(world: Rc<RefCell<World>>) -> Self {
+    pub fn new(world: WorldRef) -> Self {
         let hex_cursor = Self::insert_hex_cursor(&mut world.borrow_mut());
 
         Self {
