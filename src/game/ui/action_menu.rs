@@ -12,8 +12,7 @@ pub fn show(actions: Vec<Action>, win: Handle, ui: &mut Ui) -> Handle {
     assert!(!actions.is_empty());
 
     let (placement, saved_cursor) = {
-        let win_base = ui.widget_base(win);
-        let mut win_base = win_base.borrow_mut();
+        let mut win_base = ui.widget_base_mut(win);
         let saved_cursor = win_base.cursor();
         let placement = Placement::new(actions.len() as u32, ui.cursor_pos(), win_base.rect());
         win_base.set_cursor(Some(placement.cursor));
@@ -107,7 +106,7 @@ impl Action {
     }
 }
 
-pub struct ActionMenu {
+struct ActionMenu {
     actions: Vec<Action>,
     selection: u32,
     saved_cursor: Option<Cursor>,
