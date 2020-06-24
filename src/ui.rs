@@ -44,7 +44,7 @@ pub enum Event {
     Tick,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Cursor {
     ActionArrow,
     ActionArrowFlipped,
@@ -71,6 +71,8 @@ pub enum Cursor {
     ScrollNorthWestX,
 
     Hidden,
+
+    Frame(FrameId),
 }
 
 impl Cursor {
@@ -102,16 +104,21 @@ impl Cursor {
             ScrollNorthWestX => FrameId::SCRNWX,
 
             Hidden => FrameId::BLANK,
+            Frame(v) => v,
         }
     }
 
-    fn offset(self) -> Point {
+    fn placement(self, frm_db: &FrameDb) -> (Point, bool) {
         use Cursor::*;
-        match self {
+        let offset = match self {
             // ACTARROM is not properly centered.
             ActionArrowFlipped => (-14, 22),
+            Frame(fid) => {
+                return (-frm_db.get(fid).unwrap().first().size() / 2, false);
+            }
             _ => (0, 0)
-        }.into()
+        }.into();
+        (offset, true)
     }
 }
 
@@ -490,9 +497,10 @@ impl Ui {
 
     fn draw_cursor(&self, cursor: Cursor, pos: Point, canvas: &mut dyn Canvas) {
         let fid = cursor.fid();
+        let (offset, centered) = cursor.placement(&self.frm_db);
         Sprite {
-            pos: pos + cursor.offset(),
-            centered: true,
+            pos: pos + offset,
+            centered,
             fid,
             frame_idx: 0,
             direction: Direction::NE,
