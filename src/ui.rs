@@ -259,8 +259,12 @@ impl Ui {
         h
     }
 
-    pub fn widget_base(&self, handle: Handle) -> &RefCell<Base> {
-        &self.widget_bases[handle]
+    pub fn widget_base_ref(&self, handle: Handle) -> Ref<Base> {
+        self.widget_bases[handle].borrow()
+    }
+
+    pub fn widget_base_mut(&self, handle: Handle) -> RefMut<Base> {
+        self.widget_bases[handle].borrow_mut()
     }
 
     pub fn widget(&self, handle: Handle) -> &RefCell<Box<dyn Widget>> {
@@ -489,10 +493,19 @@ impl Ui {
     }
 
     fn effective_cursor(&self) -> Cursor {
-        self.capture
-            .or_else(|| self.widget_at(self.cursor_pos))
-            .and_then(|h| self.widget_bases[h].borrow().cursor)
-            .unwrap_or(self.cursor)
+        let widg_cursor = |h| self.widget_bases[h].borrow().cursor;
+        if let Some(v) = self.capture.and_then(widg_cursor) {
+            return v;
+        }
+        if let Some(v) = self.widget_at(self.cursor_pos)
+            .and_then(|(widg, win)| widg_cursor(widg).or_else(|| widg_cursor(win)))
+        {
+            return v;
+        }
+        if let Some(v) = self.modal_window.and_then(widg_cursor) {
+            return v;
+        }
+        self.cursor
     }
 
     fn draw_cursor(&self, cursor: Cursor, pos: Point, canvas: &mut dyn Canvas) {
@@ -509,7 +522,7 @@ impl Ui {
         }.render(canvas, &self.frm_db);
     }
 
-    fn widget_at(&self, point: Point) -> Option<Handle> {
+    fn widget_at(&self, point: Point) -> Option<(Handle, Handle)> {
         for &winh in self.windows_order.iter().rev() {
             let win_base = self.widget_bases[winh].borrow();
             if win_base.rect.contains(point) {
@@ -518,10 +531,10 @@ impl Ui {
                 for &widgh in win.widgets.iter().rev() {
                     let widg_base = self.widget_bases[widgh].borrow();
                     if widg_base.rect.contains(point) {
-                        return Some(widgh);
+                        return Some((widgh, winh));
                     }
                 }
-                return Some(winh);
+                return Some((winh, winh));
             }
             if Some(winh) == self.modal_window {
                 break;
@@ -534,7 +547,7 @@ impl Ui {
         if self.capture.is_some() {
             self.capture
         } else {
-            self.widget_at(self.cursor_pos)
+            self.widget_at(self.cursor_pos).map(|(widg, _)| widg)
         }
     }
 
