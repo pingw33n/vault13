@@ -378,7 +378,7 @@ impl GameState {
         std::mem::replace(&mut self.seq_events, events);
     }
 
-    fn actions(&self, objh: object::Handle) -> Vec<Action> {
+    fn actions(&self, objh: object::Handle) -> Vec<(Action, UiCommandData)> {
         let mut r = Vec::new();
         let world = self.world.borrow();
         let obj = world.objects().get(objh);
@@ -428,7 +428,9 @@ impl GameState {
         if !r.is_empty() {
             r.push(Action::Cancel)
         }
-        r
+        r.iter()
+            .map(|&action| (action, UiCommandData::Action { action }))
+            .collect()
     }
 
     fn look_at_object(&mut self, looker: object::Handle, looked: object::Handle, ui: &mut Ui)
@@ -1184,7 +1186,7 @@ impl AppState for GameState {
         match command.data {
             UiCommandData::ObjectPick { kind, obj: objh } => {
                 let actions = self.actions(objh);
-                let default_action = actions.first().cloned();
+                let default_action = actions.first().map(|&(a, _)| a);
                 match kind {
                     ObjectPickKind::Hover => {
                         // TODO highlight item on Action::UseHand: gmouse_bk_process()
