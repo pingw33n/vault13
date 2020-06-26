@@ -238,12 +238,14 @@ impl Object {
     }
 
     // critter_is_dead()
+    #[must_use]
     pub fn is_critter_dead(&self) -> bool {
         // FIXME
         false
     }
 
     // critter_is_prone()
+    #[must_use]
     pub fn is_critter_prone(&self) -> bool {
         if let Some(critter) = self.sub.as_critter() {
             critter.combat.damage_flags.contains(DamageFlag::KnockedDown | DamageFlag::KnockedOut)
@@ -369,6 +371,7 @@ impl Object {
     }
 
     // item_get_type
+    #[must_use]
     pub fn item_kind(&self) -> Option<ItemKind> {
         let proto = self.proto()?;
         Some(if proto.id() == ProtoId::SHIV {
@@ -379,6 +382,7 @@ impl Object {
     }
 
     // item_weight
+    #[must_use]
     pub fn item_weight(&self, objects: &Objects) -> Option<u32> {
         let proto = self.proto()?;
         let item = proto.sub.as_item()?;
@@ -419,22 +423,26 @@ impl Object {
     }
 
     // inven_left_hand
+    #[must_use]
     pub fn in_left_hand(&self, objects: &Objects) -> Option<Handle> {
         self.find_inventory_item(objects, |o| o.flags.contains(Flag::LeftHand))
     }
 
     // inven_right_hand
+    #[must_use]
     pub fn in_right_hand(&self, objects: &Objects) -> Option<Handle> {
         self.find_inventory_item(objects, |o| o.flags.contains(Flag::RightHand))
     }
 
     // inven_worn
+    #[must_use]
     pub fn wearing(&self, objects: &Objects) -> Option<Handle> {
         self.find_inventory_item(objects, |o| o.flags.contains(Flag::Worn))
     }
 
     /// Whether this object can be talked to.
     // obj_action_can_talk_to()
+    #[must_use]
     pub fn can_talk_to(&self) -> bool {
         if_chain! {
             if let SubObject::Critter(c) = &self.sub;
@@ -449,6 +457,7 @@ impl Object {
     }
 
     // obj_action_can_use()
+    #[must_use]
     pub fn can_use(&self) -> bool {
         if let Some(proto) = self.proto() {
             match proto.id() {
@@ -458,6 +467,22 @@ impl Object {
                 => false,
                 _ => proto.can_use(),
             }
+        } else {
+            false
+        }
+    }
+
+    // item_w_can_unload
+    #[must_use]
+    pub fn is_unloadable_weapon(&self) -> bool {
+        if self.item_kind() != Some(ItemKind::Weapon)
+            // This doesn't seem to be necessary as the Switchblade proto has ammo_proto_id == None
+            // || self.proto_id().unwrap() == ProtoId::from_packed(319).unwrap()
+        {
+            return false;
+        }
+        if let Some(weapon) = self.proto().unwrap().sub.as_item().and_then(|i| i.sub.as_weapon()) {
+            weapon.max_ammo_count > 0 && weapon.ammo_proto_id.is_some()
         } else {
             false
         }
@@ -996,6 +1021,7 @@ impl Objects {
     /// 1. There's a path between them which is not sight-blocked (see `sight_blocker_for_object()`).
     /// 2. Screen distance between objects is within the limit.
     // action_can_talk_to()
+    #[must_use]
     pub fn can_talk(&self, obj1: Handle, obj2: Handle) -> Result<(), CantTalkSpatial> {
         let o1 = self.get(obj1);
         let o2 = self.get(obj2);
@@ -1029,11 +1055,13 @@ impl Objects {
     }
 
     // can_talk_to
+    #[must_use]
     pub fn can_talk_now(&self, obj1: Handle, obj2: Handle) -> bool {
         self.distance(obj1, obj2).unwrap() < 9 && !self.is_shot_blocked(obj1, obj2)
     }
 
     // action_can_be_pushed()
+    #[must_use]
     pub fn can_push(&self, pusher: Handle, pushed: Handle, scripts: &Scripts,
         in_combat: bool) -> bool
     {
