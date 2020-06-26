@@ -8,7 +8,7 @@ use crate::graphics::sprite::Sprite;
 use crate::ui::*;
 use crate::ui::command::UiCommandData;
 
-pub fn show(actions: Vec<Action>, win: Handle, ui: &mut Ui) -> Handle {
+pub fn show(actions: Vec<(Action, UiCommandData)>, win: Handle, ui: &mut Ui) -> Handle {
     assert!(!actions.is_empty());
 
     let (placement, saved_cursor) = {
@@ -107,13 +107,13 @@ impl Action {
 }
 
 struct ActionMenu {
-    actions: Vec<Action>,
+    actions: Vec<(Action, UiCommandData)>,
     selection: u32,
     saved_cursor: Option<Cursor>,
 }
 
 impl ActionMenu {
-    fn new(actions: Vec<Action>, saved_cursor: Option<Cursor>) -> Self {
+    fn new(actions: Vec<(Action, UiCommandData)>, saved_cursor: Option<Cursor>) -> Self {
         Self {
             actions,
             selection: 0,
@@ -138,7 +138,7 @@ impl Widget for ActionMenu {
             },
             Event::MouseUp { pos, .. } => {
                 self.update_selection(ctx.base, pos);
-                ctx.out(UiCommandData::Action { action: self.actions[self.selection as usize] });
+                ctx.out(self.actions[self.selection as usize].1.clone());
             }
             _ => {}
         }
@@ -146,7 +146,7 @@ impl Widget for ActionMenu {
 
     fn render(&mut self, ctx: Render) {
         let mut pos = ctx.base.unwrap().rect().top_left();
-        for (i, &icon) in self.actions.iter().enumerate() {
+        for (i, icon) in self.actions.iter().map(|&(a, _)| a).enumerate() {
             let (normal, highl) = icon.icons();
             let fid = if i as u32 == self.selection {
                 highl
