@@ -433,6 +433,36 @@ impl Object {
         self.find_inventory_item(objects, |o| o.flags.contains(Flag::Worn))
     }
 
+    /// Whether this object can be talked to.
+    // obj_action_can_talk_to()
+    pub fn can_talk_to(&self) -> bool {
+        if_chain! {
+            if let SubObject::Critter(c) = &self.sub;
+            if c.is_active();
+            if let Some(proto) = self.proto();
+            then {
+                proto.can_talk_to()
+            } else {
+                false
+            }
+        }
+    }
+
+    // obj_action_can_use()
+    pub fn can_use(&self) -> bool {
+        if let Some(proto) = self.proto() {
+            match proto.id() {
+                | ProtoId::ACTIVE_DYNAMITE
+                | ProtoId::ACTIVE_FLARE
+                | ProtoId::ACTIVE_PLASTIC_EXPLOSIVE
+                => false,
+                _ => proto.can_use(),
+            }
+        } else {
+            false
+        }
+    }
+
     fn find_inventory_item(&self, objects: &Objects, f: impl Fn(&Object) -> bool) -> Option<Handle> {
         self.inventory.items.iter()
             .map(|i| i.object)
@@ -1001,38 +1031,6 @@ impl Objects {
     // can_talk_to
     pub fn can_talk_now(&self, obj1: Handle, obj2: Handle) -> bool {
         self.distance(obj1, obj2).unwrap() < 9 && !self.is_shot_blocked(obj1, obj2)
-    }
-
-    /// Whether `obj` can be talked to.
-    // obj_action_can_talk_to()
-    pub fn can_talk_to(&self, obj: Handle) -> bool {
-        let obj = self.get(obj);
-        if_chain! {
-            if let SubObject::Critter(c) = &obj.sub;
-            if c.is_active();
-            if let Some(proto) = obj.proto.as_ref();
-            then {
-                proto.borrow().can_talk_to()
-            } else {
-                false
-            }
-        }
-    }
-
-    // obj_action_can_use()
-    pub fn can_use(&self, obj: Handle) -> bool {
-        if let Some(proto) = self.get(obj).proto.as_ref() {
-            let proto = proto.borrow();
-            match proto.id() {
-                | ProtoId::ACTIVE_DYNAMITE
-                | ProtoId::ACTIVE_FLARE
-                | ProtoId::ACTIVE_PLASTIC_EXPLOSIVE
-                => false,
-                _ => proto.can_use(),
-            }
-        } else {
-            false
-        }
     }
 
     // action_can_be_pushed()

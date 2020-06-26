@@ -387,7 +387,7 @@ impl GameState {
                 if Some(objh) == world.dude_obj() {
                     r.push(Action::Rotate);
                 } else {
-                    if world.objects().can_talk_to(objh) {
+                    if world.objects().get(objh).can_talk_to() {
                         if !self.in_combat {
                             r.push(Action::Talk);
                         }
@@ -412,14 +412,14 @@ impl GameState {
                 }
             }
             EntityKind::Scenery => {
-                if world.objects().can_use(objh) {
+                if world.objects().get(objh).can_use() {
                     r.push(Action::UseHand)
                 }
                 r.extend_from_slice(&[Action::Look, Action::Inventory, Action::UseSkill])
             }
             EntityKind::Wall => {
                 r.push(Action::Look);
-                if world.objects().can_use(objh) {
+                if world.objects().get(objh).can_use() {
                     r.push(Action::UseHand)
                 }
             }
