@@ -79,7 +79,6 @@ pub struct World {
     update_time: Instant,
     fonts: Rc<Fonts>,
 
-    pub dude_name: BString,
     pub game_time: GameTime,
     pub ambient_light: u32,
 }
@@ -115,7 +114,6 @@ impl World {
             dude_obj: None,
             update_time,
             fonts,
-            dude_name: BString::new(),
             game_time: START_GAME_TIME,
             ambient_light: 0x10000,
         }
@@ -319,10 +317,6 @@ impl World {
         Some(self.objects_mut().remove(h).unwrap())
     }
 
-    pub fn set_dude_name(&mut self, dude_name: BString) {
-        self.dude_name = dude_name;
-    }
-
     pub fn elevation(&self) -> u32 {
         self.objects.get(self.dude_obj.expect("no dude_obj"))
             .pos.expect("dude_obj has no pos")
@@ -398,19 +392,17 @@ impl World {
 
     // object_name()
     pub fn object_name(&self, obj: object::Handle) -> Option<BString> {
-        if Some(obj) == self.dude_obj {
-            Some(self.dude_name.clone())
-        } else {
-            let obj = self.objects.get(obj);
-            if_chain! {
-                if obj.kind() == EntityKind::Critter;
-                if let Some((_, prg_id)) = obj.script;
-                if let Some(msg) = self.critter_names.get(prg_id.index() as i32 + 101);
-                then {
-                    Some(msg.text.clone())
-                } else {
-                    obj.proto().and_then(|s| s.name().map(|s| s.to_owned()))
-                }
+        let obj = self.objects.get(obj);
+        if_chain! {
+            if obj.kind() == EntityKind::Critter;
+            if let Some((_, prg_id)) = obj.script;
+            if let Some(msg) = self.critter_names.get(prg_id.index() as i32 + 101);
+            then {
+                // critter_name
+                Some(msg.text.clone())
+            } else {
+                // proto_name
+                obj.proto().and_then(|s| s.name().map(|s| s.to_owned()))
             }
         }
     }

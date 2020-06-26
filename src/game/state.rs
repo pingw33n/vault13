@@ -175,6 +175,7 @@ impl GameState {
             Some(Default::default()),
             SubObject::Critter(Default::default()));
         self.world.borrow_mut().insert_dude_obj(dude_obj);
+        self.proto_db.dude().borrow_mut().set_name("Narg".into());
     }
 
     pub fn switch_map(&mut self, map_name: &str, ui: &mut Ui) {

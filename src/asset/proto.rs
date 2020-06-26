@@ -53,6 +53,10 @@ impl Proto {
         self.name.as_ref().map(|s| s.as_ref())
     }
 
+    pub fn set_name(&mut self, name: BString) {
+        self.name = Some(name);
+    }
+
     pub fn description(&self) -> Option<&bstr> {
         self.description.as_ref().map(|s| s.as_ref())
     }
