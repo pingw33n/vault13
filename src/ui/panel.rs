@@ -1,7 +1,7 @@
 use bstring::BString;
 
 use crate::graphics::color::Rgb15;
-use crate::graphics::font::{DrawOptions, FontKey};
+use crate::graphics::font::{DrawOptions, FontKey, HorzAlign, VertAlign};
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -41,12 +41,30 @@ impl Panel {
 impl Widget for Panel {
     fn render(&mut self, ctx: Render) {
         if let Some(text) = self.text() {
+            let rect = ctx.base.unwrap().rect;
+            let x = match text.options.horz_align  {
+                HorzAlign::Left => rect.left,
+                HorzAlign::Center => rect.center().x,
+                HorzAlign::Right => rect.right,
+            };
+            let y = match text.options.vert_align  {
+                VertAlign::Top => rect.top,
+                VertAlign::Middle => rect.center().y,
+                VertAlign::Bottom => rect.bottom,
+            };
+
+            let mut options = text.options.clone();
+            if let Some(o) = options.horz_overflow.as_mut() {
+                if o.size == 0 {
+                    o.size = ctx.base.unwrap().rect.width();
+                }
+            }
             ctx.canvas.draw_text(
                 &text.text,
-                ctx.base.unwrap().rect.top_left(),
+                Point::new(x, y),
                 text.font,
                 text.color,
-                &text.options);
+                &options);
         }
     }
 }
