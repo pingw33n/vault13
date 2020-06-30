@@ -186,6 +186,7 @@ impl Ui {
             rect,
             cursor: None,
             background,
+            visible: true,
         }, Box::new(Window {
             widgets: Vec::new(),
         }));
@@ -252,6 +253,7 @@ impl Ui {
             rect,
             cursor,
             background,
+            visible: true,
         }, Box::new(widget));
 
         self.simulate_mouse_move = true;
@@ -451,13 +453,19 @@ impl Ui {
             let win = win.downcast_mut::<Window>().unwrap();
             let has_mouse_focus = self.mouse_focus.is_some() &&
                 win.widgets.contains(&self.mouse_focus.unwrap());
-            self.widget_bases[winh].borrow_mut().render(Render {
-                frm_db: &self.frm_db,
-                canvas,
-                base: None,
-                cursor_pos: self.cursor_pos,
-                has_mouse_focus,
-            });
+            {
+                let mut base = self.widget_bases[winh].borrow_mut();
+                if !base.visible {
+                    continue;
+                }
+                base.render(Render {
+                    frm_db: &self.frm_db,
+                    canvas,
+                    base: None,
+                    cursor_pos: self.cursor_pos,
+                    has_mouse_focus,
+                });
+            }
             win.render(Render {
                 frm_db: &self.frm_db,
                 canvas,
@@ -467,13 +475,19 @@ impl Ui {
             });
             for &widgh in &win.widgets {
                 let has_mouse_focus = self.mouse_focus == Some(widgh);
-                self.widget_bases[widgh].borrow_mut().render(Render {
-                    frm_db: &self.frm_db,
-                    canvas,
-                    base: Some(&self.widget_bases[winh].borrow()),
-                    cursor_pos: self.cursor_pos,
-                    has_mouse_focus,
-                });
+                {
+                    let mut base = self.widget_bases[widgh].borrow_mut();
+                    if !base.visible {
+                        continue;
+                    }
+                    base.render(Render {
+                        frm_db: &self.frm_db,
+                        canvas,
+                        base: Some(&self.widget_bases[winh].borrow()),
+                        cursor_pos: self.cursor_pos,
+                        has_mouse_focus,
+                    });
+                }
                 self.widgets[widgh].borrow_mut().render(Render {
                     frm_db: &self.frm_db,
                     canvas,
@@ -525,12 +539,12 @@ impl Ui {
     fn widget_at(&self, point: Point) -> Option<(Handle, Handle)> {
         for &winh in self.windows_order.iter().rev() {
             let win_base = self.widget_bases[winh].borrow();
-            if win_base.rect.contains(point) {
+            if win_base.visible && win_base.rect.contains(point) {
                 let mut win = self.widgets[winh].borrow_mut();
                 let win = win.downcast_mut::<Window>().unwrap();
                 for &widgh in win.widgets.iter().rev() {
                     let widg_base = self.widget_bases[widgh].borrow();
-                    if widg_base.rect.contains(point) {
+                    if win_base.visible && widg_base.rect.contains(point) {
                         return Some((widgh, winh));
                     }
                 }
@@ -617,6 +631,7 @@ pub struct Base {
     rect: Rect,
     cursor: Option<Cursor>,
     background: Option<Sprite>,
+    visible: bool,
 }
 
 impl Base {
@@ -638,6 +653,14 @@ impl Base {
 
     pub fn background_mut(&mut self) -> Option<&mut Sprite> {
         self.background.as_mut()
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.visible
+    }
+
+    pub fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
     }
 }
 
