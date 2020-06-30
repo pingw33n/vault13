@@ -200,12 +200,6 @@ pub struct Drug {
     pub addiction: DrugAddiction,
 }
 
-#[derive(Clone, Debug)]
-pub struct Dual<T> {
-    pub primary: T,
-    pub secondary: T,
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct RangeInclusive<T> {
     pub start: T,
@@ -214,14 +208,14 @@ pub struct RangeInclusive<T> {
 
 #[derive(Debug)]
 pub struct Weapon {
-    pub attack_kind: Dual<AttackKind>,
+    pub attack_kinds: EnumMap<AttackGroup, AttackKind>,
     pub animation_code: WeaponKind,
     pub damage: RangeInclusive<i32>,
     pub damage_kind: DamageKind,
-    pub max_range: Dual<i32>,
+    pub max_ranges: EnumMap<AttackGroup, i32>,
     pub projectile_pid: Option<ProtoId>,
     pub min_strength: i32,
-    pub ap_cost: Dual<i32>,
+    pub ap_costs: EnumMap<AttackGroup, i32>,
     pub crit_failure_table: i32,
     pub perk: Option<Perk>,
     // Number of bullets per burst shot.
