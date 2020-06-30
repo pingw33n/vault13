@@ -132,7 +132,8 @@ impl MessagePanel {
         let font = self.fonts.get(self.font);
         let new_lines: Vec<_> = font.line_ranges(message, Some(font::Overflow {
                 size: self.layout().width,
-                mode: font::OverflowMode::WordWrap,
+                boundary: font::OverflowBoundary::Word,
+                action: font::OverflowAction::Wrap,
             }))
             .collect();
 
