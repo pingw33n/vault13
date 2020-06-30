@@ -48,6 +48,8 @@ impl Proto {
         self.id
     }
 
+    // critter_name
+    // item_name
     pub fn name(&self) -> Option<&bstr> {
         self.name.as_ref().map(|s| s.as_ref())
     }
@@ -83,6 +85,20 @@ impl Proto {
         self.flags_ext.contains(FlagExt::CanPickup) ||
             self.kind() == ExactEntityKind::Item(ItemKind::Container)
     }
+
+    // item_w_max_ammo
+    #[must_use]
+    pub fn max_ammo_count(&self) -> Option<u32> {
+        Some(if let SubProto::Item(item) = &self.sub {
+            match &item.sub {
+                SubItem::Ammo(a) => a.max_ammo_count,
+                SubItem::Weapon(w) => w.max_ammo_count,
+                _ => return None,
+            }
+        } else {
+            return None;
+        })
+    }
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -111,6 +127,14 @@ impl SubProto {
 
     pub fn is_misc(&self) -> bool {
         if let SubProto::Misc = self { true } else { false }
+    }
+
+    pub fn as_weapon(&self) -> Option<&Weapon> {
+        self.as_item()?.sub.as_weapon()
+    }
+
+    pub fn as_weapon_mut(&mut self) -> Option<&mut Weapon> {
+        self.as_item_mut()?.sub.as_weapon_mut()
     }
 }
 
@@ -210,6 +234,7 @@ pub struct RangeInclusive<T> {
 pub struct Weapon {
     pub attack_kinds: EnumMap<AttackGroup, AttackKind>,
     pub animation_code: WeaponKind,
+    // item_w_damage_min_max
     pub damage: RangeInclusive<i32>,
     pub damage_kind: DamageKind,
     pub max_ranges: EnumMap<AttackGroup, i32>,

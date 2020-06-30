@@ -269,6 +269,13 @@ pub enum Stat {
     CurrentRad = 0x25,
 }
 
+impl Stat {
+    pub fn base() -> &'static [Self] {
+        use Stat::*;
+        &[Strength, Perception, Endurance, Charisma, Intelligence, Agility, Luck]
+    }
+}
+
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
 pub enum Perk {
     BonusAwareness = 0x0,
@@ -568,6 +575,12 @@ pub enum AttackKind {
     FireContinuous  = 8,
 }
 
+impl AttackKind {
+    pub fn category(self) -> AttackCategory {
+        self.into()
+    }
+}
+
 // item_w_subtype
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
 pub enum AttackCategory {
@@ -576,6 +589,16 @@ pub enum AttackCategory {
     MeleeWeapon,
     Throw,
     Fire,
+}
+
+impl AttackCategory {
+    #[must_use]
+    pub fn is_melee(self) -> bool {
+        match self {
+            Self::MeleeUnarmed | Self::MeleeWeapon => true,
+            _ => false
+        }
+    }
 }
 
 impl From<AttackKind> for AttackCategory {

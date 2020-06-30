@@ -159,7 +159,7 @@ pub fn sprintf(fmt: &bstr, args: &[&bstr]) -> BString {
                 }
                 let c = fmt[i];
                 match c {
-                    b's' => r.push_str(args.next().expect("no more args")),
+                    b's' | b'd' => r.push_str(args.next().expect("no more args")),
                     b'%' => r.push(b'%'),
                     _ => panic!("unsupported format spec: {}", c as char),
                 }

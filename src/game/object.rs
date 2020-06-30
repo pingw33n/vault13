@@ -12,6 +12,7 @@ use crate::asset::*;
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::proto::*;
 use crate::asset::script::ProgramId;
+use crate::game::rpg::Rpg;
 use crate::game::script::{Scripts, ScriptIid};
 use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::TileGridView;
@@ -486,6 +487,46 @@ impl Object {
         } else {
             false
         }
+    }
+
+    // item_w_curr_ammo
+    #[must_use]
+    pub fn ammo_count(&self) -> Option<u32> {
+        self.sub.as_item().map(|i| i.ammo_count)
+    }
+
+    // item_w_range
+    #[must_use]
+    pub fn weapon_range(&self,
+        attack_group: AttackGroup,
+        rpg: &Rpg,
+        objects: &Objects,
+    ) -> Option<i32> {
+        let proto = self.proto()?;
+        // TODO if  a2 != 4 && a2 != 5 && (a2 < 8 || a2 > 19)
+        let weapon = proto.sub.as_weapon()?;
+        let mut r = weapon.max_ranges[attack_group];
+        if weapon.attack_kinds[attack_group].category() == AttackCategory::Throw {
+            r += rpg.stat(Stat::Strength, self, objects);
+            if proto.id().is_dude() {
+                r += 2 * rpg.perk(Perk::HeaveHo, ProtoId::DUDE) as i32;
+            }
+        }
+        // TODO else if ( critter_flag_check_(obj->_.pid, 0x2000) )
+        //   {
+        //     result = 2;
+        //   }
+        //   else
+        //   {
+        //     result = 1;
+        //   }
+        Some(r)
+    }
+
+    // critterIsOverfloaded
+    #[must_use]
+    pub fn is_overloaded(&self, rpg: &Rpg, objects: &Objects) -> bool {
+        rpg.stat(Stat::CarryWeight, self, objects) < self.inventory.weight(objects) as i32
     }
 
     fn find_inventory_item(&self, objects: &Objects, f: impl Fn(&Object) -> bool) -> Option<Handle> {
