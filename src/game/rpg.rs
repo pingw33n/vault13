@@ -51,7 +51,7 @@ pub struct Rpg {
     skill_defs: EnumMap<Skill, SkillDef>,
     perk_defs: EnumMap<Perk, PerkDef>,
     traits: EnumMap<Trait, bool>,
-    perks: HashMap<ProtoId, EnumMap<Perk, bool>>,
+    perks: HashMap<ProtoId, EnumMap<Perk, u32>>,
     tagged: EnumMap<Skill, Tagged>,
 }
 
@@ -105,8 +105,13 @@ impl Rpg {
         &self.perk_msgs.get(PERK_DESCR_MSG_BASE + perk as MessageId).unwrap().text
     }
 
+    // perk_level
+    pub fn perk(&self, perk: Perk, pid: ProtoId) -> u32 {
+        self.perks.get(&pid).map(|m| m[perk]).unwrap_or(0)
+    }
+
     pub fn has_perk(&self, perk: Perk, pid: ProtoId) -> bool {
-        self.perks.get(&pid).map(|m| m[perk]).unwrap_or(false)
+        self.perk(perk, pid) > 0
     }
 
     pub fn has_trait(&self, tr: Trait) -> bool {
@@ -122,7 +127,7 @@ impl Rpg {
         use Perk::*;
         use Stat::*;
 
-        let pei = |p| self.has_perk(p, obj.proto_id().unwrap()) as i32;
+        let pei = |p| self.perk(p, obj.proto_id().unwrap()) as i32;
 
         if stat == Age {
             // TODO
@@ -366,9 +371,7 @@ impl Rpg {
     // perk_adjust_skill
     fn perk_skill_mod(&self, skill: Skill, obj: &Object) -> i32 {
         let pid = obj.proto_id().unwrap();
-        let p = |p| {
-            self.has_perk(p, pid) as i32
-        };
+        let p = |p| self.perk(p, pid) as i32;
 
         let thief = || p(Thief) * 10;
         let master_thief = || p(MasterThief) * 15;
