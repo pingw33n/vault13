@@ -299,8 +299,8 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         // proto update data
 
-        let inventory_len = self.reader.read_i32::<BigEndian>()?;
-        let inventory_capacity = self.reader.read_i32::<BigEndian>()? as usize;
+        let inventory_len = usize::try_from(self.reader.read_u32::<BigEndian>()?).unwrap();
+        let _inventory_capacity = self.reader.read_i32::<BigEndian>()? as usize;
         let _ = self.reader.read_u32::<BigEndian>()?;
 
         let updated_flags = self.reader.read_u32::<BigEndian>()?;
@@ -460,8 +460,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         // inventory
 
         let mut inventory = Inventory {
-            capacity: inventory_capacity,
-            items: Vec::with_capacity(inventory_capacity),
+            items: Vec::with_capacity(inventory_len),
         };
         for i in 0..inventory_len {
             trace!("loading inventory item {}/{}", i, inventory_len);

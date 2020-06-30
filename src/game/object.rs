@@ -50,14 +50,12 @@ pub struct Outline {
 
 #[derive(Clone, Debug)]
 pub struct Inventory {
-    pub capacity: usize,
     pub items: Vec<InventoryItem>,
 }
 
 impl Inventory {
     pub fn new() -> Self {
         Self {
-            capacity: 0,
             items: Vec::new(),
         }
     }
