@@ -322,7 +322,10 @@ impl ProtoDb {
         *flags_ext = BitFlags::from_bits(flags_ext.bits() & !0xff).unwrap();
 
         let animation_code = read_enum(rd, "invalid weapon animation code")?;
-        let damage = rd.read_i32::<BigEndian>()?..=rd.read_i32::<BigEndian>()?;
+        let damage = RangeInclusive {
+            start: rd.read_i32::<BigEndian>()?,
+            end: rd.read_i32::<BigEndian>()?,
+        };
         let damage_kind = read_enum(rd, "invalid weapon damage kind")?;
         let max_range = Dual {
             primary: rd.read_i32::<BigEndian>()?,

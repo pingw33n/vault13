@@ -5,7 +5,6 @@ use bstring::{bstr, BString};
 use enumflags2::BitFlags;
 use enum_map::EnumMap;
 use num_traits::cast::FromPrimitive;
-use std::ops::RangeInclusive;
 
 pub use id::ProtoId;
 pub use db::ProtoDb;
@@ -205,6 +204,12 @@ pub struct Drug {
 pub struct Dual<T> {
     pub primary: T,
     pub secondary: T,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct RangeInclusive<T> {
+    pub start: T,
+    pub end: T,
 }
 
 #[derive(Debug)]
