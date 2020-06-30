@@ -1,5 +1,6 @@
 pub mod dialog;
 pub mod fidget;
+pub mod inventory;
 pub mod object;
 pub mod rpg;
 pub mod script;

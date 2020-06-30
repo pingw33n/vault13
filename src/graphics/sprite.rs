@@ -44,6 +44,10 @@ impl Frame {
         }
     }
 
+    pub fn bounds(&self) -> Rect {
+        Rect::with_size(0, 0, self.width, self.height)
+    }
+
     pub fn bounds_centered(&self, p: Point, center: Point) -> Rect {
         let p = p + center;
         Rect {

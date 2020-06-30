@@ -262,7 +262,11 @@ impl Rect {
             p.y >= self.top && p.y < self.bottom
     }
 
-    pub fn intersects(&self, other: Rect) -> bool {
+    pub fn contains_rect(&self, other: Self) -> bool {
+        self.intersect(other) == other
+    }
+
+    pub fn intersects(&self, other: Self) -> bool {
         self.left < other.right &&
             self.right > other.left &&
             self.top < other.bottom &&
@@ -281,8 +285,18 @@ impl Rect {
         self.right - self.left
     }
 
+    pub fn with_width(mut self, width: i32) -> Self {
+        self.right = self.left + width;
+        self
+    }
+
     pub fn height(&self) -> i32 {
         self.bottom - self.top
+    }
+
+    pub fn with_height(mut self, height: i32) -> Self {
+        self.bottom = self.top + height;
+        self
     }
 
     pub fn center(&self) -> Point {

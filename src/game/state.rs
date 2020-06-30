@@ -20,6 +20,7 @@ use crate::asset::script::db::ScriptDb;
 use crate::fs::FileSystem;
 use crate::game::dialog::Dialog;
 use crate::game::fidget::Fidget;
+use crate::game::inventory::Inventory;
 use crate::game::object::{self, *};
 use crate::game::rpg::Rpg;
 use crate::game::sequence::ObjSequencer;
@@ -41,11 +42,12 @@ use crate::sequence::event::PushEvent;
 use crate::sequence::chain::Chain;
 use crate::state::{self, *};
 use crate::ui::{self, Ui};
-use crate::ui::command::{ObjectPickKind, SkilldexCommand, UiCommand, UiCommandData};
+use crate::ui::command::*;
 use crate::ui::message_panel::MessagePanel;
 use crate::util::{EnumExt, sprintf};
 use crate::util::random::random;
 use crate::vm::{Vm, PredefinedProc, Suspend};
+use crate::ui::command::inventory::Command;
 
 const SCROLL_STEP: i32 = 10;
 
@@ -73,6 +75,7 @@ pub struct GameState {
     scroll_areas: EnumMap<ScrollDirection, ui::Handle>,
     rpg: Rpg,
     skilldex: Skilldex,
+    inventory: Inventory,
 }
 
 impl GameState {
@@ -124,6 +127,8 @@ impl GameState {
 
         let skilldex = Skilldex::new(&fs, language);
 
+        let inventory = Inventory::new(world.clone(), &fs, language);
+
         Self {
             time,
             fs,
@@ -148,6 +153,7 @@ impl GameState {
             scroll_areas,
             rpg,
             skilldex,
+            inventory,
         }
     }
 
@@ -218,7 +224,8 @@ impl GameState {
 
         let mut dude_obj = {
             let mut world = self.world.borrow_mut();
-            let dude_obj = world.remove_dude_obj().unwrap();
+            let mut dude_obj = world.remove_dude_obj().unwrap();
+            dude_obj.inventory.items.clear();
             world.clear();
             dude_obj
         };
@@ -1203,6 +1210,8 @@ impl AppState for GameState {
     }
 
     fn handle_ui_command(&mut self, command: UiCommand, ui: &mut Ui) {
+        self.inventory.handle(command.clone(), &self.rpg, ui);
+
         match command.data {
             UiCommandData::ObjectPick { kind, obj: objh } => {
                 let actions = self.actions(objh);
@@ -1360,6 +1369,24 @@ impl AppState for GameState {
                     }
                 }
             }
+            UiCommandData::Inventory(cmd) => match cmd {
+                inventory::Command::Hover { object } => {
+                    self.dude_look_at_object(object, ui);
+                }
+                | inventory::Command::Action { object, action: Some(Action::Look) }
+                | inventory::Command::Action { object, action: None }
+                => {
+                    let dude_obj = self.world.borrow().dude_obj().unwrap();
+                    let descr = self.examine_object(dude_obj, object, ui);
+                    let descr = BString::join(b'\n', &descr);
+                    self.inventory.examine(object, &descr, ui);
+                }
+                Command::Hide => {}
+                Command::Show => {
+                    self.obj_sequencer.cancel(self.world.borrow().dude_obj().unwrap());
+                }
+                _ => {}
+            }
         }
     }
 
@@ -1367,7 +1394,8 @@ impl AppState for GameState {
         self.time.set_paused(
             self.user_paused ||
             self.scripts.can_resume() ||
-            self.skilldex.is_visible());
+            self.skilldex.is_visible() ||
+            self.inventory.is_visible());
 
         self.time.update(ctx.delta);
 

@@ -28,6 +28,7 @@ pub enum UiCommandData {
     },
     Scroll,
     Skilldex(SkilldexCommand),
+    Inventory(inventory::Command),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -47,3 +48,31 @@ pub enum SkilldexCommand {
         target: Option<object::Handle>,
     },
 }
+
+pub mod inventory {
+    use super::*;
+    use crate::game::ui::action_menu::Action;
+    use crate::game::ui::inventory_list::Scroll;
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum Command {
+        Hide,
+        Show,
+        Hover {
+            object: object::Handle,
+        },
+        ActionMenu {
+            object: object::Handle,
+        },
+        Action {
+            object: object::Handle,
+            action: Option<Action>,
+        },
+        Scroll(Scroll),
+        ListDrop {
+            pos: Point,
+            object: object::Handle,
+        },
+    }
+}
+

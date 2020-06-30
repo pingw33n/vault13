@@ -5,8 +5,8 @@ use crate::graphics::font::FontKey;
 use crate::graphics::sprite::Sprite;
 use crate::ui::*;
 use crate::ui::button::Button;
+use crate::ui::command::{inventory, SkilldexCommand, UiCommandData};
 use crate::ui::message_panel::{MessagePanel, Anchor};
-use crate::ui::command::{SkilldexCommand, UiCommandData};
 
 pub fn create(ui: &mut Ui) -> Handle {
     let main_hud = ui.new_window(Rect::with_size(0, 379, 640, 100), Some(Sprite::new(FrameId::IFACE)));
@@ -21,7 +21,8 @@ pub fn create(ui: &mut Ui) -> Handle {
     // Inventory button.
     // Original location is a bit off, at y=41.
     ui.new_widget(main_hud, Rect::with_size(211, 40, 32, 21), None, None,
-        Button::new(FrameId::INVENTORY_BUTTON_UP, FrameId::INVENTORY_BUTTON_DOWN, None));
+        Button::new(FrameId::INVENTORY_BUTTON_UP, FrameId::INVENTORY_BUTTON_DOWN,
+            Some(UiCommandData::Inventory(inventory::Command::Show))));
 
     // Options button.
     ui.new_widget(main_hud, Rect::with_size(210, 62, 34, 34), None, None,
