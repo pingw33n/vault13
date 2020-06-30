@@ -14,7 +14,8 @@ pub fn show(actions: Vec<(Action, UiCommandData)>, win: Handle, ui: &mut Ui) -> 
     let (placement, saved_cursor) = {
         let mut win_base = ui.widget_base_mut(win);
         let saved_cursor = win_base.cursor();
-        let placement = Placement::new(actions.len() as u32, ui.cursor_pos(), win_base.rect());
+        let cursor_pos = ui.cursor_pos() - win_base.rect().top_left();
+        let placement = Placement::new(actions.len() as u32, cursor_pos, win_base.rect());
         win_base.set_cursor(Some(placement.cursor));
         (placement, saved_cursor)
     };
