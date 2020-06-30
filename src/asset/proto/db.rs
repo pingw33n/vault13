@@ -1,6 +1,6 @@
 use bstring::bstr;
 use byteorder::{BigEndian, ReadBytesExt};
-use enum_map::EnumMap;
+use enum_map::{enum_map, EnumMap};
 use num_traits::FromPrimitive;
 use std::cell::RefCell;
 use std::collections::hash_map::{self, HashMap};
@@ -315,9 +315,11 @@ impl ProtoDb {
     }
 
     fn read_weapon(rd: &mut impl Read, flags_ext: &mut BitFlags<FlagExt>) -> io::Result<Weapon> {
-        let attack_kind = Dual {
-            primary: get_enum(flags_ext.bits() & 0xf, "invalid weapon primary attack kind")?,
-            secondary: get_enum((flags_ext.bits() >> 4) & 0xf, "invalid weapon secondary attack kind")?,
+        let primary = get_enum(flags_ext.bits() & 0xf, "invalid weapon primary attack kind")?;
+        let secondary = get_enum((flags_ext.bits() >> 4) & 0xf, "invalid weapon secondary attack kind")?;
+        let attack_kinds = enum_map! {
+            AttackGroup::Primary => primary,
+            AttackGroup::Secondary => secondary,
         };
         *flags_ext = BitFlags::from_bits(flags_ext.bits() & !0xff).unwrap();
 
@@ -327,15 +329,19 @@ impl ProtoDb {
             end: rd.read_i32::<BigEndian>()?,
         };
         let damage_kind = read_enum(rd, "invalid weapon damage kind")?;
-        let max_range = Dual {
-            primary: rd.read_i32::<BigEndian>()?,
-            secondary: rd.read_i32::<BigEndian>()?,
+        let primary = rd.read_i32::<BigEndian>()?;
+        let secondary = rd.read_i32::<BigEndian>()?;
+        let max_ranges = enum_map! {
+            AttackGroup::Primary => primary,
+            AttackGroup::Secondary => secondary,
         };
         let projectile_pid = ProtoId::read_opt(rd)?;
         let min_strength = rd.read_i32::<BigEndian>()?;
-        let ap_cost =  Dual {
-            primary: rd.read_i32::<BigEndian>()?,
-            secondary: rd.read_i32::<BigEndian>()?,
+        let primary = rd.read_i32::<BigEndian>()?;
+        let secondary = rd.read_i32::<BigEndian>()?;
+        let ap_costs = enum_map! {
+            AttackGroup::Primary => primary,
+            AttackGroup::Secondary => secondary,
         };
         let crit_failure_table = rd.read_i32::<BigEndian>()?;
         let perk = read_opt_enum(rd, "invalid weapon perk")?;
@@ -346,14 +352,14 @@ impl ProtoDb {
         let sound_id = rd.read_u8()?;
 
         Ok(Weapon {
-            attack_kind,
+            attack_kinds,
             animation_code,
             damage,
             damage_kind,
-            max_range,
+            max_ranges,
             projectile_pid,
             min_strength,
-            ap_cost,
+            ap_costs,
             crit_failure_table,
             perk,
             burst_bullet_count,

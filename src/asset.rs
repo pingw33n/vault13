@@ -549,6 +549,12 @@ pub enum DoorFlag {
     Jammed = 0x4_00_00_00,
 }
 
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+pub enum AttackGroup {
+    Primary,
+    Secondary,
+}
+
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
 pub enum AttackKind {
     Stand           = 0,
@@ -560,6 +566,30 @@ pub enum AttackKind {
     FireSingle      = 6,
     FireBurst       = 7,
     FireContinuous  = 8,
+}
+
+// item_w_subtype
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+pub enum AttackCategory {
+    Stand,
+    MeleeUnarmed,
+    MeleeWeapon,
+    Throw,
+    Fire,
+}
+
+impl From<AttackKind> for AttackCategory {
+    fn from(v: AttackKind) -> Self {
+        use AttackCategory::*;
+        use AttackKind::*;
+        match v {
+            AttackKind::Stand => Self::Stand,
+            Punch | Kick => MeleeUnarmed,
+            Swing | Thrust => MeleeWeapon,
+            AttackKind::Throw => Self::Throw,
+            FireSingle | FireBurst | FireContinuous => Fire,
+        }
+    }
 }
 
 pub struct LstEntry {
