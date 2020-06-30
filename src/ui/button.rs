@@ -9,8 +9,9 @@ use super::*;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd)]
 pub enum State {
-    Up,
+    Disabled,
     Down,
+    Up,
 }
 
 pub struct Config {
@@ -49,12 +50,16 @@ impl Button {
     pub fn new(up: FrameId, down: FrameId, command: Option<UiCommandData>) -> Self {
         Self {
             configs: enum_map! {
-                State::Up => Config {
-                    background: Some(Sprite::new(up)),
+                State::Disabled => Config {
+                    background: None,
                     text: None,
                 },
                 State::Down => Config {
                     background: Some(Sprite::new(down)),
+                    text: None,
+                },
+                State::Up => Config {
+                    background: Some(Sprite::new(up)),
                     text: None,
                 },
             },
@@ -75,12 +80,20 @@ impl Button {
         self.configs[State::Down].text = text.clone();
         self.configs[State::Up].text = text;
     }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.state = if enabled {
+            State::Up
+        } else {
+            State::Disabled
+        };
+    }
 }
 
 impl Widget for Button {
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
-            Event::MouseDown { button, .. } if button == MouseButton::Left => {
+            Event::MouseDown { button, .. } if button == MouseButton::Left && self.state != State::Disabled => {
                 self.state = State::Down;
                 ctx.capture();
             }
@@ -92,7 +105,7 @@ impl Widget for Button {
                     State::Up
                 }
             }
-            Event::MouseUp { pos, button } if button == MouseButton::Left => {
+            Event::MouseUp { pos, button } if button == MouseButton::Left && self.state != State::Disabled => {
                 self.state = State::Up;
                 // FIXME should optionally hit test the frame as in original.
                 if ctx.base.rect.contains(pos) {
