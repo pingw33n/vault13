@@ -173,9 +173,28 @@ impl GameState {
             dude_fid,
             Some(self.proto_db.dude()),
             Some(Default::default()),
-            SubObject::Critter(Default::default()));
+            SubObject::Critter(object::Critter {
+                hit_points: 44,
+                ..Default::default()
+            }));
         self.world.borrow_mut().insert_dude_obj(dude_obj);
-        self.proto_db.dude().borrow_mut().set_name("Narg".into());
+
+        let d = self.proto_db.dude();
+        let mut d = d.borrow_mut();
+        d.set_name("Narg".into());
+        let c = d.sub.as_critter_mut().unwrap();
+        c.base_stats[Stat::Strength] = 9;
+        c.base_stats[Stat::Perception] = 6;
+        c.base_stats[Stat::Endurance] = 10;
+        c.base_stats[Stat::Charisma] = 4;
+        c.base_stats[Stat::Intelligence] = 5;
+        c.base_stats[Stat::Agility] = 8;
+        c.base_stats[Stat::Luck] = 5;
+        c.base_stats[Stat::HitPoints] = 44;
+        c.base_stats[Stat::ArmorClass] = 8;
+        c.base_stats[Stat::ActionPoints] = 9;
+        c.base_stats[Stat::MeleeDmg] = 8;
+        c.base_stats[Stat::CarryWeight] = 250;
     }
 
     pub fn switch_map(&mut self, map_name: &str, ui: &mut Ui) {
