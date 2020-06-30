@@ -33,16 +33,23 @@ impl Default for VertAlign {
     }
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
-pub enum OverflowMode {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OverflowBoundary {
+    Char,
+    Word,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OverflowAction {
     Truncate,
-    WordWrap,
+    Wrap,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Overflow {
     pub size: i32,
-    pub mode: OverflowMode,
+    pub boundary: OverflowBoundary,
+    pub action: OverflowAction,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -181,9 +188,12 @@ impl Iterator for LineRanges0<'_, '_> {
     fn next(&mut self) -> Option<Self::Item> {
         let mut cur_width = 0;
         let start = self.i;
-        let mut end;
+        let mut overflown = false;
+        let mut end = 0;
         loop {
-            end = self.i;
+            if !overflown {
+                end = self.i;
+            }
 
             if self.i == self.text.len() {
                 break;
@@ -207,11 +217,16 @@ impl Iterator for LineRanges0<'_, '_> {
 
             cur_width += glyph.width + self.font.horz_spacing;
 
-            if let Some(Overflow { size, mode }) = self.horz_overflow {
-                if cur_width > size {
-                    match mode {
-                        OverflowMode::Truncate => {}
-                        OverflowMode::WordWrap => {
+            if let Some(Overflow { size, boundary, action }) = self.horz_overflow {
+                if !overflown && cur_width > size {
+                    overflown = true;
+                    match boundary {
+                        OverflowBoundary::Char => {
+                            if end > 0 {
+                                end -= 1;
+                            }
+                        }
+                        OverflowBoundary::Word => {
                             if let Some(i) = self.text[start..end].iter()
                                 .rposition(|&c| Self::can_wrap_after(c))
                                 .map(|i| start + i)
@@ -223,16 +238,25 @@ impl Iterator for LineRanges0<'_, '_> {
                             }
                         }
                     }
-                    break;
+                    match action {
+                        OverflowAction::Truncate => {} // keep looking for line end
+                        OverflowAction::Wrap => break,
+                    }
                 }
             }
         }
         if start < self.text.len() {
             let mut start = start;
-            // Trim leading whitespace if this is not the first line.
-            while start > 0 && start < end && self.text[start].is_ascii_whitespace() {
-                start += 1;
+
+            // Trim leading whitespace of a word-wrapped line.
+            if matches!(self.horz_overflow,
+                Some(Overflow { boundary: OverflowBoundary::Word, action: OverflowAction::Wrap, .. }))
+            {
+                while start > 0 && start < end && self.text[start].is_ascii_whitespace() {
+                    start += 1;
+                }
             }
+
             // Trim trailing whitespace.
             while end > start + 1 && self.text[end - 1].is_ascii_whitespace() {
                 end -= 1;

@@ -37,7 +37,8 @@ impl FloatingText {
 
         let lines: Vec<_> = font.lines(text, Some(font::Overflow {
                 size: 200,
-                mode: font::OverflowMode::WordWrap,
+                boundary: font::OverflowBoundary::Word,
+                action: font::OverflowAction::Wrap,
             }))
             .map(|l| (l.to_owned(), font.line_width(l)))
             .collect();
