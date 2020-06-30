@@ -1364,12 +1364,12 @@ impl AppState for GameState {
     }
 
     fn update(&mut self, mut ctx: state::Update) {
-        self.time.update(ctx.delta);
-
         self.time.set_paused(
             self.user_paused ||
             self.scripts.can_resume() ||
             self.skilldex.is_visible());
+
+        self.time.update(ctx.delta);
 
         if self.time.is_running() {
             {
