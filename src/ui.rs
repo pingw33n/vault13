@@ -52,6 +52,7 @@ pub enum Cursor {
     ArrowDown,
     ArrowUp,
     CrosshairUse,
+    Hand,
 
     ScrollNorth,
     ScrollNorthEast,
@@ -85,6 +86,7 @@ impl Cursor {
             ArrowDown => FrameId::SDNARROW,
             ArrowUp => FrameId::SUPARROW,
             CrosshairUse => FrameId::CROSSHAIR_USE,
+            Hand => FrameId::HAND,
 
             ScrollNorth => FrameId::SCRNORTH,
             ScrollNorthEast => FrameId::SCRNEAST,

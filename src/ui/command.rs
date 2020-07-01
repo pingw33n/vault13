@@ -73,6 +73,7 @@ pub mod inventory {
             pos: Point,
             object: object::Handle,
         },
+        ToggleMouseMode,
     }
 }
 
