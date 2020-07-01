@@ -132,27 +132,24 @@ enum RegAnimFuncOp {
 
 pub fn add_mult_objs_to_inven(ctx: Context) -> Result<()> {
     let count = ctx.prg.data_stack.pop()?.into_int()?;
-    let count = if count > 99999 {
-        500
-    } else if count < 0 {
-        1
-    } else {
-        count
-    };
-    let item = ctx.prg.data_stack.pop()?.coerce_into_object()?;
-    let target = ctx.prg.data_stack.pop()?.coerce_into_object()?;
-    log_a3!(ctx.prg, target, item, count);
-    log_stub!(ctx.prg);
+    // Original caps count at 500.
+    let count = cmp::max(count, 1) as u32;
+    let item = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    let inventory = ctx.prg.data_stack.pop()?.coerce_into_object()?
+        .ok_or(Error::BadValue(BadValue::Content))?;
+    ctx.ext.world.move_into_inventory(inventory, item, count);
+    log_a3!(ctx.prg, inventory, item, count);
     Ok(())
 }
 
 pub fn add_obj_to_inven(ctx: Context) -> Result<()> {
     let item = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
-    let target = ctx.prg.data_stack.pop()?.coerce_into_object()?
+    let inventory = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
-    log_a2!(ctx.prg, target, item);
-    log_stub!(ctx.prg);
+    ctx.ext.world.move_into_inventory(inventory, item, 1);
+    log_a2!(ctx.prg, inventory, item);
     Ok(())
 }
 
