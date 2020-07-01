@@ -54,7 +54,7 @@ impl InventoryList {
             items: Vec::new(),
             scroll_idx: 0,
             dragging: None,
-            mouse_mode: MouseMode::Action,
+            mouse_mode: MouseMode::Drag,
             last_hovered: None,
             default_action: None,
             action_menu_state: None,
@@ -155,10 +155,9 @@ impl Widget for InventoryList {
                             }));
                         }
                     }
-                    MouseMode::Drag => {
+                    MouseMode::Drag => if let Some(item_index) = self.dragging.take() {
                         ctx.base.set_cursor(None);
                         ctx.release();
-                        let item_index = self.dragging.take().unwrap();
                         let object = self.items[item_index].object;
                         ctx.out(UiCommandData::Inventory(Command::ListDrop {
                             pos: ctx.cursor_pos,
@@ -247,7 +246,9 @@ fn fit(r1: Rect, r2: Rect) -> Rect {
         r2.with_width(r1.width())
             .with_height(r1.height())
     };
-    r.translate(Point::new((r2.width() - r.width()) / 2, 0))
+    r.translate(Point::new(
+        (r2.width() - r.width()) / 2,
+        (r2.height() - r.height()) / 2))
 }
 
 #[cfg(test)]
@@ -259,8 +260,8 @@ mod test {
         fn r(l: i32, t: i32, w: i32, h: i32) -> Rect {
             Rect::with_size(l, t, w, h)
         }
-        assert_eq!(fit(r(0, 0, 159, 39), r(100, 200, 56, 40)), r(100, 200, 56, 13));
+        assert_eq!(fit(r(0, 0, 159, 39), r(100, 200, 56, 40)), r(100, 213, 56, 13));
         assert_eq!(fit(r(0, 0, 40, 53), r(100, 200, 56, 40)), r(113, 200, 30, 40));
-        assert_eq!(fit(r(0, 0, 40, 20), r(100, 200, 56, 40)), r(108, 200, 40, 20));
+        assert_eq!(fit(r(0, 0, 40, 20), r(100, 200, 56, 40)), r(108, 210, 40, 20));
     }
 }

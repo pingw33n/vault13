@@ -3,14 +3,15 @@ mod def;
 use bstring::bstr;
 use enum_map::EnumMap;
 use num_traits::clamp;
+use std::cell::Ref;
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io;
 
-use crate::asset::{Perk, Skill, Stat, Trait};
+use crate::asset::{DamageKind, Perk, Skill, Stat, Trait};
 use crate::asset::message::{Messages, MessageId};
-use crate::asset::proto::{self, ProtoId};
+use crate::asset::proto::ProtoId;
 use crate::game::object::{DamageFlag, EquipmentSlot, Object, Objects};
 use crate::fs::FileSystem;
 use crate::util::random::*;
@@ -312,6 +313,31 @@ impl Rpg {
         bs[Sequence] = 2 * per;
     }
 
+    // adjust_ac
+    pub fn update_armor_class(&self,
+        obj: &mut Object,
+        new_armor: Option<Ref<Object>>,
+        old_armor: Option<Ref<Object>>,
+        objs: &Objects,
+    ) {
+        let armor_stat = |obj: &Option<Ref<Object>>, stat| obj.as_ref().map(|o|
+            o.proto().unwrap().sub.as_armor().unwrap().stat(stat).unwrap())
+            .unwrap_or(0);
+        for stat in
+            [Stat::ArmorClass].iter().copied()
+                .chain(DamageKind::basic().iter().map(|d| d.resist_stat()))
+                .chain(DamageKind::basic().iter().map(|d| d.thresh_stat().unwrap()))
+        {
+            let new = self.bonus_stat(stat, obj)
+                - armor_stat(&old_armor, stat)
+                + armor_stat(&new_armor, stat);
+            self.set_bonus_stat(stat, obj, new, objs);
+        }
+        if obj.is_dude() { // TODO isPartyMember
+            // TODO handle armor perk
+        }
+    }
+
     // trait_adjust_stat()
     fn trait_stat_mod(&self, stat: Stat, obj: &Object) -> i32 {
         let tr = |tr| {
@@ -407,7 +433,7 @@ impl Rpg {
             Stat::CurrentHitPoints => critter().hit_points,
             Stat::CurrentPoison => critter().poison,
             Stat::CurrentRad => critter().radiation,
-            _ =>  self.with_critter_proto(obj, |c| c.base_stats[stat]),
+            _ => obj.proto().unwrap().sub.as_critter().unwrap().base_stats[stat],
         }
     }
 
@@ -420,14 +446,24 @@ impl Rpg {
         r
     }
 
+    // stat_get_bonus
     fn bonus_stat(&self, stat: Stat, obj: &Object) -> i32 {
-        self.with_critter_proto(obj, |c| c.bonus_stats[stat])
+        obj.proto().unwrap().sub.as_critter().unwrap().bonus_stats[stat]
     }
 
-    fn with_critter_proto<F, R>(&self, obj: &Object, f: F) -> R
-        where F: FnOnce(&proto::Critter) -> R
-    {
-        let proto = obj.proto().unwrap();
-        f(proto.sub.as_critter().unwrap())
+    // stat_set_bonus
+    fn set_bonus_stat(&self, stat: Stat, obj: &mut Object, v: i32, objs: &Objects) {
+        match stat {
+            Stat::CurrentHitPoints => unimplemented!("TODO"),
+            Stat::CurrentPoison => unimplemented!("TODO"),
+            Stat::CurrentRad => unimplemented!("TODO"),
+            _ => {
+                obj.proto_mut().unwrap()
+                    .sub.as_critter_mut().unwrap().bonus_stats[stat] = v;
+                if stat.is_base() {
+                    self.recalc_derived_stats(obj, objs);
+                }
+            }
+        }
     }
 }

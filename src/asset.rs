@@ -224,6 +224,42 @@ pub enum DamageKind {
     Poison      = 100001,
 }
 
+impl DamageKind {
+    pub fn basic() -> &'static [Self] {
+        use DamageKind::*;
+        &[Melee, Laser, Fire, Plasma, Electric, Emp, Explosion]
+    }
+
+    pub fn resist_stat(self) -> Stat {
+        use DamageKind::*;
+        match self {
+            Melee => Stat::DmgResist,
+            Laser => Stat::DmgResistLaser,
+            Fire => Stat::DmgResistFire,
+            Plasma => Stat::DmgResistPlasma,
+            Electric => Stat::DmgResistElectrical,
+            Emp => Stat::DmgResistEmp,
+            Explosion => Stat::DmgResistExplosion,
+            Radiation => Stat::RadResist,
+            Poison => Stat::PoisonResist,
+        }
+    }
+
+    pub fn thresh_stat(self) -> Option<Stat> {
+        use DamageKind::*;
+        Some(match self {
+            Melee => Stat::DmgThresh,
+            Laser => Stat::DmgThreshLaser,
+            Fire => Stat::DmgThreshFire,
+            Plasma => Stat::DmgThreshPlasma,
+            Electric => Stat::DmgThreshElectrical,
+            Emp => Stat::DmgThreshEmp,
+            Explosion => Stat::DmgThreshExplosion,
+            Radiation | Poison => return None,
+        })
+    }
+}
+
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
 pub enum Stat {
     Strength = 0x0,
@@ -273,6 +309,42 @@ impl Stat {
     pub fn base() -> &'static [Self] {
         use Stat::*;
         &[Strength, Perception, Endurance, Charisma, Intelligence, Agility, Luck]
+    }
+
+    pub fn is_base(self) -> bool {
+        Self::base().iter().any(|&s| s == self)
+    }
+
+    pub fn thresh_damage_kind(self) -> Option<DamageKind> {
+        use Stat::*;
+        use DamageKind::*;
+        Some(match self {
+            DmgThresh => Melee,
+            DmgThreshLaser => Laser,
+            DmgThreshFire => Fire,
+            DmgThreshPlasma => Plasma,
+            DmgThreshElectrical => Electric,
+            DmgThreshEmp => Emp,
+            DmgThreshExplosion => Explosion,
+            _ => return None,
+        })
+    }
+
+    pub fn resist_damage_kind(self) -> Option<DamageKind> {
+        use Stat::*;
+        use DamageKind::*;
+        Some(match self {
+            DmgResist => Melee,
+            DmgResistLaser => Laser,
+            DmgResistFire => Fire,
+            DmgResistPlasma => Plasma,
+            DmgResistElectrical => Electric,
+            DmgResistEmp => Emp,
+            DmgResistExplosion => Explosion,
+            RadResist => Radiation,
+            PoisonResist => Poison,
+            _ => return None,
+        })
     }
 }
 
