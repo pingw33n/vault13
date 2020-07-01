@@ -187,6 +187,7 @@ impl Ui {
             cursor: None,
             background,
             visible: true,
+            listener: false,
         }, Box::new(Window {
             widgets: Vec::new(),
         }));
@@ -254,6 +255,7 @@ impl Ui {
             cursor,
             background,
             visible: true,
+            listener: false,
         }, Box::new(widget));
 
         self.simulate_mouse_move = true;
@@ -385,7 +387,22 @@ impl Ui {
         self.capture.or(self.keyboard_focus)
     }
 
+    fn find_listener(&self) -> Option<Handle> {
+        let winh = *self.windows_order.last()?;
+        assert!(!self.widget_bases[winh].borrow().listener);
+        let mut win = self.widgets[winh].borrow_mut();
+        let win = win.downcast_mut::<Window>().unwrap();
+        for &widgh in win.widgets.iter().rev() {
+            let widg_base = self.widget_bases[widgh].borrow();
+            if widg_base.listener {
+                return Some(widgh);
+            }
+        }
+        None
+    }
+
     pub fn handle_input(&mut self, ctx: HandleInput) -> bool {
+        let listener = self.find_listener();
         match *ctx.event {
             SdlEvent::KeyDown { keycode, .. } => {
                 if let Some(target) = self.keyboard_event_target() {
@@ -395,13 +412,16 @@ impl Ui {
                 }
             }
             SdlEvent::MouseButtonDown { mouse_btn, .. } => {
+                let event = Event::MouseDown { pos: self.cursor_pos, button: mouse_btn };
+                if let Some(listener) = listener {
+                    self.widget_handle_event(ctx.now, listener, event.clone(), ctx.out);
+                }
                 let target = if let Some(h) = self.update_mouse_focus(ctx.now, ctx.out) {
                     h
                 } else {
                     return false;
                 };
-                self.widget_handle_event(ctx.now, target,
-                    Event::MouseDown { pos: self.cursor_pos, button: mouse_btn }, ctx.out);
+                self.widget_handle_event(ctx.now, target, event, ctx.out);
             }
             SdlEvent::MouseMotion { xrel, yrel, .. } => {
                 self.simulate_mouse_move = false;
@@ -637,6 +657,12 @@ pub struct Base {
     cursor: Option<Cursor>,
     background: Option<Sprite>,
     visible: bool,
+    /// Makes this widget the listener for events destined to other widgets.
+    /// There must be at most one listener per window. The listener of the topmost window is
+    /// the active listener.
+    /// Windows can't be listeners.
+    /// Currently only `MouseDown` is routed to the listener.
+    listener: bool,
 }
 
 impl Base {
@@ -666,6 +692,14 @@ impl Base {
 
     pub fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
+    }
+
+    pub fn is_listener(&self) -> bool {
+        self.listener
+    }
+
+    pub fn set_listener(&mut self, v: bool) {
+        self.listener = v;
     }
 }
 
@@ -738,7 +772,7 @@ pub trait Widget: Downcast {
     /// Should be used to sync the directly altered widget state to the UI.
     fn sync(&mut self, _ctx: Sync) {}
 
-    fn render(&mut self, ctx: Render);
+    fn render(&mut self, _ctx: Render) {}
 }
 
 impl_downcast!(Widget);
