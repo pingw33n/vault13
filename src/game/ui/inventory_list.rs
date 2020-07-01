@@ -77,7 +77,7 @@ impl InventoryList {
 
     pub fn can_scroll(&self, scroll: Scroll) -> bool {
         match scroll {
-            Scroll::Down => self.scroll_idx + 1 <= self.max_scroll_idx(),
+            Scroll::Down => self.scroll_idx < self.max_scroll_idx(),
             Scroll::Up => self.scroll_idx > 0,
         }
     }
@@ -89,7 +89,7 @@ impl InventoryList {
     pub fn scroll(&mut self, scroll: Scroll) {
         self.set_scroll_idx(match scroll {
             Scroll::Down => self.scroll_idx + 1,
-            Scroll::Up => self.scroll_idx.checked_sub(1).unwrap_or(0),
+            Scroll::Up => self.scroll_idx.saturating_sub(1),
         });
     }
 
@@ -106,7 +106,7 @@ impl InventoryList {
     }
 
     fn max_scroll_idx(&self) -> usize {
-        self.items.len().checked_sub(self.visible_items).unwrap_or(0)
+        self.items.len().saturating_sub(self.visible_items)
     }
 
     fn item_index_at(&self, rect: Rect, pos: Point) -> Option<usize> {
