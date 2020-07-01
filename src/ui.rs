@@ -506,12 +506,16 @@ impl Ui {
         self.draw_cursor(cursor, self.cursor_pos, canvas);
     }
 
+    pub fn widget_at(&self, point: Point) -> Option<Handle> {
+        self.widget_at0(point).map(|(r, _)| r)
+    }
+
     fn effective_cursor(&self) -> Cursor {
         let widg_cursor = |h| self.widget_bases[h].borrow().cursor;
         if let Some(v) = self.capture.and_then(widg_cursor) {
             return v;
         }
-        if let Some(v) = self.widget_at(self.cursor_pos)
+        if let Some(v) = self.widget_at0(self.cursor_pos)
             .and_then(|(widg, win)| widg_cursor(widg).or_else(|| widg_cursor(win)))
         {
             return v;
@@ -536,7 +540,8 @@ impl Ui {
         }.render(canvas, &self.frm_db);
     }
 
-    fn widget_at(&self, point: Point) -> Option<(Handle, Handle)> {
+    /// Returns (widget, widget's window) or (window, window).
+    fn widget_at0(&self, point: Point) -> Option<(Handle, Handle)> {
         for &winh in self.windows_order.iter().rev() {
             let win_base = self.widget_bases[winh].borrow();
             if win_base.visible && win_base.rect.contains(point) {
@@ -561,7 +566,7 @@ impl Ui {
         if self.capture.is_some() {
             self.capture
         } else {
-            self.widget_at(self.cursor_pos).map(|(widg, _)| widg)
+            self.widget_at0(self.cursor_pos).map(|(widg, _)| widg)
         }
     }
 
