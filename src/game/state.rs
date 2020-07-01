@@ -183,7 +183,7 @@ impl GameState {
                 hit_points: 44,
                 ..Default::default()
             }));
-        self.world.borrow_mut().insert_dude_obj(dude_obj);
+        self.world.borrow_mut().insert_object(dude_obj);
 
         let d = self.proto_db.dude();
         let mut d = d.borrow_mut();
@@ -224,7 +224,7 @@ impl GameState {
 
         let mut dude_obj = {
             let mut world = self.world.borrow_mut();
-            let mut dude_obj = world.remove_dude_obj().unwrap();
+            let mut dude_obj = world.remove_dude_object();
             dude_obj.inventory.items.clear();
             world.clear();
             dude_obj
@@ -285,7 +285,7 @@ impl GameState {
             radius: 4,
         };
         dude_obj.pos = Some(map.entrance);
-        let dude_obj = world.insert_dude_obj(dude_obj);
+        let dude_obj = world.insert_object(dude_obj);
 
         world.make_object_standing(dude_obj);
 

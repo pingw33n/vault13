@@ -3,7 +3,7 @@ pub mod floating_text;
 use bstring::{bstr, BString};
 use enum_map::Enum;
 use if_chain::if_chain;
-use log::debug;
+use log::*;
 use std::cmp;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -292,29 +292,32 @@ impl World {
     }
 
     pub fn insert_object(&mut self, object: Object) -> object::Handle {
-        let h = self.objects.insert(object);
+        let dude = object.is_dude();
+        let r = self.objects.insert(object);
+        Self::update_light_grid(&self.objects, &mut self.light_grid, r, 1);
+        if dude {
+            assert!(self.dude_obj.replace(r).is_none());
+            debug!("dude obj: {:?}", r);
+        }
+        r
+    }
 
-        Self::update_light_grid(&self.objects, &mut self.light_grid, h, 1);
+    pub fn remove_object(&mut self, object: Handle) -> Object {
+        Self::update_light_grid(&self.objects, &mut self.light_grid, object, -1);
+        let r = self.objects_mut().remove(object).unwrap();
+        if r.is_dude() {
+            self.dude_obj = None;
+        }
+        r
+    }
 
-        h
+    pub fn remove_dude_object(&mut self) -> Object {
+        let obj = self.dude_obj.unwrap();
+        self.remove_object(obj)
     }
 
     pub fn dude_obj(&self) -> Option<object::Handle> {
         self.dude_obj
-    }
-
-    pub fn insert_dude_obj(&mut self, object: object::Object) -> object::Handle {
-        assert!(self.dude_obj.is_none());
-        let h = self.insert_object(object);
-        debug!("dude obj: {:?}", h);
-        self.dude_obj = Some(h);
-        h
-    }
-
-    pub fn remove_dude_obj(&mut self) -> Option<object::Object> {
-        let h = self.dude_obj?;
-        self.dude_obj = None;
-        Some(self.objects_mut().remove(h).unwrap())
     }
 
     pub fn elevation(&self) -> u32 {
