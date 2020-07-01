@@ -378,7 +378,7 @@ impl Object {
     pub fn item_kind(&self) -> Option<ItemKind> {
         let proto = self.proto()?;
         Some(if proto.id() == ProtoId::SHIV {
-            ItemKind::Misc
+            ItemKind::Misc // instead of ItemKind::Weapon
         } else {
             proto.sub.as_item()?.sub.kind()
         })
@@ -497,6 +497,13 @@ impl Object {
         self.sub.as_item().map(|i| i.ammo_count)
     }
 
+    // item_w_set_curr_ammo
+    pub fn set_ammo_count(&mut self, ammo_count: u32) {
+        let max = self.proto().unwrap().max_ammo_count().unwrap();
+        let ammo_count = cmp::min(ammo_count, max);
+        self.sub.as_item_mut().unwrap().ammo_count = ammo_count;
+    }
+
     // item_w_range
     #[must_use]
     pub fn weapon_range(&self,
@@ -529,6 +536,39 @@ impl Object {
     #[must_use]
     pub fn is_overloaded(&self, rpg: &Rpg, objects: &Objects) -> bool {
         rpg.stat(Stat::CarryWeight, self, objects) < self.inventory.weight(objects) as i32
+    }
+
+    // item_identical
+    #[must_use]
+    pub fn is_same(&self, o: &Object) -> bool {
+        if self.proto_id() != o.proto_id()
+            || self.script != o.script
+            || self.flags.intersects(Flag::Worn | Flag::LeftHand | Flag::RightHand | Flag::Used)
+            || o.flags.intersects(Flag::Worn | Flag::LeftHand | Flag::RightHand | Flag::Used)
+            || !self.inventory.items.is_empty()
+            || !o.inventory.items.is_empty()
+        {
+            return false;
+        }
+        let proto = self.proto().unwrap();
+        if proto.kind() == ExactEntityKind::Item(ItemKind::Container) {
+            return false;
+        }
+        match (&self.sub, &o.sub) {
+            (SubObject::Item(v1), SubObject::Item(v2)) => {
+                (proto.kind() == ExactEntityKind::Item(ItemKind::Ammo)
+                    || proto.id() != ProtoId::BOTTLE_CAPS
+                    || v1.ammo_count == v2.ammo_count)
+                    && v1.ammo_proto.as_ref().map(|p| p.borrow().id()) == v2.ammo_proto.as_ref().map(|p| p.borrow().id())
+            }
+            (SubObject::Key(v1), SubObject::Key(v2)) => {
+                v1.id == v2.id
+            }
+            (SubObject::Critter(_), SubObject::Critter(_)) => unimplemented!(),
+            (SubObject::MapExit(_), SubObject::MapExit(_)) => unimplemented!(),
+            (SubObject::Scenery(_), SubObject::Scenery(_)) => unimplemented!(),
+            _ => unreachable!(),
+        }
     }
 
     fn find_inventory_item(&self, objects: &Objects, f: impl Fn(&Object) -> bool) -> Option<Handle> {

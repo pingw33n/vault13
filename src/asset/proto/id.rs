@@ -77,6 +77,7 @@ impl ProtoId {
     pub const ACTIVE_DYNAMITE: Self = unsafe { Self::from_packed_unchecked(0xCE) };
     pub const ACTIVE_PLASTIC_EXPLOSIVE: Self = unsafe { Self::from_packed_unchecked(0xD1) };
     pub const SCROLL_BLOCKER: Self = unsafe { Self::from_packed_unchecked(0x0500000c) };
+    pub const BOTTLE_CAPS: Self = unsafe { Self::from_packed_unchecked(0x29) };
 
     pub fn new(kind: EntityKind, id: u32) -> Option<Self> {
         if id <= 0xffffff {
