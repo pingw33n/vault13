@@ -116,7 +116,7 @@ impl WorldView {
         let pos = EPoint::new(world.elevation(), hex_pos);
         let old_pos = world.objects().get(self.hex_cursor).pos;
         let changed = if Some(pos) != old_pos {
-            world.set_object_pos(self.hex_cursor, pos);
+            world.set_object_pos(self.hex_cursor, Some(pos));
             true
         } else {
             false

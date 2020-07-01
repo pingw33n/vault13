@@ -844,9 +844,9 @@ impl Objects {
         self.handles.keys()
     }
 
-    pub fn set_pos(&mut self, h: Handle, pos: EPoint) {
+    pub fn set_pos(&mut self, h: Handle, pos: Option<EPoint>) {
         self.remove_from_tile_grid(h);
-        self.insert_into_tile_grid(h, Some(pos), true);
+        self.insert_into_tile_grid(h, pos, true);
     }
 
     pub fn set_screen_shift(&mut self, h: Handle, shift: Point) {

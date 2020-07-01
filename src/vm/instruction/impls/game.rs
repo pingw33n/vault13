@@ -1030,7 +1030,7 @@ pub fn override_map_start(ctx: Context) -> Result<()> {
 
     let obj = world.dude_obj().unwrap();
     let pos = EPoint::new(elevation, Point::new(x, y));
-    world.set_object_pos(obj, pos);
+    world.set_object_pos(obj, Some(pos));
     world.objects_mut().get_mut(obj).direction = direction;
 
     world.camera_mut().look_at(pos.point);

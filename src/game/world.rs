@@ -330,7 +330,7 @@ impl World {
         self.sqr_tiles[elevation as usize].is_some()
     }
 
-    pub fn set_object_pos(&mut self, h: object::Handle, pos: EPoint) {
+    pub fn set_object_pos(&mut self, h: object::Handle, pos: Option<EPoint>) {
         Self::update_light_grid(&self.objects, &mut self.light_grid, h, -1);
 
         self.objects.set_pos(h, pos);
