@@ -116,7 +116,7 @@ impl GameState {
 
         let world_view_rect = Rect::with_size(0, 0, 640, 379);
         let world_view = {
-            let win = ui.new_window(world_view_rect.clone(), None);
+            let win = ui.new_window(world_view_rect, None);
             ui.new_widget(win, world_view_rect, None, None, WorldView::new(world.clone()))
         };
         let message_panel = hud::create(ui);

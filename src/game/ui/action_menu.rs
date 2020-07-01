@@ -21,7 +21,7 @@ pub fn show(actions: Vec<(Action, UiCommandData)>, win: Handle, ui: &mut Ui) -> 
     };
 
     ui.show_cursor_ghost();
-    ui.set_cursor_constraint(placement.rect.clone());
+    ui.set_cursor_constraint(placement.rect);
     ui.set_cursor_pos(placement.rect.top_left());
 
     let action_menu = ui.new_widget(win, placement.rect, Some(Cursor::Hidden), None,

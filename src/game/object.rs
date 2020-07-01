@@ -1106,7 +1106,6 @@ impl Objects {
     /// 1. There's a path between them which is not sight-blocked (see `sight_blocker_for_object()`).
     /// 2. Screen distance between objects is within the limit.
     // action_can_talk_to()
-    #[must_use]
     pub fn can_talk(&self, obj1: Handle, obj2: Handle) -> Result<(), CantTalkSpatial> {
         let o1 = self.get(obj1);
         let o2 = self.get(obj2);

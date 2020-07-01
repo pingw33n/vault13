@@ -52,8 +52,8 @@ impl Inventory {
     }
 
     pub fn handle(&mut self, cmd: UiCommand, rpg: &Rpg, ui: &mut Ui) {
-        match cmd.data {
-            UiCommandData::Inventory(c) => match c {
+        if let UiCommandData::Inventory(c) = cmd.data {
+            match c {
                 Command::Show => {
                     self.show(rpg, ui);
                 }
@@ -77,7 +77,6 @@ impl Inventory {
                     self.internal.as_mut().unwrap().toggle_mouse_mode(ui);
                 }
             }
-            _ => {}
         }
     }
 
@@ -259,7 +258,7 @@ impl Internal {
         let obj = world.objects().get(self.obj);
         for item in &obj.inventory.items {
             let item_obj = &world.objects().get(item.object);
-            let inv_list_item = Self::to_inv_list_item(item, item_obj);
+            let inv_list_item = Self::make_list_item(item, item_obj);
             match () {
                 _ if item_obj.flags.contains(Flag::Worn) => {
                     assert!(wearing.items().is_empty());
@@ -283,7 +282,7 @@ impl Internal {
     }
 
     // display_inventory_info
-    fn to_inv_list_item(item: &InventoryItem, obj: &Object) -> inventory_list::Item {
+    fn make_list_item(item: &InventoryItem, obj: &Object) -> inventory_list::Item {
         let proto = obj.proto().unwrap();
         let count = if obj.item_kind() == Some(ItemKind::Ammo) {
             obj.proto().unwrap().max_ammo_count().unwrap() * (item.count - 1)
@@ -521,9 +520,9 @@ impl Internal {
         };
         let msg = BString::concat(&[
             name.as_bytes(),
-            "\n--------------------\n".as_bytes(),
+            b"\n--------------------\n",
             description.as_bytes(),
-            "\n".as_bytes(),
+            b"\n",
             weight_msg.as_bytes()]);
         ui.widget_mut::<Panel>(self.item_descr).text_mut().unwrap().text = msg;
         self.switch_text_panels(false, ui);
