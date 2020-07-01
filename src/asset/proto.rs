@@ -129,6 +129,14 @@ impl SubProto {
         if let SubProto::Misc = self { true } else { false }
     }
 
+    pub fn as_armor(&self) -> Option<&Armor> {
+        self.as_item()?.sub.as_armor()
+    }
+
+    pub fn as_armor_mut(&mut self) -> Option<&mut Armor> {
+        self.as_item_mut()?.sub.as_armor_mut()
+    }
+
     pub fn as_weapon(&self) -> Option<&Weapon> {
         self.as_item()?.sub.as_weapon()
     }
@@ -183,6 +191,20 @@ pub struct Armor {
   pub perk: Option<Perk>,
   pub male_fid: FrameId,
   pub female_fid: FrameId,
+}
+
+impl Armor {
+    pub fn stat(&self, stat: Stat) -> Option<i32> {
+        if stat == Stat::ArmorClass {
+            Some(self.armor_class)
+        } else if let Some(d) = stat.resist_damage_kind() {
+            Some(self.damage_resistance[d])
+        } else if let Some(d) = stat.thresh_damage_kind() {
+            Some(self.damage_threshold[d])
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug)]

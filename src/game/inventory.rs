@@ -11,7 +11,7 @@ use crate::game::rpg::Rpg;
 use crate::game::ui::action_menu::{self, Action};
 use crate::game::ui::inventory_list::{self, InventoryList, Scroll, MouseMode};
 use crate::game::world::WorldRef;
-use crate::graphics::Rect;
+use crate::graphics::{Point, Rect};
 use crate::graphics::color::{GREEN, RED};
 use crate::graphics::font::*;
 use crate::graphics::sprite::Sprite;
@@ -53,7 +53,7 @@ impl Inventory {
 
     pub fn handle(&mut self, cmd: UiCommand, rpg: &Rpg, ui: &mut Ui) {
         match cmd.data {
-            UiCommandData::Inventory(cmd) => match cmd {
+            UiCommandData::Inventory(c) => match c {
                 Command::Show => {
                     self.show(rpg, ui);
                 }
@@ -70,7 +70,9 @@ impl Inventory {
                 Command::Action { .. } => {
                     self.internal.as_mut().unwrap().hide_action_menu(ui);
                 }
-                Command::ListDrop { pos: _, object: _ } => {}
+                Command::ListDrop { pos, object } => {
+                    self.internal.as_ref().unwrap().handle_list_drop(cmd.source, pos, object, rpg, ui);
+                }
                 Command::ToggleMouseMode => {
                     self.internal.as_mut().unwrap().toggle_mouse_mode(ui);
                 }
@@ -96,6 +98,12 @@ impl Inventory {
         i.remove(ui);
         self.msgs = Some(i.msgs);
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Slot {
+    Equipment(EquipmentSlot),
+    Inventory,
 }
 
 struct Internal {
@@ -548,6 +556,95 @@ impl Internal {
             MouseMode::Drag => Cursor::Hand,
         };
         ui.widget_base_mut(self.win).set_cursor(Some(cursor));
+    }
+
+    fn slot_from_widget(&self, widget: ui::Handle) -> Option<Slot> {
+        Some(match () {
+            _ if widget == self.list => Slot::Inventory,
+            _ if widget == self.wearing => Slot::Equipment(EquipmentSlot::Armor),
+            _ if widget == self.left_hand => Slot::Equipment(EquipmentSlot::LeftHand),
+            _ if widget == self.right_hand => Slot::Equipment(EquipmentSlot::RightHand),
+            _ => return None,
+        })
+    }
+
+    // switch_hands
+    fn handle_list_drop(&self,
+        src: ui::Handle,
+        pos: Point,
+        obj: object::Handle,
+        rpg: &Rpg,
+        ui: &Ui,
+    ) {
+        let src_slot = self.slot_from_widget(src).unwrap();
+
+        let target = unwrap_or_return!(ui.widget_at(pos), Some);
+        if target == src {
+            return;
+        }
+        let target_slot = unwrap_or_return!(self.slot_from_widget(target), Some);
+
+        let world = self.world.borrow();
+        let (bump, existing) = {
+            let (bump, existing) = match target_slot {
+                Slot::Inventory => (Some(obj), None),
+                Slot::Equipment(eq_slot) => {
+                    let v = world.objects().get(self.obj)
+                        .equipment(eq_slot, world.objects());
+                    (v, v)
+                }
+            };
+
+            match target_slot {
+                Slot::Equipment(target_slot) => {
+                    let mut obj = world.objects().get_mut(obj);
+
+                    if target_slot == EquipmentSlot::Armor
+                        && obj.proto().unwrap().kind() != ExactEntityKind::Item(ItemKind::Armor)
+                    {
+                        return;
+                    }
+
+                    obj.flags.remove(Flag::Worn | Flag::LeftHand | Flag::RightHand);
+
+                    match target_slot {
+                        EquipmentSlot::Armor => obj.flags.insert(Flag::Worn),
+                        EquipmentSlot::LeftHand => obj.flags.insert(Flag::LeftHand),
+                        EquipmentSlot::RightHand => obj.flags.insert(Flag::RightHand),
+                    }
+                }
+                Slot::Inventory => {}
+            }
+
+            (bump, existing)
+        };
+
+        // Bump item: remove from slots and move to inventory top.
+        if let Some(bump) = bump {
+            let mut owner = world.objects().get_mut(self.obj);
+            world.objects().get_mut(bump)
+                .flags.remove(Flag::Worn | Flag::LeftHand | Flag::RightHand);
+            let i = owner.inventory.items.iter()
+                .position(|i| i.object == bump).unwrap();
+            if i > 0 {
+                let item = owner.inventory.items.remove(i);
+                owner.inventory.items.insert(0, item);
+            }
+        }
+
+        {
+            let owner = &mut world.objects().get_mut(self.obj);
+            if src_slot == Slot::Equipment(EquipmentSlot::Armor) {
+                let old_armor = world.objects().get(obj);
+                rpg.update_armor_class(owner, None, Some(old_armor), world.objects());
+            } else if target_slot == Slot::Equipment(EquipmentSlot::Armor) {
+                let new_armor = world.objects().get(obj);
+                let old_armor = existing.map(|obj| world.objects().get(obj));
+                rpg.update_armor_class(owner, Some(new_armor), old_armor, world.objects());
+            }
+        }
+
+        self.sync_from_obj(rpg, ui);
     }
 }
 
