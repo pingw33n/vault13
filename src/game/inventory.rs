@@ -9,18 +9,19 @@ use crate::fs::FileSystem;
 use crate::game::object::{self, EquipmentSlot, Object, InventoryItem};
 use crate::game::rpg::Rpg;
 use crate::game::ui::action_menu::{self, Action};
-use crate::game::ui::inventory_list::{self, InventoryList, Scroll};
+use crate::game::ui::inventory_list::{self, InventoryList, Scroll, MouseMode};
 use crate::game::world::WorldRef;
 use crate::graphics::Rect;
 use crate::graphics::color::{GREEN, RED};
 use crate::graphics::font::*;
 use crate::graphics::sprite::Sprite;
-use crate::ui::{self, Ui, button};
+use crate::ui::{self, Ui, button, Widget, HandleEvent, Cursor};
 use crate::ui::button::Button;
 use crate::ui::command::{UiCommandData, UiCommand};
 use crate::ui::command::inventory::Command;
 use crate::ui::panel::{self, Panel};
 use crate::util::sprintf;
+use sdl2::mouse::MouseButton;
 
 const MSG_NO_ITEM: MessageId = 14;
 const MSG_DMG: MessageId = 15;
@@ -70,6 +71,9 @@ impl Inventory {
                     self.internal.as_mut().unwrap().hide_action_menu(ui);
                 }
                 Command::ListDrop { pos: _, object: _ } => {}
+                Command::ToggleMouseMode => {
+                    self.internal.as_mut().unwrap().toggle_mouse_mode(ui);
+                }
             }
             _ => {}
         }
@@ -82,6 +86,7 @@ impl Inventory {
     fn show(&mut self, rpg: &Rpg, ui: &mut Ui) {
         let obj = self.world.borrow().dude_obj().unwrap();
         let internal = Internal::new(self.msgs.take().unwrap(), self.world.clone(), obj, ui);
+        internal.sync_mouse_mode_to_ui(ui);
         internal.sync_from_obj(rpg, ui);
         assert!(self.internal.replace(internal).is_none());
     }
@@ -98,6 +103,7 @@ struct Internal {
     world: WorldRef,
     obj: object::Handle,
     win: ui::Handle,
+    mouse_mode: MouseMode,
     list: ui::Handle,
     list_scroll_up: ui::Handle,
     list_scroll_down: ui::Handle,
@@ -120,7 +126,6 @@ impl Internal {
         let win = ui.new_window(Rect::with_size(80, 0, 499, 377),
             Some(Sprite::new(FrameId::INVENTORY_WINDOW)));
         ui.set_modal_window(Some(win));
-        ui.widget_base_mut(win).set_cursor(Some(crate::ui::Cursor::ActionArrow));
 
         let mut list_scroll_up = Button::new(FrameId::INVENTORY_SCROLL_UP_UP,
             FrameId::INVENTORY_SCROLL_UP_DOWN,
@@ -199,11 +204,18 @@ impl Internal {
         let left_hand = ui.new_widget(win, Rect::with_size(154, 289, 90, 61), None, None,
             InventoryList::new(61, 0));
 
+        let mouse_mode_toggler = ui.new_widget(win, Rect::with_size(0, 0, 1, 1), None, None,
+            MouseModeToggler);
+        let mut mouse_mode_toggler = ui.widget_base_mut(mouse_mode_toggler);
+        mouse_mode_toggler.set_visible(false);
+        mouse_mode_toggler.set_listener(true);
+
         Self {
             msgs,
             world,
             obj,
             win,
+            mouse_mode: MouseMode::Drag,
             list,
             list_scroll_up,
             list_scroll_down,
@@ -516,5 +528,35 @@ impl Internal {
             ui.widget_base_mut(w).set_visible(stats);
         }
         ui.widget_base_mut(self.item_descr).set_visible(!stats);
+    }
+
+    fn toggle_mouse_mode(&mut self, ui: &Ui) {
+        self.mouse_mode = match self.mouse_mode {
+            MouseMode::Action => MouseMode::Drag,
+            MouseMode::Drag => MouseMode::Action,
+        };
+        self.sync_mouse_mode_to_ui(ui);
+    }
+
+    fn sync_mouse_mode_to_ui(&self, ui: &Ui) {
+        for &w in &[self.list, self.wearing, self.left_hand, self.right_hand] {
+            let w = &mut ui.widget_mut::<InventoryList>(w);
+            w.set_mouse_mode(self.mouse_mode);
+        }
+        let cursor = match self.mouse_mode {
+            MouseMode::Action => Cursor::ActionArrow,
+            MouseMode::Drag => Cursor::Hand,
+        };
+        ui.widget_base_mut(self.win).set_cursor(Some(cursor));
+    }
+}
+
+struct MouseModeToggler;
+
+impl Widget for MouseModeToggler {
+    fn handle_event(&mut self, mut ctx: HandleEvent) {
+        if let ui::Event::MouseDown { button: MouseButton::Right, .. } = ctx.event {
+            ctx.out(UiCommandData::Inventory(Command::ToggleMouseMode));
+        }
     }
 }

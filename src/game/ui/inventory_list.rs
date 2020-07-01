@@ -97,6 +97,14 @@ impl InventoryList {
         self.scroll_idx = cmp::min(scroll_idx, self.max_scroll_idx());
     }
 
+    pub fn set_mouse_mode(&mut self, mouse_mode: MouseMode) {
+        self.mouse_mode = mouse_mode;
+        self.default_action = None;
+        self.action_menu_state = None;
+        self.last_hovered = None;
+        self.dragging = None;
+    }
+
     fn max_scroll_idx(&self) -> usize {
         self.items.len().checked_sub(self.visible_items).unwrap_or(0)
     }
