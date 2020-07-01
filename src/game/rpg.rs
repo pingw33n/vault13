@@ -11,7 +11,7 @@ use std::io;
 use crate::asset::{Perk, Skill, Stat, Trait};
 use crate::asset::message::{Messages, MessageId};
 use crate::asset::proto::{self, ProtoId};
-use crate::game::object::{DamageFlag, Object, Objects};
+use crate::game::object::{DamageFlag, EquipmentSlot, Object, Objects};
 use crate::fs::FileSystem;
 use crate::util::random::*;
 
@@ -163,9 +163,13 @@ impl Rpg {
                 Perception => pei(GainPerception),
                 Endurance => pei(GainEndurance),
                 Charisma => {
-                    let wearing_shades =
-                        obj.in_left_hand(objs).and_then(|o| objs.get(o).proto_id()) == Some(ProtoId::MIRRORED_SHADES) ||
-                        obj.in_right_hand(objs).and_then(|o| objs.get(o).proto_id()) == Some(ProtoId::MIRRORED_SHADES);
+                    let wearing_shades = [
+                        EquipmentSlot::LeftHand,
+                        EquipmentSlot::RightHand
+                    ].iter()
+                        .flat_map(|&s| obj.equipment(s, objs).into_iter())
+                        .flat_map(|o| objs.get(o).proto_id().into_iter())
+                        .any(|pid| pid == ProtoId::MIRRORED_SHADES);
                     pei(GainCharisma) + wearing_shades as i32
                 }
                 Intelligence => pei(GainIntelligence),

@@ -6,7 +6,7 @@ use crate::asset::*;
 use crate::asset::frame::FrameId;
 use crate::asset::message::{Messages, MessageId};
 use crate::fs::FileSystem;
-use crate::game::object::{self, Object, InventoryItem};
+use crate::game::object::{self, EquipmentSlot, Object, InventoryItem};
 use crate::game::rpg::Rpg;
 use crate::game::ui::action_menu::{self, Action};
 use crate::game::ui::inventory_list::{self, InventoryList, Scroll};
@@ -376,10 +376,8 @@ impl Internal {
         misc.push_str(name);
         misc.push_str("\n---------------------\n\n\n\n\n\n\n\n");
 
-        for &item in &[
-            obj.in_left_hand(world.objects()),
-            obj.in_right_hand(world.objects()),
-        ] {
+        for &slot in &[EquipmentSlot::LeftHand, EquipmentSlot::RightHand] {
+            let item = obj.equipment(slot, world.objects());
             misc.push_str("---------------------\n");
             if let Some(item) = item {
                 let item = &world.objects().get(item);
