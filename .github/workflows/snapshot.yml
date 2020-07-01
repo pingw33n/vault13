@@ -5,7 +5,8 @@ on:
     tags: snapshot-*
 env:
   NAME: vault13
-  RUST_VERSION: 1.41.0
+  # Changing here, change also in build.yml.
+  RUST_VERSION: 1.44.1
   RUST_BACKTRACE: full
 jobs:
   build:
