@@ -6,12 +6,15 @@ macro_rules! enum_len {
 }
 
 macro_rules! unwrap_or_return {
-    ($expression:expr, $pattern:pat => $res:expr) => {
-        match $expression {
-            $pattern => $res,
+    ($expr:expr, $pat:pat => $res:expr) => {
+        match $expr {
+            $pat => $res,
             _ => return,
         }
-    }
+    };
+    ($expr:expr, Some) => {
+        unwrap_or_return!($expr, Some(v) => v)
+    };
 }
 
 macro_rules! new_handle_type {
