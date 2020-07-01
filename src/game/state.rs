@@ -931,7 +931,7 @@ impl GameState {
             dude_obj.direction = direction;
             dude_obj.pos.unwrap().elevation != pos.elevation
         };
-        world.objects_mut().set_pos(dude_objh, pos);
+        world.objects_mut().set_pos(dude_objh, Some(pos));
         if elevation_change {
             let ctx = &mut script::Context {
                 ui,
@@ -1166,7 +1166,7 @@ impl AppState for GameState {
                     new_pos
                 };
                 if new_pos.elevation < ELEVATION_COUNT && world.has_elevation(new_pos.elevation) {
-                    world.objects_mut().set_pos(dude_obj, new_pos);
+                    world.objects_mut().set_pos(dude_obj, Some(new_pos));
                 }
             }
             SdlEvent::KeyDown { keycode: Some(Keycode::Z), .. } => {
@@ -1183,7 +1183,7 @@ impl AppState for GameState {
                     new_pos
                 };
                 if world.has_elevation(new_pos.elevation) {
-                    world.objects_mut().set_pos(dude_obj, new_pos);
+                    world.objects_mut().set_pos(dude_obj, Some(new_pos));
                 }
             }
             SdlEvent::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => {

@@ -145,7 +145,7 @@ impl Sequence for Move {
         };
         if let Some((pos, shift)) = new_obj_pos_and_shift {
             let old_pos = ctx.world.objects().get(self.obj).pos.unwrap();
-            ctx.world.set_object_pos(self.obj, pos);
+            ctx.world.set_object_pos(self.obj, Some(pos));
 
             ctx.out.push(Event::ObjectMoved {
                 obj: self.obj,
