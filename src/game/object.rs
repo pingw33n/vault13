@@ -192,6 +192,10 @@ impl Object {
         self.proto().map(|v| v.id())
     }
 
+    pub fn is_dude(&self) -> bool {
+        self.proto_id() == Some(ProtoId::DUDE)
+    }
+
     pub fn render(&mut self, canvas: &mut dyn Canvas, light: u32,
             frm_db: &FrameDb, tile_grid: &impl TileGridView,
             egg: Option<&Egg>) {
