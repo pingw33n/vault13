@@ -78,6 +78,13 @@ pub struct InventoryItem {
     pub count: u32,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EquipmentSlot {
+    Armor,
+    LeftHand,
+    RightHand,
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct LightEmitter {
     pub intensity: u32,
@@ -426,21 +433,16 @@ impl Object {
     }
 
     // inven_left_hand
-    #[must_use]
-    pub fn in_left_hand(&self, objects: &Objects) -> Option<Handle> {
-        self.find_inventory_item(objects, |o| o.flags.contains(Flag::LeftHand))
-    }
-
     // inven_right_hand
-    #[must_use]
-    pub fn in_right_hand(&self, objects: &Objects) -> Option<Handle> {
-        self.find_inventory_item(objects, |o| o.flags.contains(Flag::RightHand))
-    }
-
     // inven_worn
     #[must_use]
-    pub fn wearing(&self, objects: &Objects) -> Option<Handle> {
-        self.find_inventory_item(objects, |o| o.flags.contains(Flag::Worn))
+    pub fn equipment(&self, slot: EquipmentSlot, objects: &Objects) -> Option<Handle> {
+        let flag = match slot {
+            EquipmentSlot::Armor => Flag::Worn,
+            EquipmentSlot::LeftHand => Flag::LeftHand,
+            EquipmentSlot::RightHand => Flag::RightHand,
+        };
+        self.find_inventory_item(objects, |o| o.flags.contains(flag))
     }
 
     /// Whether this object can be talked to.
