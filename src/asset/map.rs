@@ -427,7 +427,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                         // Exit area.
                         let map = self.reader.read_i32::<BigEndian>()?;
                         trace!("map={}", map);
-                        assert!(map >= 0 || fid.id() >= 33);
+                        assert!(map >= 0 || fid.idx() >= 33);
                         let map = TargetMap::decode(map)
                             .ok_or_else(|| Error::new(ErrorKind::InvalidData,
                                 format!("invalid exit target map: {}", map)))?;

@@ -9,6 +9,8 @@ use std::io::{self, Error, ErrorKind, prelude::*};
 use crate::asset::{EntityKind, CritterAnim, WeaponKind};
 use crate::graphics::geometry::hex::Direction;
 
+pub type Idx = u16;
+
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub enum FrameId {
     Critter(Critter),
@@ -17,28 +19,28 @@ pub enum FrameId {
 }
 
 impl FrameId {
-    pub fn new(kind: EntityKind, direction: Option<Direction>, anim: u8, sub_anim: u8, id: u16)
+    pub fn new(kind: EntityKind, direction: Option<Direction>, anim: u8, sub_anim: u8, idx: Idx)
             -> Option<Self> {
-        Self::from_packed(pack(Parts {
+        Self::from_packed(Parts {
             kind,
             direction,
             anim,
             sub_anim,
-            id,
-        })?)
+            idx,
+        }.pack()?)
     }
 
-    pub fn new_critter(direction: Option<Direction>, anim: CritterAnim, weapon: WeaponKind, id: u16)
+    pub fn new_critter(direction: Option<Direction>, anim: CritterAnim, weapon: WeaponKind, idx: Idx)
             -> Option<Self> {
-        Critter::new(direction, anim, weapon, id).map(FrameId::Critter)
+        Critter::new(direction, anim, weapon, idx).map(FrameId::Critter)
     }
 
-    pub fn new_head(anim: u8, sub_anim: u8, id: u16) -> Option<Self> {
-        Head::new(anim, sub_anim, id).map(FrameId::Head)
+    pub fn new_head(anim: u8, sub_anim: u8, idx: Idx) -> Option<Self> {
+        Head::new(anim, sub_anim, idx).map(FrameId::Head)
     }
 
-    pub fn new_generic(kind: EntityKind, id: u16) -> Option<Self> {
-        Generic::new(kind, id).map(FrameId::Generic)
+    pub fn new_generic(kind: EntityKind, idx: Idx) -> Option<Self> {
+        Generic::new(kind, idx).map(FrameId::Generic)
     }
 
     pub fn read(rd: &mut impl Read) -> io::Result<Self> {
@@ -60,7 +62,7 @@ impl FrameId {
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
-        let Parts { kind, .. } = unpack(fid)?;
+        let kind = Parts::unpack(fid)?.kind;
 
         match kind {
             EntityKind::Critter => Critter::from_packed(fid).map(|v| v.into()),
@@ -141,11 +143,11 @@ impl FrameId {
         }
     }
 
-    pub fn id(self) -> u16 {
+    pub fn idx(self) -> Idx {
         match self {
-            FrameId::Critter(v) => v.id(),
-            FrameId::Head(v) => v.id(),
-            FrameId::Generic(v) => v.id(),
+            FrameId::Critter(v) => v.idx(),
+            FrameId::Head(v) => v.idx(),
+            FrameId::Generic(v) => v.idx(),
         }
     }
 }
@@ -160,15 +162,15 @@ impl fmt::Debug for FrameId {
 pub struct Critter(u32);
 
 impl Critter {
-    pub fn new(direction: Option<Direction>, anim: CritterAnim, weapon: WeaponKind, id: u16)
+    pub fn new(direction: Option<Direction>, anim: CritterAnim, weapon: WeaponKind, idx: Idx)
             -> Option<Self> {
-        pack(Parts {
+        Parts {
             kind: EntityKind::Critter,
             direction,
             anim: anim as u8,
             sub_anim: weapon as u8,
-            id
-        }).map(Critter)
+            idx
+        }.pack().map(Critter)
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
@@ -177,7 +179,7 @@ impl Critter {
             anim,
             sub_anim,
             ..
-        } = unpack(fid)?;
+        } = Parts::unpack(fid)?;
 
         if kind != EntityKind::Critter {
             return None;
@@ -193,47 +195,45 @@ impl Critter {
     }
 
     pub fn direction(self) -> Option<Direction> {
-        let Parts { direction, .. } = unpack(self.0).unwrap();
-        direction
+        Parts::unpack(self.0).unwrap().direction
     }
 
     pub fn anim(self) -> CritterAnim {
-        let Parts { anim, .. } = unpack(self.0).unwrap();
+        let anim = Parts::unpack(self.0).unwrap().anim;
         CritterAnim::from_u8(anim).unwrap()
     }
 
     pub fn weapon(self) -> WeaponKind {
-        let Parts { sub_anim, .. } = unpack(self.0).unwrap();
+        let sub_anim = Parts::unpack(self.0).unwrap().sub_anim;
         WeaponKind::from_u8(sub_anim).unwrap()
     }
 
-    pub fn id(self) -> u16 {
-        let Parts { id, .. } = unpack(self.0).unwrap();
-        id
+    pub fn idx(self) -> Idx {
+        Parts::unpack(self.0).unwrap().idx
     }
 
     pub fn with_direction(self, direction: Option<Direction>) -> Self {
-        let mut parts = unpack(self.packed()).unwrap();
+        let mut parts = Parts::unpack(self.packed()).unwrap();
         parts.direction = direction;
-        Critter(pack(parts).unwrap())
+        Critter(parts.pack().unwrap())
     }
 
     pub fn with_anim(self, anim: CritterAnim) -> Self {
-        let mut parts = unpack(self.packed()).unwrap();
+        let mut parts = Parts::unpack(self.packed()).unwrap();
         parts.anim = anim as u8;
-        Critter(pack(parts).unwrap())
+        Critter(parts.pack().unwrap())
     }
 
     pub fn with_weapon(self, weapon: WeaponKind) -> Self {
-        let mut parts = unpack(self.packed()).unwrap();
+        let mut parts = Parts::unpack(self.packed()).unwrap();
         parts.sub_anim = weapon as u8;
-        Critter(pack(parts).unwrap())
+        Critter(parts.pack().unwrap())
     }
 
-    pub fn with_id(self, id: u16) -> Option<Self> {
-        let mut parts = unpack(self.packed()).unwrap();
-        parts.id = id;
-        pack(parts).map(Critter)
+    pub fn with_id(self, idx: Idx) -> Option<Self> {
+        let mut parts = Parts::unpack(self.packed()).unwrap();
+        parts.idx = idx;
+        parts.pack().map(Critter)
     }
 }
 
@@ -253,16 +253,16 @@ impl Into<FrameId> for Critter {
 pub struct Head(u32);
 
 impl Head {
-    pub fn new(anim: u8, sub_anim: u8, id: u16) -> Option<Self> {
+    pub fn new(anim: u8, sub_anim: u8, idx: Idx) -> Option<Self> {
         assert!(anim <= 12);
         assert!(sub_anim <= 9);
-        pack(Parts {
+        Parts {
             kind: EntityKind::Head,
             direction: None,
             anim,
             sub_anim,
-            id,
-        }).map(Head)
+            idx,
+        }.pack().map(Head)
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
@@ -271,7 +271,7 @@ impl Head {
             anim,
             sub_anim,
             ..
-        } = unpack(fid)?;
+        } = Parts::unpack(fid)?;
 
         if kind != EntityKind::Head {
             return None;
@@ -291,29 +291,28 @@ impl Head {
     }
 
     pub fn direction(self) -> Option<Direction> {
-        let Parts { direction, .. } = unpack(self.0).unwrap();
+        let Parts { direction, .. } = Parts::unpack(self.0).unwrap();
         direction
     }
 
     pub fn with_direction(self, direction: Option<Direction>) -> Self {
-        let mut parts = unpack(self.packed()).unwrap();
+        let mut parts = Parts::unpack(self.packed()).unwrap();
         parts.direction = direction;
-        Head(pack(parts).unwrap())
+        Head(parts.pack().unwrap())
     }
 
     pub fn anim(self) -> u8 {
-        let Parts { anim, .. } = unpack(self.0).unwrap();
+        let Parts { anim, .. } = Parts::unpack(self.0).unwrap();
         anim
     }
 
     pub fn sub_anim(self) -> u8 {
-        let Parts { sub_anim, .. } = unpack(self.0).unwrap();
+        let Parts { sub_anim, .. } = Parts::unpack(self.0).unwrap();
         sub_anim
     }
 
-    pub fn id(self) -> u16 {
-        let Parts { id, .. } = unpack(self.0).unwrap();
-        id
+    pub fn idx(self) -> Idx {
+        Parts::unpack(self.0).unwrap().idx
     }
 }
 
@@ -333,15 +332,15 @@ impl Into<FrameId> for Head {
 pub struct Generic(u32);
 
 impl Generic {
-    pub fn new(kind: EntityKind, id: u16) -> Option<Self> {
+    pub fn new(kind: EntityKind, idx: Idx) -> Option<Self> {
         assert!(kind != EntityKind::Critter && kind != EntityKind::Head);
-        pack(Parts {
+        Parts {
             kind,
             direction: None,
             anim: 0,
             sub_anim: 0,
-            id,
-        }).map(Generic)
+            idx,
+        }.pack().map(Generic)
     }
 
     pub fn from_packed(fid: u32) -> Option<Self> {
@@ -350,8 +349,8 @@ impl Generic {
             direction,
             anim,
             sub_anim,
-            id,
-        } = unpack(fid)?;
+            idx,
+        } = Parts::unpack(fid)?;
 
         if kind == EntityKind::Critter || kind == EntityKind::Head {
             return None;
@@ -366,7 +365,7 @@ impl Generic {
             warn!("ignoring sub-animation ID 0x{:x} of a {:?} FID 0x{:08x}", sub_anim, kind, fid);
         }
 
-        Self::new(kind, id)
+        Self::new(kind, idx)
     }
 
     pub fn packed(self) -> u32 {
@@ -374,19 +373,18 @@ impl Generic {
     }
 
     pub fn kind(self) -> EntityKind {
-        let Parts { kind, .. } = unpack(self.0).unwrap();
+        let Parts { kind, .. } = Parts::unpack(self.0).unwrap();
         kind
     }
 
-    pub fn id(self) -> u16 {
-        let Parts { id, .. } = unpack(self.0).unwrap();
-        id
+    pub fn idx(self) -> Idx {
+        Parts::unpack(self.0).unwrap().idx
     }
 }
 
 impl fmt::Debug for Generic {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Fid(0x{:08x})", self.packed())
+        write!(f, "FrameId(0x{:08x})", self.packed())
     }
 }
 
@@ -401,43 +399,43 @@ struct Parts {
     direction: Option<Direction>,
     anim: u8,
     sub_anim: u8,
-    id: u16,
+    idx: Idx,
 }
 
-fn pack(parts: Parts) -> Option<u32> {
-    if parts.sub_anim > 15 {
-        return None;
+impl Parts {
+    fn pack(self) -> Option<u32> {
+        if self.sub_anim > 15 || self.idx > 4095 {
+            return None;
+        }
+        Some(self.direction.map(|d| d as u32 + 1).unwrap_or(0) << 28
+            | (self.kind as u32) << 24
+            | (self.anim as u32) << 16
+            | (self.sub_anim as u32) << 12
+            | (self.idx as u32))
     }
-    if parts.id > 4095 {
-        return None;
+
+    fn unpack(fid: u32) -> Option<Self> {
+        let kind = EntityKind::from_u32((fid >> 24) & 0b1111)?;
+
+        let direction = (fid >> 28) as u8 & 0b111;
+        let direction = if direction == 0 {
+            None
+        } else {
+            Some(Direction::from_u8(direction - 1)?)
+        };
+
+        let anim = (fid >> 16) as u8;
+        let sub_anim = (fid >> 12) as u8 & 0b1111;
+        let idx = fid as Idx & 0b1111_1111_1111;
+
+        Some(Self {
+            kind,
+            direction,
+            anim,
+            sub_anim,
+            idx,
+        })
     }
-    Some(parts.direction.map(|d| d as u32 + 1).unwrap_or(0) << 28
-        | (parts.kind as u32) << 24
-        | (parts.anim as u32) << 16
-        | (parts.sub_anim as u32) << 12
-        | (parts.id as u32))
 }
 
-fn unpack(fid: u32) -> Option<Parts> {
-    let kind = EntityKind::from_u32((fid >> 24) & 0b1111)?;
-
-    let direction = (fid >> 28) as u8 & 0b111;
-    let direction = if direction == 0 {
-        None
-    } else {
-        Some(Direction::from_u8(direction - 1)?)
-    };
-
-    let anim = (fid >> 16) as u8;
-    let sub_anim = (fid >> 12) as u8 & 0b1111;
-    let id = fid as u16 & 0b1111_1111_1111;
-
-    Some(Parts {
-        kind,
-        direction,
-        anim,
-        sub_anim,
-        id,
-    })
-}
 
