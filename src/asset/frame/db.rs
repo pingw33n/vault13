@@ -92,7 +92,7 @@ impl FrameDb {
                 | CalledShotPic
                 => {
                     // TODO replace unwraps with logging
-                    let alias = self.lst[EntityKind::Critter].get(critter_fid.id() as usize).unwrap()
+                    let alias = self.lst[EntityKind::Critter].get(critter_fid.idx() as usize).unwrap()
                         .fields.get(1).unwrap();
                     // TODO parse this once during Self::new().
                     let alias = alias.parse().unwrap();
@@ -138,7 +138,7 @@ impl FrameDb {
     }
 
     fn name_no_normalize(&self, fid: FrameId) -> Option<String> {
-        let base_name = &self.lst[fid.kind()].get(fid.id() as usize)?.fields[0];
+        let base_name = &self.lst[fid.kind()].get(fid.idx() as usize)?.fields[0];
 
         Some(match fid {
             FrameId::Critter(fid) => {

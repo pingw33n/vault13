@@ -1,11 +1,11 @@
 mod db;
-pub mod id;
+mod id;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use enum_map::EnumMap;
 use std::io::{self, prelude::*};
 
-pub use id::FrameId;
+pub use id::{FrameId, Idx};
 pub use db::FrameDb;
 
 use crate::graphics::Point;
