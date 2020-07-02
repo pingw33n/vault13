@@ -9,7 +9,7 @@ use std::mem;
 use std::rc::Rc;
 
 use crate::asset::*;
-use crate::asset::frame::{FrameId, FrameDb};
+use crate::asset::frame::*;
 use crate::asset::proto::*;
 use crate::asset::script::ProgramId;
 use crate::game::rpg::Rpg;
@@ -81,8 +81,13 @@ pub struct InventoryItem {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EquipmentSlot {
     Armor,
-    LeftHand,
-    RightHand,
+    Hand(Hand),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Hand {
+    Left,
+    Right,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -439,8 +444,8 @@ impl Object {
     pub fn equipment(&self, slot: EquipmentSlot, objects: &Objects) -> Option<Handle> {
         let flag = match slot {
             EquipmentSlot::Armor => Flag::Worn,
-            EquipmentSlot::LeftHand => Flag::LeftHand,
-            EquipmentSlot::RightHand => Flag::RightHand,
+            EquipmentSlot::Hand(Hand::Left) => Flag::LeftHand,
+            EquipmentSlot::Hand(Hand::Right) => Flag::RightHand,
         };
         self.find_inventory_item(objects, |o| o.flags.contains(flag))
     }
@@ -571,6 +576,38 @@ impl Object {
             (SubObject::Scenery(_), SubObject::Scenery(_)) => unimplemented!(),
             _ => unreachable!(),
         }
+    }
+
+    // adjust_fid
+    pub fn equipped_fid(&self, objects: &Objects, rpg: &Rpg) -> FrameId {
+        if self.proto().unwrap().kind() != ExactEntityKind::Critter {
+            return self.fid;
+        }
+        let dude = self.sub.as_critter().unwrap().try_dude();
+
+        let idx = self.equipment(EquipmentSlot::Armor, objects)
+            .map(|armor| {
+                let armor = objects.get(armor);
+                let armor = armor.proto().unwrap();
+                let armor = armor.sub.as_armor().unwrap();
+                if rpg.stat(Stat::Gender, self, objects) == 1 {
+                    armor.female_fidx
+                } else {
+                    armor.male_fidx
+                }
+            })
+            .or(dude.map(|d| d.naked_fidx))
+            .unwrap_or(self.fid.idx());
+
+        let active_hand = dude.map(|d| d.active_hand).unwrap_or(Hand::Left);
+        let weapon = self.equipment(EquipmentSlot::Hand(active_hand), objects)
+            .and_then(|item| {
+                objects.get(item).proto().unwrap().sub
+                    .as_weapon().map(|w| w.kind)
+            })
+            .unwrap_or(WeaponKind::Unarmed);
+
+        FrameId::new_critter(Some(self.direction), CritterAnim::Stand, weapon, idx).unwrap()
     }
 
     fn find_inventory_item(&self, objects: &Objects, f: impl Fn(&Object) -> bool) -> Option<Handle> {
@@ -1465,6 +1502,8 @@ pub enum SubObject {
 
 #[derive(Debug)]
 pub struct Dude {
+    pub naked_fidx: Idx,
+    pub active_hand: Hand,
 }
 
 #[derive(Debug)]
@@ -1502,11 +1541,11 @@ impl Critter {
     }
 
     pub fn try_dude(&self) -> Option<&Dude> {
-        self.dude.as_ref().map(|v| &**v)
+        self.dude.as_deref()
     }
 
     pub fn try_dude_mut(&mut self) -> Option<&mut Dude> {
-        self.dude.as_mut().map(|v| &mut **v)
+        self.dude.as_deref_mut()
     }
 }
 

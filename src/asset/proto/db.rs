@@ -220,25 +220,23 @@ impl ProtoDb {
     fn read_armor(rd: &mut impl Read) -> io::Result<Armor> {
         let armor_class = rd.read_i32::<BigEndian>()?;
         let mut damage_resistance = EnumMap::new();
-        for d in 0..7 {
-            let dmg = DamageKind::from_usize(d).unwrap();
+        for &dmg in DamageKind::basic() {
             damage_resistance[dmg] = rd.read_i32::<BigEndian>()?;
         }
         let mut damage_threshold = EnumMap::new();
-        for d in 0..7 {
-            let dmg = DamageKind::from_usize(d).unwrap();
+        for &dmg in DamageKind::basic() {
             damage_threshold[dmg] = rd.read_i32::<BigEndian>()?;
         }
         let perk = read_opt_enum(rd, "invalid armor perk")?;
-        let male_fid = FrameId::read(rd)?;
-        let female_fid = FrameId::read(rd)?;
+        let male_fidx = FrameId::read(rd)?.idx();
+        let female_fidx = FrameId::read(rd)?.idx();
         Ok(Armor {
             armor_class,
             damage_resistance,
             damage_threshold,
             perk,
-            male_fid,
-            female_fid,
+            male_fidx,
+            female_fidx,
         })
     }
 
@@ -353,7 +351,7 @@ impl ProtoDb {
 
         Ok(Weapon {
             attack_kinds,
-            animation_code,
+            kind: animation_code,
             damage,
             damage_kind,
             max_ranges,

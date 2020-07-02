@@ -12,7 +12,7 @@ use std::io;
 use crate::asset::{DamageKind, ExactEntityKind, Perk, PCStat, Skill, Stat, Trait};
 use crate::asset::message::{Messages, MessageId};
 use crate::asset::proto::ProtoId;
-use crate::game::object::{DamageFlag, EquipmentSlot, Object, Objects};
+use crate::game::object::{DamageFlag, EquipmentSlot, Hand, Object, Objects};
 use crate::fs::FileSystem;
 use crate::util::random::*;
 
@@ -225,8 +225,8 @@ impl Rpg {
                 Endurance => pei(GainEndurance),
                 Charisma => {
                     let wearing_shades = [
-                        EquipmentSlot::LeftHand,
-                        EquipmentSlot::RightHand
+                        EquipmentSlot::Hand(Hand::Left),
+                        EquipmentSlot::Hand(Hand::Right)
                     ].iter()
                         .flat_map(|&s| obj.equipment(s, objs).into_iter())
                         .flat_map(|o| objs.get(o).proto_id().into_iter())
@@ -492,8 +492,6 @@ impl Rpg {
             self.pc_stats[pc_stat] = value;
             if pc_stat == PCStat::Experience {
                 // TODO  statPCAddExperienceCheckPMs_(0, 1);
-            } else {
-
             }
         } else {
             // TODO statPcResetExperience_(value)

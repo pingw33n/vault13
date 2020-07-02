@@ -6,7 +6,7 @@ use crate::asset::*;
 use crate::asset::frame::FrameId;
 use crate::asset::message::{Messages, MessageId};
 use crate::fs::FileSystem;
-use crate::game::object::{self, EquipmentSlot, Object, InventoryItem};
+use crate::game::object::{self, EquipmentSlot, Hand, Object, InventoryItem};
 use crate::game::rpg::Rpg;
 use crate::game::ui::action_menu::{self, Action};
 use crate::game::ui::inventory_list::{self, InventoryList, Scroll, MouseMode};
@@ -85,8 +85,8 @@ impl Inventory {
     }
 
     fn show(&mut self, rpg: &Rpg, ui: &mut Ui) {
-        let obj = self.world.borrow().dude_obj().unwrap();
-        let internal = Internal::new(self.msgs.take().unwrap(), self.world.clone(), obj, ui);
+        let owner = self.world.borrow().dude_obj().unwrap();
+        let internal = Internal::new(self.msgs.take().unwrap(), self.world.clone(), owner, ui);
         internal.sync_mouse_mode_to_ui(ui);
         internal.sync_from_obj(rpg, ui);
         assert!(self.internal.replace(internal).is_none());
@@ -108,7 +108,7 @@ enum Slot {
 struct Internal {
     msgs: Messages,
     world: WorldRef,
-    obj: object::Handle,
+    owner: object::Handle,
     win: ui::Handle,
     mouse_mode: MouseMode,
     list: ui::Handle,
@@ -129,7 +129,7 @@ struct Internal {
 }
 
 impl Internal {
-    fn new(msgs: Messages, world: WorldRef, obj: object::Handle, ui: &mut Ui) -> Self {
+    fn new(msgs: Messages, world: WorldRef, owner: object::Handle, ui: &mut Ui) -> Self {
         let win = ui.new_window(Rect::with_size(80, 0, 499, 377),
             Some(Sprite::new(FrameId::INVENTORY_WINDOW)));
         ui.set_modal_window(Some(win));
@@ -220,7 +220,7 @@ impl Internal {
         Self {
             msgs,
             world,
-            obj,
+            owner,
             win,
             mouse_mode: MouseMode::Drag,
             list,
@@ -255,8 +255,8 @@ impl Internal {
         right_hand.clear();
 
         let world = self.world.borrow();
-        let obj = world.objects().get(self.obj);
-        for item in &obj.inventory.items {
+        let owner = world.objects().get(self.owner);
+        for item in &owner.inventory.items {
             let item_obj = &world.objects().get(item.object);
             let inv_list_item = Self::make_list_item(item, item_obj);
             match () {
@@ -343,10 +343,10 @@ impl Internal {
     // display_stats
     fn update_stats(&self, rpg: &Rpg, ui: &Ui) {
         let world = self.world.borrow();
-        let name = world.object_name(self.obj).unwrap();
-        let obj = &world.objects().get(self.obj);
+        let name = world.object_name(self.owner).unwrap();
+        let owner = &world.objects().get(self.owner);
 
-        let stat = |stat| rpg.stat(stat, obj, world.objects());
+        let stat = |stat| rpg.stat(stat, owner, world.objects());
         let msg = |id| &self.msgs.get(id).unwrap().text;
 
         let mut cols = [BString::new(), BString::new(), BString::new(), BString::new()];
@@ -395,8 +395,8 @@ impl Internal {
         misc.push_str(name);
         misc.push_str("\n---------------------\n\n\n\n\n\n\n\n");
 
-        for &slot in &[EquipmentSlot::LeftHand, EquipmentSlot::RightHand] {
-            let item = obj.equipment(slot, world.objects());
+        for &slot in &[EquipmentSlot::Hand(Hand::Left), EquipmentSlot::Hand(Hand::Right)] {
+            let item = owner.equipment(slot, world.objects());
             misc.push_str("---------------------\n");
             if let Some(item) = item {
                 let item = &world.objects().get(item);
@@ -479,9 +479,9 @@ impl Internal {
         }
 
         let mut total_weight = BString::new();
-        if obj.kind() == EntityKind::Critter {
+        if owner.kind() == EntityKind::Critter {
             let cw = stat(Stat::CarryWeight);
-            let w = obj.inventory.weight(world.objects());
+            let w = owner.inventory.weight(world.objects());
             // Total Wt: 100/200
             total_weight.push_str(msg(MSG_TOTAL_WEIGHT));
             total_weight.push(b' ');
@@ -489,7 +489,7 @@ impl Internal {
             total_weight.push(b'/');
             total_weight.push_str(cw.to_bstring());
         }
-        let overloaded = obj.is_overloaded(rpg, world.objects());
+        let overloaded = owner.is_overloaded(rpg, world.objects());
         {
             let mut w = ui.widget_mut::<Panel>(self.total_weight);
             let w = w.text_mut().unwrap();
@@ -562,8 +562,8 @@ impl Internal {
         Some(match () {
             _ if widget == self.list => Slot::Inventory,
             _ if widget == self.wearing => Slot::Equipment(EquipmentSlot::Armor),
-            _ if widget == self.left_hand => Slot::Equipment(EquipmentSlot::LeftHand),
-            _ if widget == self.right_hand => Slot::Equipment(EquipmentSlot::RightHand),
+            _ if widget == self.left_hand => Slot::Equipment(EquipmentSlot::Hand(Hand::Left)),
+            _ if widget == self.right_hand => Slot::Equipment(EquipmentSlot::Hand(Hand::Right)),
             _ => return None,
         })
     }
@@ -589,7 +589,7 @@ impl Internal {
             let (bump, existing) = match target_slot {
                 Slot::Inventory => (Some(obj), None),
                 Slot::Equipment(eq_slot) => {
-                    let v = world.objects().get(self.obj)
+                    let v = world.objects().get(self.owner)
                         .equipment(eq_slot, world.objects());
                     (v, v)
                 }
@@ -609,8 +609,8 @@ impl Internal {
 
                     match target_slot {
                         EquipmentSlot::Armor => obj.flags.insert(Flag::Worn),
-                        EquipmentSlot::LeftHand => obj.flags.insert(Flag::LeftHand),
-                        EquipmentSlot::RightHand => obj.flags.insert(Flag::RightHand),
+                        EquipmentSlot::Hand(Hand::Left) => obj.flags.insert(Flag::LeftHand),
+                        EquipmentSlot::Hand(Hand::Right) => obj.flags.insert(Flag::RightHand),
                     }
                 }
                 Slot::Inventory => {}
@@ -621,7 +621,7 @@ impl Internal {
 
         // Bump item: remove from slots and move to inventory top.
         if let Some(bump) = bump {
-            let mut owner = world.objects().get_mut(self.obj);
+            let mut owner = world.objects().get_mut(self.owner);
             world.objects().get_mut(bump)
                 .flags.remove(Flag::Worn | Flag::LeftHand | Flag::RightHand);
             let i = owner.inventory.items.iter()
@@ -633,7 +633,7 @@ impl Internal {
         }
 
         {
-            let owner = &mut world.objects().get_mut(self.obj);
+            let owner = &mut world.objects().get_mut(self.owner);
             if src_slot == Slot::Equipment(EquipmentSlot::Armor) {
                 let old_armor = world.objects().get(obj);
                 rpg.apply_armor_change(owner, None, Some(old_armor), world.objects());
@@ -645,6 +645,13 @@ impl Internal {
         }
 
         self.sync_from_obj(rpg, ui);
+        self.sync_owner_fid(rpg)
+    }
+
+    fn sync_owner_fid(&self, rpg: &Rpg) {
+        let world = self.world.borrow();
+        let mut owner = world.objects().get_mut(self.owner);
+        owner.fid = owner.equipped_fid(world.objects(), rpg);
     }
 }
 

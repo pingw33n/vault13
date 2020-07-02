@@ -11,7 +11,7 @@ pub use db::ProtoDb;
 
 use super::*;
 use crate::asset::EntityKind;
-use crate::asset::frame::FrameId;
+use crate::asset::frame::{FrameId, Idx};
 use crate::asset::message::MessageId;
 use crate::game::script::ScriptPid;
 use crate::graphics::geometry::hex::TileGrid;
@@ -189,8 +189,8 @@ pub struct Armor {
   pub damage_resistance: EnumMap<DamageKind, i32>,
   pub damage_threshold: EnumMap<DamageKind, i32>,
   pub perk: Option<Perk>,
-  pub male_fid: FrameId,
-  pub female_fid: FrameId,
+  pub male_fidx: Idx,
+  pub female_fidx: Idx,
 }
 
 impl Armor {
@@ -255,7 +255,7 @@ pub struct RangeInclusive<T> {
 #[derive(Debug)]
 pub struct Weapon {
     pub attack_kinds: EnumMap<AttackGroup, AttackKind>,
-    pub animation_code: WeaponKind,
+    pub kind: WeaponKind,
     // item_w_damage_min_max
     pub damage: RangeInclusive<i32>,
     pub damage_kind: DamageKind,
