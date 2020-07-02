@@ -217,6 +217,7 @@ impl World {
                             team_id: p.team_id,
                             who_hit_me: 0,
                         },
+                        dude: None,
                     })
                 }
                 // proto_update_gen

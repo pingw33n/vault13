@@ -1463,12 +1463,17 @@ pub enum SubObject {
     Scenery(Scenery),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
+pub struct Dude {
+}
+
+#[derive(Debug)]
 pub struct Critter {
     pub hit_points: i32,
     pub radiation: i32,
     pub poison: i32,
     pub combat: CritterCombat,
+    pub dude: Option<Box<Dude>>,
 }
 
 impl Critter {
@@ -1486,6 +1491,22 @@ impl Critter {
         // TODO
 //        if ( stat_level_(result, STAT_current_hp) <= 0 )
 //      return 1;
+    }
+
+    pub fn dude(&self) -> &Dude {
+        self.try_dude().unwrap()
+    }
+
+    pub fn dude_mut(&mut self) -> &mut Dude {
+        self.try_dude_mut().unwrap()
+    }
+
+    pub fn try_dude(&self) -> Option<&Dude> {
+        self.dude.as_ref().map(|v| &**v)
+    }
+
+    pub fn try_dude_mut(&mut self) -> Option<&mut Dude> {
+        self.dude.as_mut().map(|v| &mut **v)
     }
 }
 

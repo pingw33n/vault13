@@ -337,6 +337,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                     team_id,
                     who_hit_me,
                 },
+                dude: None,
             })
         } else {
     //            let update_flags = if updated_flags == 0xcccccccc {
