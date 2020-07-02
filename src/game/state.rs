@@ -181,7 +181,11 @@ impl GameState {
             Some(Default::default()),
             SubObject::Critter(object::Critter {
                 hit_points: 44,
-                ..Default::default()
+                radiation: 0,
+                poison: 0,
+                combat: Default::default(),
+                dude: Some(Box::new(Dude {
+                })),
             }));
         self.world.borrow_mut().insert_object(dude_obj);
 
