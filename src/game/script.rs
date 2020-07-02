@@ -20,7 +20,7 @@ use crate::util::EnumExt;
 use crate::vm::{self, *};
 use crate::vm::value::Value;
 
-pub const GVAR_PLAYER_REPUTATION: i32 = 0;
+pub const GVAR_PLAYER_REPUTATION: usize = 0;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum ScriptKind {
