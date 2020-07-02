@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io;
 
-use crate::asset::{DamageKind, Perk, Skill, Stat, Trait};
+use crate::asset::{DamageKind, Perk, PCStat, Skill, Stat, Trait};
 use crate::asset::message::{Messages, MessageId};
 use crate::asset::proto::ProtoId;
 use crate::game::object::{DamageFlag, EquipmentSlot, Object, Objects};
@@ -17,6 +17,7 @@ use crate::fs::FileSystem;
 use crate::util::random::*;
 
 use def::perk::*;
+use def::pc_stat::*;
 use def::skill::*;
 use def::stat::*;
 
@@ -56,6 +57,8 @@ pub struct Rpg {
     traits: EnumMap<Trait, bool>,
     perks: HashMap<ProtoId, EnumMap<Perk, u32>>,
     tagged: EnumMap<Skill, Tagged>,
+    pc_stat_defs: EnumMap<PCStat, PCStatDef>,
+    pc_stats: EnumMap<PCStat, i32>,
 }
 
 impl Rpg {
@@ -71,6 +74,10 @@ impl Rpg {
 
         let mut perks = HashMap::new();
         perks.insert(ProtoId::DUDE, Default::default());
+
+        let pc_stat_defs = PCStatDef::defaults();
+        let pc_stats = EnumMap::from(|s| pc_stat_defs[s].default);
+
         Ok(Self {
             stat_msgs,
             skill_msgs,
@@ -81,6 +88,8 @@ impl Rpg {
             traits: Default::default(),
             perks,
             tagged: Default::default(),
+            pc_stat_defs,
+            pc_stats,
         })
     }
 
@@ -88,24 +97,39 @@ impl Rpg {
         &self.skill_msgs
     }
 
+    // skill_name
     pub fn skill_name(&self, skill: Skill) -> &bstr {
         &self.skill_msgs.get(SKILL_NAME_MSG_BASE + skill as MessageId).unwrap().text
     }
 
+    // skill_description
     pub fn skill_description(&self, skill: Skill) -> &bstr {
         &self.skill_msgs.get(SKILL_DESCR_MSG_BASE + skill as MessageId).unwrap().text
     }
 
+    // skill_attribute
     pub fn skill_formula(&self, skill: Skill) -> &bstr {
         &self.skill_msgs.get(SKILL_FORMULA_MSG_BASE + skill as MessageId).unwrap().text
     }
 
+    // perk_name
     pub fn perk_name(&self, perk: Perk) -> &bstr {
         &self.perk_msgs.get(PERK_NAME_MSG_BASE + perk as MessageId).unwrap().text
     }
 
+    // perk_description
     pub fn perk_description(&self, perk: Perk) -> &bstr {
         &self.perk_msgs.get(PERK_DESCR_MSG_BASE + perk as MessageId).unwrap().text
+    }
+
+    // stat_pc_name
+    pub fn pc_stat_name(&self, pc_stat: PCStat) -> &bstr {
+        &self.stat_msgs.get(PC_STAT_NAME_MSG_BASE + pc_stat as MessageId).unwrap().text
+    }
+
+    // stat_pc_description
+    pub fn pc_stat_description(&self, pc_stat: PCStat) -> &bstr {
+        &self.stat_msgs.get(PC_STAT_DESCR_MSG_BASE + pc_stat as MessageId).unwrap().text
     }
 
     // perk_level
@@ -131,7 +155,7 @@ impl Rpg {
             return false;
         };
         if self.perk(perk, obj.proto_id().unwrap()) >= max_rank
-            // TODO || obj.is_dude() && self.pc_stat(PCStat::Level) < def.min_level
+            || obj.is_dude() && (self.pc_stat(PCStat::Level) as u32) < def.min_level
         {
             return false;
         }
@@ -323,6 +347,7 @@ impl Rpg {
         roll_checker.roll_check(bonus + level, crit_level)
     }
 
+    // stat_recalc_derived
     pub fn recalc_derived_stats(&self, obj: &mut Object, objs: &Objects) {
         use Stat::*;
 
@@ -404,6 +429,35 @@ impl Rpg {
             PoisonResist => -st(PoisonResist) * tr(FastMetabolism),
             _ => 0,
         }
+    }
+
+    // stat_pc_get
+    pub fn pc_stat(&self, pc_stat: PCStat) -> i32 {
+        self.pc_stats[pc_stat]
+    }
+
+    // stat_pc_set
+    pub fn try_set_pc_stat(&mut self, pc_stat: PCStat, value: i32) -> bool {
+        let def = &self.pc_stat_defs[pc_stat];
+        if value < def.min || value > def.max {
+            return false;
+        }
+        if pc_stat != PCStat::Experience || value >= self.pc_stat(PCStat::Experience) {
+            self.pc_stats[pc_stat] = value;
+            if pc_stat == PCStat::Experience {
+                // TODO  statPCAddExperienceCheckPMs_(0, 1);
+            } else {
+
+            }
+        } else {
+            // TODO statPcResetExperience_(value)
+        }
+        true
+    }
+
+    // stat_pc_min_exp
+    pub fn next_level_experience(&self) -> u32 {
+        level_experience(self.pc_stat(PCStat::Level) as u32 + 1)
     }
 
     // trait_adjust_skill
@@ -501,5 +555,32 @@ impl Rpg {
                 }
             }
         }
+    }
+}
+
+pub fn level_experience(level: u32) -> u32 {
+    try_level_experience(level).expect("level experience overflow/underflow")
+}
+
+// get_experience_for_level
+fn try_level_experience(level: u32) -> Option<u32> {
+    (level.checked_mul(level.checked_sub(1)?)? / 2).checked_mul(1000)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn try_level_experience_() {
+        let f = try_level_experience;
+        assert_eq!(f(0), None);
+        assert_eq!(f(1), Some(0));
+        assert_eq!(f(2), Some(1000));
+        assert_eq!(f(3), Some(3000));
+        assert_eq!(f(20), Some(190_000));
+        assert_eq!(f(21), Some(210_000));
+        assert_eq!(f(98), Some(4_753_000));
+        assert_eq!(f(99), Some(4_851_000));
     }
 }
