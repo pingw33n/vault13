@@ -349,6 +349,15 @@ impl Stat {
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+pub enum PCStat {
+    UnspentSkillPoints = 0,
+    Level = 1,
+    Experience = 2,
+    Reputation = 3,
+    Karma = 4,
+}
+
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
 pub enum Perk {
     BonusAwareness = 0x0,
     BonusHthAttacks = 0x1,
