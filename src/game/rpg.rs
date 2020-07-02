@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io;
 
-use crate::asset::{DamageKind, Perk, PCStat, Skill, Stat, Trait};
+use crate::asset::{DamageKind, ExactEntityKind, Perk, PCStat, Skill, Stat, Trait};
 use crate::asset::message::{Messages, MessageId};
 use crate::asset::proto::ProtoId;
 use crate::game::object::{DamageFlag, EquipmentSlot, Object, Objects};
@@ -375,7 +375,7 @@ impl Rpg {
     }
 
     // adjust_ac
-    pub fn update_armor_class(&self,
+    pub fn apply_armor_change(&self,
         obj: &mut Object,
         new_armor: Option<Ref<Object>>,
         old_armor: Option<Ref<Object>>,
@@ -395,7 +395,53 @@ impl Rpg {
             self.set_bonus_stat(stat, obj, new, objs);
         }
         if obj.is_dude() { // TODO isPartyMember
-            // TODO handle armor perk
+            if let Some(old_perk) = old_armor.as_ref()
+                .and_then(|o| o.proto().unwrap().sub.as_armor().unwrap().perk)
+            {
+                self.remove_perk_effect(old_perk, obj, objs)
+            }
+            if let Some(new_perk) = new_armor.as_ref()
+                .and_then(|o| o.proto().unwrap().sub.as_armor().unwrap().perk)
+            {
+                self.add_perk_effect(new_perk, obj, objs);
+            }
+        }
+    }
+
+    // perk_add_effect
+    fn add_perk_effect(&self, perk: Perk, obj: &mut Object, objs: &Objects) {
+        assert_eq!(obj.proto().unwrap().kind(), ExactEntityKind::Critter);
+        let def = &self.perk_defs[perk];
+        for &(stat, bonus) in def.stat_bonuses {
+            let v = self.bonus_stat(stat, obj);
+            self.set_bonus_stat(stat, obj, v + bonus, objs);
+        }
+        if perk == Perk::HereAndNow {
+            // TODO
+            // v7 = (char *) & perkGetLevelData_(obj) -> levels[PERK_here_and_now_perk];
+            // --*(_DWORD *)
+            // v7;
+            // player_level = stat_pc_get_(PCSTAT_level);
+            // v9 = get_experience_for_level(player_level + 1);
+            // dword_51C124 = v9 - stat_pc_get_(PCSTAT_experience);
+            // statPCAddExperienceCheckPMs_(dword_51C124, 0);
+            // + + *(_DWORD *)
+            // v7;
+        }
+    }
+
+    // perk_add_effect
+    fn remove_perk_effect(&self, perk: Perk, obj: &mut Object, objs: &Objects) {
+        assert_eq!(obj.proto().unwrap().kind(), ExactEntityKind::Critter);
+        let def = &self.perk_defs[perk];
+        for &(stat, bonus) in def.stat_bonuses {
+            let v = self.bonus_stat(stat, obj);
+            self.set_bonus_stat(stat, obj, v - bonus, objs);
+        }
+        if perk == Perk::HereAndNow {
+            // TODO does this make sense at all?
+            //let v = self.pc_stat(PCStat::Experience);
+            //self.try_set_pc_stat(PCStat::Experience, v - HereAndNow_experience_boost);
         }
     }
 
