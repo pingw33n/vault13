@@ -117,6 +117,40 @@ impl Rpg {
         self.perk(perk, pid) > 0
     }
 
+    // perk_can_add
+    pub fn can_add_perk(&self,
+        perk: Perk,
+        obj: &Object,
+        objs: &Objects,
+        global_vars: &[i32],
+    ) -> bool {
+        let def = &self.perk_defs[perk];
+        let max_rank = if let Some(v) = def.max_rank {
+            v
+        } else {
+            return false;
+        };
+        if self.perk(perk, obj.proto_id().unwrap()) >= max_rank
+            // TODO || obj.is_dude() && self.pc_stat(PCStat::Level) < def.min_level
+        {
+            return false;
+        }
+        let req_test = |(req, value)| {
+            let v = match req {
+                ReqTarget::Stat(stat) => self.stat(stat, obj, objs),
+                ReqTarget::Skill(skill) => self.skill(skill, obj, objs),
+                ReqTarget::GlobalVar(gvar) => global_vars[gvar],
+            };
+            match value {
+                ReqValue::GreaterOrEqual(rv) => v >= rv,
+                ReqValue::Less(rv) => v < rv,
+            }
+        };
+        let any = def.any.map(|any| any.iter().copied().any(req_test)).unwrap_or(true);
+        let all = def.all.iter().copied().all(req_test);
+        any && all
+    }
+
     pub fn has_trait(&self, tr: Trait) -> bool {
         self.traits[tr]
     }
