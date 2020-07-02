@@ -74,7 +74,7 @@ impl Inventory {
                     self.internal.as_ref().unwrap().handle_list_drop(cmd.source, pos, object, rpg, ui);
                 }
                 Command::ToggleMouseMode => {
-                    self.internal.as_mut().unwrap().toggle_mouse_mode(ui);
+                    self.internal.as_mut().unwrap().toggle_mouse_mode(rpg, ui);
                 }
             }
         }
@@ -537,12 +537,13 @@ impl Internal {
         ui.widget_base_mut(self.item_descr).set_visible(!stats);
     }
 
-    fn toggle_mouse_mode(&mut self, ui: &Ui) {
+    fn toggle_mouse_mode(&mut self, rpg: &Rpg, ui: &Ui) {
         self.mouse_mode = match self.mouse_mode {
             MouseMode::Action => MouseMode::Drag,
             MouseMode::Drag => MouseMode::Action,
         };
         self.sync_mouse_mode_to_ui(ui);
+        self.update_stats(rpg, ui);
     }
 
     fn sync_mouse_mode_to_ui(&self, ui: &Ui) {
@@ -635,11 +636,11 @@ impl Internal {
             let owner = &mut world.objects().get_mut(self.obj);
             if src_slot == Slot::Equipment(EquipmentSlot::Armor) {
                 let old_armor = world.objects().get(obj);
-                rpg.update_armor_class(owner, None, Some(old_armor), world.objects());
+                rpg.apply_armor_change(owner, None, Some(old_armor), world.objects());
             } else if target_slot == Slot::Equipment(EquipmentSlot::Armor) {
                 let new_armor = world.objects().get(obj);
                 let old_armor = existing.map(|obj| world.objects().get(obj));
-                rpg.update_armor_class(owner, Some(new_armor), old_armor, world.objects());
+                rpg.apply_armor_change(owner, Some(new_armor), old_armor, world.objects());
             }
         }
 
