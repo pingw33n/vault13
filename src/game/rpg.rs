@@ -16,7 +16,9 @@ use crate::game::object::{DamageFlag, EquipmentSlot, Object, Objects};
 use crate::fs::FileSystem;
 use crate::util::random::*;
 
-use def::*;
+use def::perk::*;
+use def::skill::*;
+use def::stat::*;
 
 const STAT_NAME_MSG_BASE: MessageId = 100;
 const STAT_DESCR_MSG_BASE: MessageId = 200;
