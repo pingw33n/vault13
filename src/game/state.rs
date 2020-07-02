@@ -185,6 +185,8 @@ impl GameState {
                 poison: 0,
                 combat: Default::default(),
                 dude: Some(Box::new(Dude {
+                    naked_fidx: 0x3e,
+                    active_hand: Hand::Left,
                 })),
             }));
         self.world.borrow_mut().insert_object(dude_obj);
