@@ -209,9 +209,8 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
             Error::BadValue(BadValue::Content)
         })?;
 
-    let (fid, spid) = {
+    let spid = {
         let proto = proto.borrow();
-        let fid = proto.fid;
         let kind = match proto.kind() {
             ExactEntityKind::Item(_) | ExactEntityKind::Scenery(_) => ScriptKind::Item,
             ExactEntityKind::Critter => ScriptKind::Critter,
@@ -221,21 +220,21 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
             assert_eq!(sid.kind(), kind);
             sid.program_id()
         }));
-        (fid, prg_id.map(|prg_id| ScriptPid::new(kind, prg_id)))
+        prg_id.map(|prg_id| ScriptPid::new(kind, prg_id))
     };
 
     let pos = ctx.ext.world.hex_grid().from_linear_inv(tile_num);
     let pos = pos.elevated(elevation);
-    let objh = ctx.ext.world.new_object(fid, Some(proto), Some(pos), ctx.ext.rpg);
+    let mut obj = ctx.ext.world.objects_mut()
+        .create(None, Some(proto), Some(pos), Some(ctx.ext.rpg));
     if let Some(spid) = spid {
-        let mut obj = ctx.ext.world.objects().get_mut(objh);
         let siid = ctx.ext.new_scripts.new_script(spid.kind(), spid.program_id());
         obj.script = Some((siid, spid.program_id()));
     }
 
-    ctx.prg.data_stack.push(Value::Object(Some(objh)))?;
+    ctx.prg.data_stack.push(obj.handle().into())?;
 
-    log_a4r1!(ctx.prg, pid, tile_num, elevation, spid, objh);
+    log_a4r1!(ctx.prg, pid, tile_num, elevation, spid, obj.handle());
 
     Ok(())
 }
