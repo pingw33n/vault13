@@ -483,7 +483,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         r.fid = fid;
         r.frame_idx = frame_idx;
         r.direction = direction;
-        r.light_emitter = light_emitter;
+        r.set_light_emitter(light_emitter);
         r.inventory = inventory;
         r.outline = outline;
         r.script = script;

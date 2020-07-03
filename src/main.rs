@@ -355,7 +355,7 @@ fn main() {
             };
             let (dude_pos, dude_dir) = {
                 let dude_obj = world.objects().get(world.objects().dude());
-                (dude_obj.pos.unwrap().point, dude_obj.direction)
+                (dude_obj.pos().point, dude_obj.direction)
             };
             let msg = format!(
                 "mouse: {}, {}\n\

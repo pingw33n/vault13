@@ -141,15 +141,16 @@ new_handle_type! {
 
 #[derive(Debug)]
 pub struct Object {
+    handle: Option<Handle>,
     pub flags: BitFlags<Flag>,
     pub updated_flags: BitFlags<UpdatedFlag>,
-    pub pos: Option<EPoint>,
+    pos: Option<EPoint>,
     pub screen_pos: Point,
     pub screen_shift: Point,
     pub fid: FrameId,
     pub frame_idx: usize,
     pub direction: Direction,
-    pub light_emitter: LightEmitter,
+    light_emitter: LightEmitter,
     proto: Option<ProtoRef>,
     pub inventory: Inventory,
     pub outline: Option<Outline>,
@@ -165,6 +166,7 @@ impl Object {
         sub: SubObject,
     ) -> Self {
         Self {
+            handle: None,
             pos,
             screen_pos: Point::new(0, 0),
             screen_shift: Point::new(0, 0),
@@ -207,6 +209,28 @@ impl Object {
 
     pub fn is_dude(&self) -> bool {
         self.proto_id() == Some(ProtoId::DUDE)
+    }
+
+    pub fn pos(&self) -> EPoint {
+        self.pos.unwrap()
+    }
+
+    pub fn try_pos(&self) -> Option<EPoint> {
+        self.pos
+    }
+
+    pub fn set_pos(&mut self, pos: Option<EPoint>) {
+        assert!(self.handle.is_none(), "use Objects::set_pos()");
+        self.pos = pos;
+    }
+
+    pub fn light_emitter(&self) -> LightEmitter {
+        self.light_emitter
+    }
+
+    pub fn set_light_emitter(&mut self, v: LightEmitter) {
+        assert!(self.handle.is_none());
+        self.light_emitter = v;
     }
 
     pub fn render(&mut self, canvas: &mut dyn Canvas, light: u32,
@@ -684,7 +708,7 @@ impl Object {
 
         let egg = egg.unwrap();
 
-        let pos = self.pos.unwrap().point;
+        let pos = self.pos().point;
         let proto_flags_ext = self.proto().unwrap().flags_ext;
 
         let with_egg = if proto_flags_ext.intersects(
@@ -808,12 +832,14 @@ impl Objects {
         self.dude = None;
     }
 
-    pub fn insert(&mut self, obj: Object) -> Handle {
-        let dude = obj.is_dude();
+    pub fn insert(&mut self, mut obj: Object) -> Handle {
+        assert!(obj.handle.is_none());
 
+        let dude = obj.is_dude();
         let pos = obj.pos;
 
         let r = self.handles.insert(());
+        obj.handle = Some(r);
         self.objects.insert(r, RefCell::new(obj));
 
         self.insert_into_tile_grid(r, pos, true);
@@ -827,16 +853,16 @@ impl Objects {
         r
     }
 
-    pub fn remove(&mut self, obj: Handle) -> Option<Object> {
+    pub fn remove(&mut self, obj: Handle) -> Object {
         if self.dude == Some(obj) {
             self.dude = None;
         }
         self.update_light_grid(obj, -1);
-        self.handles.remove(obj)?;
+        self.handles.remove(obj).unwrap();
         self.remove_from_tile_grid(obj);
-        let r = self.objects.remove(obj);
-        assert!(r.is_some());
-        r.map(|r| r.into_inner())
+        let mut r = self.objects.remove(obj).unwrap().into_inner();
+        r.handle.take().unwrap();
+        r
     }
 
     pub fn at(&self, pos: EPoint) -> &Vec<Handle> {
@@ -1148,8 +1174,8 @@ impl Objects {
     // combat_is_shot_blocked()
     #[must_use]
     pub fn is_shot_blocked(&self, shooter: Handle, target: Handle) -> bool {
-        let pos = self.get(shooter).pos.unwrap();
-        let target_pos = self.get(target).pos.unwrap();
+        let pos = self.get(shooter).pos();
+        let target_pos = self.get(target).pos();
         assert_eq!(pos.elevation, target_pos.elevation);
         let mut last_blocker = None;
         for p in hex::ray(pos.point, target_pos.point) {
@@ -1185,8 +1211,8 @@ impl Objects {
         let o2 = self.get(obj2);
 
         // TODO maybe return Unreachable error instead.
-        let p1 = o1.pos.unwrap();
-        let p2 = o2.pos.unwrap();
+        let p1 = o1.pos();
+        let p2 = o2.pos();
 
         if p1.elevation != p2.elevation {
             return Err(CantTalkSpatial::Unreachable);
@@ -1269,7 +1295,7 @@ impl Objects {
         let (to_point, unblocked_radius) = match to {
             PathTo::Object(to_obj) => {
                 let to_obj = self.get(to_obj);
-                let to_point = to_obj.pos.unwrap().point;
+                let to_point = to_obj.pos().point;
                 let unblocked_radius = if to_obj.flags.contains(Flag::MultiHex) {
                     2
                 } else {
@@ -1450,7 +1476,7 @@ impl Objects {
     }
 
     fn cmp_objs(&self, o1: &Object, o2: &Object) -> cmp::Ordering {
-        assert_eq!(o1.pos.unwrap().elevation, o2.pos.unwrap().elevation);
+        assert_eq!(o1.pos().elevation, o2.pos().elevation);
 
         // By flatness, flat first.
         let flat = o1.flags.contains(Flag::Flat);

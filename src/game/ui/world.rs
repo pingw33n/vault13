@@ -79,7 +79,7 @@ impl WorldView {
         if self.pick_mode == PickMode::Hex {
             let world = self.world.borrow();
             let cursor = world.objects().get(self.hex_cursor);
-            cursor.pos
+            Some(cursor.pos())
         } else {
             None
         }
@@ -114,13 +114,11 @@ impl WorldView {
         let mut world = self.world.borrow_mut();
         let hex_pos = world.camera().hex().from_screen(screen_pos);
         let pos = EPoint::new(world.elevation(), hex_pos);
-        let old_pos = world.objects().get(self.hex_cursor).pos;
-        let changed = if Some(pos) != old_pos {
+        let old_pos = world.objects().get(self.hex_cursor).pos();
+        let changed = pos != old_pos;
+        if changed {
             world.objects_mut().set_pos(self.hex_cursor, Some(pos));
-            true
-        } else {
-            false
-        };
+        }
         (pos, changed)
     }
 
@@ -273,7 +271,7 @@ impl Widget for WorldView {
         match self.pick_mode {
             PickMode::Hex => if self.hex_cursor_style == HexCursorStyle::Blocked {
                 let hex_cursor = world.objects().get(self.hex_cursor);
-                let pos = hex_cursor.pos.unwrap();
+                let pos = hex_cursor.pos();
                 if !hex_cursor.flags.contains(Flag::TurnedOff) && pos.elevation == world.elevation() {
                     let center = world.camera().hex().center_to_screen(pos.point);
                     ctx.canvas.draw_text(b"X".as_ref().into(), center, FontKey::antialiased(1),
