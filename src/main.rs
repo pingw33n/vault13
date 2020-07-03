@@ -354,7 +354,7 @@ fn main() {
                 (Point::new(-1, -1), Point::new(-1, -1))
             };
             let (dude_pos, dude_dir) = {
-                let dude_obj = world.objects().get(world.dude_obj().unwrap());
+                let dude_obj = world.objects().get(world.objects().dude());
                 (dude_obj.pos.unwrap().point, dude_obj.direction)
             };
             let msg = format!(

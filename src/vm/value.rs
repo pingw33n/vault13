@@ -358,6 +358,12 @@ impl From<Option<Handle>> for Value {
     }
 }
 
+impl From<Handle> for Value {
+    fn from(v: Handle) -> Self {
+        Value::Object(Some(v))
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StringValue {
     Indirect(usize),

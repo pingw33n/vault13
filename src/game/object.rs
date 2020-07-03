@@ -2,6 +2,7 @@ use enumflags2::BitFlags;
 use enumflags2_derive::EnumFlags;
 use enum_primitive_derive::Primitive;
 use if_chain::if_chain;
+use log::*;
 use slotmap::{SecondaryMap, SlotMap};
 use std::cell::{Ref, RefCell, RefMut};
 use std::cmp;
@@ -18,7 +19,7 @@ use crate::graphics::{EPoint, Point, Rect};
 use crate::graphics::geometry::TileGridView;
 use crate::graphics::geometry::hex::{self, Direction, TileGrid};
 use crate::graphics::geometry::hex::path_finder::*;
-use crate::graphics::lighting::light_grid::{LightTest, LightTestResult};
+use crate::graphics::lighting::light_grid::*;
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::*;
 use crate::util::{EnumExt, VecExt};
@@ -210,7 +211,7 @@ impl Object {
 
     pub fn render(&mut self, canvas: &mut dyn Canvas, light: u32,
             frm_db: &FrameDb, tile_grid: &impl TileGridView,
-            egg: Option<&Egg>) {
+            egg: Option<Egg>) {
         if self.flags.contains(Flag::TurnedOff) {
             return;
         }
@@ -662,7 +663,7 @@ impl Object {
         }
     }
 
-    fn get_effect(&self, tile_grid: &impl TileGridView, egg: Option<&Egg>) -> Option<Effect> {
+    fn get_effect(&self, tile_grid: &impl TileGridView, egg: Option<Egg>) -> Option<Effect> {
         let kind = self.fid.kind();
 
         if kind == EntityKind::Interface {
@@ -758,6 +759,8 @@ pub struct Objects {
     detached: Vec<Handle>,
     empty_object_handle_vec: Vec<Handle>,
     path_finder: RefCell<PathFinder>,
+    light_grid: Option<Box<LightGrid>>,
+    dude: Option<Handle>,
 }
 
 impl Objects {
@@ -766,6 +769,10 @@ impl Objects {
         let by_pos = Vec::from_fn(elevation_count as usize,
             |_| Array2d::with_default(tile_grid.width() as usize, tile_grid.height() as usize))
             .into_boxed_slice();
+        let light_grid = Some(Box::new(LightGrid::new(
+            tile_grid.width(),
+            tile_grid.height(),
+            elevation_count)));
         Self {
             tile_grid,
             frm_db,
@@ -775,6 +782,8 @@ impl Objects {
             detached: Vec::new(),
             empty_object_handle_vec: Vec::new(),
             path_finder,
+            light_grid,
+            dude: None,
         }
     }
 
@@ -795,20 +804,34 @@ impl Objects {
             }
         }
         self.detached.clear();
+        self.light_grid_mut().clear();
+        self.dude = None;
     }
 
     pub fn insert(&mut self, obj: Object) -> Handle {
+        let dude = obj.is_dude();
+
         let pos = obj.pos;
 
-        let h = self.handles.insert(());
-        self.objects.insert(h, RefCell::new(obj));
+        let r = self.handles.insert(());
+        self.objects.insert(r, RefCell::new(obj));
 
-        self.insert_into_tile_grid(h, pos, true);
+        self.insert_into_tile_grid(r, pos, true);
+        self.update_light_grid(r, 1);
 
-        h
+        if dude {
+            assert!(self.dude.replace(r).is_none());
+            debug!("dude obj: {:?}", r);
+        }
+
+        r
     }
 
     pub fn remove(&mut self, obj: Handle) -> Option<Object> {
+        if self.dude == Some(obj) {
+            self.dude = None;
+        }
+        self.update_light_grid(obj, -1);
         self.handles.remove(obj)?;
         self.remove_from_tile_grid(obj);
         let r = self.objects.remove(obj);
@@ -834,7 +857,15 @@ impl Objects {
         self.get_ref(h).borrow_mut()
     }
 
-    pub fn light_test(&self, light_test: LightTest) -> LightTestResult {
+    pub fn light_grid(&self) -> &LightGrid {
+        self.light_grid.as_ref().unwrap()
+    }
+
+    fn light_grid_mut(&mut self) -> &mut LightGrid {
+        self.light_grid.as_mut().unwrap()
+    }
+
+    fn light_test(&self, light_test: LightTest) -> LightTestResult {
         let mut update = true;
 
         let dir = light_test.direction;
@@ -848,7 +879,7 @@ impl Objects {
 
             if obj.fid.kind() == EntityKind::Wall {
                 if !obj.flags.contains(Flag::Flat) {
-                    let flags_ext = obj.proto.as_ref().unwrap().borrow().flags_ext;
+                    let flags_ext = obj.proto().unwrap().flags_ext;
                     if flags_ext.contains(FlagExt::WallEastOrWest) ||
                             flags_ext.contains(FlagExt::WallEastCorner) {
                         if dir != Direction::W
@@ -893,8 +924,12 @@ impl Objects {
         }
     }
 
+    pub fn dude(&self) -> Handle {
+        self.dude.unwrap()
+    }
+
     pub fn render(&self, canvas: &mut dyn Canvas, elevation: u32, screen_rect: Rect,
-            tile_grid: &impl TileGridView, egg: Option<&Egg>,
+            tile_grid: &impl TileGridView, egg: Option<Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32) {
         let get_light = &get_light;
         self.render0(canvas, elevation, screen_rect, tile_grid, egg, get_light, true);
@@ -924,8 +959,10 @@ impl Objects {
     }
 
     pub fn set_pos(&mut self, h: Handle, pos: Option<EPoint>) {
+        self.update_light_grid(h, -1);
         self.remove_from_tile_grid(h);
         self.insert_into_tile_grid(h, pos, true);
+        self.update_light_grid(h, 1);
     }
 
     pub fn set_screen_shift(&mut self, h: Handle, shift: Point) {
@@ -965,7 +1002,7 @@ impl Objects {
     }
 
     // dude_stand()
-    pub fn make_standing(&mut self, h: Handle, frm_db: &FrameDb) {
+    pub fn make_standing(&mut self, h: Handle) {
         let shift = {
             let mut obj = self.get_mut(h);
             let mut shift = Point::new(0, 0);
@@ -974,7 +1011,7 @@ impl Objects {
                     let fid = critter_fid
                         .with_anim(CritterAnim::TakeOut)
                         .into();
-                    let frame_set = frm_db.get(fid).unwrap();
+                    let frame_set = self.frm_db.get(fid).unwrap();
                     for frame in &frame_set.frame_lists[obj.direction].frames {
                         shift += frame.shift;
                     }
@@ -983,7 +1020,7 @@ impl Objects {
                         .with_anim(CritterAnim::Stand)
                         .with_weapon(WeaponKind::Unarmed)
                         .into();
-                    shift += frm_db.get(fid).unwrap().frame_lists[obj.direction].center;
+                    shift += self.frm_db.get(fid).unwrap().frame_lists[obj.direction].center;
                 }
                 let anim = if critter_fid.anim() == CritterAnim::FireDance {
                     CritterAnim::FireDance
@@ -1381,7 +1418,7 @@ impl Objects {
 
     #[allow(clippy::too_many_arguments)]
     fn render0(&self, canvas: &mut dyn Canvas, elevation: u32,
-            screen_rect: Rect, tile_grid: &impl TileGridView, egg: Option<&Egg>,
+            screen_rect: Rect, tile_grid: &impl TileGridView, egg: Option<Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32,
             flat: bool) {
         let hex_rect = Self::get_render_hex_rect(screen_rect, tile_grid);
@@ -1487,6 +1524,42 @@ impl Objects {
         // TODO maybe use binary_search for detaching.
         list.retain(|&hh| hh != h);
         old_pos
+    }
+
+    fn update_light_grid(&mut self, obj: Handle, factor: i32) {
+        let (pos, light_emitter) = {
+            let obj = self.get(obj);
+            (obj.pos, obj.light_emitter)
+        };
+        if let Some(pos) = pos {
+            let mut light_grid = self.light_grid.take().unwrap();
+            self.update_light_grid0(&mut light_grid, pos, light_emitter, factor);
+            self.light_grid = Some(light_grid);
+        }
+    }
+
+    fn update_light_grid0(&self,
+        light_grid: &mut LightGrid,
+        pos: EPoint,
+        light_emitter: LightEmitter,
+        factor: i32,
+    ) {
+        light_grid.update(pos,
+                    light_emitter.radius,
+                    factor * light_emitter.intensity as i32,
+                    |lt| self.light_test(lt));
+    }
+
+    pub fn rebuild_light_grid(&mut self) {
+        let mut light_grid = self.light_grid.take().unwrap();
+        light_grid.clear();
+        for (_, obj) in self.objects.iter() {
+            let obj = obj.borrow();
+            if let Some(pos) = obj.pos {
+                self.update_light_grid0(&mut light_grid, pos, obj.light_emitter, 1);
+            }
+        }
+        self.light_grid = Some(light_grid);
     }
 }
 

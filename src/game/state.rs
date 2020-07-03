@@ -189,7 +189,7 @@ impl GameState {
                     active_hand: Hand::Left,
                 })),
             }));
-        self.world.borrow_mut().insert_object(dude_obj);
+        self.world.borrow_mut().objects_mut().insert(dude_obj);
 
         let d = self.proto_db.dude();
         let mut d = d.borrow_mut();
@@ -230,7 +230,8 @@ impl GameState {
 
         let mut dude_obj = {
             let mut world = self.world.borrow_mut();
-            let mut dude_obj = world.remove_dude_object();
+            let dude_obj = world.objects().dude();
+            let mut dude_obj = world.objects_mut().remove(dude_obj).unwrap();
             dude_obj.inventory.items.clear();
             world.clear();
             dude_obj
@@ -283,7 +284,6 @@ impl GameState {
         self.frm_db.get(FrameId::EGG).unwrap();
 
         world.set_sqr_tiles(map.sqr_tiles);
-        world.rebuild_light_grid();
 
         dude_obj.direction = map.entrance_direction;
         dude_obj.light_emitter = LightEmitter {
@@ -291,7 +291,7 @@ impl GameState {
             radius: 4,
         };
         dude_obj.pos = Some(map.entrance);
-        let dude_obj = world.insert_object(dude_obj);
+        let dude_obj = world.objects_mut().insert(dude_obj);
 
         world.make_object_standing(dude_obj);
 
@@ -360,11 +360,11 @@ impl GameState {
                 obj.direction = obj.direction.rotate_cw();
             }
             Action::Talk => {
-                let talker = self.world.borrow().dude_obj().unwrap();
+                let talker = self.world.borrow().objects().dude();
                 self.action_talk(talker, obj, ui);
             }
             Action::UseHand => {
-                let user = self.world.borrow().dude_obj().unwrap();
+                let user = self.world.borrow().objects().dude();
                 self.action_use_obj(user, obj);
             }
             Action::UseSkill => {
@@ -380,7 +380,7 @@ impl GameState {
             match event {
                 ObjectMoved { obj, new_pos, .. } => {
                     let world = self.world.borrow();
-                    if obj == world.dude_obj().unwrap() {
+                    if obj == world.objects().dude() {
                         for &h in world.objects().at(new_pos) {
                             let obj = world.objects().get(h);
                             if let Some(map_exit) = obj.sub.as_map_exit() {
@@ -417,7 +417,7 @@ impl GameState {
         let obj = world.objects().get(objh);
         match obj.kind() {
             EntityKind::Critter => {
-                if Some(objh) == world.dude_obj() {
+                if objh == world.objects().dude() {
                     r.push(Action::Rotate);
                 } else {
                     if world.objects().get(objh).can_talk_to() {
@@ -430,7 +430,7 @@ impl GameState {
                     {
                         r.push(Action::UseHand);
                     }
-                    if world.objects().can_push(world.dude_obj().unwrap(), objh,
+                    if world.objects().can_push(world.objects().dude(), objh,
                         &self.scripts, self.in_combat)
                     {
                         r.push(Action::Push);
@@ -525,7 +525,7 @@ impl GameState {
     }
 
     fn dude_look_at_object(&mut self, obj: object::Handle, ui: &mut Ui) {
-        let dude_obj = self.world().borrow().dude_obj().unwrap();
+        let dude_obj = self.world().borrow().objects().dude();
         if let Some(msg) = self.look_at_object(dude_obj, obj, ui) {
             self.push_message(&msg, ui);
         }
@@ -597,7 +597,7 @@ impl GameState {
     }
 
     fn dude_examine_object(&mut self, obj: object::Handle, ui: &mut Ui) {
-        let dude_obj = self.world().borrow().dude_obj().unwrap();
+        let dude_obj = self.world().borrow().objects().dude();
         for msg in self.examine_object(dude_obj, obj, ui) {
             self.push_message(&msg, ui);
         }
@@ -663,7 +663,7 @@ impl GameState {
                     }
             }
         } else {
-            assert_eq!(talker, self.world.borrow().dude_obj().unwrap());
+            assert_eq!(talker, self.world.borrow().objects().dude());
             let msg = &self.misc_msgs.get(2000).unwrap().text;
             self.push_message(&msg, ui);
         }
@@ -785,7 +785,7 @@ impl GameState {
             } else {
                 false
             };
-            if !script_overrides && user == world.dude_obj().unwrap() {
+            if !script_overrides && user == world.objects().dude() {
                 if let Some(obj_name) = world.object_name(used) {
                     let msg = &self.proto_db.messages().get(MSG_YOU_SEE_X).unwrap().text;
                     let msg = sprintf(msg, &[&obj_name]);
@@ -879,7 +879,7 @@ impl GameState {
                 SetFrame::Index(0)
             });
         }
-        world.rebuild_light_grid();
+        world.objects_mut().rebuild_light_grid();
     }
 
     // is_next_to
@@ -931,7 +931,7 @@ impl GameState {
 
     fn set_dude_pos(&mut self, pos: EPoint, direction: Direction, ui: &mut Ui) {
         let world = &mut self.world.borrow_mut();
-        let dude_objh = world.dude_obj().unwrap();
+        let dude_objh = world.objects().dude();
         let elevation_change = {
             let mut dude_obj = world.objects_mut().get_mut(dude_objh);
             dude_obj.direction = direction;
@@ -958,7 +958,7 @@ impl GameState {
 
     fn show_skilldex(&mut self, ui: &mut Ui, target: Option<object::Handle>) {
         let world = self.world.borrow();
-        let dude_obj = world.objects().get(world.dude_obj().unwrap());
+        let dude_obj = world.objects().get(world.objects().dude());
         let levels = EnumMap::from(
             |skill: skilldex::Skill| self.rpg.skill(skill.into(), &dude_obj, world.objects()));
         self.skilldex.show(ui, levels, target);
@@ -968,7 +968,7 @@ impl GameState {
     fn action_use_skill_on(&mut self, skill: Skill, target: object::Handle) {
         let world = self.world.borrow();
         let objs = world.objects();
-        let user = world.dude_obj().unwrap();
+        let user = world.objects().dude();
         let usero = objs.get(user);
         let targeto = objs.get(target);
 
@@ -1028,7 +1028,7 @@ impl GameState {
             let world = &mut self.world.borrow_mut();
             let script = {
                 let targeto = world.objects().get(target);
-                if user == world.dude_obj().unwrap() && targeto.is_lock_jammed() == Some(true)
+                if user == world.objects().dude() && targeto.is_lock_jammed() == Some(true)
                 {
                     let msg = &self.misc_msgs.get(2001).unwrap().text;
                     self.push_message(msg, ui);
@@ -1161,7 +1161,7 @@ impl AppState for GameState {
                 world.scroll(ScrollDirection::S, 1);
             }
             SdlEvent::KeyDown { keycode: Some(Keycode::A), .. } => {
-                let dude_obj = world.dude_obj().unwrap();
+                let dude_obj = world.objects().dude();
                 let new_pos = {
                     let obj = world.objects().get_mut(dude_obj);
                     let mut new_pos = obj.pos.unwrap();
@@ -1176,7 +1176,7 @@ impl AppState for GameState {
                 }
             }
             SdlEvent::KeyDown { keycode: Some(Keycode::Z), .. } => {
-                let dude_obj = world.dude_obj().unwrap();
+                let dude_obj = world.objects().dude();
                 let new_pos = {
                     let obj = world.objects().get_mut(dude_obj);
                     let mut new_pos = obj.pos.unwrap();
@@ -1263,7 +1263,7 @@ impl AppState for GameState {
             }
             UiCommandData::HexPick { action, pos } => {
                 if action {
-                    let dude_objh = self.world.borrow().dude_obj().unwrap();
+                    let dude_objh = self.world.borrow().objects().dude();
 
                     let seq = Chain::new();
 
@@ -1281,7 +1281,7 @@ impl AppState for GameState {
                     self.obj_sequencer.replace(dude_objh, seq);
                 } else {
                     let mut wv = ui.widget_mut::<WorldView>(self.world_view);
-                    let dude_obj = self.world.borrow().dude_obj().unwrap();
+                    let dude_obj = self.world.borrow().objects().dude();
                     wv.hex_cursor_style = if self.world.borrow()
                         .objects().path(dude_obj, PathTo::Point {
                             point: pos.point,
@@ -1312,7 +1312,7 @@ impl AppState for GameState {
                 };
                 let finished = if let Some(proc_id) = proc_id {
                     let world = &mut self.world.borrow_mut();
-                    let source_obj = Some(world.dude_obj().unwrap());
+                    let source_obj = Some(world.objects().dude());
                     let target_obj = Some(self.dialog.as_ref().unwrap().obj);
                     self.scripts.execute_proc(sid, proc_id,
                         &mut script::Context {
@@ -1382,14 +1382,14 @@ impl AppState for GameState {
                 | inventory::Command::Action { object, action: Some(Action::Look) }
                 | inventory::Command::Action { object, action: None }
                 => {
-                    let dude_obj = self.world.borrow().dude_obj().unwrap();
+                    let dude_obj = self.world.borrow().objects().dude();
                     let descr = self.examine_object(dude_obj, object, ui);
                     let descr = BString::join(b'\n', &descr);
                     self.inventory.examine(object, &descr, ui);
                 }
                 Command::Hide => {}
                 Command::Show => {
-                    self.obj_sequencer.cancel(self.world.borrow().dude_obj().unwrap());
+                    self.obj_sequencer.cancel(self.world.borrow().objects().dude());
                 }
                 _ => {}
             }
