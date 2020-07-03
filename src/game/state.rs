@@ -231,7 +231,7 @@ impl GameState {
         let mut dude_obj = {
             let mut world = self.world.borrow_mut();
             let dude_obj = world.objects().dude();
-            let mut dude_obj = world.objects_mut().remove(dude_obj).unwrap();
+            let mut dude_obj = world.objects_mut().remove(dude_obj);
             dude_obj.inventory.items.clear();
             world.clear();
             dude_obj
@@ -286,11 +286,11 @@ impl GameState {
         world.set_sqr_tiles(map.sqr_tiles);
 
         dude_obj.direction = map.entrance_direction;
-        dude_obj.light_emitter = LightEmitter {
+        dude_obj.set_light_emitter(LightEmitter {
             intensity: 0x10000,
             radius: 4,
-        };
-        dude_obj.pos = Some(map.entrance);
+        });
+        dude_obj.set_pos(Some(map.entrance));
         let dude_obj = world.objects_mut().insert(dude_obj);
 
         world.make_object_standing(dude_obj);
@@ -827,7 +827,7 @@ impl GameState {
 
         let dooro = world.objects().get(door);
         let need_open = if dooro.frame_idx > 0 { // Indicates the door is open
-            if world.objects().has_blocker_at(dooro.pos.unwrap(), None) {
+            if world.objects().has_blocker_at(dooro.pos(), None) {
                 let msg = &self.proto_db.messages().get(MSG_DOORWAY_SEEMS_TO_BE_BLOCKED).unwrap().text;
                 self.push_message(&msg, ui);
                 return
@@ -935,7 +935,7 @@ impl GameState {
         let elevation_change = {
             let mut dude_obj = world.objects_mut().get_mut(dude_objh);
             dude_obj.direction = direction;
-            dude_obj.pos.unwrap().elevation != pos.elevation
+            dude_obj.pos().elevation != pos.elevation
         };
         world.objects_mut().set_pos(dude_objh, Some(pos));
         if elevation_change {
@@ -1164,7 +1164,7 @@ impl AppState for GameState {
                 let dude_obj = world.objects().dude();
                 let new_pos = {
                     let obj = world.objects().get_mut(dude_obj);
-                    let mut new_pos = obj.pos.unwrap();
+                    let mut new_pos = obj.pos();
                     new_pos.elevation += 1;
                     while new_pos.elevation < ELEVATION_COUNT && !world.has_elevation(new_pos.elevation) {
                         new_pos.elevation += 1;
@@ -1179,7 +1179,7 @@ impl AppState for GameState {
                 let dude_obj = world.objects().dude();
                 let new_pos = {
                     let obj = world.objects().get_mut(dude_obj);
-                    let mut new_pos = obj.pos.unwrap();
+                    let mut new_pos = obj.pos();
                     if new_pos.elevation > 0 {
                         new_pos.elevation -= 1;
                         while new_pos.elevation > 0 && !world.has_elevation(new_pos.elevation) {

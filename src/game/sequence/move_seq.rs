@@ -66,14 +66,14 @@ impl Move {
 
     fn to_point(&self, world: &World) -> Point {
         match self.to {
-            PathTo::Object(h) => world.objects().get(h).pos.unwrap().point,
+            PathTo::Object(h) => world.objects().get(h).pos().point,
             PathTo::Point { point, .. } => point,
         }
     }
 
     fn done(&mut self, ctx: &mut Update) {
         let mut obj = ctx.world.objects().get_mut(self.obj);
-        let pos = obj.pos.unwrap().point;
+        let pos = obj.pos().point;
         if pos != self.to_point.unwrap() {
             // Make object look into target's direction.
             obj.direction = hex::direction(pos, self.to_point.unwrap());
@@ -121,7 +121,7 @@ impl Sequence for Move {
                     }
                 }
 
-                (frames[obj.frame_idx].shift, obj.pos)
+                (frames[obj.frame_idx].shift, obj.pos())
             };
             let shift = ctx.world.objects_mut().add_screen_shift(self.obj, shift);
 
@@ -136,7 +136,6 @@ impl Sequence for Move {
                     let obj = ctx.world.objects().get(self.obj);
                     obj.screen_shift - next_offset
                 };
-                let pos = pos.unwrap();
                 let pos_point = ctx.world.hex_grid().go(pos.point, dir, 1).unwrap();
                 Some((EPoint::new(pos.elevation, pos_point), shift))
             } else {
@@ -144,7 +143,7 @@ impl Sequence for Move {
             }
         };
         if let Some((pos, shift)) = new_obj_pos_and_shift {
-            let old_pos = ctx.world.objects().get(self.obj).pos.unwrap();
+            let old_pos = ctx.world.objects().get(self.obj).pos();
             ctx.world.objects_mut().set_pos(self.obj, Some(pos));
 
             ctx.out.push(Event::ObjectMoved {

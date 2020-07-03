@@ -340,8 +340,7 @@ pub fn do_check(ctx: Context) -> Result<()> {
 pub fn elevation(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
-    let pos = ctx.ext.world.objects().get(obj).pos;
-    let r = pos.map(|p| p.elevation as i32).unwrap();
+    let r = ctx.ext.world.objects().get(obj).pos().elevation as i32;
     ctx.prg.data_stack.push(r.into())?;
     log_a1r1!(ctx.prg, obj, r);
     Ok(())
@@ -1219,9 +1218,9 @@ pub fn tile_distance(ctx: Context) -> Result<()> {
 
 pub fn tile_distance_objs(ctx: Context) -> Result<()> {
     let obj2 = ctx.prg.data_stack.pop()?.coerce_into_object()?;
-    let p2 = obj2.and_then(|obj| ctx.ext.world.objects().get(obj).pos);
+    let p2 = obj2.and_then(|obj| ctx.ext.world.objects().get(obj).try_pos());
     let obj1 = ctx.prg.data_stack.pop()?.coerce_into_object()?;
-    let p1 = obj1.and_then(|obj| ctx.ext.world.objects().get(obj).pos);
+    let p1 = obj1.and_then(|obj| ctx.ext.world.objects().get(obj).try_pos());
 
     let r = if let (Some(pos1), Some(pos2)) = (p1, p2) {
         crate::graphics::geometry::hex::distance(pos1.point, pos2.point)
@@ -1319,7 +1318,7 @@ pub fn tile_num(ctx: Context) -> Result<()> {
     let obj = ctx.prg.data_stack.pop()?.coerce_into_object()?;
     let r = obj
         .and_then(|obj| {
-            let pos = ctx.ext.world.objects().get(obj).pos;
+            let pos = ctx.ext.world.objects().get(obj).try_pos();
             pos.and_then(|p| to_tile_num(&ctx, p.point))
         })
         .unwrap_or(-1);

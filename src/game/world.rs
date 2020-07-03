@@ -279,7 +279,7 @@ impl World {
 
     pub fn elevation(&self) -> u32 {
         self.objects.get(self.objects.dude())
-            .pos.expect("dude_obj has no pos")
+            .pos()
             .elevation
     }
 
@@ -423,7 +423,7 @@ impl World {
         let mut pos = self.camera.hex().from_screen(self.camera.viewport.center());
         // Original doesn't use tile centers when measuring screen distance between dude and camera.
         let dude_pos_scr = hex::to_screen(
-            self.objects.get(self.objects().dude()).pos.unwrap().point) + hex::TILE_CENTER;
+            self.objects.get(self.objects().dude()).pos().point) + hex::TILE_CENTER;
         let elevation = self.elevation();
         while scrolled < amount {
             let new_pos = dir.go(pos);
@@ -455,7 +455,7 @@ impl World {
     }
 
     pub fn camera_look_at_dude(&mut self) {
-        let p = self.objects.get(self.objects().dude()).pos.unwrap().point;
+        let p = self.objects.get(self.objects().dude()).pos().point;
         self.camera.look_at(p);
     }
 
@@ -508,7 +508,7 @@ impl World {
 
     fn egg(&self) -> Egg {
         Egg {
-            pos: self.objects.get(self.objects.dude()).pos.unwrap().point,
+            pos: self.objects.get(self.objects.dude()).pos().point,
             fid: FrameId::EGG,
         }
     }
@@ -516,7 +516,7 @@ impl World {
     fn render_floating_texts(&self, canvas: &mut dyn Canvas) {
         for floating_text in &self.floating_texts {
             let screen_pos = if let Some(obj) = floating_text.obj {
-                let pos = if let Some(pos) = self.objects.get(obj).pos {
+                let pos = if let Some(pos) = self.objects.get(obj).try_pos() {
                     pos
                 } else {
                     debug!("not showing floating text for {:?} because it is not on the hex grid",

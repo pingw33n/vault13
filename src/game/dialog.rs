@@ -58,7 +58,7 @@ impl Dialog {
         let (obj_pos, sid) = {
             let obj = world.objects().get(obj);
             let (sid, _) = obj.script.unwrap();
-            (obj.pos.unwrap().point, sid)
+            (obj.pos().point, sid)
         };
 
         let saved_camera_origin = world.camera().origin;
