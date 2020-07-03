@@ -170,6 +170,10 @@ pub enum Effect {
         style: OutlineStyle,
         translucent: bool,
     },
+    Fit {
+        width: i32,
+        height: i32,
+    },
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -260,6 +264,11 @@ impl Sprite {
                 };
                 canvas.draw_outline(&frm.texture, bounds.top_left(), outline);
             }
+            Some(Effect::Fit { width, height }) => {
+                let dst = fit(frm.bounds(),
+                    Rect::with_size(self.pos.x, self.pos.y, width, height));
+                canvas.draw_scaled(&frm.texture, dst);
+            }
             None => canvas.draw(&frm.texture, bounds.top_left(), self.light),
         }
 
@@ -267,25 +276,49 @@ impl Sprite {
     }
 }
 
+fn fit(r1: Rect, r2: Rect) -> Rect {
+    assert!(!r1.is_empty() && !r2.is_empty());
+    let r = if r1.width() > r2.width() || r1.height() > r2.height() {
+        let this_ar = r1.width() as f64 / r1.height() as f64;
+        let r2_ar = r2.width() as f64 / r2.height() as f64;
+        if this_ar >= r2_ar {
+            r2.with_height((r2.width() as f64 / this_ar) as i32)
+        } else {
+            r2.with_width((r2.height() as f64 * this_ar) as i32)
+        }
+    } else {
+        r2.with_width(r1.width())
+            .with_height(r1.height())
+    };
+    r.translate(Point::new(
+        (r2.width() - r.width()) / 2,
+        (r2.height() - r.height()) / 2))
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
-    #[cfg(test)]
-    mod mask {
-        use super::*;
+    #[test]
+    fn test_() {
+        let mask = Mask::new(3, &[0, 1, 0, 2, 0, 100]);
+        assert_eq!(&*mask.bitmask, &[0b101010]);
+        assert_eq!(mask.test((0, 0).into()), Some(false));
+        assert_eq!(mask.test((1, 0).into()), Some(true));
+        assert_eq!(mask.test((0, 1).into()), Some(true));
+        assert_eq!(mask.test((1, 1).into()), Some(false));
+        assert_eq!(mask.test((2, 1).into()), Some(true));
+        assert_eq!(mask.test((3, 1).into()), None);
+        assert_eq!(mask.test((2, 2).into()), None);
+    }
 
-        #[test]
-        fn test() {
-            let mask = Mask::new(3, &[0, 1, 0, 2, 0, 100]);
-            assert_eq!(&*mask.bitmask, &[0b101010]);
-            assert_eq!(mask.test((0, 0).into()), Some(false));
-            assert_eq!(mask.test((1, 0).into()), Some(true));
-            assert_eq!(mask.test((0, 1).into()), Some(true));
-            assert_eq!(mask.test((1, 1).into()), Some(false));
-            assert_eq!(mask.test((2, 1).into()), Some(true));
-            assert_eq!(mask.test((3, 1).into()), None);
-            assert_eq!(mask.test((2, 2).into()), None);
+    #[test]
+    fn fit_() {
+        fn r(l: i32, t: i32, w: i32, h: i32) -> Rect {
+            Rect::with_size(l, t, w, h)
         }
+        assert_eq!(fit(r(0, 0, 159, 39), r(100, 200, 56, 40)), r(100, 213, 56, 13));
+        assert_eq!(fit(r(0, 0, 40, 53), r(100, 200, 56, 40)), r(113, 200, 30, 40));
+        assert_eq!(fit(r(0, 0, 40, 20), r(100, 200, 56, 40)), r(108, 210, 40, 20));
     }
 }

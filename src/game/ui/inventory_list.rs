@@ -8,7 +8,7 @@ use crate::asset::frame::FrameId;
 use crate::graphics::{Rect, Point};
 use crate::graphics::color::WHITE;
 use crate::graphics::font::FontKey;
-use crate::graphics::sprite::Sprite;
+use crate::graphics::sprite::{Sprite, Effect};
 use crate::game::object;
 use crate::game::ui::action_menu::{Action, Placement};
 use crate::ui::*;
@@ -208,11 +208,13 @@ impl Widget for InventoryList {
             if !rect.contains_rect(item_rect) {
                 break;
             }
-            let frame = ctx.frm_db.get(item.fid).unwrap();
-            let frame = frame.first();
-
-            let draw_rect = fit(frame.bounds(), item_rect);
-            ctx.canvas.draw_scaled(&frame.texture, draw_rect);
+            let mut sprite = Sprite::new(item.fid);
+            sprite.pos = item_rect.top_left();
+            sprite.effect = Some(Effect::Fit {
+                width: item_rect.width(),
+                height: item_rect.height(),
+            });
+            sprite.render(ctx.canvas, ctx.frm_db);
 
             if item.count > 1 {
                 let s = BString::concat(&[&b"x"[..], item.count.to_bstring().as_bytes()]);
@@ -229,39 +231,5 @@ impl Widget for InventoryList {
             sprite.pos = Placement::new(1, ctx.cursor_pos, Rect::full()).rect.top_left();
             sprite.render(ctx.canvas, ctx.frm_db);
         }
-    }
-}
-
-fn fit(r1: Rect, r2: Rect) -> Rect {
-    assert!(!r1.is_empty() && !r2.is_empty());
-    let r = if r1.width() > r2.width() || r1.height() > r2.height() {
-        let this_ar = r1.width() as f64 / r1.height() as f64;
-        let r2_ar = r2.width() as f64 / r2.height() as f64;
-        if this_ar >= r2_ar {
-            r2.with_height((r2.width() as f64 / this_ar) as i32)
-        } else {
-            r2.with_width((r2.height() as f64 * this_ar) as i32)
-        }
-    } else {
-        r2.with_width(r1.width())
-            .with_height(r1.height())
-    };
-    r.translate(Point::new(
-        (r2.width() - r.width()) / 2,
-        (r2.height() - r.height()) / 2))
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn fit_() {
-        fn r(l: i32, t: i32, w: i32, h: i32) -> Rect {
-            Rect::with_size(l, t, w, h)
-        }
-        assert_eq!(fit(r(0, 0, 159, 39), r(100, 200, 56, 40)), r(100, 213, 56, 13));
-        assert_eq!(fit(r(0, 0, 40, 53), r(100, 200, 56, 40)), r(113, 200, 30, 40));
-        assert_eq!(fit(r(0, 0, 40, 20), r(100, 200, 56, 40)), r(108, 210, 40, 20));
     }
 }
