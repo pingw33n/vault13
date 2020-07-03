@@ -15,7 +15,7 @@ use crate::asset::frame::{FrameId, Idx};
 use crate::asset::message::MessageId;
 use crate::game::script::ScriptPid;
 use crate::graphics::geometry::hex::TileGrid;
-use crate::util::{enum_iter, EnumIter};
+use crate::util::{enum_iter, EnumIter, RangeInclusive};
 
 /// "The doorway seems to be blocked."
 pub const MSG_DOORWAY_SEEMS_TO_BE_BLOCKED: MessageId = 597;
@@ -252,12 +252,6 @@ pub struct DrugAddiction {
 pub struct Drug {
     pub effects: Vec<DrugEffect>,
     pub addiction: DrugAddiction,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct RangeInclusive<T> {
-    pub start: T,
-    pub end: T,
 }
 
 #[derive(Debug)]
