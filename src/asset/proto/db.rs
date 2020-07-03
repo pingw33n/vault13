@@ -14,6 +14,7 @@ use crate::asset::frame::*;
 use crate::asset::message::{MessageId, Messages};
 use crate::game::script::ScriptPid;
 use crate::fs::FileSystem;
+use crate::util::RangeInclusive;
 
 pub struct ProtoDb {
     fs: Rc<FileSystem>,

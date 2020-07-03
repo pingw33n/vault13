@@ -9,6 +9,12 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
 
+#[derive(Clone, Copy, Debug)]
+pub struct RangeInclusive<T> {
+    pub start: T,
+    pub end: T,
+}
+
 pub trait VecExt<T> {
     fn with_default(len: usize) -> Vec<T>
         where T: Default
