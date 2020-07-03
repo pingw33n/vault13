@@ -309,8 +309,8 @@ pub fn display_msg(ctx: Context) -> Result<()> {
 }
 
 pub fn dude_obj(ctx: Context) -> Result<()> {
-    let obj = ctx.ext.world.dude_obj();
-    ctx.prg.data_stack.push(Value::Object(obj))?;
+    let obj = ctx.ext.world.objects().dude();
+    ctx.prg.data_stack.push(obj.into())?;
     log_r1!(ctx.prg, obj);
     Ok(())
 }
@@ -1025,9 +1025,9 @@ pub fn override_map_start(ctx: Context) -> Result<()> {
     let x = ctx.prg.data_stack.pop()?.into_int()?;
     let x = world.hex_grid().invert_x(x);
 
-    let obj = world.dude_obj().unwrap();
+    let obj = world.objects().dude();
     let pos = EPoint::new(elevation, Point::new(x, y));
-    world.set_object_pos(obj, Some(pos));
+    world.objects_mut().set_pos(obj, Some(pos));
     world.objects_mut().get_mut(obj).direction = direction;
 
     world.camera_mut().look_at(pos.point);

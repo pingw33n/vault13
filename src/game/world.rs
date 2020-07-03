@@ -20,7 +20,6 @@ use crate::graphics::font::Fonts;
 use crate::graphics::geometry::TileGridView;
 use crate::graphics::geometry::camera::Camera;
 use crate::graphics::geometry::hex::{self, Direction};
-use crate::graphics::lighting::light_grid::LightGrid;
 use crate::graphics::map::*;
 use crate::graphics::render::Canvas;
 use crate::util::VecExt;
@@ -73,9 +72,7 @@ pub struct World {
     camera: Camera,
     sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>,
     objects: Objects,
-    light_grid: LightGrid,
     floating_texts: Vec<FloatingText>,
-    dude_obj: Option<object::Handle>,
     update_time: Instant,
     fonts: Rc<Fonts>,
 
@@ -93,10 +90,6 @@ impl World {
         update_time: Instant,
         fonts: Rc<Fonts>,
     ) -> Self {
-        let light_grid = LightGrid::new(
-            hex_grid.width(),
-            hex_grid.height(),
-            ELEVATION_COUNT);
         let objects = Objects::new(hex_grid.clone(), ELEVATION_COUNT, frm_db.clone());
         Self {
             proto_db,
@@ -109,9 +102,7 @@ impl World {
             },
             sqr_tiles: Vec::with_default(ELEVATION_COUNT as usize),
             objects,
-            light_grid,
             floating_texts: Vec::new(),
-            dude_obj: None,
             update_time,
             fonts,
             game_time: START_GAME_TIME,
@@ -147,18 +138,12 @@ impl World {
         &mut self.objects
     }
 
-    pub fn light_grid(&self) -> &LightGrid {
-        &self.light_grid
-    }
-
     pub fn clear(&mut self) {
         for v in &mut self.sqr_tiles {
             *v = None;
         }
         self.objects.clear();
         self.floating_texts.clear();
-        self.dude_obj = None;
-        self.light_grid.clear();
     }
 
     pub fn set_sqr_tiles(&mut self, sqr_tiles: Vec<Option<Array2d<(u16, u16)>>>) {
@@ -198,7 +183,7 @@ impl World {
                 }
             }
         }
-        let objh = self.insert_object(obj);
+        let objh = self.objects_mut().insert(obj);
         let obj = &mut self.objects().get_mut(objh);
         let sub = if let Some(proto) = obj.proto() {
             if proto.kind() == ExactEntityKind::SqrTile {
@@ -292,37 +277,8 @@ impl World {
         objh
     }
 
-    pub fn insert_object(&mut self, object: Object) -> object::Handle {
-        let dude = object.is_dude();
-        let r = self.objects.insert(object);
-        Self::update_light_grid(&self.objects, &mut self.light_grid, r, 1);
-        if dude {
-            assert!(self.dude_obj.replace(r).is_none());
-            debug!("dude obj: {:?}", r);
-        }
-        r
-    }
-
-    pub fn remove_object(&mut self, object: Handle) -> Object {
-        Self::update_light_grid(&self.objects, &mut self.light_grid, object, -1);
-        let r = self.objects_mut().remove(object).unwrap();
-        if r.is_dude() {
-            self.dude_obj = None;
-        }
-        r
-    }
-
-    pub fn remove_dude_object(&mut self) -> Object {
-        let obj = self.dude_obj.unwrap();
-        self.remove_object(obj)
-    }
-
-    pub fn dude_obj(&self) -> Option<object::Handle> {
-        self.dude_obj
-    }
-
     pub fn elevation(&self) -> u32 {
-        self.objects.get(self.dude_obj.expect("no dude_obj"))
+        self.objects.get(self.objects.dude())
             .pos.expect("dude_obj has no pos")
             .elevation
     }
@@ -331,23 +287,8 @@ impl World {
         self.sqr_tiles[elevation as usize].is_some()
     }
 
-    pub fn set_object_pos(&mut self, h: object::Handle, pos: Option<EPoint>) {
-        Self::update_light_grid(&self.objects, &mut self.light_grid, h, -1);
-
-        self.objects.set_pos(h, pos);
-
-        Self::update_light_grid(&self.objects, &mut self.light_grid, h, 1);
-    }
-
     pub fn make_object_standing(&mut self, h: object::Handle) {
-        self.objects.make_standing(h, &self.frm_db);
-    }
-
-    pub fn rebuild_light_grid(&mut self) {
-        self.light_grid.clear();
-        for h in self.objects.iter() {
-            Self::update_light_grid(&self.objects, &mut self.light_grid, h, 1);
-        }
+        self.objects.make_standing(h);
     }
 
     pub fn object_bounds(&self, obj: object::Handle, include_outline: bool) -> Rect {
@@ -361,13 +302,13 @@ impl World {
 
     pub fn object_hit_test(&self, p: Point) -> Vec<(object::Handle, object::Hit)> {
         self.objects.hit_test(p.elevated(self.elevation()), self.camera.viewport,
-            &self.camera.hex(), self.egg())
+            &self.camera.hex(), Some(self.egg()))
     }
 
     // object_under_mouse()
     pub fn pick_object(&self, pos: Point, include_dude: bool) -> Option<object::Handle> {
         let filter_dude = |oh: &&(object::Handle, object::Hit)| -> bool {
-            include_dude || Some(oh.0) != self.dude_obj
+            include_dude || oh.0 != self.objects().dude()
         };
         let hits = self.object_hit_test(pos);
         let r = hits
@@ -445,15 +386,15 @@ impl World {
                 Some(frms.frame_lists[Direction::NE].frames[0].texture.clone())
             },
             |point| {
-                let l = self.light_grid().get_clipped(EPoint { elevation, point });
+                let l = self.objects().light_grid().get_clipped(EPoint { elevation, point });
                 cmp::max(l, self.ambient_light)
             }
         );
 
         self.objects().render(canvas, elevation, self.camera.viewport, &self.camera.hex(),
-            self.egg().as_ref(),
+            Some(self.egg()),
             |pos| if let Some(pos) = pos {
-                cmp::max(self.light_grid().get_clipped(pos), self.ambient_light)
+                cmp::max(self.objects().light_grid().get_clipped(pos), self.ambient_light)
             } else {
                 self.ambient_light
             });
@@ -482,7 +423,7 @@ impl World {
         let mut pos = self.camera.hex().from_screen(self.camera.viewport.center());
         // Original doesn't use tile centers when measuring screen distance between dude and camera.
         let dude_pos_scr = hex::to_screen(
-            self.objects.get(self.dude_obj.unwrap()).pos.unwrap().point) + hex::TILE_CENTER;
+            self.objects.get(self.objects().dude()).pos.unwrap().point) + hex::TILE_CENTER;
         let elevation = self.elevation();
         while scrolled < amount {
             let new_pos = dir.go(pos);
@@ -514,7 +455,7 @@ impl World {
     }
 
     pub fn camera_look_at_dude(&mut self) {
-        let p = self.objects.get(self.dude_obj.unwrap()).pos.unwrap().point;
+        let p = self.objects.get(self.objects().dude()).pos.unwrap().point;
         self.camera.look_at(p);
     }
 
@@ -560,30 +501,15 @@ impl World {
             }
         };
         if let Some(existing) = existing_objh {
-            self.remove_object(existing);
+            self.objects_mut().remove(existing);
         }
-        self.set_object_pos(item, None);
+        self.objects_mut().set_pos(item, None);
     }
 
-    fn update_light_grid(objects: &Objects, light_grid: &mut LightGrid, h: object::Handle,
-            factor: i32) {
-        let obj = objects.get(h);
-        if let Some(pos) = obj.pos {
-            light_grid.update(pos,
-                obj.light_emitter.radius,
-                factor * obj.light_emitter.intensity as i32,
-                |lt| objects.light_test(lt));
-        }
-    }
-
-    fn egg(&self) -> Option<Egg> {
-        if let Some(dude_obj) = self.dude_obj {
-            Some(Egg {
-                pos: self.objects().get(dude_obj).pos.unwrap().point,
-                fid: FrameId::EGG,
-            })
-        } else {
-            None
+    fn egg(&self) -> Egg {
+        Egg {
+            pos: self.objects.get(self.objects.dude()).pos.unwrap().point,
+            fid: FrameId::EGG,
         }
     }
 

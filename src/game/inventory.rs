@@ -85,7 +85,7 @@ impl Inventory {
     }
 
     fn show(&mut self, rpg: &Rpg, ui: &mut Ui) {
-        let owner = self.world.borrow().dude_obj().unwrap();
+        let owner = self.world.borrow().objects().dude();
         let internal = Internal::new(self.msgs.take().unwrap(), self.world.clone(), owner, ui);
         internal.sync_mouse_mode_to_ui(ui);
         internal.sync_from_obj(rpg, ui);

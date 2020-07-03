@@ -107,7 +107,7 @@ impl WorldView {
             translucent: true,
             disabled: false,
         });
-        world.insert_object(hex_cursor)
+        world.objects_mut().insert(hex_cursor)
     }
 
     fn update_hex_cursor_pos(&mut self, screen_pos: Point) -> (EPoint, bool) {
@@ -116,7 +116,7 @@ impl WorldView {
         let pos = EPoint::new(world.elevation(), hex_pos);
         let old_pos = world.objects().get(self.hex_cursor).pos;
         let changed = if Some(pos) != old_pos {
-            world.set_object_pos(self.hex_cursor, Some(pos));
+            world.objects_mut().set_pos(self.hex_cursor, Some(pos));
             true
         } else {
             false
