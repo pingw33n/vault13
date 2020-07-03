@@ -1093,6 +1093,14 @@ impl Objects {
         self.dude.unwrap()
     }
 
+    pub fn dude_ref(&self) -> Ref<Object> {
+        self.get(self.dude())
+    }
+
+    pub fn dude_mut(&self) -> RefMut<Object> {
+        self.get_mut(self.dude())
+    }
+
     pub fn render(&self, canvas: &mut dyn Canvas, elevation: u32, screen_rect: Rect,
             tile_grid: &impl TileGridView, egg: Option<Egg>,
             get_light: impl Fn(Option<EPoint>) -> u32) {

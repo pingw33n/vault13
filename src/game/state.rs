@@ -175,22 +175,15 @@ impl GameState {
 
         let dude_fid = FrameId::from_packed(0x100003E).unwrap();
         //    let dude_fid = FrameId::from_packed(0x101600A).unwrap();
-        let dude_obj = Object::new(
-            dude_fid,
+        let _ = self.world.borrow_mut().objects_mut().create(
+            Some(dude_fid),
             Some(self.proto_db.dude()),
             Some(Default::default()),
-            SubObject::Critter(object::Critter {
-                hit_points: 44,
-                radiation: 0,
-                poison: 0,
-                combat: Default::default(),
-                dude: Some(Box::new(Dude {
-                    naked_fidx: 0x3e,
-                    active_hand: Hand::Left,
-                })),
-            }));
-        self.world.borrow_mut().objects_mut().insert(dude_obj);
+            Some(&self.rpg));
 
+        // TODO replace with proper init
+        self.world.borrow_mut().objects_mut().dude_mut().sub.as_critter_mut().unwrap()
+            .hit_points = 44;
         let d = self.proto_db.dude();
         let mut d = d.borrow_mut();
         d.set_name("Narg".into());
