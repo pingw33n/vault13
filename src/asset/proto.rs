@@ -144,6 +144,14 @@ impl SubProto {
     pub fn as_weapon_mut(&mut self) -> Option<&mut Weapon> {
         self.as_item_mut()?.sub.as_weapon_mut()
     }
+
+    pub fn as_ammo(&self) -> Option<&Ammo> {
+        self.as_item()?.sub.as_ammo()
+    }
+
+    pub fn as_ammo_mut(&mut self) -> Option<&mut Ammo> {
+        self.as_item_mut()?.sub.as_ammo_mut()
+    }
 }
 
 #[derive(Debug)]

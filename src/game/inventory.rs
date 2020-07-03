@@ -56,25 +56,38 @@ impl Inventory {
             match c {
                 Command::Show => {
                     self.show(rpg, ui);
+                    return;
                 }
                 Command::Hide => {
                     self.hide(ui);
+                    return;
                 }
+                _ => {}
+            }
+            let internal = self.internal.as_mut().unwrap();
+            match c {
+                Command::Show | Command::Hide => unreachable!(),
                 Command::Scroll(scroll) => {
-                    self.internal.as_ref().unwrap().scroll(scroll, ui);
+                    internal.scroll(scroll, ui);
                 }
                 Command::Hover { .. } => {}
                 Command::ActionMenu { object } => {
-                    self.internal.as_mut().unwrap().show_action_menu(object, ui);
+                    internal.show_action_menu(object, ui);
                 }
-                Command::Action { .. } => {
-                    self.internal.as_mut().unwrap().hide_action_menu(ui);
+                Command::Action { object, action } => {
+                    internal.hide_action_menu(ui);
+                    match action {
+                        Some(Action::Unload) => {
+                            internal.unload(object, rpg, ui);
+                        }
+                        _ => {}
+                    }
                 }
                 Command::ListDrop { pos, object } => {
-                    self.internal.as_ref().unwrap().handle_list_drop(cmd.source, pos, object, rpg, ui);
+                    internal.handle_list_drop(cmd.source, pos, object, rpg, ui);
                 }
                 Command::ToggleMouseMode => {
-                    self.internal.as_mut().unwrap().toggle_mouse_mode(rpg, ui);
+                    internal.toggle_mouse_mode(rpg, ui);
                 }
             }
         }
@@ -652,6 +665,15 @@ impl Internal {
         let world = self.world.borrow();
         let mut owner = world.objects().get_mut(self.owner);
         owner.fid = owner.equipped_fid(world.objects(), rpg);
+    }
+
+    fn unload(&self, weapon: object::Handle, rpg: &Rpg, ui: &Ui) {
+        {
+            let mut world = self.world.borrow_mut();
+            let ammo = unwrap_or_return!(world.objects_mut().unload_weapon(weapon), Some);
+            world.objects_mut().move_into_inventory(self.owner, ammo, 1);
+        }
+        self.sync_from_obj(rpg, ui);
     }
 }
 

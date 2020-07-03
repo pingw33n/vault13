@@ -521,7 +521,9 @@ impl Object {
             return false;
         }
         if let Some(weapon) = self.proto().unwrap().sub.as_item().and_then(|i| i.sub.as_weapon()) {
-            weapon.max_ammo_count > 0 && weapon.ammo_proto_id.is_some()
+            weapon.max_ammo_count > 0
+                && weapon.ammo_proto_id.is_some()
+                && self.sub.as_item().unwrap().ammo_count > 0
         } else {
             false
         }
@@ -1580,7 +1582,7 @@ impl Objects {
                 inventory.inventory.items[existing_idx].object = item;
                 Some(existing_objh)
             } else {
-                inventory.inventory.items.push(InventoryItem {
+                inventory.inventory.items.insert(0, InventoryItem {
                     object: item,
                     count,
                 });
@@ -1591,6 +1593,28 @@ impl Objects {
             self.remove(existing);
         }
         self.set_pos(item, None);
+    }
+
+    // item_w_unload
+    pub fn unload_weapon(&mut self, weapon: Handle) -> Option<Handle> {
+        let (ammo_proto, count) = {
+            let mut weapon = self.get_mut(weapon);
+            if !weapon.is_unloadable_weapon() {
+                return None;
+            }
+            let weapon = weapon.sub.as_item_mut().unwrap();
+            weapon.ammo_proto.as_ref()?;
+            let count = std::mem::replace(&mut weapon.ammo_count, 0);
+            if count == 0 {
+                return None;
+            }
+            (weapon.ammo_proto.clone().unwrap(), count)
+        };
+        // TODO Original here allows weapon to have more ammo loaded than ammo clip capacity.
+        assert!(count <= ammo_proto.borrow().sub.as_ammo().unwrap().max_ammo_count);
+        let mut ammo = self.create(None, Some(ammo_proto), None, None);
+        ammo.sub.as_item_mut().unwrap().ammo_count = count;
+        Some(ammo.handle())
     }
 
     // obj_intersects_with()
