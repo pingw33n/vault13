@@ -8,7 +8,7 @@ use std::cmp;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use crate::asset::{EntityKind, ExactEntityKind, ItemKind};
+use crate::asset::EntityKind;
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::asset::map::ELEVATION_COUNT;
 use crate::asset::message::Messages;
@@ -335,53 +335,6 @@ impl World {
     pub fn camera_look_at_dude(&mut self) {
         let p = self.objects.get(self.objects().dude()).pos().point;
         self.camera.look_at(p);
-    }
-
-    // item_add_force
-    pub fn move_into_inventory(&mut self, inventory: object::Handle, item: object::Handle, count: u32) {
-        assert!(count > 0);
-        let existing_objh = {
-            let mut inventory = self.objects.get_mut(inventory);
-            let existing_idx = {
-                let itemo = &self.objects.get(item);
-                inventory.inventory.items.iter()
-                    .position(|i| self.objects.get(i.object).is_same(itemo))
-            };
-            if let Some(existing_idx) = existing_idx {
-                let existing_objh = inventory.inventory.items[existing_idx].object;
-                if existing_objh == item {
-                    warn!("ignoring exact duplicate item in World::inventory_insert(): inventory={:?} item={:?}",
-                        inventory, item);
-                    return;
-                }
-
-                let existing_obj = self.objects.get(existing_objh);
-                let proto = existing_obj.proto().unwrap();
-                if proto.kind() == ExactEntityKind::Item(ItemKind::Ammo) {
-                    let mut item = self.objects.get_mut(item);
-                    let max_ammo_count = proto.max_ammo_count().unwrap();
-                    let combined_ammo = existing_obj.ammo_count().unwrap() + item.ammo_count().unwrap();
-                    let full_clips = combined_ammo / max_ammo_count;
-                    let ammo = combined_ammo % max_ammo_count;
-                    item.sub.as_item_mut().unwrap().ammo_count = ammo;
-                    inventory.inventory.items[existing_idx].count += count - 1 + full_clips;
-                } else {
-                    inventory.inventory.items[existing_idx].count += count;
-                }
-                inventory.inventory.items[existing_idx].object = item;
-                Some(existing_objh)
-            } else {
-                inventory.inventory.items.push(InventoryItem {
-                    object: item,
-                    count,
-                });
-                None
-            }
-        };
-        if let Some(existing) = existing_objh {
-            self.objects_mut().remove(existing);
-        }
-        self.objects_mut().set_pos(item, None);
     }
 
     fn egg(&self) -> Egg {

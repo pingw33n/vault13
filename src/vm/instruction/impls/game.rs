@@ -138,7 +138,7 @@ pub fn add_mult_objs_to_inven(ctx: Context) -> Result<()> {
         .ok_or(Error::BadValue(BadValue::Content))?;
     let inventory = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
-    ctx.ext.world.move_into_inventory(inventory, item, count);
+    ctx.ext.world.objects_mut().move_into_inventory(inventory, item, count);
     log_a3!(ctx.prg, inventory, item, count);
     Ok(())
 }
@@ -148,7 +148,7 @@ pub fn add_obj_to_inven(ctx: Context) -> Result<()> {
         .ok_or(Error::BadValue(BadValue::Content))?;
     let inventory = ctx.prg.data_stack.pop()?.coerce_into_object()?
         .ok_or(Error::BadValue(BadValue::Content))?;
-    ctx.ext.world.move_into_inventory(inventory, item, 1);
+    ctx.ext.world.objects_mut().move_into_inventory(inventory, item, 1);
     log_a2!(ctx.prg, inventory, item);
     Ok(())
 }
