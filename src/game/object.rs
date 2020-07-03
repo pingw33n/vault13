@@ -187,6 +187,10 @@ impl Object {
         }
     }
 
+    pub fn handle(&self) -> Handle {
+        self.handle.unwrap()
+    }
+
     pub fn kind(&self) -> EntityKind {
         self.fid.kind()
     }
@@ -775,6 +779,7 @@ impl Object {
 pub struct Objects {
     tile_grid: TileGrid,
     frm_db: Rc<FrameDb>,
+    proto_db: Rc<ProtoDb>,
     handles: SlotMap<Handle, ()>,
     objects: SecondaryMap<Handle, RefCell<Object>>,
     // Objects attached to tile (Object::pos is Some).
@@ -788,7 +793,12 @@ pub struct Objects {
 }
 
 impl Objects {
-    pub fn new(tile_grid: TileGrid, elevation_count: u32, frm_db: Rc<FrameDb>) -> Self {
+    pub fn new(
+        tile_grid: TileGrid,
+        elevation_count: u32,
+        frm_db: Rc<FrameDb>,
+        proto_db: Rc<ProtoDb>,
+    ) -> Self {
         let path_finder = RefCell::new(PathFinder::new(tile_grid.clone(), 5000));
         let by_pos = Vec::from_fn(elevation_count as usize,
             |_| Array2d::with_default(tile_grid.width() as usize, tile_grid.height() as usize))
@@ -800,6 +810,7 @@ impl Objects {
         Self {
             tile_grid,
             frm_db,
+            proto_db,
             handles: SlotMap::with_key(),
             objects: SecondaryMap::new(),
             by_pos,
@@ -830,6 +841,134 @@ impl Objects {
         self.detached.clear();
         self.light_grid_mut().clear();
         self.dude = None;
+    }
+
+    /// If `proto` is `None`, the `fid` must be present.
+    /// `rpg` is required only when the object being created is critter.
+    // obj_new, but without script initialization.
+    #[must_use]
+    pub fn create(&mut self,
+        fid: Option<FrameId>,
+        proto: Option<ProtoRef>,
+        pos: Option<EPoint>,
+        rpg: Option<&Rpg>,
+    ) -> RefMut<Object> {
+        let fid = fid.or_else(|| proto.as_ref().map(|p| p.borrow().fid)).unwrap();
+        let mut obj = Object::new(fid, proto, pos, SubObject::None);
+        if let Some(proto_flags) = obj.proto().map(|p| p.flags) {
+            let flags = proto_flags & (
+                Flag::Flat |
+                Flag::NoBlock |
+                Flag::MultiHex |
+                Flag::LightThru |
+                Flag::ShootThru |
+                Flag::WallTransEnd);
+            obj.flags.insert(flags);
+
+            for &flag in &[
+                Flag::TransNone,
+                Flag::TransEnergy,
+                Flag::TransGlass,
+                Flag::TransRed,
+                Flag::TransSteam,
+                Flag::TransWall]
+            {
+                if proto_flags.contains(flag) {
+                    obj.flags.insert(flag);
+                    break;
+                }
+            }
+        }
+        let obj = self.insert(obj);
+        let mut obj = self.get_mut(obj);
+        let sub = if let Some(proto) = obj.proto() {
+            // proto_update_init
+            match &proto.sub {
+                SubProto::Critter(p) => {
+                    SubObject::Critter(Critter {
+                        hit_points: rpg.unwrap().stat(Stat::HitPoints, &obj, self),
+                        radiation: 0,
+                        poison: 0,
+                        combat: CritterCombat {
+                            damage_flags: Default::default(),
+                            ai_packet: p.ai_packet,
+                            team_id: p.team_id,
+                            who_hit_me: 0,
+                        },
+                        dude: None,
+                    })
+                }
+                // proto_update_gen
+                SubProto::Item(p) => {
+                    match &p.sub {
+                        SubItem::Ammo(p) => {
+                            SubObject::Item(Item {
+                                ammo_count: p.max_ammo_count,
+                                ammo_proto: None,
+                            })
+                        }
+                        SubItem::Key(p) => {
+                            SubObject::Key(Key {
+                                id: p.id,
+                            })
+                        }
+                        SubItem::Misc(p) => {
+                            SubObject::Item(Item {
+                                ammo_count: p.max_ammo_count,
+                                ammo_proto: p.ammo_proto_id.map(|pid| self.proto_db.proto(pid).unwrap()),
+                            })
+                        }
+                        SubItem::Weapon(p) => {
+                            SubObject::Item(Item {
+                                ammo_count: p.max_ammo_count,
+                                ammo_proto: p.ammo_proto_id.map(|pid| self.proto_db.proto(pid).unwrap()),
+                            })
+                        }
+                        | SubItem::Armor(_)
+                        | SubItem::Container(_)
+                        | SubItem::Drug(_)
+                        => SubObject::None,
+                    }
+                }
+                SubProto::Scenery(p) => {
+                    match &p.sub {
+                        SubScenery::Door(proto) => {
+                            SubObject::Scenery(Scenery::Door(Door {
+                                flags: proto.flags,
+                            }))
+                        }
+                        SubScenery::Stairs(proto) => {
+                            SubObject::Scenery(Scenery::Stairs(proto.exit.clone().unwrap()))
+                        }
+                        SubScenery::Elevator(proto) => {
+                            SubObject::Scenery(Scenery::Elevator(Elevator {
+                                kind: proto.kind,
+                                level: proto.level,
+                            }))
+                        }
+                        SubScenery::Ladder(proto) => {
+                            SubObject::Scenery(Scenery::Ladder(proto.exit.clone().unwrap()))
+                        }
+                        SubScenery::Misc => {
+                            SubObject::None
+                        }
+                    }
+                }
+                SubProto::Wall(_)
+                | SubProto::SqrTile(_)
+                | SubProto::Misc
+                => SubObject::None,
+            }
+        } else {
+            SubObject::None
+        };
+        obj.sub = sub;
+        if obj.sub.as_critter().is_some() {
+            rpg.unwrap().recalc_derived_stats(&mut obj, self);
+        }
+        // Not initializing script here.
+
+        obj
     }
 
     pub fn insert(&mut self, mut obj: Object) -> Handle {
