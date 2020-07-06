@@ -109,7 +109,7 @@ impl Widget for Button {
                 self.state = State::Up;
                 // FIXME should optionally hit test the frame as in original.
                 if ctx.base.rect.contains(pos) {
-                    if let Some(cmd) = self.command.clone() {
+                    if let Some(cmd) = self.command {
                         ctx.out(cmd);
                     }
                 }

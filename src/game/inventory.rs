@@ -1,6 +1,7 @@
 use bstring::{bstr, BString};
 use bstring::bfmt::ToBString;
 use if_chain::if_chain;
+use sdl2::mouse::MouseButton;
 
 use crate::asset::*;
 use crate::asset::frame::FrameId;
@@ -10,6 +11,7 @@ use crate::game::object::{self, EquipmentSlot, Hand, Object, InventoryItem};
 use crate::game::rpg::Rpg;
 use crate::game::ui::action_menu::{self, Action};
 use crate::game::ui::inventory_list::{self, InventoryList, Scroll, MouseMode};
+use crate::game::ui::move_window::MoveWindow;
 use crate::game::world::WorldRef;
 use crate::graphics::{Point, Rect};
 use crate::graphics::color::{GREEN, RED};
@@ -17,11 +19,10 @@ use crate::graphics::font::*;
 use crate::graphics::sprite::Sprite;
 use crate::ui::{self, Ui, button, Widget, HandleEvent, Cursor};
 use crate::ui::button::Button;
-use crate::ui::command::{UiCommandData, UiCommand};
+use crate::ui::command::{move_window, UiCommand, UiCommandData};
 use crate::ui::command::inventory::Command;
 use crate::ui::panel::{self, Panel};
 use crate::util::sprintf;
-use sdl2::mouse::MouseButton;
 
 const MSG_NO_ITEM: MessageId = 14;
 const MSG_DMG: MessageId = 15;
@@ -56,40 +57,15 @@ impl Inventory {
             match c {
                 Command::Show => {
                     self.show(rpg, ui);
-                    return;
                 }
                 Command::Hide => {
                     self.hide(ui);
-                    return;
                 }
                 _ => {}
             }
-            let internal = self.internal.as_mut().unwrap();
-            match c {
-                Command::Show | Command::Hide => unreachable!(),
-                Command::Scroll(scroll) => {
-                    internal.scroll(scroll, ui);
-                }
-                Command::Hover { .. } => {}
-                Command::ActionMenu { object } => {
-                    internal.show_action_menu(object, ui);
-                }
-                Command::Action { object, action } => {
-                    internal.hide_action_menu(ui);
-                    match action {
-                        Some(Action::Unload) => {
-                            internal.unload(object, rpg, ui);
-                        }
-                        _ => {}
-                    }
-                }
-                Command::ListDrop { pos, object } => {
-                    internal.handle_list_drop(cmd.source, pos, object, rpg, ui);
-                }
-                Command::ToggleMouseMode => {
-                    internal.toggle_mouse_mode(rpg, ui);
-                }
-            }
+        }
+        if let Some(v) = self.internal.as_mut() {
+            v.handle(cmd, rpg, ui);
         }
     }
 
@@ -101,7 +77,7 @@ impl Inventory {
         let owner = self.world.borrow().objects().dude();
         let internal = Internal::new(self.msgs.take().unwrap(), self.world.clone(), owner, ui);
         internal.sync_mouse_mode_to_ui(ui);
-        internal.sync_from_obj(rpg, ui);
+        internal.sync_to_ui(rpg, ui);
         assert!(self.internal.replace(internal).is_none());
     }
 
@@ -139,6 +115,7 @@ struct Internal {
     total_weight: ui::Handle,
 
     action_menu: Option<ui::Handle>,
+    move_window: Option<InventoryMoveWindow>,
 }
 
 impl Internal {
@@ -247,6 +224,7 @@ impl Internal {
             stat_columns,
             total_weight,
             action_menu: None,
+            move_window: None,
         }
     }
 
@@ -254,7 +232,7 @@ impl Internal {
         ui.remove(self.win);
     }
 
-    fn sync_from_obj(&self, rpg: &Rpg, ui: &Ui) {
+    fn sync_to_ui(&self, rpg: &Rpg, ui: &Ui) {
         let list = &mut ui.widget_mut::<InventoryList>(self.list);
         let wearing = &mut ui.widget_mut::<InventoryList>(self.wearing);
         let left_hand = &mut ui.widget_mut::<InventoryList>(self.left_hand);
@@ -297,12 +275,7 @@ impl Internal {
     // display_inventory_info
     fn make_list_item(item: &InventoryItem, obj: &Object) -> inventory_list::Item {
         let proto = obj.proto().unwrap();
-        let count = if obj.item_kind() == Some(ItemKind::Ammo) {
-            obj.proto().unwrap().max_ammo_count().unwrap() * (item.count - 1)
-                + obj.ammo_count().unwrap()
-        } else {
-            item.count
-        };
+        let count = obj.total_ammo_count(item.count).unwrap_or(item.count);
         inventory_list::Item {
             object: item.object,
             fid: proto.sub.as_item().unwrap().inventory_fid.unwrap(),
@@ -310,7 +283,7 @@ impl Internal {
         }
     }
 
-    fn scroll(&self, scroll: Scroll, ui: &mut Ui) {
+    fn scroll(&self, scroll: Scroll, ui: &Ui) {
         let list = &mut ui.widget_mut::<InventoryList>(self.list);
         list.scroll(scroll);
         self.update_list_scroll_buttons(list, ui);
@@ -582,12 +555,12 @@ impl Internal {
     }
 
     // switch_hands
-    fn handle_list_drop(&self,
+    fn handle_list_drop(&mut self,
         src: ui::Handle,
         pos: Point,
-        obj: object::Handle,
+        src_obj: object::Handle,
         rpg: &Rpg,
-        ui: &Ui,
+        ui: &mut Ui,
     ) {
         let src_slot = self.slot_from_widget(src).unwrap();
 
@@ -597,67 +570,136 @@ impl Internal {
         }
         let target_slot = unwrap_or_return!(self.slot_from_widget(target), Some);
 
+        assert_ne!(src_slot, target_slot);
+
         let world = self.world.borrow();
-        let (bump, existing) = {
-            let (bump, existing) = match target_slot {
-                Slot::Inventory => (Some(obj), None),
-                Slot::Equipment(eq_slot) => {
-                    let v = world.objects().get(self.owner)
-                        .equipment(eq_slot, world.objects());
-                    (v, v)
-                }
-            };
 
-            match target_slot {
-                Slot::Equipment(target_slot) => {
-                    let mut obj = world.objects().get_mut(obj);
+        enum Action {
+            MoveTo {
+                item: object::Handle,
+                slot: Slot,
+            },
+            Reload {
+                weapon: object::Handle,
+                max_count: u32,
+            },
+            ArmorChange {
+                old_armor: Option<object::Handle>,
+                new_armor: Option<object::Handle>,
+            },
+        }
 
-                    if target_slot == EquipmentSlot::Armor
-                        && obj.proto().unwrap().kind() != ExactEntityKind::Item(ItemKind::Armor)
-                    {
+        let mut actions = Vec::new();
+
+        match target_slot {
+            Slot::Inventory => {
+                actions.push(Action::MoveTo {
+                    item: src_obj,
+                    slot: Slot::Inventory,
+                });
+            }
+            Slot::Equipment(eq_slot) => {
+                let owner = world.objects().get(self.owner);
+                let target_obj = owner.equipment(eq_slot, world.objects());
+                let src_obj = world.objects().get(src_obj);
+
+                if eq_slot == EquipmentSlot::Armor {
+                    if src_obj.proto().unwrap().kind() != ExactEntityKind::Item(ItemKind::Armor) {
                         return;
                     }
+                    actions.push(Action::ArmorChange {
+                        old_armor: target_obj,
+                        new_armor: Some(src_obj.handle()),
+                    });
+                }
 
-                    obj.flags.remove(Flag::Worn | Flag::LeftHand | Flag::RightHand);
+                // Check for weapon reload.
+                let reload = if_chain! {
+                    if let Some(target_obj) = target_obj;
+                    let weapon = world.objects().get(target_obj);
+                    if let Some(max_count) = weapon.can_reload_weapon(&src_obj);
+                    then {
+                        actions.push(Action::Reload {
+                            weapon: weapon.handle(),
+                            max_count,
+                        });
+                        true
+                    } else {
+                        false
+                    }
+                };
 
-                    match target_slot {
-                        EquipmentSlot::Armor => obj.flags.insert(Flag::Worn),
-                        EquipmentSlot::Hand(Hand::Left) => obj.flags.insert(Flag::LeftHand),
-                        EquipmentSlot::Hand(Hand::Right) => obj.flags.insert(Flag::RightHand),
+                // Default actions are to move/replace.
+                if !reload {
+                    actions.push(Action::MoveTo {
+                        item: src_obj.handle(),
+                        slot: Slot::Equipment(eq_slot),
+                    });
+                    if let Some(target_obj) = target_obj {
+                        // Move target out of the slot.
+                        actions.push(Action::MoveTo {
+                            item: target_obj,
+                            slot: Slot::Inventory,
+                        });
                     }
                 }
-                Slot::Inventory => {}
             }
-
-            (bump, existing)
         };
-
-        // Bump item: remove from slots and move to inventory top.
-        if let Some(bump) = bump {
-            let mut owner = world.objects().get_mut(self.owner);
-            world.objects().get_mut(bump)
-                .flags.remove(Flag::Worn | Flag::LeftHand | Flag::RightHand);
-            let i = owner.inventory.items.iter()
-                .position(|i| i.object == bump).unwrap();
-            if i > 0 {
-                let item = owner.inventory.items.remove(i);
-                owner.inventory.items.insert(0, item);
-            }
+        if src_slot == Slot::Equipment(EquipmentSlot::Armor) {
+            actions.push(Action::ArmorChange {
+                old_armor: Some(src_obj),
+                new_armor: None,
+            });
         }
 
-        {
+        for action in actions {
             let owner = &mut world.objects().get_mut(self.owner);
-            if src_slot == Slot::Equipment(EquipmentSlot::Armor) {
-                let old_armor = world.objects().get(obj);
-                rpg.apply_armor_change(owner, None, Some(old_armor), world.objects());
-            } else if target_slot == Slot::Equipment(EquipmentSlot::Armor) {
-                let new_armor = world.objects().get(obj);
-                let old_armor = existing.map(|obj| world.objects().get(obj));
-                rpg.apply_armor_change(owner, Some(new_armor), old_armor, world.objects());
+            match action {
+                Action::MoveTo { item, slot } => {
+                    let mut item = world.objects().get_mut(item);
+                    item.flags.remove(Flag::Worn | Flag::LeftHand | Flag::RightHand);
+                    match slot {
+                        Slot::Inventory => {
+                            let i = owner.inventory.items.iter()
+                                .position(|i| i.object == item.handle()).unwrap();
+                            if i > 0 {
+                                let item = owner.inventory.items.remove(i);
+                                owner.inventory.items.insert(0, item);
+                            }
+                        }
+                        Slot::Equipment(eq_slot) => match eq_slot {
+                            EquipmentSlot::Armor => item.flags.insert(Flag::Worn),
+                            EquipmentSlot::Hand(Hand::Left) => item.flags.insert(Flag::LeftHand),
+                            EquipmentSlot::Hand(Hand::Right) => item.flags.insert(Flag::RightHand),
+                        }
+                    }
+                }
+                Action::Reload { weapon, max_count } => {
+                    if max_count <= 1 {
+                        let mut weapon = world.objects().get_mut(weapon);
+                        let mut ammo = world.objects().get_mut(src_obj);
+                        weapon.sub.as_item_mut().unwrap().ammo_count += max_count;
+                        let ammo = ammo.sub.as_item_mut().unwrap();
+                        ammo.ammo_count = ammo.ammo_count.checked_sub(max_count).unwrap();
+                    } else {
+                        let win = InventoryMoveWindow::show(
+                            weapon,
+                            &world.objects().get(src_obj),
+                            max_count,
+                            &self.msgs,
+                            ui);
+                        assert!(self.move_window.replace(win).is_none());
+                    }
+                }
+                Action::ArmorChange { old_armor, new_armor } => {
+                    let old_armor = old_armor.map(|obj| world.objects().get(obj));
+                    let new_armor = new_armor.map(|obj| world.objects().get(obj));
+                    rpg.apply_armor_change(owner, old_armor, new_armor, world.objects());
+                }
             }
         }
 
-        self.sync_from_obj(rpg, ui);
+        self.sync_to_ui(rpg, ui);
         self.sync_owner_fid(rpg)
     }
 
@@ -673,7 +715,49 @@ impl Internal {
             let ammo = unwrap_or_return!(world.objects_mut().unload_weapon(weapon), Some);
             world.objects_mut().move_into_inventory(self.owner, ammo, 1);
         }
-        self.sync_from_obj(rpg, ui);
+        self.sync_to_ui(rpg, ui);
+    }
+
+    fn handle(&mut self, cmd: UiCommand, rpg: &Rpg, ui: &mut Ui) {
+        match cmd.data {
+            UiCommandData::Inventory(c) => match c {
+                Command::Show | Command::Hide => {}
+                Command::Scroll(scroll) => {
+                    self.scroll(scroll, ui);
+                }
+                Command::Hover { .. } => {}
+                Command::ActionMenu { object } => {
+                    self.show_action_menu(object, ui);
+                }
+                Command::Action { object, action } => {
+                    self.hide_action_menu(ui);
+                    if let Some(Action::Unload) = action {
+                        self.unload(object, rpg, ui);
+                    }
+                }
+                Command::ListDrop { pos, object } => {
+                    self.handle_list_drop(cmd.source, pos, object, rpg, ui);
+                }
+                Command::ToggleMouseMode => {
+                    self.toggle_mouse_mode(rpg, ui);
+                }
+            }
+            UiCommandData::MoveWindow(c) => {
+                if let move_window::Command::Hide { ok } = c {
+                    let win = self.move_window.take().unwrap();
+                    if ok {
+                        self.world.borrow_mut().objects_mut()
+                            .reload_weapon_from_inventory(self.owner, win.weapon, win.ammo);
+                        self.sync_to_ui(rpg, ui);
+                    }
+                    win.win.hide(ui);
+                }
+            }
+            _ => {}
+        }
+        if let Some(v) = self.move_window.as_mut() {
+            v.win.handle(cmd, ui);
+        }
     }
 }
 
@@ -683,6 +767,30 @@ impl Widget for MouseModeToggler {
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         if let ui::Event::MouseDown { button: MouseButton::Right, .. } = ctx.event {
             ctx.out(UiCommandData::Inventory(Command::ToggleMouseMode));
+        }
+    }
+}
+
+struct InventoryMoveWindow {
+    weapon: object::Handle,
+    ammo: object::Handle,
+    win: MoveWindow,
+}
+
+impl InventoryMoveWindow {
+    pub fn show(
+        weapon: object::Handle,
+        ammo: &Object,
+        max: u32,
+        msgs: &Messages,
+        ui: &mut Ui,
+    ) -> Self {
+        let fid = ammo.proto().unwrap().sub.as_item().unwrap().inventory_fid.unwrap();
+        let win = MoveWindow::show(fid, max, msgs, ui);
+        Self {
+            weapon,
+            ammo: ammo.handle(),
+            win,
         }
     }
 }

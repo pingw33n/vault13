@@ -115,7 +115,7 @@ impl Skilldex {
             ui.new_widget(window, Rect::with_points(pos, pos + btn_size), None, None, btn);
 
             let level: u32 = levels[skill].try_into().unwrap_or(0);
-            let mut level_wid = ImageText::standard_digits(FrameId::BIG_NUMBERS, 14);
+            let mut level_wid = ImageText::big_numbers();
             *level_wid.text_mut() = format!("{:03}", level).into();
             let pos = pos + Point::new(96, 3);
             ui.new_widget(window, Rect::with_size(pos.x, pos.y, 1, 1), None, None, level_wid);

@@ -139,7 +139,7 @@ impl Widget for ActionMenu {
             },
             Event::MouseUp { pos, .. } => {
                 self.update_selection(ctx.base, pos);
-                ctx.out(self.actions[self.selection as usize].1.clone());
+                ctx.out(self.actions[self.selection as usize].1);
             }
             _ => {}
         }
