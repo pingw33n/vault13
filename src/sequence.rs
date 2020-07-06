@@ -1,12 +1,6 @@
-use enum_map_derive::Enum;
-
 pub mod cancellable;
 pub mod chain;
 pub mod event;
-pub mod noop;
-pub mod repeat;
-pub mod sleep;
-pub mod then;
 
 use std::time::Instant;
 
@@ -14,7 +8,7 @@ use crate::game::world::World;
 
 pub use event::Event;
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Running {
     /// The sequence is not lagging. The caller must not call `update()` again.
     NotLagging,
@@ -42,12 +36,6 @@ pub struct Update<'a> {
 
 pub trait Sequence {
     fn update(&mut self, ctx: &mut Update) -> Result;
-
-    fn then<T: Sequence>(self, seq: T) -> then::Then<Self, T>
-        where Self: Sized
-    {
-        then::Then::new(self, seq)
-    }
 
     fn cancellable(self) -> (cancellable::Cancellable<Self>, cancellable::Cancel)
         where Self: Sized
