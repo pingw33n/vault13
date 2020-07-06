@@ -151,7 +151,6 @@ pub struct Ui {
     simulate_mouse_move: bool,
     mouse_focus: Option<Handle>,
     keyboard_focus: Option<Handle>,
-    modal_window: Option<Handle>,
 }
 
 impl Ui {
@@ -171,7 +170,6 @@ impl Ui {
             simulate_mouse_move: false,
             mouse_focus: None,
             keyboard_focus: None,
-            modal_window: None,
         }
     }
 
@@ -185,11 +183,13 @@ impl Ui {
 
     pub fn new_window(&mut self, rect: Rect, background: Option<Sprite>) -> Handle {
         let h = self.insert_widget(None, Base {
+            window: true,
             rect,
             cursor: None,
             background,
             visible: true,
             listener: false,
+            modal: false,
         }, Box::new(Window {
             widgets: Vec::new(),
         }));
@@ -214,9 +214,6 @@ impl Ui {
         }
         if self.keyboard_focus == Some(handle) {
             self.keyboard_focus = None;
-        }
-        if self.modal_window == Some(handle) {
-            self.modal_window = None;
         }
         self.widget_bases.remove(handle);
 
@@ -253,11 +250,13 @@ impl Ui {
         };
 
         let h = self.insert_widget(Some(window), Base {
+            window: false,
             rect,
             cursor,
             background,
             visible: true,
             listener: false,
+            modal: false,
         }, Box::new(widget));
 
         self.simulate_mouse_move = true;
@@ -359,13 +358,6 @@ impl Ui {
 
     pub fn is_window(&self, handle: Handle) -> bool {
         self.widget(handle).borrow().downcast_ref::<Window>().is_some()
-    }
-
-    pub fn set_modal_window(&mut self, win: Option<Handle>) {
-        if let Some(win) = win {
-            assert!(self.is_window(win));
-        }
-        self.modal_window = win;
     }
 
     fn widget_handle_event(&mut self,
@@ -542,9 +534,20 @@ impl Ui {
         {
             return v;
         }
-        if let Some(v) = self.modal_window.and_then(widg_cursor) {
-            return v;
+
+        // Check topmost visible window.
+        for &winh in self.windows_order.iter().rev() {
+            let win_base = self.widget_bases[winh].borrow();
+            if win_base.visible {
+                if win_base.modal {
+                    if let Some(c) = win_base.cursor {
+                        return c;
+                    }
+                }
+                break;
+            }
         }
+
         self.cursor
     }
 
@@ -577,7 +580,7 @@ impl Ui {
                 }
                 return Some((winh, winh));
             }
-            if Some(winh) == self.modal_window {
+            if win_base.modal {
                 break;
             }
         }
@@ -655,6 +658,7 @@ impl Widget for Window {
 }
 
 pub struct Base {
+    window: bool,
     rect: Rect,
     cursor: Option<Cursor>,
     background: Option<Sprite>,
@@ -665,6 +669,7 @@ pub struct Base {
     /// Windows can't be listeners.
     /// Currently only `MouseDown` is routed to the listener.
     listener: bool,
+    modal: bool,
 }
 
 impl Base {
@@ -701,7 +706,17 @@ impl Base {
     }
 
     pub fn set_listener(&mut self, v: bool) {
+        assert!(!self.window);
         self.listener = v;
+    }
+
+    pub fn is_modal(&self) -> bool {
+        self.modal
+    }
+
+    pub fn set_modal(&mut self, v: bool) {
+        assert!(self.window);
+        self.modal = v;
     }
 }
 

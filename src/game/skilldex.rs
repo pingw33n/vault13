@@ -84,7 +84,7 @@ impl Skilldex {
         let window = ui.new_window(Rect::with_size(
             640 - win_size.x - 4, 379 - win_size.y - 6, win_size.x, win_size.y),
             Some(Sprite::new(FrameId::SKILLDEX_WINDOW)));
-        ui.set_modal_window(Some(window));
+        ui.widget_base_mut(window).set_modal(true);
 
         let mut header = Panel::new();
         header.set_text(Some(panel::Text {
