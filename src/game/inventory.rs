@@ -145,7 +145,7 @@ impl Internal {
     fn new(msgs: Messages, world: WorldRef, owner: object::Handle, ui: &mut Ui) -> Self {
         let win = ui.new_window(Rect::with_size(80, 0, 499, 377),
             Some(Sprite::new(FrameId::INVENTORY_WINDOW)));
-        ui.set_modal_window(Some(win));
+        ui.widget_base_mut(win).set_modal(true);
 
         let mut list_scroll_up = Button::new(FrameId::INVENTORY_SCROLL_UP_UP,
             FrameId::INVENTORY_SCROLL_UP_DOWN,
