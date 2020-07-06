@@ -345,7 +345,7 @@ impl ProtoDb {
         let crit_failure_table = rd.read_i32::<BigEndian>()?;
         let perk = read_opt_enum(rd, "invalid weapon perk")?;
         let burst_bullet_count = rd.read_i32::<BigEndian>()?;
-        let caliber = rd.read_i32::<BigEndian>()?;
+        let caliber = rd.read_u32::<BigEndian>()?;
         let ammo_proto_id = ProtoId::read_opt(rd)?;
         let max_ammo_count = rd.read_i32::<BigEndian>()?.try_into().unwrap();
         let sound_id = rd.read_u8()?;
@@ -370,7 +370,7 @@ impl ProtoDb {
     }
 
     fn read_ammo(rd: &mut impl Read) -> io::Result<Ammo> {
-        let caliber = rd.read_i32::<BigEndian>()?;
+        let caliber = rd.read_u32::<BigEndian>()?;
         let max_ammo_count = rd.read_i32::<BigEndian>()?.try_into().unwrap();
         let ac_modifier = rd.read_i32::<BigEndian>()?;
         let dr_modifier = rd.read_i32::<BigEndian>()?;

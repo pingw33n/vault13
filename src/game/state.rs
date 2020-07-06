@@ -1209,7 +1209,7 @@ impl AppState for GameState {
     }
 
     fn handle_ui_command(&mut self, command: UiCommand, ui: &mut Ui) {
-        self.inventory.handle(command.clone(), &self.rpg, ui);
+        self.inventory.handle(command, &self.rpg, ui);
 
         match command.data {
             UiCommandData::ObjectPick { kind, obj: objh } => {
@@ -1386,6 +1386,7 @@ impl AppState for GameState {
                 }
                 _ => {}
             }
+            UiCommandData::MoveWindow(_) => {}
         }
     }
 

@@ -4,13 +4,13 @@ use crate::game::object;
 use crate::graphics::EPoint;
 
 /// Command for signaling widget-specific events to callee.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct UiCommand {
     pub source: Handle,
     pub data: UiCommandData,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum UiCommandData {
     ObjectPick {
         kind: ObjectPickKind,
@@ -29,6 +29,7 @@ pub enum UiCommandData {
     Scroll,
     Skilldex(SkilldexCommand),
     Inventory(inventory::Command),
+    MoveWindow(move_window::Command),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -77,3 +78,14 @@ pub mod inventory {
     }
 }
 
+pub mod move_window {
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub enum Command {
+        Hide {
+            ok: bool
+        },
+        Inc,
+        Dec,
+        Max,
+    }
+}

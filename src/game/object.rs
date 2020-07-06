@@ -529,6 +529,50 @@ impl Object {
         }
     }
 
+    // item_w_can_reload
+    #[must_use]
+    pub fn can_reload_weapon(&self, ammo: &Self) -> Option<u32> {
+        let weapon_proto = self.proto()?;
+        if weapon_proto.id() == ProtoId::SOLAR_SCORCHER {
+            unimplemented!("TODO");
+        }
+        let weapon = self.sub.as_item()?;
+        let ammo_proto = ammo.proto()?;
+        let weapon_proto = weapon_proto.sub.as_weapon()?;
+        if weapon_proto.caliber == ammo_proto.sub.as_ammo()?.caliber
+            // TODO this is a weird condition
+            && (weapon.ammo_count == 0 || weapon.ammo_proto.as_ref()?.borrow().id() == ammo_proto.id())
+        {
+            let free = weapon_proto.max_ammo_count.checked_sub(weapon.ammo_count).unwrap();
+            let r = std::cmp::min(free, ammo.total_ammo_count(1).unwrap());
+            Some(r)
+        } else {
+            None
+        }
+    }
+
+    // item_w_reload
+    #[must_use]
+    pub fn reload_weapon(&mut self, ammo: &mut Object) -> Option<u32> {
+        let ammo_count = self.can_reload_weapon(ammo)?;
+        self.sub.as_item_mut()?.ammo_count += ammo_count;
+        let weapon_proto = self.proto()?;
+        if weapon_proto.id() == ProtoId::SOLAR_SCORCHER {
+            return Some(0);
+        }
+
+        let ammo = ammo.sub.as_item_mut().unwrap();
+        ammo.ammo_count -= ammo_count;
+        Some(ammo.ammo_count)
+    }
+
+    #[must_use]
+    pub fn total_ammo_count(&self, clip_count: u32) -> Option<u32> {
+        let ammo_proto = self.proto()?;
+        Some(self.sub.as_item()?.ammo_count +
+            ammo_proto.sub.as_ammo()?.max_ammo_count * clip_count.saturating_sub(1))
+    }
+
     // item_w_curr_ammo
     #[must_use]
     pub fn ammo_count(&self) -> Option<u32> {
@@ -968,6 +1012,14 @@ impl Objects {
         if obj.sub.as_critter().is_some() {
             rpg.unwrap().recalc_derived_stats(&mut obj, self);
         }
+
+        if obj.is_dude() {
+            obj.sub.as_critter_mut().unwrap().dude = Some(Box::new(Dude {
+                naked_fidx: 0x3e,
+                active_hand: Hand::Left,
+            }));
+        }
+
         // Not initializing script here.
 
         obj
@@ -1617,6 +1669,31 @@ impl Objects {
         Some(ammo.handle())
     }
 
+    pub fn reload_weapon_from_inventory(&mut self,
+        owner: Handle,
+        weapon: Handle,
+        ammo: Handle,
+    ) {
+        let remove = {
+            let owner = &mut self.get_mut(owner);
+            let weapon = &mut self.get_mut(weapon);
+            let ammo = &mut self.get_mut(ammo);
+            let idx = owner.inventory.items.iter()
+                .position(|i| i.object == ammo.handle())
+                .unwrap();
+            let left = unwrap_or_return!(weapon.reload_weapon(ammo), Some);
+            if left == 0 && owner.inventory.items[idx].count - 1 == 0 {
+                owner.inventory.items.remove(idx);
+                true
+            } else {
+                false
+            }
+        };
+        if remove {
+            self.remove(ammo);
+        }
+    }
+
     // obj_intersects_with()
     #[must_use]
     fn is_egg_hit(&self, p: Point, obj: &Object, egg: Egg, tile_grid: &impl TileGridView) -> bool {
@@ -1932,6 +2009,7 @@ pub struct Elevator {
 #[derive(Debug)]
 pub struct Item {
     pub ammo_count: u32,
+    // TODO When can this be different from Weapon::ammo_proto_id?
     pub ammo_proto: Option<ProtoRef>,
 }
 

@@ -270,7 +270,7 @@ pub struct Weapon {
     // Number of bullets per burst shot.
     pub burst_bullet_count: i32,
     // proto.msg:300
-    pub caliber: i32,
+    pub caliber: u32,
     pub ammo_proto_id: Option<ProtoId>,
     /// Magazine capacity.
     pub max_ammo_count: u32,
@@ -279,7 +279,7 @@ pub struct Weapon {
 
 #[derive(Debug)]
 pub struct Ammo {
-    pub caliber: i32,
+    pub caliber: u32,
     pub max_ammo_count: u32,
     pub ac_modifier: i32,
     pub dr_modifier: i32,

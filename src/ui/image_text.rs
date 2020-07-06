@@ -26,6 +26,10 @@ impl ImageText {
         }
     }
 
+    pub fn big_numbers() -> Self {
+        Self::standard_digits(FrameId::BIG_NUMBERS, 14)
+    }
+
     pub fn text(&self) -> &BString {
         &self.text
     }
