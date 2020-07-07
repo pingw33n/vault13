@@ -176,10 +176,21 @@ pub enum Effect {
     },
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Anchor {
+    TopLeft,
+
+    /// Anchor point is at the bounding box center.
+    Center,
+
+    /// Anchor point is at the `FrameList::center`.
+    LogicalCenter,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Sprite {
     pub pos: Point,
-    pub centered: bool,
+    pub anchor: Anchor,
     pub fid: FrameId,
     pub frame_idx: usize,
     pub direction: Direction,
@@ -195,7 +206,7 @@ impl Sprite {
     pub const fn new_with_pos(fid: FrameId, pos: Point) -> Self {
         Sprite {
             pos,
-            centered: false,
+            anchor: Anchor::TopLeft,
             fid,
             frame_idx: 0,
             direction: Direction::NE,
@@ -209,10 +220,13 @@ impl Sprite {
         let frml = &frms.frame_lists[self.direction];
         let frm = &frml.frames[self.frame_idx];
 
-        let bounds = if self.centered {
-            frm.bounds_centered(self.pos, frml.center)
-        } else {
-            Rect::with_size(self.pos.x, self.pos.y, frm.width, frm.height)
+        let bounds = match self.anchor {
+            Anchor::TopLeft => Rect::with_size(self.pos.x, self.pos.y, frm.width, frm.height),
+            Anchor::Center => Rect::with_size(
+                self.pos.x - frm.width / 2,
+                self.pos.y - frm.height / 2,
+                frm.width, frm.height),
+            Anchor::LogicalCenter => frm.bounds_centered(self.pos, frml.center),
         };
 
         match self.effect {

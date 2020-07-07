@@ -19,7 +19,7 @@ use crate::asset::frame::{FrameId, FrameDb};
 use crate::graphics::{Point, Rect};
 use crate::graphics::font::Fonts;
 use crate::graphics::render::Canvas;
-use crate::graphics::sprite::Sprite;
+use crate::graphics::sprite::{Sprite, Anchor};
 use crate::ui::command::UiCommand;
 use crate::util::VecExt;
 
@@ -109,17 +109,17 @@ impl Cursor {
         }
     }
 
-    fn placement(self, frm_db: &FrameDb) -> (Point, bool) {
+    fn placement(self, frm_db: &FrameDb) -> (Point, Anchor) {
         use Cursor::*;
         let offset = match self {
             // ACTARROM is not properly centered.
             ActionArrowFlipped => (-14, 22),
             Frame(fid) => {
-                return (-frm_db.get(fid).unwrap().first().size() / 2, false);
+                return (-frm_db.get(fid).unwrap().first().size() / 2, Anchor::TopLeft);
             }
             _ => (0, 0)
         }.into();
-        (offset, true)
+        (offset, Anchor::LogicalCenter)
     }
 }
 
@@ -552,9 +552,9 @@ impl Ui {
 
     fn draw_cursor(&self, cursor: Cursor, pos: Point, canvas: &mut dyn Canvas) {
         let fid = cursor.fid();
-        let (offset, centered) = cursor.placement(&self.frm_db);
+        let (offset, anchor) = cursor.placement(&self.frm_db);
         let mut sprite = Sprite::new_with_pos(fid, pos + offset);
-        sprite.centered = centered;
+        sprite.anchor = anchor;
         sprite.render(canvas, &self.frm_db);
     }
 
@@ -718,8 +718,11 @@ impl Widget for Base {
     }
 
     fn render(&mut self, ctx: Render) {
-        if let Some(background) = &mut self.background {
-            background.pos = self.rect.top_left();
+        if let Some(mut background) = self.background {
+            background.pos += match background.anchor {
+                Anchor::TopLeft | Anchor::LogicalCenter => self.rect.top_left(),
+                Anchor::Center => self.rect.center(),
+            };
             background.render(ctx.canvas, ctx.frm_db);
         }
     }

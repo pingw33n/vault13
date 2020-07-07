@@ -721,14 +721,14 @@ impl Object {
     }
 
     fn create_sprite(&self, light: u32, effect: Option<Effect>, tile_grid: &impl TileGridView) -> Sprite {
-        let (pos, centered) = if let Some(EPoint { point: hex_pos, .. }) = self.pos {
-            (tile_grid.center_to_screen(hex_pos) + self.screen_shift, true)
+        let (pos, anchor) = if let Some(EPoint { point: hex_pos, .. }) = self.pos {
+            (tile_grid.center_to_screen(hex_pos) + self.screen_shift, Anchor::LogicalCenter)
         } else {
-            (self.screen_pos, false)
+            (self.screen_pos, Anchor::TopLeft)
         };
         Sprite {
             pos,
-            centered,
+            anchor,
             fid: self.fid,
             frame_idx: self.frame_idx,
             direction: self.direction,
