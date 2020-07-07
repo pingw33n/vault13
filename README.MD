@@ -29,5 +29,6 @@ Controls that work in demo:
 * `` ` `` - toggle debug info display.
 * `p` - toggle pause.
 
+![Inventory](screenshot_20190830114533.png)
 ![Screenshot](screenshot_20190830114533.png)
 ![Dialog](screenshot_20190917010852.png)
