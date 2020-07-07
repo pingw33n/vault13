@@ -165,10 +165,6 @@ impl World {
         self.sqr_tiles[elevation as usize].is_some()
     }
 
-    pub fn make_object_standing(&mut self, h: object::Handle) {
-        self.objects.make_standing(h);
-    }
-
     pub fn object_bounds(&self, obj: object::Handle, include_outline: bool) -> Rect {
         self.objects.bounds(obj, &self.camera.hex(), include_outline)
     }

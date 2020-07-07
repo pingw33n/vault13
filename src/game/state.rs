@@ -290,7 +290,7 @@ impl GameState {
         dude_obj.set_pos(Some(map.entrance));
         let dude_obj = world.objects_mut().insert(dude_obj);
 
-        world.make_object_standing(dude_obj);
+        world.objects_mut().make_standing(dude_obj);
 
         {
             assert!(!map.savegame);
