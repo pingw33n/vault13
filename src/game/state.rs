@@ -37,17 +37,17 @@ use crate::game::world::{ScrollDirection, World, WorldRef};
 use crate::graphics::{EPoint, Rect};
 use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::{self, Direction};
-use crate::sequence;
+use crate::sequence::{self, Sequencer};
 use crate::sequence::event::PushEvent;
 use crate::sequence::chain::Chain;
 use crate::state::{self, *};
 use crate::ui::{self, Ui};
 use crate::ui::command::*;
+use crate::ui::command::inventory::Command;
 use crate::ui::message_panel::MessagePanel;
 use crate::util::{EnumExt, sprintf};
 use crate::util::random::random;
 use crate::vm::{Vm, PredefinedProc, Suspend};
-use crate::ui::command::inventory::Command;
 
 const SCROLL_STEP: i32 = 10;
 
@@ -76,6 +76,7 @@ pub struct GameState {
     rpg: Rpg,
     skilldex: Skilldex,
     inventory: Inventory,
+    ui_sequencer: Sequencer,
 }
 
 impl GameState {
@@ -129,6 +130,8 @@ impl GameState {
 
         let inventory = Inventory::new(world.clone(), &fs, language);
 
+        let ui_sequencer = Sequencer::new(now);
+
         Self {
             time,
             fs,
@@ -154,6 +157,7 @@ impl GameState {
             rpg,
             skilldex,
             inventory,
+            ui_sequencer,
         }
     }
 
@@ -635,6 +639,7 @@ impl GameState {
             self.obj_sequencer.clear();
             self.obj_sequencer.sync(&mut sequence::Sync {
                 world,
+                ui,
             });
             let script = world.objects().get(talked).script;
             if let Some((sid, _)) = script {
@@ -1414,6 +1419,7 @@ impl AppState for GameState {
                     self.obj_sequencer.update(&mut sequence::Update {
                         time: self.time.time(),
                         world,
+                        ui: ctx.ui,
                         out: &mut self.seq_events,
                     });
                 }
@@ -1430,8 +1436,17 @@ impl AppState for GameState {
         } else {
             self.obj_sequencer.sync(&mut sequence::Sync {
                 world: &mut self.world.borrow_mut(),
+                ui: ctx.ui,
             });
         }
+
+        self.ui_sequencer.update(&mut sequence::Update {
+            time: ctx.time,
+            world: &mut self.world.borrow_mut(),
+            ui: ctx.ui,
+            out: &mut self.seq_events,
+        });
+        assert!(self.seq_events.is_empty());
     }
 }
 

@@ -1,7 +1,7 @@
 mod event;
 
 use sdl2::event::{Event as SdlEvent};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::ui::Ui;
 use crate::ui::command::UiCommand;
@@ -14,6 +14,7 @@ pub struct HandleAppEvent<'a> {
 }
 
 pub struct Update<'a> {
+    pub time: Instant,
     pub delta: Duration,
     pub ui: &'a mut Ui,
     pub out: &'a mut Vec<AppEvent>,
