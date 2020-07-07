@@ -31,6 +31,7 @@ pub enum Result {
 pub struct Update<'a> {
     pub time: Instant,
     pub world: &'a mut World,
+    pub ui: &'a mut crate::ui::Ui,
     pub out: &'a mut Vec<Event>,
 }
 
@@ -52,6 +53,7 @@ impl<T: Sequence + ?Sized> Sequence for Box<T> {
 
 pub struct Sync<'a> {
     pub world: &'a mut World,
+    pub ui: &'a mut crate::ui::Ui,
 }
 
 pub struct Sequencer {
@@ -102,6 +104,7 @@ impl Sequencer {
         self.update(&mut Update {
             time: self.last_time,
             world: ctx.world,
+            ui: ctx.ui,
             out,
         });
         assert!(out.is_empty());

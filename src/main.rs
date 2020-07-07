@@ -329,6 +329,7 @@ fn main() {
         }
 
         state.update(Update {
+            time: timer.time(),
             delta: timer.delta(),
             ui,
             out: app_events,
