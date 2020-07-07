@@ -188,9 +188,13 @@ pub struct Sprite {
 }
 
 impl Sprite {
-    pub fn new(fid: FrameId) -> Self {
+    pub const fn new(fid: FrameId) -> Self {
+        Self::new_with_pos(fid, Point::new(0, 0))
+    }
+
+    pub const fn new_with_pos(fid: FrameId, pos: Point) -> Self {
         Sprite {
-            pos: Point::new(0, 0),
+            pos,
             centered: false,
             fid,
             frame_idx: 0,

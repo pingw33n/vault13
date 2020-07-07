@@ -18,7 +18,6 @@ use std::time::Instant;
 use crate::asset::frame::{FrameId, FrameDb};
 use crate::graphics::{Point, Rect};
 use crate::graphics::font::Fonts;
-use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::Sprite;
 use crate::ui::command::UiCommand;
@@ -554,15 +553,9 @@ impl Ui {
     fn draw_cursor(&self, cursor: Cursor, pos: Point, canvas: &mut dyn Canvas) {
         let fid = cursor.fid();
         let (offset, centered) = cursor.placement(&self.frm_db);
-        Sprite {
-            pos: pos + offset,
-            centered,
-            fid,
-            frame_idx: 0,
-            direction: Direction::NE,
-            light: 0x10000,
-            effect: None,
-        }.render(canvas, &self.frm_db);
+        let mut sprite = Sprite::new_with_pos(fid, pos + offset);
+        sprite.centered = centered;
+        sprite.render(canvas, &self.frm_db);
     }
 
     /// Returns (widget, widget's window) or (window, window).
