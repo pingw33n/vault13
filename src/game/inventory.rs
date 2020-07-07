@@ -2,6 +2,7 @@ use bstring::{bstr, BString};
 use bstring::bfmt::ToBString;
 use if_chain::if_chain;
 use sdl2::mouse::MouseButton;
+use std::time::Duration;
 
 use crate::asset::*;
 use crate::asset::frame::FrameId;
@@ -16,12 +17,15 @@ use crate::game::world::WorldRef;
 use crate::graphics::{Point, Rect};
 use crate::graphics::color::{GREEN, RED};
 use crate::graphics::font::*;
-use crate::graphics::sprite::Sprite;
+use crate::graphics::sprite::{Anchor, Sprite};
+use crate::sequence::{Sequence, Sequencer};
+use crate::sequence::cancellable::Cancel;
 use crate::ui::{self, Ui, button, Widget, HandleEvent, Cursor};
 use crate::ui::button::Button;
 use crate::ui::command::{move_window, UiCommand, UiCommandData};
 use crate::ui::command::inventory::Command;
 use crate::ui::panel::{self, Panel};
+use crate::ui::sequence::background_anim::BackgroundAnim;
 use crate::util::sprintf;
 
 const MSG_NO_ITEM: MessageId = 14;
@@ -52,11 +56,11 @@ impl Inventory {
         self.internal.is_some()
     }
 
-    pub fn handle(&mut self, cmd: UiCommand, rpg: &Rpg, ui: &mut Ui) {
+    pub fn handle(&mut self, cmd: UiCommand, rpg: &Rpg, ui: &mut Ui, ui_sequencer: &mut Sequencer) {
         if let UiCommandData::Inventory(c) = cmd.data {
             match c {
                 Command::Show => {
-                    self.show(rpg, ui);
+                    self.show(rpg, ui, ui_sequencer);
                 }
                 Command::Hide => {
                     self.hide(ui);
@@ -73,9 +77,10 @@ impl Inventory {
         self.internal.as_ref().unwrap().examine(obj, description, ui);
     }
 
-    fn show(&mut self, rpg: &Rpg, ui: &mut Ui) {
+    fn show(&mut self, rpg: &Rpg, ui: &mut Ui, ui_sequencer: &mut Sequencer) {
         let owner = self.world.borrow().objects().dude();
-        let internal = Internal::new(self.msgs.take().unwrap(), self.world.clone(), owner, ui);
+        let internal = Internal::new(
+            self.msgs.take().unwrap(), self.world.clone(), owner, ui, ui_sequencer);
         internal.sync_mouse_mode_to_ui(ui);
         internal.sync_to_ui(rpg, ui);
         assert!(self.internal.replace(internal).is_none());
@@ -83,8 +88,7 @@ impl Inventory {
 
     fn hide(&mut self, ui: &mut Ui) {
         let i = self.internal.take().unwrap();
-        i.remove(ui);
-        self.msgs = Some(i.msgs);
+        self.msgs = Some(i.hide(ui));
     }
 }
 
@@ -116,13 +120,31 @@ struct Internal {
 
     action_menu: Option<ui::Handle>,
     move_window: Option<InventoryMoveWindow>,
+
+    owner_image: ui::Handle,
+    owner_image_seq: Cancel,
 }
 
 impl Internal {
-    fn new(msgs: Messages, world: WorldRef, owner: object::Handle, ui: &mut Ui) -> Self {
+    fn new(
+        msgs: Messages,
+        world: WorldRef,
+        owner: object::Handle,
+        ui: &mut Ui,
+        ui_sequencer: &mut Sequencer,
+    ) -> Self {
         let win = ui.new_window(Rect::with_size(80, 0, 499, 377),
             Some(Sprite::new(FrameId::INVENTORY_WINDOW)));
         ui.widget_base_mut(win).set_modal(true);
+
+        let mut owner_image = Sprite::new(FrameId::BLANK);
+        owner_image.anchor = Anchor::Center;
+        let owner_image = ui.new_widget(win, Rect::with_size(175, 35, 60, 100), None,
+            Some(owner_image), Panel::new());
+
+        let (seq, owner_image_seq) =
+            BackgroundAnim::new(owner_image, Duration::from_millis(182)).cancellable();
+        ui_sequencer.start(seq);
 
         let mut list_scroll_up = Button::new(FrameId::INVENTORY_SCROLL_UP_UP,
             FrameId::INVENTORY_SCROLL_UP_DOWN,
@@ -225,11 +247,15 @@ impl Internal {
             total_weight,
             action_menu: None,
             move_window: None,
+            owner_image,
+            owner_image_seq,
         }
     }
 
-    fn remove(&self, ui: &mut Ui) {
+    fn hide(self, ui: &mut Ui) -> Messages {
         ui.remove(self.win);
+        self.owner_image_seq.cancel();
+        self.msgs
     }
 
     fn sync_to_ui(&self, rpg: &Rpg, ui: &Ui) {
@@ -270,6 +296,8 @@ impl Internal {
         list.set_scroll_idx(list_scroll_idx);
         self.update_list_scroll_buttons(list, ui);
         self.update_stats(rpg, ui);
+
+        ui.widget_base_mut(self.owner_image).background_mut().unwrap().fid = owner.fid;
     }
 
     // display_inventory_info
@@ -699,8 +727,8 @@ impl Internal {
             }
         }
 
+        self.sync_owner_fid(rpg);
         self.sync_to_ui(rpg, ui);
-        self.sync_owner_fid(rpg)
     }
 
     fn sync_owner_fid(&self, rpg: &Rpg) {
