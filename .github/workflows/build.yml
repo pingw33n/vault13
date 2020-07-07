@@ -11,6 +11,8 @@ env:
   # Changing here, change also in snapshot.yml.
   RUST_VERSION: 1.44.1
   RUST_BACKTRACE: full
+  # Changing here, change also in .cargo/config and snapshot.yml
+  MACOSX_DEPLOYMENT_TARGET: 10.9
 jobs:
   main:
     strategy:

@@ -8,6 +8,8 @@ env:
   # Changing here, change also in build.yml.
   RUST_VERSION: 1.44.1
   RUST_BACKTRACE: full
+  # Changing here, change also in .cargo/config and build.yml
+  MACOSX_DEPLOYMENT_TARGET: 10.9
 jobs:
   build:
     strategy:
