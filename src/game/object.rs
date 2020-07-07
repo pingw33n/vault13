@@ -822,6 +822,11 @@ impl Object {
     }
 }
 
+pub struct ObjectGraph {
+    pub root: Handle,
+    pub objects: SecondaryMap<Handle, Object>,
+}
+
 pub struct Objects {
     tile_grid: TileGrid,
     frm_db: Rc<FrameDb>,
@@ -1046,7 +1051,35 @@ impl Objects {
         r
     }
 
+    pub fn insert_graph(&mut self, graph: ObjectGraph) -> Handle {
+        let mut handle_map = SecondaryMap::new();
+
+        for (h, o) in graph.objects {
+            let o = self.insert(o);
+            assert!(handle_map.insert(h, o).is_none());
+        }
+
+        let root = handle_map[graph.root];
+        self.fix_handles(root, &|h| handle_map[h]);
+
+        root
+    }
+
+    fn fix_handles(&self, obj: Handle, map: &impl Fn(Handle) -> Handle) {
+        let mut obj = self.get_mut(obj);
+        for item in &mut obj.inventory.items {
+            item.object = map(item.object);
+            self.fix_handles(item.object, map);
+        }
+    }
+
     pub fn remove(&mut self, obj: Handle) -> Object {
+        let r = self.remove0(obj);
+        assert!(r.inventory.items.is_empty(), "use remove_deep()");
+        r
+    }
+
+    fn remove0(&mut self, obj: Handle) -> Object {
         if self.dude == Some(obj) {
             self.dude = None;
         }
@@ -1056,6 +1089,23 @@ impl Objects {
         let mut r = self.objects.remove(obj).unwrap().into_inner();
         r.handle.take().unwrap();
         r
+    }
+
+    pub fn remove_deep(&mut self, root: Handle) -> ObjectGraph {
+        let mut objects = SecondaryMap::new();
+        self.remove_deep0(root, &mut objects);
+        ObjectGraph {
+            root,
+            objects,
+        }
+    }
+
+    fn remove_deep0(&mut self, objh: Handle, objs: &mut SecondaryMap<Handle, Object>) {
+        let obj = self.remove0(objh);
+        for item in &obj.inventory.items {
+            self.remove_deep0(item.object, objs);
+        }
+        assert!(objs.insert(objh, obj).is_none());
     }
 
     pub fn at(&self, pos: EPoint) -> &Vec<Handle> {
