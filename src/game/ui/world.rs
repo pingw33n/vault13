@@ -9,7 +9,6 @@ use crate::graphics::{EPoint, Point};
 use crate::graphics::color;
 use crate::graphics::font::*;
 use crate::graphics::geometry::TileGridView;
-use crate::graphics::geometry::hex::Direction;
 use crate::graphics::render;
 use crate::graphics::sprite::{OutlineStyle, Sprite};
 use crate::ui::*;
@@ -290,15 +289,7 @@ impl Widget for WorldView {
             PickMode::Object(ObjectPickMode::Action) => if let Some(action) = self.default_action_icon {
                 let fid = action.icons().0;
                 let pos = Placement::new(1, ctx.cursor_pos, ctx.base.unwrap().rect()).rect.top_left();
-                Sprite {
-                    pos,
-                    centered: false,
-                    fid,
-                    frame_idx: 0,
-                    direction: Direction::NE,
-                    light: 0x10000,
-                    effect: None,
-                }.render(ctx.canvas, ctx.frm_db);
+                Sprite::new_with_pos(fid, pos).render(ctx.canvas, ctx.frm_db);
             }
             PickMode::Object(ObjectPickMode::Skill(_)) => {}
         }

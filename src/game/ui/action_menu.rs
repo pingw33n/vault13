@@ -3,7 +3,6 @@ use std::cmp;
 
 use crate::asset::frame::FrameId;
 use crate::graphics::{Point, Rect};
-use crate::graphics::geometry::hex::Direction;
 use crate::graphics::sprite::Sprite;
 use crate::ui::*;
 use crate::ui::command::UiCommandData;
@@ -154,15 +153,7 @@ impl Widget for ActionMenu {
             } else {
                 normal
             };
-            Sprite {
-                pos,
-                centered: false,
-                fid,
-                frame_idx: 0,
-                direction: Direction::NE,
-                light: 0x10000,
-                effect: None,
-            }.render(ctx.canvas, ctx.frm_db);
+            Sprite::new_with_pos(fid, pos).render(ctx.canvas, ctx.frm_db);
 
             pos.y += Action::ICON_HEIGHT;
         }
