@@ -694,7 +694,7 @@ impl Internal {
                 Action::ArmorChange { old_armor, new_armor } => {
                     let old_armor = old_armor.map(|obj| world.objects().get(obj));
                     let new_armor = new_armor.map(|obj| world.objects().get(obj));
-                    rpg.apply_armor_change(owner, old_armor, new_armor, world.objects());
+                    rpg.apply_armor_change(owner, old_armor.as_deref(), new_armor.as_deref(), world.objects());
                 }
             }
         }

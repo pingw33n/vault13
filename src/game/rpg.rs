@@ -3,7 +3,6 @@ mod def;
 use bstring::bstr;
 use enum_map::EnumMap;
 use num_traits::clamp;
-use std::cell::Ref;
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -377,11 +376,11 @@ impl Rpg {
     // adjust_ac
     pub fn apply_armor_change(&self,
         obj: &mut Object,
-        new_armor: Option<Ref<Object>>,
-        old_armor: Option<Ref<Object>>,
+        new_armor: Option<&Object>,
+        old_armor: Option<&Object>,
         objs: &Objects,
     ) {
-        let armor_stat = |obj: &Option<Ref<Object>>, stat| obj.as_ref().map(|o|
+        let armor_stat = |obj: Option<&Object>, stat| obj.as_ref().map(|o|
             o.proto().unwrap().sub.as_armor().unwrap().stat(stat).unwrap())
             .unwrap_or(0);
         for stat in
@@ -390,8 +389,8 @@ impl Rpg {
                 .chain(DamageKind::basic().iter().map(|d| d.thresh_stat().unwrap()))
         {
             let new = self.bonus_stat(stat, obj)
-                - armor_stat(&old_armor, stat)
-                + armor_stat(&new_armor, stat);
+                - armor_stat(old_armor, stat)
+                + armor_stat(new_armor, stat);
             self.set_bonus_stat(stat, obj, new, objs);
         }
         if obj.is_dude() { // TODO isPartyMember
