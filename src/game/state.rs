@@ -228,8 +228,7 @@ impl GameState {
         let mut dude_obj = {
             let mut world = self.world.borrow_mut();
             let dude_obj = world.objects().dude();
-            let mut dude_obj = world.objects_mut().remove(dude_obj);
-            dude_obj.inventory.items.clear();
+            let dude_obj = world.objects_mut().remove_deep(dude_obj);
             world.clear();
             dude_obj
         };
@@ -282,13 +281,16 @@ impl GameState {
 
         world.set_sqr_tiles(map.sqr_tiles);
 
-        dude_obj.direction = map.entrance_direction;
-        dude_obj.set_light_emitter(LightEmitter {
-            intensity: 0x10000,
-            radius: 4,
-        });
-        dude_obj.set_pos(Some(map.entrance));
-        let dude_obj = world.objects_mut().insert(dude_obj);
+        {
+            let mut dude_obj = dude_obj.objects.get_mut(dude_obj.root).unwrap();
+            dude_obj.direction = map.entrance_direction;
+            dude_obj.set_light_emitter(LightEmitter {
+                intensity: 0x10000,
+                radius: 4,
+            });
+            dude_obj.set_pos(Some(map.entrance));
+        }
+        let dude_obj = world.objects_mut().insert_graph(dude_obj);
 
         world.objects_mut().make_standing(dude_obj);
 
