@@ -20,7 +20,7 @@ impl Sequence for Stand {
         if self.done {
             Result::Done
         } else {
-            ctx.world.make_object_standing(self.obj);
+            ctx.world.objects_mut().make_standing(self.obj);
             self.done = true;
             Result::Running(Running::NotLagging)
         }
