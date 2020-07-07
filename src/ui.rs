@@ -3,6 +3,7 @@ pub mod command;
 pub mod image_text;
 pub mod message_panel;
 pub mod panel;
+pub mod sequence;
 
 pub use sdl2::mouse::MouseButton;
 pub use sdl2::keyboard::Keycode;
