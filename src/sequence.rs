@@ -1,12 +1,11 @@
 pub mod cancellable;
 pub mod chain;
-pub mod event;
+pub mod send_event;
 
 use std::time::Instant;
 
+use crate::event::{Sink, Events};
 use crate::game::world::World;
-
-pub use event::Event;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Running {
@@ -28,11 +27,11 @@ pub enum Result {
     Done,
 }
 
-pub struct Update<'a> {
+pub struct Update<'a, 'b: 'a> {
     pub time: Instant,
     pub world: &'a mut World,
     pub ui: &'a mut crate::ui::Ui,
-    pub out: &'a mut Vec<Event>,
+    pub sink: &'a mut Sink<'b>,
 }
 
 pub trait Sequence {
@@ -100,14 +99,14 @@ impl Sequencer {
 
     /// Executes a no-advance update so the effect of cancellation can be seen immediately.
     pub fn sync(&mut self, ctx: &mut Sync) {
-        let out = &mut Vec::new();
+        let mut events = Events::new();
         self.update(&mut Update {
             time: self.last_time,
             world: ctx.world,
             ui: ctx.ui,
-            out,
+            sink: &mut events.sink(),
         });
-        assert!(out.is_empty());
+        assert!(events.is_empty());
     }
 }
 

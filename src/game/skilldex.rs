@@ -3,6 +3,7 @@ use std::convert::TryInto;
 
 use crate::asset::frame::FrameId;
 use crate::asset::message::{Messages, MessageId};
+use crate::event::{Event, SkilldexEvent};
 use crate::fs::FileSystem;
 use crate::game::object;
 use crate::graphics::{Rect, Point};
@@ -12,7 +13,6 @@ use crate::graphics::sprite::Sprite;
 use crate::ui::*;
 use crate::ui::panel::{self, Panel};
 use crate::ui::button::{self, Button};
-use crate::ui::command::{UiCommandData, SkilldexCommand};
 use crate::util::EnumExt;
 use crate::ui::image_text::ImageText;
 
@@ -47,12 +47,6 @@ impl Into<crate::asset::Skill> for Skill {
             Self::Repair => Repair,
         }
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum Command {
-    Cancel,
-    Skill(Skill),
 }
 
 pub struct Skilldex {
@@ -98,7 +92,7 @@ impl Skilldex {
         let btn_size = ui.frm_db().get(FrameId::SKILLDEX_BUTTON_UP).unwrap().first().size();
         for (i, skill) in Skill::iter().enumerate() {
             let mut btn = Button::new(FrameId::SKILLDEX_BUTTON_UP, FrameId::SKILLDEX_BUTTON_DOWN,
-                Some(UiCommandData::Skilldex(SkilldexCommand::Skill {
+                Some(Event::Skilldex(SkilldexEvent::Skill {
                     skill: skill.into(),
                     target,
                 })));
@@ -123,7 +117,7 @@ impl Skilldex {
 
         let btn_size = ui.frm_db().get(FrameId::SMALL_RED_BUTTON_UP).unwrap().first().size();
         let mut cancel = Button::new(FrameId::SMALL_RED_BUTTON_UP, FrameId::SMALL_RED_BUTTON_DOWN,
-            Some(UiCommandData::Skilldex(SkilldexCommand::Cancel)));
+            Some(Event::Skilldex(SkilldexEvent::Cancel)));
         let mut text = button::Text::new(self.msgs.get(101).unwrap().text.clone(), TEXT_FONT);
         text.pos = Point::new(btn_size.x + 9, 1);
         text.color = TEXT_COLOR;

@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use crate::asset::CritterAnim;
+use crate::event::Event;
 use crate::game::object::{Handle, PathTo};
 use crate::game::world::World;
 use crate::graphics::{EPoint, Point};
@@ -146,7 +147,7 @@ impl Sequence for Move {
             let old_pos = ctx.world.objects().get(self.obj).pos();
             ctx.world.objects_mut().set_pos(self.obj, Some(pos));
 
-            ctx.out.push(Event::ObjectMoved {
+            ctx.sink.send(Event::ObjectMoved {
                 obj: self.obj,
                 old_pos,
                 new_pos: pos,

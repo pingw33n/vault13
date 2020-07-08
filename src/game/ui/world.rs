@@ -12,9 +12,9 @@ use crate::graphics::geometry::TileGridView;
 use crate::graphics::render;
 use crate::graphics::sprite::{OutlineStyle, Sprite};
 use crate::ui::*;
-use crate::ui::command::{UiCommandData, ObjectPickKind};
 
 use super::action_menu::{Action, Placement};
+use crate::event::{Event, ObjectPickKind};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum PickMode {
@@ -134,14 +134,14 @@ impl WorldView {
 }
 
 impl Widget for WorldView {
-    fn handle_event(&mut self, mut ctx: HandleEvent) {
+    fn handle_event(&mut self, ctx: HandleEvent) {
         match ctx.event {
             UiEvent::MouseMove { pos } => {
                 match self.pick_mode {
                     PickMode::Hex => {
                         let (pos, changed) = self.update_hex_cursor_pos(pos);
                         if changed {
-                            ctx.out(UiCommandData::HexPick { action: false, pos });
+                            ctx.sink.send(Event::HexPick { action: false, pos });
                         }
                     }
                     PickMode::Object(ObjectPickMode::Action) => {
@@ -169,7 +169,7 @@ impl Widget for WorldView {
                         match self.pick_mode {
                             PickMode::Hex => {
                                 let (pos, _) = self.update_hex_cursor_pos(pos);
-                                ctx.out(UiCommandData::HexPick { action: true, pos });
+                                ctx.sink.send(Event::HexPick { action: true, pos });
                             }
                             PickMode::Object(mode) => {
                                 let picked_obj = self.world.borrow().pick_object(pos, true);
@@ -181,12 +181,12 @@ impl Widget for WorldView {
                                             ObjectPickKind::Skill(skill)
                                         }
                                     };
-                                    ctx.out(UiCommandData::ObjectPick { kind, obj });
+                                    ctx.sink.send(Event::ObjectPick { kind, obj });
                                     if self.pick_mode == PickMode::Hex {
                                         self.update_hex_cursor_visibility(None);
                                         let (pos, changed) = self.update_hex_cursor_pos(pos);
                                         if changed {
-                                            ctx.out(UiCommandData::HexPick { action: false, pos });
+                                            ctx.sink.send(Event::HexPick { action: false, pos });
                                         }
                                     }
                                 }
@@ -201,7 +201,7 @@ impl Widget for WorldView {
                             PickMode::Object(_) => {
                                 let (pos, changed) = self.update_hex_cursor_pos(pos);
                                 if changed {
-                                    ctx.out(UiCommandData::HexPick { action: false, pos });
+                                    ctx.sink.send(Event::HexPick { action: false, pos });
                                 }
                                 PickMode::Hex
                             }
@@ -224,7 +224,7 @@ impl Widget for WorldView {
                         self.action_menu_state = None;
                         self.default_action_icon = None;
 
-                        ctx.out(UiCommandData::ObjectPick {
+                        ctx.sink.send(Event::ObjectPick {
                             kind: ObjectPickKind::ActionMenu,
                             obj,
                         });
@@ -236,7 +236,7 @@ impl Widget for WorldView {
                     PickState::Pending { start, pos } => if ctx.now - start >= Duration::from_millis(500) {
                         let world = self.world.borrow();
                         if let Some(obj) = world.pick_object(pos, true) {
-                            ctx.out(UiCommandData::ObjectPick {
+                            ctx.sink.send(Event::ObjectPick {
                                 kind: ObjectPickKind::Hover,
                                 obj,
                             });

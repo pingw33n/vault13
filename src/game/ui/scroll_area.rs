@@ -1,7 +1,7 @@
 use std::time::{Duration, Instant};
 
 use crate::ui::*;
-use crate::ui::command::UiCommandData;
+use crate::event::Event;
 
 #[derive(Clone, Copy)]
 enum Tick {
@@ -75,7 +75,7 @@ impl ScrollArea {
 }
 
 impl Widget for ScrollArea {
-    fn handle_event(&mut self, mut ctx: HandleEvent) {
+    fn handle_event(&mut self, ctx: HandleEvent) {
         match ctx.event {
             UiEvent::MouseMove { .. } => {
                 self.repeat.start(ctx.now);
@@ -85,7 +85,7 @@ impl Widget for ScrollArea {
             }
             UiEvent::Tick => {
                 if self.repeat.update(ctx.now) {
-                    ctx.out(UiCommandData::Scroll);
+                    ctx.sink.send(Event::Scroll { source: ctx.this });
                 }
             }
             _ => {}

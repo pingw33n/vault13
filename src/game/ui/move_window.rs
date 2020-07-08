@@ -9,8 +9,7 @@ use crate::graphics::font::{FontKey, DrawOptions, HorzAlign, VertAlign};
 use crate::graphics::color::Rgb15;
 use crate::ui::button::{Button, Text};
 use bstring::bfmt::ToBString;
-use crate::ui::command::move_window::Command;
-use crate::ui::command::{UiCommand, UiCommandData};
+use crate::event::{Event, MoveWindowEvent};
 
 pub struct MoveWindow {
     max: u32,
@@ -51,24 +50,24 @@ impl MoveWindow {
 
         ui.new_widget(win, Rect::with_size(200, 46, 16, 12), None, None,
             Button::new(FrameId::BUTTON_PLUS_UP, FrameId::BUTTON_PLUS_DOWN,
-            Some(UiCommandData::MoveWindow(Command::Inc))));
+            Some(Event::MoveWindow(MoveWindowEvent::Inc))));
         ui.new_widget(win, Rect::with_size(200, 46 + 12, 16, 12), None, None,
             Button::new(FrameId::BUTTON_MINUS_UP, FrameId::BUTTON_MINUS_DOWN,
-            Some(UiCommandData::MoveWindow(Command::Dec))));
+            Some(Event::MoveWindow(MoveWindowEvent::Dec))));
 
         ui.new_widget(win, Rect::with_size(98, 128, 15, 16), None, None,
             Button::new(FrameId::SMALL_RED_BUTTON_UP, FrameId::SMALL_RED_BUTTON_DOWN,
-            Some(UiCommandData::MoveWindow(Command::Hide { ok: true }))));
+            Some(Event::MoveWindow(MoveWindowEvent::Hide { ok: true }))));
         ui.new_widget(win, Rect::with_size(148, 128, 15, 16), None, None,
             Button::new(FrameId::SMALL_RED_BUTTON_UP, FrameId::SMALL_RED_BUTTON_DOWN,
-            Some(UiCommandData::MoveWindow(Command::Hide { ok: false }))));
+            Some(Event::MoveWindow(MoveWindowEvent::Hide { ok: false }))));
 
         let mut text = Text::new(msgs.get(22).unwrap().text.clone(), FontKey::antialiased(3));
         text.color = Rgb15::from_packed(0x5263);
         text.options.horz_align = HorzAlign::Center;
         text.options.vert_align = VertAlign::Middle;
         let mut all = Button::new(FrameId::BUTTON_ALL_UP, FrameId::BUTTON_ALL_DOWN,
-            Some(UiCommandData::MoveWindow(Command::Max)));
+            Some(Event::MoveWindow(MoveWindowEvent::Max)));
         all.set_text(Some(text));
         ui.new_widget(win, Rect::with_size(121, 80, 94, 33), None, None, all);
 
@@ -90,15 +89,15 @@ impl MoveWindow {
         self.value
     }
 
-    pub fn handle(&mut self, cmd: UiCommand, ui: &Ui) {
-        if let UiCommandData::MoveWindow(cmd) = cmd.data {
-            let new_value = match cmd {
-                Command::Hide { .. } => {
+    pub fn handle(&mut self, event: Event, ui: &Ui) {
+        if let Event::MoveWindow(event) = event {
+            let new_value = match event {
+                MoveWindowEvent::Hide { .. } => {
                     return;
                 }
-                Command::Inc => std::cmp::min(self.value + 1, self.max),
-                Command::Dec => std::cmp::max(self.value - 1, 1),
-                Command::Max => self.max,
+                MoveWindowEvent::Inc => std::cmp::min(self.value + 1, self.max),
+                MoveWindowEvent::Dec => std::cmp::max(self.value - 1, 1),
+                MoveWindowEvent::Max => self.max,
             };
             if new_value != self.value {
                 self.value = new_value;

@@ -1,11 +1,11 @@
 use crate::asset::frame::FrameId;
+use crate::event::{Event, InventoryEvent, SkilldexEvent};
 use crate::graphics::Rect;
 use crate::graphics::color::GREEN;
 use crate::graphics::font::FontKey;
 use crate::graphics::sprite::Sprite;
 use crate::ui::*;
 use crate::ui::button::Button;
-use crate::ui::command::{inventory, SkilldexCommand, UiCommandData};
 use crate::ui::message_panel::{MessagePanel, Anchor};
 
 pub fn create(ui: &mut Ui) -> Handle {
@@ -22,7 +22,7 @@ pub fn create(ui: &mut Ui) -> Handle {
     // Original location is a bit off, at y=41.
     ui.new_widget(main_hud, Rect::with_size(211, 40, 32, 21), None, None,
         Button::new(FrameId::INVENTORY_BUTTON_UP, FrameId::INVENTORY_BUTTON_DOWN,
-            Some(UiCommandData::Inventory(inventory::Command::Show))));
+            Some(Event::Inventory(InventoryEvent::Show))));
 
     // Options button.
     ui.new_widget(main_hud, Rect::with_size(210, 62, 34, 34), None, None,
@@ -35,7 +35,7 @@ pub fn create(ui: &mut Ui) -> Handle {
     // Skilldex button.
     ui.new_widget(main_hud, Rect::with_size(523, 6, 22, 21), None, None,
         Button::new(FrameId::BIG_RED_BUTTON_UP, FrameId::BIG_RED_BUTTON_DOWN,
-            Some(UiCommandData::Skilldex(SkilldexCommand::Show))));
+            Some(Event::Skilldex(SkilldexEvent::Show))));
 
     // MAP button.
     ui.new_widget(main_hud, Rect::with_size(526, 40, 41, 19), None, None,

@@ -8,7 +8,7 @@ use std::time::Duration;
 use super::*;
 use crate::graphics::color::{Rgb15, WHITE};
 use crate::graphics::font::{self, FontKey, Fonts};
-use crate::ui::command::UiCommandData;
+use crate::event::Event;
 
 #[derive(Clone, Copy, Debug)]
 struct Layout {
@@ -355,7 +355,7 @@ impl Widget for MessagePanel {
                     }
                     MouseControl::Pick => {
                         if let Some(highlighted) = self.highlighted {
-                            ctx.out(UiCommandData::Pick { id: highlighted as u32 });
+                            ctx.sink.send(Event::Pick { id: highlighted as u32 });
                         }
                     }
                 }
