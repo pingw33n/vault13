@@ -1266,6 +1266,9 @@ impl AppState for GameState {
                     let descr = BString::join(b'\n', &descr);
                     self.inventory.examine(object, &descr, ctx.ui);
                 }
+                InventoryEvent::DropAction { object, count } => {
+                    dbg!(object, count);
+                }
                 InventoryEvent::Show => {
                     self.obj_sequencer.cancel(self.world.borrow().objects().dude());
                 }

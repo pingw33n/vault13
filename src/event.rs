@@ -114,6 +114,10 @@ mod inventory {
             object: object::Handle,
             action: Action,
         },
+        DropAction {
+            object: object::Handle,
+            count: u32,
+        },
         Scroll(Scroll),
         ToggleMouseMode,
     }

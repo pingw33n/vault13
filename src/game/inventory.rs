@@ -118,7 +118,7 @@ struct Internal {
     total_weight: ui::Handle,
 
     action_menu: Option<ui::Handle>,
-    move_window: Option<InventoryMoveWindow>,
+    move_window: ActiveMoveWindow,
 
     owner_image: ui::Handle,
     owner_image_seq: Cancel,
@@ -245,7 +245,7 @@ impl Internal {
             stat_columns,
             total_weight,
             action_menu: None,
-            move_window: None,
+            move_window: ActiveMoveWindow::None,
             owner_image,
             owner_image_seq,
         }
@@ -254,6 +254,10 @@ impl Internal {
     fn hide(self, ui: &mut Ui) -> Messages {
         ui.remove(self.win);
         self.owner_image_seq.cancel();
+        if let Some(v) = self.action_menu {
+            action_menu::hide(v, ui);
+        }
+        assert!(self.move_window.is_none());
         self.msgs
     }
 
@@ -709,13 +713,13 @@ impl Internal {
                         let ammo = ammo.sub.as_item_mut().unwrap();
                         ammo.ammo_count = ammo.ammo_count.checked_sub(max_count).unwrap();
                     } else {
-                        let win = InventoryMoveWindow::show(
+                        let win = ReloadMoveWindow::show(
                             weapon,
                             &world.objects().get(src_obj),
                             max_count,
                             &self.msgs,
                             ui);
-                        assert!(self.move_window.replace(win).is_none());
+                        assert!(std::mem::replace(&mut self.move_window, ActiveMoveWindow::Reload(win)).is_none());
                     }
                 }
                 Action::ArmorChange { old_armor, new_armor } => {
@@ -754,8 +758,14 @@ impl Internal {
                 }
                 InventoryEvent::Action { object, action } => {
                     self.hide_action_menu(ui);
-                    if action == Action::Unload {
-                        self.unload(object, rpg, ui);
+                    match action {
+                        Action::Unload => {
+                            self.unload(object, rpg, ui);
+                        }
+                        Action::Drop => {
+                            self.drop(object, sink, ui);
+                        }
+                        _ => {}
                     }
                 }
                 InventoryEvent::ToggleMouseMode => {
@@ -782,19 +792,53 @@ impl Internal {
             }
             Event::MoveWindow(e) => {
                 if let MoveWindowEvent::Hide { ok } = e {
-                    let win = self.move_window.take().unwrap();
-                    if ok {
-                        self.world.borrow_mut().objects_mut()
-                            .reload_weapon_from_inventory(self.owner, win.weapon, win.ammo);
-                        self.sync_to_ui(rpg, ui);
+                    match std::mem::replace(&mut self.move_window, ActiveMoveWindow::None) {
+                        ActiveMoveWindow::None => unreachable!(),
+                        ActiveMoveWindow::Reload(win) => {
+                            if ok {
+                                self.world.borrow_mut().objects_mut()
+                                    .reload_weapon_from_inventory(self.owner, win.weapon, win.ammo);
+                                self.sync_to_ui(rpg, ui);
+                            }
+                            win.win.hide(ui);
+                        }
+                        ActiveMoveWindow::Drop(win) => {
+                            if ok {
+                                sink.send(Event::Inventory(InventoryEvent::DropAction {
+                                    object: win.item,
+                                    count: win.win.value(),
+                                }));
+                            }
+                            win.win.hide(ui);
+                        }
                     }
-                    win.win.hide(ui);
                 }
             }
             _ => {}
         }
-        if let Some(v) = self.move_window.as_mut() {
-            v.win.handle(event, ui);
+        match &mut self.move_window {
+            ActiveMoveWindow::None => {}
+            ActiveMoveWindow::Reload(win) => win.win.handle(event, ui),
+            ActiveMoveWindow::Drop(win) => win.win.handle(event, ui),
+        }
+    }
+
+    fn drop(&mut self, item: object::Handle, sink: &mut Sink, ui: &mut Ui) {
+        let world = self.world.borrow();
+        let owner = world.objects().get(self.owner);
+        let count = owner.inventory.items.iter()
+            .find(|i| i.object == item)
+            .map(|i| i.count).unwrap();
+        if count > 1 {
+            let win = DropMoveWindow::show(
+                &world.objects().get(item),
+                count,
+                &self.msgs,
+                ui);
+            assert!(std::mem::replace(&mut self.move_window, ActiveMoveWindow::Drop(win)).is_none());
+        } else {
+            assert_eq!(count, 1);
+            sink.send(Event::Inventory(InventoryEvent::DropAction { object: item, count }));
         }
     }
 }
@@ -809,13 +853,13 @@ impl Widget for MouseModeToggler {
     }
 }
 
-struct InventoryMoveWindow {
+struct ReloadMoveWindow {
     weapon: object::Handle,
     ammo: object::Handle,
     win: MoveWindow,
 }
 
-impl InventoryMoveWindow {
+impl ReloadMoveWindow {
     pub fn show(
         weapon: object::Handle,
         ammo: &Object,
@@ -830,5 +874,38 @@ impl InventoryMoveWindow {
             ammo: ammo.handle(),
             win,
         }
+    }
+}
+
+struct DropMoveWindow {
+    item: object::Handle,
+    win: MoveWindow,
+}
+
+impl DropMoveWindow {
+    pub fn show(
+        item: &Object,
+        max: u32,
+        msgs: &Messages,
+        ui: &mut Ui,
+    ) -> Self {
+        let fid = item.proto().unwrap().sub.as_item().unwrap().inventory_fid.unwrap();
+        let win = MoveWindow::show(fid, max, msgs, ui);
+        Self {
+            item: item.handle(),
+            win,
+        }
+    }
+}
+
+enum ActiveMoveWindow {
+    None,
+    Reload(ReloadMoveWindow),
+    Drop(DropMoveWindow),
+}
+
+impl ActiveMoveWindow {
+    pub fn is_none(&self) -> bool {
+        matches!(self, ActiveMoveWindow::None)
     }
 }
