@@ -7,6 +7,7 @@ use std::time::Duration;
 use crate::asset::*;
 use crate::asset::frame::FrameId;
 use crate::asset::message::{Messages, MessageId};
+use crate::event::*;
 use crate::fs::FileSystem;
 use crate::game::object::{self, EquipmentSlot, Hand, Object, InventoryItem};
 use crate::game::rpg::Rpg;
@@ -22,8 +23,6 @@ use crate::sequence::{Sequence, Sequencer};
 use crate::sequence::cancellable::Cancel;
 use crate::ui::{self, Ui, button, Widget, HandleEvent, Cursor};
 use crate::ui::button::Button;
-use crate::ui::command::{move_window, UiCommand, UiCommandData};
-use crate::ui::command::inventory::Command;
 use crate::ui::panel::{self, Panel};
 use crate::ui::sequence::background_anim::BackgroundAnim;
 use crate::util::sprintf;
@@ -56,20 +55,20 @@ impl Inventory {
         self.internal.is_some()
     }
 
-    pub fn handle(&mut self, cmd: UiCommand, rpg: &Rpg, ui: &mut Ui, ui_sequencer: &mut Sequencer) {
-        if let UiCommandData::Inventory(c) = cmd.data {
-            match c {
-                Command::Show => {
+    pub fn handle(&mut self, event: Event, sink: &mut Sink, rpg: &Rpg, ui: &mut Ui, ui_sequencer: &mut Sequencer) {
+        if let Event::Inventory(e) = event {
+            match e {
+                InventoryEvent::Show => {
                     self.show(rpg, ui, ui_sequencer);
                 }
-                Command::Hide => {
+                InventoryEvent::Hide => {
                     self.hide(ui);
                 }
                 _ => {}
             }
         }
         if let Some(v) = self.internal.as_mut() {
-            v.handle(cmd, rpg, ui);
+            v.handle(event, sink, rpg, ui);
         }
     }
 
@@ -119,7 +118,7 @@ struct Internal {
     total_weight: ui::Handle,
 
     action_menu: Option<ui::Handle>,
-    move_window: Option<InventoryMoveWindow>,
+    move_window: ActiveMoveWindow,
 
     owner_image: ui::Handle,
     owner_image_seq: Cancel,
@@ -148,7 +147,7 @@ impl Internal {
 
         let mut list_scroll_up = Button::new(FrameId::INVENTORY_SCROLL_UP_UP,
             FrameId::INVENTORY_SCROLL_UP_DOWN,
-            Some(UiCommandData::Inventory(Command::Scroll(Scroll::Up))));
+            Some(Event::Inventory(InventoryEvent::Scroll(Scroll::Up))));
         list_scroll_up.config_mut(button::State::Disabled).background =
             Some(Sprite::new(FrameId::INVENTORY_SCROLL_UP_DISABLED));
         let list_scroll_up = ui.new_widget(win, Rect::with_size(128, 39, 22, 23),
@@ -156,7 +155,7 @@ impl Internal {
 
         let mut list_scroll_down = Button::new(FrameId::INVENTORY_SCROLL_DOWN_UP,
             FrameId::INVENTORY_SCROLL_DOWN_DOWN,
-            Some(UiCommandData::Inventory(Command::Scroll(Scroll::Down))));
+            Some(Event::Inventory(InventoryEvent::Scroll(Scroll::Down))));
         list_scroll_down.config_mut(button::State::Disabled).background =
             Some(Sprite::new(FrameId::INVENTORY_SCROLL_DOWN_DISABLED));
         let list_scroll_down = ui.new_widget(win, Rect::with_size(128, 62, 22, 23),
@@ -209,7 +208,7 @@ impl Internal {
 
         let _done = ui.new_widget(win, Rect::with_size(437, 329, 15, 16), None, None,
             Button::new(FrameId::SMALL_RED_BUTTON_UP, FrameId::SMALL_RED_BUTTON_DOWN,
-                Some(UiCommandData::Inventory(Command::Hide))));
+                Some(Event::Inventory(InventoryEvent::Hide))));
 
         // The order of lists relative to other widgets is important because the action icon is drawn
         // by the widget itself.
@@ -246,7 +245,7 @@ impl Internal {
             stat_columns,
             total_weight,
             action_menu: None,
-            move_window: None,
+            move_window: ActiveMoveWindow::None,
             owner_image,
             owner_image_seq,
         }
@@ -255,6 +254,10 @@ impl Internal {
     fn hide(self, ui: &mut Ui) -> Messages {
         ui.remove(self.win);
         self.owner_image_seq.cancel();
+        if let Some(v) = self.action_menu {
+            action_menu::hide(v, ui);
+        }
+        assert!(self.move_window.is_none());
         self.msgs
     }
 
@@ -322,7 +325,7 @@ impl Internal {
         ui.widget_mut::<Button>(self.list_scroll_down).set_enabled(list.can_scroll(Scroll::Down));
     }
 
-    fn actions(&self, object: object::Handle) -> Vec<(Action, UiCommandData)> {
+    fn actions(&self, object: object::Handle) -> Vec<(Action, Event)> {
         let mut r = Vec::new();
         let world = self.world.borrow();
         let obj = world.objects().get(object);
@@ -338,8 +341,8 @@ impl Internal {
         r.extend_from_slice(&[Action::Drop, Action::Cancel]);
 
         r.iter()
-            .map(|&action| (action, UiCommandData::Inventory(
-                Command::Action { object, action: Some(action) })))
+            .map(|&action| (action, Event::Inventory(
+                InventoryEvent::Action { object, action })))
             .collect()
     }
 
@@ -710,13 +713,13 @@ impl Internal {
                         let ammo = ammo.sub.as_item_mut().unwrap();
                         ammo.ammo_count = ammo.ammo_count.checked_sub(max_count).unwrap();
                     } else {
-                        let win = InventoryMoveWindow::show(
+                        let win = ReloadMoveWindow::show(
                             weapon,
                             &world.objects().get(src_obj),
                             max_count,
                             &self.msgs,
                             ui);
-                        assert!(self.move_window.replace(win).is_none());
+                        assert!(std::mem::replace(&mut self.move_window, ActiveMoveWindow::Reload(win)).is_none());
                     }
                 }
                 Action::ArmorChange { old_armor, new_armor } => {
@@ -746,45 +749,96 @@ impl Internal {
         self.sync_to_ui(rpg, ui);
     }
 
-    fn handle(&mut self, cmd: UiCommand, rpg: &Rpg, ui: &mut Ui) {
-        match cmd.data {
-            UiCommandData::Inventory(c) => match c {
-                Command::Show | Command::Hide => {}
-                Command::Scroll(scroll) => {
+    fn handle(&mut self, event: Event, sink: &mut Sink, rpg: &Rpg, ui: &mut Ui) {
+        match event {
+            Event::Inventory(e) => match e {
+                InventoryEvent::Show | InventoryEvent::Hide => {}
+                InventoryEvent::Scroll(scroll) => {
                     self.scroll(scroll, ui);
                 }
-                Command::Hover { .. } => {}
-                Command::ActionMenu { object } => {
-                    self.show_action_menu(object, ui);
-                }
-                Command::Action { object, action } => {
+                InventoryEvent::Action { object, action } => {
                     self.hide_action_menu(ui);
-                    if let Some(Action::Unload) = action {
-                        self.unload(object, rpg, ui);
+                    match action {
+                        Action::Unload => {
+                            self.unload(object, rpg, ui);
+                        }
+                        Action::Drop => {
+                            self.drop(object, sink, ui);
+                        }
+                        _ => {}
                     }
                 }
-                Command::ListDrop { pos, object } => {
-                    self.handle_list_drop(cmd.source, pos, object, rpg, ui);
-                }
-                Command::ToggleMouseMode => {
+                InventoryEvent::ToggleMouseMode => {
                     self.toggle_mouse_mode(rpg, ui);
                 }
+                _ => {}
             }
-            UiCommandData::MoveWindow(c) => {
-                if let move_window::Command::Hide { ok } = c {
-                    let win = self.move_window.take().unwrap();
-                    if ok {
-                        self.world.borrow_mut().objects_mut()
-                            .reload_weapon_from_inventory(self.owner, win.weapon, win.ammo);
-                        self.sync_to_ui(rpg, ui);
+            Event::InventoryList(e) => match e {
+                InventoryListEvent::ActionMenu { object } => {
+                    self.show_action_menu(object, ui);
+                }
+                InventoryListEvent::DefaultAction { object } => {
+                    sink.send(Event::Inventory(InventoryEvent::Action {
+                        object,
+                        action: Action::Look,
+                    }));
+                }
+                InventoryListEvent::Drop { source, pos, object } => {
+                    self.handle_list_drop(source, pos, object, rpg, ui);
+                }
+                InventoryListEvent::Hover { object } => {
+                    sink.send(Event::Inventory(InventoryEvent::Hover { object }));
+                }
+            }
+            Event::MoveWindow(e) => {
+                if let MoveWindowEvent::Hide { ok } = e {
+                    match std::mem::replace(&mut self.move_window, ActiveMoveWindow::None) {
+                        ActiveMoveWindow::None => unreachable!(),
+                        ActiveMoveWindow::Reload(win) => {
+                            if ok {
+                                self.world.borrow_mut().objects_mut()
+                                    .reload_weapon_from_inventory(self.owner, win.weapon, win.ammo);
+                                self.sync_to_ui(rpg, ui);
+                            }
+                            win.win.hide(ui);
+                        }
+                        ActiveMoveWindow::Drop(win) => {
+                            if ok {
+                                sink.send(Event::Inventory(InventoryEvent::DropAction {
+                                    object: win.item,
+                                    count: win.win.value(),
+                                }));
+                            }
+                            win.win.hide(ui);
+                        }
                     }
-                    win.win.hide(ui);
                 }
             }
             _ => {}
         }
-        if let Some(v) = self.move_window.as_mut() {
-            v.win.handle(cmd, ui);
+        match &mut self.move_window {
+            ActiveMoveWindow::None => {}
+            ActiveMoveWindow::Reload(win) => win.win.handle(event, ui),
+            ActiveMoveWindow::Drop(win) => win.win.handle(event, ui),
+        }
+    }
+
+    fn drop(&mut self, item: object::Handle, sink: &mut Sink, ui: &mut Ui) {
+        let world = self.world.borrow();
+        let owner = world.objects().get(self.owner);
+        let count = owner.inventory.items.iter()
+            .find(|i| i.object == item)
+            .map(|i| i.count).unwrap();
+        if count > 1 {
+            let win = DropMoveWindow::show(
+                &world.objects().get(item),
+                count,
+                &self.msgs,
+                ui);
+            assert!(std::mem::replace(&mut self.move_window, ActiveMoveWindow::Drop(win)).is_none());
+        } else {
+            assert_eq!(count, 1);
+            sink.send(Event::Inventory(InventoryEvent::DropAction { object: item, count }));
         }
     }
 }
@@ -792,20 +846,20 @@ impl Internal {
 struct MouseModeToggler;
 
 impl Widget for MouseModeToggler {
-    fn handle_event(&mut self, mut ctx: HandleEvent) {
-        if let ui::Event::MouseDown { button: MouseButton::Right, .. } = ctx.event {
-            ctx.out(UiCommandData::Inventory(Command::ToggleMouseMode));
+    fn handle_event(&mut self, ctx: HandleEvent) {
+        if let ui::UiEvent::MouseDown { button: MouseButton::Right, .. } = ctx.event {
+            ctx.sink.send(Event::Inventory(InventoryEvent::ToggleMouseMode));
         }
     }
 }
 
-struct InventoryMoveWindow {
+struct ReloadMoveWindow {
     weapon: object::Handle,
     ammo: object::Handle,
     win: MoveWindow,
 }
 
-impl InventoryMoveWindow {
+impl ReloadMoveWindow {
     pub fn show(
         weapon: object::Handle,
         ammo: &Object,
@@ -820,5 +874,38 @@ impl InventoryMoveWindow {
             ammo: ammo.handle(),
             win,
         }
+    }
+}
+
+struct DropMoveWindow {
+    item: object::Handle,
+    win: MoveWindow,
+}
+
+impl DropMoveWindow {
+    pub fn show(
+        item: &Object,
+        max: u32,
+        msgs: &Messages,
+        ui: &mut Ui,
+    ) -> Self {
+        let fid = item.proto().unwrap().sub.as_item().unwrap().inventory_fid.unwrap();
+        let win = MoveWindow::show(fid, max, msgs, ui);
+        Self {
+            item: item.handle(),
+            win,
+        }
+    }
+}
+
+enum ActiveMoveWindow {
+    None,
+    Reload(ReloadMoveWindow),
+    Drop(DropMoveWindow),
+}
+
+impl ActiveMoveWindow {
+    pub fn is_none(&self) -> bool {
+        matches!(self, ActiveMoveWindow::None)
     }
 }

@@ -17,6 +17,7 @@ use crate::asset::map::db::MapDb;
 use crate::asset::message::{BULLET, Messages};
 use crate::asset::proto::*;
 use crate::asset::script::db::ScriptDb;
+use crate::event::*;
 use crate::fs::FileSystem;
 use crate::game::dialog::Dialog;
 use crate::game::fidget::Fidget;
@@ -38,12 +39,10 @@ use crate::graphics::{EPoint, Rect};
 use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::{self, Direction};
 use crate::sequence::{self, Sequencer};
-use crate::sequence::event::PushEvent;
+use crate::sequence::send_event::SendEvent;
 use crate::sequence::chain::Chain;
 use crate::state::{self, *};
 use crate::ui::{self, Ui};
-use crate::ui::command::*;
-use crate::ui::command::inventory::Command;
 use crate::ui::message_panel::MessagePanel;
 use crate::util::{EnumExt, sprintf};
 use crate::util::random::random;
@@ -70,7 +69,6 @@ pub struct GameState {
     user_paused: bool,
     map_id: Option<MapId>,
     in_combat: bool,
-    seq_events: Vec<sequence::Event>,
     misc_msgs: Rc<Messages>,
     scroll_areas: EnumMap<ScrollDirection, ui::Handle>,
     rpg: Rpg,
@@ -151,7 +149,6 @@ impl GameState {
             user_paused: false,
             map_id: None,
             in_combat: false,
-            seq_events: Vec::new(),
             misc_msgs,
             scroll_areas,
             rpg,
@@ -372,45 +369,7 @@ impl GameState {
         }
     }
 
-    fn handle_seq_events(&mut self, ctx: &mut state::Update) {
-        use sequence::Event::*;
-        let mut events = std::mem::replace(&mut self.seq_events, Vec::new());
-        for event in events.drain(..) {
-            match event {
-                ObjectMoved { obj, new_pos, .. } => {
-                    let world = self.world.borrow();
-                    if obj == world.objects().dude() {
-                        for &h in world.objects().at(new_pos) {
-                            let obj = world.objects().get(h);
-                            if let Some(map_exit) = obj.sub.as_map_exit() {
-                                debug!("dude on map exit object at {:?}: {:?}", new_pos, map_exit);
-                                ctx.out.push(AppEvent::MapExit {
-                                    map: map_exit.map,
-                                    pos: map_exit.pos,
-                                    direction: map_exit.direction,
-                                });
-                            }
-                        }
-                    }
-                }
-                Talk { talker, talked } => {
-                    self.talk(talker, talked, ctx.ui);
-                }
-                SetDoorState { door, open } => {
-                    self.set_door_state(door, open);
-                }
-                Use { user, used } => {
-                    self.use_obj(user, used, ctx.ui);
-                }
-                UseSkill { skill, user, target } => {
-                    self.use_skill_on(skill, user, target, ctx.ui);
-                }
-            }
-        }
-        std::mem::replace(&mut self.seq_events, events);
-    }
-
-    fn actions(&self, objh: object::Handle) -> Vec<(Action, UiCommandData)> {
+    fn actions(&self, objh: object::Handle) -> Vec<(Action, Event)> {
         let mut r = Vec::new();
         let world = self.world.borrow();
         let obj = world.objects().get(objh);
@@ -461,7 +420,7 @@ impl GameState {
             r.push(Action::Cancel)
         }
         r.iter()
-            .map(|&action| (action, UiCommandData::Action { action }))
+            .map(|&action| (action, Event::Action { action }))
             .collect()
     }
 
@@ -625,7 +584,7 @@ impl GameState {
                 chain.control()
                     .cancellable(Move::new(talker, PathTo::Object(talked), CritterAnim::Running))
                     .finalizing(Stand::new(talker))
-                    .finalizing(PushEvent::new(sequence::Event::Talk { talker, talked }));
+                    .finalizing(SendEvent::new(Event::Talk { talker, talked }));
                 self.obj_sequencer.replace(talker, chain);
                 return;
             }
@@ -711,7 +670,7 @@ impl GameState {
                 FrameAnimOptions { anim: Some(use_anim), ..Default::default() }));
         }
 
-        seq.control().cancellable(PushEvent::new(sequence::Event::Use { user, used }));
+        seq.control().cancellable(SendEvent::new(Event::Use { user, used }));
         if weapon != WeaponKind::Unarmed {
             seq.control().cancellable(FrameAnim::new(user,
                 FrameAnimOptions { anim: Some(CritterAnim::TakeOut), ..Default::default() }));
@@ -847,7 +806,7 @@ impl GameState {
                 skip: 1,
                 ..Default::default()
             }))
-            .finalizing(PushEvent::new(sequence::Event::SetDoorState { door, open: need_open }));
+            .finalizing(SendEvent::new(Event::SetDoorState { door, open: need_open }));
 
         self.obj_sequencer.replace(door, seq);
     }
@@ -1011,7 +970,7 @@ impl GameState {
         seq.control()
             .cancellable(FrameAnim::new(user,
                 FrameAnimOptions { anim: Some(use_anim), ..Default::default() }))
-            .cancellable(PushEvent::new(sequence::Event::UseSkill { skill, user, target }))
+            .cancellable(SendEvent::new(Event::UseSkill { skill, user, target }))
             .finalizing(Stand::new(user));
 
         self.obj_sequencer.replace(user, seq);
@@ -1120,11 +1079,12 @@ impl GameState {
 }
 
 impl AppState for GameState {
-    fn handle_app_event(&mut self, ctx: HandleAppEvent) {
+    fn handle_event(&mut self, ctx: HandleEvent) {
+        self.inventory.handle(ctx.event, ctx.sink, &self.rpg, ctx.ui, &mut self.ui_sequencer);
         match ctx.event {
             // map_check_state
             // TODO handle special map ids: 19, 37
-            AppEvent::MapExit { map, pos, direction } => {
+            Event::MapExit { map, pos, direction } => {
                 match map {
                     TargetMap::CurrentMap => {
                         self.set_dude_pos(pos, direction, ctx.ui);
@@ -1142,6 +1102,208 @@ impl AppState for GameState {
                     }
                 }
             }
+            Event::ObjectPick { kind, obj: objh } => {
+                let actions = self.actions(objh);
+                let default_action = actions.first().map(|&(a, _)| a);
+                match kind {
+                    ObjectPickKind::Hover => {
+                        // TODO highlight item on Action::UseHand: gmouse_bk_process()
+
+                        ctx.ui.widget_mut::<WorldView>(self.world_view).default_action_icon = if self.object_action_menu.is_none() {
+                            default_action
+                        }  else {
+                            None
+                        };
+
+                        if self.last_picked_obj != Some(objh) {
+                            self.last_picked_obj = Some(objh);
+                            self.dude_look_at_object(objh, ctx.ui);
+                        }
+                    }
+                    ObjectPickKind::ActionMenu => {
+                        ctx.ui.widget_mut::<WorldView>(self.world_view).default_action_icon = None;
+
+                        let world_view_win = ctx.ui.window_of(self.world_view).unwrap();
+                        self.object_action_menu = Some(ObjectActionMenu {
+                            menu: action_menu::show(actions, world_view_win, ctx.ui),
+                            obj: objh,
+                        });
+
+                        self.time.set_paused(true);
+                    }
+                    ObjectPickKind::DefaultAction => if let Some(a) = default_action {
+                        ctx.ui.widget_mut::<WorldView>(self.world_view).default_action_icon = if self.object_action_menu.is_none() {
+                            default_action
+                        }  else {
+                            None
+                        };
+                        self.handle_action(ctx.ui, objh, a);
+                    },
+                    ObjectPickKind::Skill(skill) => {
+                        self.action_use_skill_on(skill, objh);
+                    }
+                }
+            }
+            Event::HexPick { action, pos } => {
+                if action {
+                    let dude_objh = self.world.borrow().objects().dude();
+
+                    let seq = Chain::new();
+
+                    let anim = if self.shift_key_down {
+                        CritterAnim::Walk
+                    } else {
+                        CritterAnim::Running
+                    };
+                    seq.control()
+                        .cancellable(Move::new(dude_objh, PathTo::Point {
+                            point: pos.point,
+                            neighbor_if_blocked: true,
+                        }, anim))
+                        .finalizing(Stand::new(dude_objh));
+                    self.obj_sequencer.replace(dude_objh, seq);
+                } else {
+                    let mut wv = ctx.ui.widget_mut::<WorldView>(self.world_view);
+                    let dude_obj = self.world.borrow().objects().dude();
+                    wv.hex_cursor_style = if self.world.borrow()
+                        .objects().path(dude_obj, PathTo::Point {
+                            point: pos.point,
+                            neighbor_if_blocked: false,
+                        }, false).is_some()
+                    {
+                        HexCursorStyle::Normal
+                    } else {
+                        HexCursorStyle::Blocked
+                    };
+                }
+            }
+            Event::Action { action } => {
+                let object_action = self.object_action_menu.take().unwrap();
+                self.handle_action(ctx.ui, object_action.obj, action);
+                action_menu::hide(object_action.menu, ctx.ui);
+                self.time.set_paused(false);
+            }
+            Event::Pick { id } => {
+                let (sid, proc_id) = {
+                    let dialog = self.dialog.as_mut().unwrap();
+                    let proc_id = dialog.option(id).proc_id;
+                    dialog.clear_options(ctx.ui);
+
+                    (dialog.sid(), proc_id)
+                };
+                let finished = if let Some(proc_id) = proc_id {
+                    let world = &mut self.world.borrow_mut();
+                    let source_obj = Some(world.objects().dude());
+                    let target_obj = Some(self.dialog.as_ref().unwrap().obj);
+                    self.scripts.execute_proc(sid, proc_id,
+                        &mut script::Context {
+                            ui: ctx.ui,
+                            world,
+                            obj_sequencer: &mut self.obj_sequencer,
+                            dialog: &mut self.dialog,
+                            message_panel: self.message_panel,
+                            map_id: self.map_id.unwrap(),
+                            source_obj,
+                            target_obj,
+                            skill: None,
+                            rpg: &mut self.rpg,
+                        }).assert_no_suspend();
+                    // No dialog options means the dialog is finished.
+                    self.dialog.as_ref().unwrap().is_empty()
+                } else {
+                    true
+                };
+                if finished {
+                    let ctx = &mut script::Context {
+                        ui: ctx.ui,
+                        world: &mut self.world.borrow_mut(),
+                        obj_sequencer: &mut self.obj_sequencer,
+                        dialog: &mut self.dialog,
+                        message_panel: self.message_panel,
+                        map_id: self.map_id.unwrap(),
+                        source_obj: None,
+                        target_obj: None,
+                        skill: None,
+                        rpg: &mut self.rpg,
+                    };
+                    self.scripts.resume(ctx).assert_no_suspend();
+                    assert!(!self.scripts.can_resume());
+
+                    // In original MapUpdate is not always called (see gdialogEnter),
+                    // but for now this difference doesn't seem to matter
+                    self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
+                }
+            }
+            Event::Scroll { source } => {
+                let (dir, widg) = self.scroll_areas
+                    .iter()
+                    .find(|&(_, &w)| w == source)
+                    .unwrap();
+                let scrolled = self.world.borrow_mut().scroll(dir, 1) > 0;
+                ctx.ui.widget_mut::<ScrollArea>(*widg).set_enabled(scrolled);
+            }
+            Event::Skilldex(e) => match e {
+                SkilldexEvent::Cancel => self.skilldex.hide(ctx.ui),
+                SkilldexEvent::Show => {
+                    self.show_skilldex(ctx.ui, None);
+                },
+                SkilldexEvent::Skill { skill, target } => {
+                    self.skilldex.hide(ctx.ui);
+                    if let Some(target) = target {
+                        self.action_use_skill_on(skill, target);
+                    } else {
+                        ctx.ui.widget_mut::<WorldView>(self.world_view).enter_skill_target_pick_mode(skill);
+                    }
+                }
+            }
+            Event::Inventory(event) => match event {
+                InventoryEvent::Hover { object } => {
+                    self.dude_look_at_object(object, ctx.ui);
+                }
+                InventoryEvent::Action { object, action: Action::Look } => {
+                    let dude_obj = self.world.borrow().objects().dude();
+                    let descr = self.examine_object(dude_obj, object, ctx.ui);
+                    let descr = BString::join(b'\n', &descr);
+                    self.inventory.examine(object, &descr, ctx.ui);
+                }
+                InventoryEvent::DropAction { object, count } => {
+                    dbg!(object, count);
+                }
+                InventoryEvent::Show => {
+                    self.obj_sequencer.cancel(self.world.borrow().objects().dude());
+                }
+                _ => {}
+            }
+            Event::MoveWindow(_) => {}
+            Event::ObjectMoved { obj, new_pos, .. } => {
+                let world = self.world.borrow();
+                if obj == world.objects().dude() {
+                    for &h in world.objects().at(new_pos) {
+                        let obj = world.objects().get(h);
+                        if let Some(map_exit) = obj.sub.as_map_exit() {
+                            debug!("dude on map exit object at {:?}: {:?}", new_pos, map_exit);
+                            ctx.sink.defer(Event::MapExit {
+                                map: map_exit.map,
+                                pos: map_exit.pos,
+                                direction: map_exit.direction,
+                            });
+                        }
+                    }
+                }
+            }
+            Event::Talk { talker, talked } => {
+                self.talk(talker, talked, ctx.ui);
+            }
+            Event::SetDoorState { door, open } => {
+                self.set_door_state(door, open);
+            }
+            Event::Use { user, used } => {
+                self.use_obj(user, used, ctx.ui);
+            }
+            Event::UseSkill { skill, user, target } => {
+                self.use_skill_on(skill, user, target, ctx.ui);
+            }
+            _ => {}
         }
     }
 
@@ -1215,188 +1377,6 @@ impl AppState for GameState {
         true
     }
 
-    fn handle_ui_command(&mut self, command: UiCommand, ui: &mut Ui) {
-        self.inventory.handle(command, &self.rpg, ui, &mut self.ui_sequencer);
-
-        match command.data {
-            UiCommandData::ObjectPick { kind, obj: objh } => {
-                let actions = self.actions(objh);
-                let default_action = actions.first().map(|&(a, _)| a);
-                match kind {
-                    ObjectPickKind::Hover => {
-                        // TODO highlight item on Action::UseHand: gmouse_bk_process()
-
-                        ui.widget_mut::<WorldView>(self.world_view).default_action_icon = if self.object_action_menu.is_none() {
-                            default_action
-                        }  else {
-                            None
-                        };
-
-                        if self.last_picked_obj != Some(objh) {
-                            self.last_picked_obj = Some(objh);
-                            self.dude_look_at_object(objh, ui);
-                        }
-                    }
-                    ObjectPickKind::ActionMenu => {
-                        ui.widget_mut::<WorldView>(self.world_view).default_action_icon = None;
-
-                        let world_view_win = ui.window_of(self.world_view).unwrap();
-                        self.object_action_menu = Some(ObjectActionMenu {
-                            menu: action_menu::show(actions, world_view_win, ui),
-                            obj: objh,
-                        });
-
-                        self.time.set_paused(true);
-                    }
-                    ObjectPickKind::DefaultAction => if let Some(a) = default_action {
-                        ui.widget_mut::<WorldView>(self.world_view).default_action_icon = if self.object_action_menu.is_none() {
-                            default_action
-                        }  else {
-                            None
-                        };
-                        self.handle_action(ui, objh, a);
-                    },
-                    ObjectPickKind::Skill(skill) => {
-                        self.action_use_skill_on(skill, objh);
-                    }
-                }
-            }
-            UiCommandData::HexPick { action, pos } => {
-                if action {
-                    let dude_objh = self.world.borrow().objects().dude();
-
-                    let seq = Chain::new();
-
-                    let anim = if self.shift_key_down {
-                        CritterAnim::Walk
-                    } else {
-                        CritterAnim::Running
-                    };
-                    seq.control()
-                        .cancellable(Move::new(dude_objh, PathTo::Point {
-                            point: pos.point,
-                            neighbor_if_blocked: true,
-                        }, anim))
-                        .finalizing(Stand::new(dude_objh));
-                    self.obj_sequencer.replace(dude_objh, seq);
-                } else {
-                    let mut wv = ui.widget_mut::<WorldView>(self.world_view);
-                    let dude_obj = self.world.borrow().objects().dude();
-                    wv.hex_cursor_style = if self.world.borrow()
-                        .objects().path(dude_obj, PathTo::Point {
-                            point: pos.point,
-                            neighbor_if_blocked: false,
-                        }, false).is_some()
-                    {
-                        HexCursorStyle::Normal
-                    } else {
-                        HexCursorStyle::Blocked
-                    };
-                }
-            }
-            UiCommandData::Action { action } => {
-                let object_action = self.object_action_menu.take().unwrap();
-                self.handle_action(ui, object_action.obj, action);
-                action_menu::hide(object_action.menu, ui);
-                self.time.set_paused(false);
-            }
-            UiCommandData::Pick { id } => {
-                let (sid, proc_id) = {
-                    let dialog = self.dialog.as_mut().unwrap();
-
-                    assert!(dialog.is(command.source));
-                    let proc_id = dialog.option(id).proc_id;
-                    dialog.clear_options(ui);
-
-                    (dialog.sid(), proc_id)
-                };
-                let finished = if let Some(proc_id) = proc_id {
-                    let world = &mut self.world.borrow_mut();
-                    let source_obj = Some(world.objects().dude());
-                    let target_obj = Some(self.dialog.as_ref().unwrap().obj);
-                    self.scripts.execute_proc(sid, proc_id,
-                        &mut script::Context {
-                            ui,
-                            world,
-                            obj_sequencer: &mut self.obj_sequencer,
-                            dialog: &mut self.dialog,
-                            message_panel: self.message_panel,
-                            map_id: self.map_id.unwrap(),
-                            source_obj,
-                            target_obj,
-                            skill: None,
-                            rpg: &mut self.rpg,
-                        }).assert_no_suspend();
-                    // No dialog options means the dialog is finished.
-                    self.dialog.as_ref().unwrap().is_empty()
-                } else {
-                    true
-                };
-                if finished {
-                    let ctx = &mut script::Context {
-                        ui,
-                        world: &mut self.world.borrow_mut(),
-                        obj_sequencer: &mut self.obj_sequencer,
-                        dialog: &mut self.dialog,
-                        message_panel: self.message_panel,
-                        map_id: self.map_id.unwrap(),
-                        source_obj: None,
-                        target_obj: None,
-                        skill: None,
-                        rpg: &mut self.rpg,
-                    };
-                    self.scripts.resume(ctx).assert_no_suspend();
-                    assert!(!self.scripts.can_resume());
-
-                    // In original MapUpdate is not always called (see gdialogEnter),
-                    // but for now this difference doesn't seem to matter
-                    self.scripts.execute_map_procs(PredefinedProc::MapUpdate, ctx);
-                }
-            }
-            UiCommandData::Scroll => {
-                let (dir, widg) = self.scroll_areas
-                    .iter()
-                    .find(|&(_, w)| w == &command.source)
-                    .unwrap();
-                let scrolled = self.world.borrow_mut().scroll(dir, 1) > 0;
-                ui.widget_mut::<ScrollArea>(*widg).set_enabled(scrolled);
-            }
-            UiCommandData::Skilldex(cmd) => match cmd {
-                SkilldexCommand::Cancel => self.skilldex.hide(ui),
-                SkilldexCommand::Show => {
-                    self.show_skilldex(ui, None);
-                },
-                SkilldexCommand::Skill { skill, target } => {
-                    self.skilldex.hide(ui);
-                    if let Some(target) = target {
-                        self.action_use_skill_on(skill, target);
-                    } else {
-                        ui.widget_mut::<WorldView>(self.world_view).enter_skill_target_pick_mode(skill);
-                    }
-                }
-            }
-            UiCommandData::Inventory(cmd) => match cmd {
-                inventory::Command::Hover { object } => {
-                    self.dude_look_at_object(object, ui);
-                }
-                | inventory::Command::Action { object, action: Some(Action::Look) }
-                | inventory::Command::Action { object, action: None }
-                => {
-                    let dude_obj = self.world.borrow().objects().dude();
-                    let descr = self.examine_object(dude_obj, object, ui);
-                    let descr = BString::join(b'\n', &descr);
-                    self.inventory.examine(object, &descr, ui);
-                }
-                Command::Hide => {}
-                Command::Show => {
-                    self.obj_sequencer.cancel(self.world.borrow().objects().dude());
-                }
-                _ => {}
-            }
-            UiCommandData::MoveWindow(_) => {}
-        }
-    }
-
     fn update(&mut self, mut ctx: state::Update) {
         self.time.set_paused(
             self.user_paused ||
@@ -1406,49 +1386,35 @@ impl AppState for GameState {
 
         self.time.update(ctx.delta);
 
-        if self.time.is_running() {
-            {
-                let mut world = self.world.borrow_mut();
-                world.update(self.time.time());
-            }
+        let world = &mut self.world.borrow_mut();
 
-            const MAX_ITERS: u32 = 1000;
-            for i in 0..MAX_ITERS {
-                assert!(i < MAX_ITERS - 1, "infinite loop in sequencer updating - event handling");
-                {
-                    let world = &mut self.world.borrow_mut();
-                    assert!(self.seq_events.is_empty());
-                    self.obj_sequencer.update(&mut sequence::Update {
-                        time: self.time.time(),
-                        world,
-                        ui: ctx.ui,
-                        out: &mut self.seq_events,
-                    });
-                }
-                if self.seq_events.is_empty() {
-                    break;
-                }
-                self.handle_seq_events(&mut ctx);
-            }
+        if self.time.is_running() {
+            world.update(self.time.time());
+
+            self.obj_sequencer.update(&mut sequence::Update {
+                time: self.time.time(),
+                world,
+                ui: ctx.ui,
+                sink: ctx.sink,
+            });
 
             self.fidget.update(
                 self.time.time(),
-                &mut self.world.borrow_mut(),
+                world,
                 &mut self.obj_sequencer);
         } else {
             self.obj_sequencer.sync(&mut sequence::Sync {
-                world: &mut self.world.borrow_mut(),
+                world,
                 ui: ctx.ui,
             });
         }
 
         self.ui_sequencer.update(&mut sequence::Update {
             time: ctx.time,
-            world: &mut self.world.borrow_mut(),
+            world,
             ui: ctx.ui,
-            out: &mut self.seq_events,
+            sink: &mut ctx.sink,
         });
-        assert!(self.seq_events.is_empty());
     }
 }
 

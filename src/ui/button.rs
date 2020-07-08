@@ -4,8 +4,8 @@ use enum_map::{enum_map, EnumMap};
 use crate::graphics::font::{DrawOptions, FontKey, HorzAlign, VertAlign};
 use crate::graphics::color::Rgb15;
 use crate::graphics::sprite::Sprite;
-use crate::ui::command::UiCommandData;
 use super::*;
+use crate::event::Event;
 
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd)]
 pub enum State {
@@ -42,12 +42,12 @@ impl Text {
 
 pub struct Button {
     configs: EnumMap<State, Config>,
-    command: Option<UiCommandData>,
+    event: Option<Event>,
     state: State,
 }
 
 impl Button {
-    pub fn new(up: FrameId, down: FrameId, command: Option<UiCommandData>) -> Self {
+    pub fn new(up: FrameId, down: FrameId, event: Option<Event>) -> Self {
         Self {
             configs: enum_map! {
                 State::Disabled => Config {
@@ -63,7 +63,7 @@ impl Button {
                     text: None,
                 },
             },
-            command,
+            event: event,
             state: State::Up,
         }
     }
@@ -93,11 +93,11 @@ impl Button {
 impl Widget for Button {
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
-            Event::MouseDown { button, .. } if button == MouseButton::Left && self.state != State::Disabled => {
+            UiEvent::MouseDown { button, .. } if button == MouseButton::Left && self.state != State::Disabled => {
                 self.state = State::Down;
                 ctx.capture();
             }
-            Event::MouseMove { pos } if ctx.is_captured() => {
+            UiEvent::MouseMove { pos } if ctx.is_captured() => {
                 // FIXME should optionally hit test the frame as in original.
                 self.state = if ctx.base.rect.contains(pos) {
                     State::Down
@@ -105,12 +105,12 @@ impl Widget for Button {
                     State::Up
                 }
             }
-            Event::MouseUp { pos, button } if button == MouseButton::Left && self.state != State::Disabled => {
+            UiEvent::MouseUp { pos, button } if button == MouseButton::Left && self.state != State::Disabled => {
                 self.state = State::Up;
                 // FIXME should optionally hit test the frame as in original.
                 if ctx.base.rect.contains(pos) {
-                    if let Some(cmd) = self.command {
-                        ctx.out(cmd);
+                    if let Some(event) = self.event {
+                        ctx.sink.send(event);
                     }
                 }
                 ctx.release();

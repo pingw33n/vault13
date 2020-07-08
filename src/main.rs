@@ -11,6 +11,7 @@
 #[macro_use] mod macros;
 
 mod asset;
+mod event;
 mod fs;
 mod game;
 mod graphics;
@@ -42,8 +43,9 @@ use crate::graphics::font::{self, FontKey};
 use crate::graphics::geometry::TileGridView;
 use crate::graphics::geometry::sqr;
 use crate::graphics::render::software::Backend;
-use crate::state::{AppState, Update, HandleAppEvent};
+use crate::state::{AppState, HandleEvent, Update};
 use crate::ui::Ui;
+use crate::event::Events;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const GIT_HASH: &str = env!("GIT_HASH");
@@ -283,26 +285,16 @@ fn main() {
 
     let mut draw_debug = true;
 
-    let ui_commands = &mut Vec::new();
-    let app_events = &mut Vec::new();
+    let mut events = Events::new();
 
     'running: loop {
-        // Handle app events.
-
-        for event in app_events.drain(..) {
-            state.handle_app_event(HandleAppEvent {
-                event,
-                ui,
-            });
-        }
-
         // Handle input.
 
         for event in event_pump.poll_iter() {
             let mut handled = ui.handle_input(ui::HandleInput {
                 now: timer.time(),
                 event: &event,
-                out: ui_commands,
+                sink: &mut events.sink(),
             });
             if !handled {
                 handled = state.handle_input(&event, ui);
@@ -321,19 +313,31 @@ fn main() {
         }
 
         // Update.
+        const MAX_ITERS: u32 = 50;
+        for i in 0..MAX_ITERS {
+            ui.update(timer.time(), &mut events.sink());
 
-        ui.update(timer.time(), ui_commands);
+            while let Some((event, mut sink)) = events.next() {
+                state.handle_event(HandleEvent {
+                    event,
+                    sink: &mut sink,
+                    ui,
+                });
+            }
 
-        for event in ui_commands.drain(..) {
-            state.handle_ui_command(event, ui);
+            state.update(Update {
+                time: timer.time(),
+                delta: if i == 0 { timer.delta() } else { Duration::from_millis(0) },
+                sink: &mut events.sink(),
+                ui,
+            });
+
+            if events.is_empty() {
+                break;
+            }
+
+            assert!(i < MAX_ITERS - 1, "infinite loop in update -- event handling loop");
         }
-
-        state.update(Update {
-            time: timer.time(),
-            delta: timer.delta(),
-            ui,
-            out: app_events,
-        });
 
         ui.sync();
 
@@ -390,5 +394,7 @@ fn main() {
         std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
 
         timer.tick(Instant::now());
+
+        events.advance();
     }
 }

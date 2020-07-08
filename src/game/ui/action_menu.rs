@@ -2,12 +2,12 @@ use num_traits::clamp;
 use std::cmp;
 
 use crate::asset::frame::FrameId;
+use crate::event::Event;
 use crate::graphics::{Point, Rect};
 use crate::graphics::sprite::Sprite;
 use crate::ui::*;
-use crate::ui::command::UiCommandData;
 
-pub fn show(actions: Vec<(Action, UiCommandData)>, win: Handle, ui: &mut Ui) -> Handle {
+pub fn show(actions: Vec<(Action, Event)>, win: Handle, ui: &mut Ui) -> Handle {
     assert!(!actions.is_empty());
 
     let (placement, saved_cursor) = {
@@ -107,13 +107,13 @@ impl Action {
 }
 
 struct ActionMenu {
-    actions: Vec<(Action, UiCommandData)>,
+    actions: Vec<(Action, Event)>,
     selection: u32,
     saved_cursor: Option<Cursor>,
 }
 
 impl ActionMenu {
-    fn new(actions: Vec<(Action, UiCommandData)>, saved_cursor: Option<Cursor>) -> Self {
+    fn new(actions: Vec<(Action, Event)>, saved_cursor: Option<Cursor>) -> Self {
         Self {
             actions,
             selection: 0,
@@ -130,15 +130,15 @@ impl ActionMenu {
 }
 
 impl Widget for ActionMenu {
-    fn handle_event(&mut self, mut ctx: HandleEvent) {
+    fn handle_event(&mut self, ctx: HandleEvent) {
 
         match ctx.event {
-            Event::MouseMove { pos } => {
+            UiEvent::MouseMove { pos } => {
                 self.update_selection(ctx.base, pos);
             },
-            Event::MouseUp { pos, .. } => {
+            UiEvent::MouseUp { pos, .. } => {
                 self.update_selection(ctx.base, pos);
-                ctx.out(self.actions[self.selection as usize].1);
+                ctx.sink.send(self.actions[self.selection as usize].1);
             }
             _ => {}
         }

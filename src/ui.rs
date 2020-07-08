@@ -1,5 +1,4 @@
 pub mod button;
-pub mod command;
 pub mod image_text;
 pub mod message_panel;
 pub mod panel;
@@ -21,11 +20,11 @@ use crate::graphics::{Point, Rect};
 use crate::graphics::font::Fonts;
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::{Sprite, Anchor};
-use crate::ui::command::UiCommand;
 use crate::util::VecExt;
+use crate::event::Sink;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Event {
+pub enum UiEvent {
     KeyDown {
         keycode: Option<Keycode>,
     },
@@ -131,7 +130,7 @@ new_handle_type! {
 pub struct HandleInput<'a> {
     pub now: Instant,
     pub event: &'a SdlEvent,
-    pub out: &'a mut Vec<command::UiCommand>,
+    pub sink: &'a mut Sink<'a>,
 }
 
 pub struct Ui {
@@ -363,8 +362,8 @@ impl Ui {
     fn widget_handle_event(&mut self,
         now: Instant,
         target: Handle,
-        event: Event,
-        out: &mut Vec<command::UiCommand>)
+        event: UiEvent,
+        sink: &mut Sink)
     {
         self.widgets[target].borrow_mut().handle_event(HandleEvent {
             now,
@@ -372,7 +371,7 @@ impl Ui {
             base: &mut self.widget_bases[target].borrow_mut(),
             event,
             capture: &mut self.capture,
-            out,
+            sink,
             cursor_pos: self.cursor_pos,
         });
     }
@@ -400,55 +399,55 @@ impl Ui {
         match *ctx.event {
             SdlEvent::KeyDown { keycode, .. } => {
                 if let Some(target) = self.keyboard_event_target() {
-                    self.widget_handle_event(ctx.now, target, Event::KeyDown { keycode }, ctx.out);
+                    self.widget_handle_event(ctx.now, target, UiEvent::KeyDown { keycode }, ctx.sink);
                 } else {
                     return false;
                 }
             }
             SdlEvent::MouseButtonDown { mouse_btn, .. } => {
-                let event = Event::MouseDown { pos: self.cursor_pos, button: mouse_btn };
+                let event = UiEvent::MouseDown { pos: self.cursor_pos, button: mouse_btn };
                 if let Some(listener) = listener {
-                    self.widget_handle_event(ctx.now, listener, event.clone(), ctx.out);
+                    self.widget_handle_event(ctx.now, listener, event.clone(), ctx.sink);
                 }
-                let target = if let Some(h) = self.update_mouse_focus(ctx.now, ctx.out) {
+                let target = if let Some(h) = self.update_mouse_focus(ctx.now, ctx.sink) {
                     h
                 } else {
                     return false;
                 };
-                self.widget_handle_event(ctx.now, target, event, ctx.out);
+                self.widget_handle_event(ctx.now, target, event, ctx.sink);
             }
             SdlEvent::MouseMotion { xrel, yrel, .. } => {
                 self.simulate_mouse_move = false;
 
                 self.update_cursor_pos_rel(Point::new(xrel, yrel));
-                if !self.fire_mouse_move(ctx.now, ctx.out) {
+                if !self.fire_mouse_move(ctx.now, ctx.sink) {
                     return false;
                 }
             }
             SdlEvent::MouseButtonUp { mouse_btn, .. } => {
-                let target = if let Some(h) = self.update_mouse_focus(ctx.now, ctx.out) {
+                let target = if let Some(h) = self.update_mouse_focus(ctx.now, ctx.sink) {
                     h
                 } else {
                     return false;
                 };
                 self.widget_handle_event(ctx.now, target,
-                    Event::MouseUp { pos: self.cursor_pos, button: mouse_btn }, ctx.out);
+                    UiEvent::MouseUp { pos: self.cursor_pos, button: mouse_btn }, ctx.sink);
             }
             _ => return false,
         }
         true
     }
 
-    pub fn update(&mut self, now: Instant, out: &mut Vec<command::UiCommand>) {
+    pub fn update(&mut self, now: Instant, sink: &mut Sink) {
         if self.simulate_mouse_move {
             self.simulate_mouse_move = false;
-            self.fire_mouse_move(now, out);
+            self.fire_mouse_move(now, sink);
         }
 
         // FIXME avoid copy/allocation
         let handles: Vec<_> = self.widgets.keys().collect();
         for h in handles {
-            self.widget_handle_event(now, h, Event::Tick, out);
+            self.widget_handle_event(now, h, UiEvent::Tick, sink);
         }
     }
 
@@ -589,21 +588,19 @@ impl Ui {
         }
     }
 
-    fn update_mouse_focus(&mut self, now: Instant, out: &mut Vec<UiCommand>)
-        -> Option<Handle>
-    {
+    fn update_mouse_focus(&mut self, now: Instant, sink: &mut Sink) -> Option<Handle> {
         let target = self.find_mouse_event_target()?;
         if self.mouse_focus.is_some() && self.mouse_focus != Some(target) {
-            self.widget_handle_event(now, self.mouse_focus.unwrap(), Event::MouseLeave, out);
+            self.widget_handle_event(now, self.mouse_focus.unwrap(), UiEvent::MouseLeave, sink);
         }
         self.mouse_focus = Some(target);
         Some(target)
     }
 
-    fn fire_mouse_move(&mut self, now: Instant, out: &mut Vec<UiCommand>) -> bool {
-        if let Some(target) = self.update_mouse_focus(now, out) {
+    fn fire_mouse_move(&mut self, now: Instant, sink: &mut Sink) -> bool {
+        if let Some(target) = self.update_mouse_focus(now, sink) {
             self.widget_handle_event(now, target,
-                Event::MouseMove { pos: self.cursor_pos }, out);
+                UiEvent::MouseMove { pos: self.cursor_pos }, sink);
             true
         } else {
             false
@@ -729,17 +726,17 @@ impl Widget for Base {
     }
 }
 
-pub struct HandleEvent<'a> {
+pub struct HandleEvent<'a, 'b: 'a> {
     pub now: Instant,
     pub this: Handle,
     pub base: &'a mut Base,
-    pub event: Event,
+    pub event: UiEvent,
     capture: &'a mut Option<Handle>,
-    pub out: &'a mut Vec<command::UiCommand>,
+    pub sink: &'a mut Sink<'b>,
     pub cursor_pos: Point,
 }
 
-impl HandleEvent<'_> {
+impl HandleEvent<'_, '_> {
     pub fn is_captured(&self) -> bool {
         self.capture.is_some()
     }
@@ -750,13 +747,6 @@ impl HandleEvent<'_> {
 
     pub fn release(&mut self) {
         *self.capture = None;
-    }
-
-    pub fn out(&mut self, event_data: command::UiCommandData) {
-        self.out.push(UiCommand {
-            source: self.this,
-            data: event_data,
-        });
     }
 }
 
