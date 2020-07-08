@@ -130,7 +130,7 @@ impl Widget for InventoryList {
 
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
-            Event::MouseDown { pos: _, button} if button == MouseButton::Left => {
+            UiEvent::MouseDown { pos: _, button} if button == MouseButton::Left => {
                 if let Some(idx) = self.item_index_at(ctx.base.rect(), ctx.cursor_pos) {
                     match self.mouse_mode {
                         MouseMode::Action => {
@@ -144,7 +144,7 @@ impl Widget for InventoryList {
                     }
                 }
             }
-            Event::MouseUp { pos: _, button } if button == MouseButton::Left => {
+            UiEvent::MouseUp { pos: _, button } if button == MouseButton::Left => {
                 match self.mouse_mode {
                     MouseMode::Action => {
                         self.action_menu_state = None;
@@ -166,7 +166,7 @@ impl Widget for InventoryList {
                     }
                 }
             }
-            Event::MouseMove { pos: _ } if self.mouse_mode == MouseMode::Action => {
+            UiEvent::MouseMove { pos: _ } if self.mouse_mode == MouseMode::Action => {
                 if let Some(idx) = self.item_index_at(ctx.base.rect(), ctx.cursor_pos) {
                     self.default_action = Some(Action::Look);
                     let object = self.items[idx].object;
@@ -180,10 +180,10 @@ impl Widget for InventoryList {
                     self.default_action = None;
                 }
             }
-            Event::MouseLeave => {
+            UiEvent::MouseLeave => {
                 self.default_action = None;
             }
-            Event::Tick => {
+            UiEvent::Tick => {
                 if let Some((start, item)) = self.action_menu_state {
                     if ctx.now - start >= Duration::from_millis(500) {
                         self.default_action = None;

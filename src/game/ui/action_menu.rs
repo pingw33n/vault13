@@ -133,10 +133,10 @@ impl Widget for ActionMenu {
     fn handle_event(&mut self, mut ctx: HandleEvent) {
 
         match ctx.event {
-            Event::MouseMove { pos } => {
+            UiEvent::MouseMove { pos } => {
                 self.update_selection(ctx.base, pos);
             },
-            Event::MouseUp { pos, .. } => {
+            UiEvent::MouseUp { pos, .. } => {
                 self.update_selection(ctx.base, pos);
                 ctx.out(self.actions[self.selection as usize].1);
             }

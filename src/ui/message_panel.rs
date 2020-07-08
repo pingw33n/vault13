@@ -339,7 +339,7 @@ impl Widget for MessagePanel {
 
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
-            Event::MouseDown { .. } => {
+            UiEvent::MouseDown { .. } => {
                 if let Some(scroll) = self.scroll_for_cursor(ctx.base.rect, ctx.cursor_pos) {
                     self.scroll(scroll);
                     self.update_cursor(&mut ctx);
@@ -347,7 +347,7 @@ impl Widget for MessagePanel {
                 }
                 ctx.capture();
             }
-            Event::MouseUp { .. } => {
+            UiEvent::MouseUp { .. } => {
                 ctx.release();
                 match self.mouse_control {
                     MouseControl::Scroll => {
@@ -360,14 +360,14 @@ impl Widget for MessagePanel {
                     }
                 }
             }
-            Event::MouseMove { .. } => match self.mouse_control {
+            UiEvent::MouseMove { .. } => match self.mouse_control {
                 MouseControl::Scroll => self.update_cursor(&mut ctx),
                 MouseControl::Pick => self.update_highlight(ctx.cursor_pos, &ctx.base),
             }
-            Event::MouseLeave => {
+            UiEvent::MouseLeave => {
                 self.highlighted = None;
             }
-            Event::Tick => {
+            UiEvent::Tick => {
                 if let Some(&scroll) = self.repeat_scroll.update_if_running(ctx.now) {
                     self.scroll(scroll);
                     self.update_cursor(&mut ctx);

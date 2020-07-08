@@ -93,11 +93,11 @@ impl Button {
 impl Widget for Button {
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
-            Event::MouseDown { button, .. } if button == MouseButton::Left && self.state != State::Disabled => {
+            UiEvent::MouseDown { button, .. } if button == MouseButton::Left && self.state != State::Disabled => {
                 self.state = State::Down;
                 ctx.capture();
             }
-            Event::MouseMove { pos } if ctx.is_captured() => {
+            UiEvent::MouseMove { pos } if ctx.is_captured() => {
                 // FIXME should optionally hit test the frame as in original.
                 self.state = if ctx.base.rect.contains(pos) {
                     State::Down
@@ -105,7 +105,7 @@ impl Widget for Button {
                     State::Up
                 }
             }
-            Event::MouseUp { pos, button } if button == MouseButton::Left && self.state != State::Disabled => {
+            UiEvent::MouseUp { pos, button } if button == MouseButton::Left && self.state != State::Disabled => {
                 self.state = State::Up;
                 // FIXME should optionally hit test the frame as in original.
                 if ctx.base.rect.contains(pos) {

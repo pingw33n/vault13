@@ -136,7 +136,7 @@ impl WorldView {
 impl Widget for WorldView {
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
-            Event::MouseMove { pos } => {
+            UiEvent::MouseMove { pos } => {
                 match self.pick_mode {
                     PickMode::Hex => {
                         let (pos, changed) = self.update_hex_cursor_pos(pos);
@@ -152,7 +152,7 @@ impl Widget for WorldView {
                 }
                 self.update_hex_cursor_visibility(None);
             }
-            Event::MouseDown { pos, button } => {
+            UiEvent::MouseDown { pos, button } => {
                 if button == MouseButton::Left &&
                     matches!(self.pick_mode, PickMode::Object(ObjectPickMode::Action))
                 {
@@ -162,7 +162,7 @@ impl Widget for WorldView {
                     }
                 }
             }
-            Event::MouseUp { pos, button } => {
+            UiEvent::MouseUp { pos, button } => {
                 self.action_menu_state = None;
                 match button {
                     MouseButton::Left => {
@@ -212,13 +212,13 @@ impl Widget for WorldView {
                     _ => {}
                 }
             }
-            Event::MouseLeave => {
+            UiEvent::MouseLeave => {
                 self.update_hex_cursor_visibility(Some(false));
                 self.action_menu_state = None;
                 self.default_action_icon = None;
                 self.pick_state = PickState::Idle;
             }
-            Event::Tick => {
+            UiEvent::Tick => {
                 if let Some((time, obj)) = self.action_menu_state {
                     if ctx.now - time >= Duration::from_millis(500) {
                         self.action_menu_state = None;

@@ -793,7 +793,7 @@ struct MouseModeToggler;
 
 impl Widget for MouseModeToggler {
     fn handle_event(&mut self, mut ctx: HandleEvent) {
-        if let ui::Event::MouseDown { button: MouseButton::Right, .. } = ctx.event {
+        if let ui::UiEvent::MouseDown { button: MouseButton::Right, .. } = ctx.event {
             ctx.out(UiCommandData::Inventory(Command::ToggleMouseMode));
         }
     }
