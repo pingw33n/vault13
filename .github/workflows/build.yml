@@ -9,31 +9,31 @@ on:
 env:
   NAME: vault13
   # Changing here, change also in snapshot.yml.
-  RUST_VERSION: 1.44.1
+  RUST_VERSION: 1.70.0
   RUST_BACKTRACE: full
 jobs:
   main:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-16.04, macos-10.15, windows-2019]
+        os: [ubuntu-latest, macos-latest, windows-2019]
         arch: [x86_64]
         include:
-          - os: ubuntu-16.04
+          - os: ubuntu-latest
             os_kind: linux
 
-          - os: macos-10.15
+          - os: macos-latest
             os_kind: macos
 
           - os: windows-2019
             os_kind: windows
             vcvars_cmd: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
 
-          - os: ubuntu-16.04
+          - os: ubuntu-latest
             arch: x86_64
             target: x86_64-unknown-linux-gnu
 
-          - os: macos-10.15
+          - os: macos-latest
             arch: x86_64
             target: x86_64-apple-darwin
 
