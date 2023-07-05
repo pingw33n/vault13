@@ -74,7 +74,7 @@ pub fn lzss_decode_block(inp: &mut impl Read, out: &mut impl Write) -> Result<u6
         return Ok(0);
     }
 
-    let block_size = block_descr.abs() as u64;
+    let block_size = u64::from(block_descr.unsigned_abs());
     let block_written;
     if block_descr < 0 {
         block_written = io::copy(inp, out)?;

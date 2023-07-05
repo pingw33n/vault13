@@ -53,11 +53,11 @@ impl View {
 }
 
 impl TileGridView for View {
-    fn from_screen(&self, p: Point) -> Point {
+    fn screen_to_tile(&self, p: Point) -> Point {
         from_screen(p - self.origin)
     }
 
-    fn to_screen(&self, p: Point) -> Point {
+    fn tile_to_screen(&self, p: Point) -> Point {
         to_screen(p) + self.origin
     }
 
@@ -91,7 +91,7 @@ impl TileGrid {
     /// Rectangular to linear coordinates with `x` axis inverted.
     /// This method should be used when converting linears for use in the original assets
     /// (maps, scripts etc).
-    pub fn to_linear_inv(&self, p: Point) -> Option<u32> {
+    pub fn rect_to_linear_inv(&self, p: Point) -> Option<u32> {
         if self.is_in_bounds(p) {
             let x = self.width - 1 - p.x;
             Some((self.width * p.y + x) as u32)
@@ -103,7 +103,7 @@ impl TileGrid {
     /// Linear to rectangular coordinates with `x` axis inverted.
     /// This method should be used when converting linears for use in the original assets
     /// (maps, scripts etc).
-    pub fn from_linear_inv(&self, num: u32) -> Point {
+    pub fn linear_to_rect_inv(&self, num: u32) -> Point {
         let x = self.width - 1 - num as i32 % self.width;
         let y = num as i32 / self.width;
         Point::new(x, y)
@@ -149,7 +149,7 @@ mod test {
     fn view_from_screen() {
         let t = View::new(P(0xf0, 0xa8));
         let square_xy = |x, y| {
-            let p = t.from_screen(P(x, y));
+            let p = t.screen_to_tile(P(x, y));
             P(100 - 1 - p.x, p.y)
         };
         assert_eq!(square_xy(0, 0), P(99, -8));
@@ -169,7 +169,7 @@ mod test {
     fn view_to_screen() {
         let t = TileGrid::default();
         let v = View::new(P(0x100, 0xb4));
-        assert_eq!(v.to_screen(t.from_linear_inv(0x1091)), P(4384, 492));
+        assert_eq!(v.tile_to_screen(t.linear_to_rect_inv(0x1091)), P(4384, 492));
     }
 
     #[test]

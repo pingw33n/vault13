@@ -349,7 +349,7 @@ fn main() {
             let world = state.world().borrow();
             let world_view = ui.widget_ref::<WorldView>(state.world_view());
             let (mouse_hex_pos, mouse_sqr_pos) = if let Some(EPoint { point, .. }) = world_view.hex_cursor_pos() {
-                (point, world.camera().sqr().from_screen(
+                (point, world.camera().sqr().screen_to_tile(
                     world.camera().hex().center_to_screen(point)))
             } else {
                 (Point::new(-1, -1), Point::new(-1, -1))
@@ -367,11 +367,11 @@ fn main() {
                  paused: {}",
                 ui.cursor_pos().x, ui.cursor_pos().y,
                 mouse_hex_pos.x, mouse_hex_pos.y,
-                world.hex_grid().to_linear_inv(mouse_hex_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
+                world.hex_grid().rect_to_linear_inv(mouse_hex_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 mouse_sqr_pos.x, mouse_sqr_pos.y,
-                sqr::TileGrid::default().to_linear_inv(mouse_sqr_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
+                sqr::TileGrid::default().rect_to_linear_inv(mouse_sqr_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 dude_pos.x, dude_pos.y,
-                world.hex_grid().to_linear_inv(dude_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
+                world.hex_grid().rect_to_linear_inv(dude_pos).map(|v| v.to_string()).unwrap_or_else(|| "N/A".into()),
                 dude_dir,
                 world.ambient_light,
                 state.time().is_paused(),

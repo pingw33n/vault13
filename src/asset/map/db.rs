@@ -56,7 +56,7 @@ impl MapDb {
                         // Handle bad input:
                         // ambient_sfx=water:40, water1:25, animal:15 animal:10, pebble:5, pebble1:5
                         //                                           ^
-                        let val = val.splitn(2, ' ').next().unwrap();
+                        let val = val.split(' ').next().unwrap();
 
                         let val = val.parse().unwrap();
                         (sfx.into(), val)
@@ -110,7 +110,7 @@ impl MapDb {
                     }
                     let elev = elev.unwrap();
                     let tile_num = tile_num.unwrap();
-                    let pos = EPoint::new(elev, TileGrid::default().from_linear_inv(tile_num));
+                    let pos = EPoint::new(elev, TileGrid::default().linear_to_rect_inv(tile_num));
 
                     random_start_points.push(pos);
                 } else {

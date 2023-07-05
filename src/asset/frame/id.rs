@@ -243,9 +243,9 @@ impl fmt::Debug for Critter {
     }
 }
 
-impl Into<FrameId> for Critter {
-    fn into(self) -> FrameId {
-        FrameId::Critter(self)
+impl From<Critter> for FrameId {
+    fn from(val: Critter) -> Self {
+        Self::Critter(val)
     }
 }
 
@@ -322,9 +322,9 @@ impl fmt::Debug for Head {
     }
 }
 
-impl Into<FrameId> for Head {
-    fn into(self) -> FrameId {
-        FrameId::Head(self)
+impl From<Head> for FrameId {
+    fn from(val: Head) -> Self {
+        Self::Head(val)
     }
 }
 
@@ -388,9 +388,9 @@ impl fmt::Debug for Generic {
     }
 }
 
-impl Into<FrameId> for Generic {
-    fn into(self) -> FrameId {
-        FrameId::Generic(self)
+impl From<Generic> for FrameId {
+    fn from(val: Generic) -> Self {
+        Self::Generic(val)
     }
 }
 

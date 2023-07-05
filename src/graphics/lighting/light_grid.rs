@@ -458,7 +458,7 @@ mod test {
                 (0x6499, 8, 0x10000),
                 (0x64a1, 8, 0x10000),
             ] {
-                let point = TileGrid::default().from_linear_inv(linp);
+                let point = TileGrid::default().linear_to_rect_inv(linp);
                 actual.update(EPoint { elevation: 0, point }, radius, amount,
                     |_| LightTestResult::default());
             }
@@ -492,7 +492,7 @@ mod test {
             let mut actual = LightGrid::new(200, 200, ELEVATION + 1);
             for (point, radius, intensity) in input {
                 actual.update(Point::from(point).elevated(ELEVATION),
-                    radius, intensity as i32, |lt| light_test_map[&lt]);
+                    radius, intensity, |lt| light_test_map[&lt]);
             }
 
             assert_eq!(&actual.grid()[ELEVATION as usize][..], &expected[0][..]);

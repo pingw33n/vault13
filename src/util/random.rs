@@ -2,7 +2,7 @@ use rand::{thread_rng, Rng};
 
 // roll_random()
 pub fn random(from_inclusive: i32, to_inclusive: i32) -> i32 {
-    thread_rng().gen_range(from_inclusive as i64, to_inclusive as i64 + 1) as i32
+    thread_rng().gen_range(from_inclusive..=to_inclusive)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, enum_primitive_derive::Primitive)]

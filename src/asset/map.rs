@@ -1,8 +1,7 @@
 pub mod db;
 
 use byteorder::{BigEndian, ReadBytesExt};
-use enumflags2::BitFlags;
-use enumflags2_derive::EnumFlags;
+use enumflags2::{bitflags, BitFlags};
 use log::*;
 use measure_time::*;
 use num_traits::FromPrimitive;
@@ -31,7 +30,8 @@ struct ScriptInfo {
     local_var_offset: usize,
 }
 
-#[derive(Clone, Copy, Debug, Enum, EnumFlags, Eq, PartialEq)]
+#[bitflags]
+#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
 #[repr(u32)]
 pub enum OutlineFlag {
     GlowingRed      = 0x1,
@@ -77,7 +77,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         self.reader.read_exact(&mut name[..]).unwrap();
 
         let entrance_pos_lin = self.reader.read_i32::<BigEndian>()?;
-        let entrance_pos = TileGrid::default().from_linear_inv(entrance_pos_lin as u32);
+        let entrance_pos = TileGrid::default().linear_to_rect_inv(entrance_pos_lin as u32);
         debug!("entrance_pos={} ({:?})", entrance_pos_lin, entrance_pos);
         let entrance_elevation = self.reader.read_u32::<BigEndian>()?;
         assert!(entrance_elevation <= ELEVATION_COUNT);
@@ -259,7 +259,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
         trace!("object ID {}", id);
         let pos_lin = self.reader.read_i32::<BigEndian>()?;
         let pos = u32::try_from(pos_lin).ok()
-            .map(|v| TileGrid::default().from_linear_inv(v));
+            .map(|v| TileGrid::default().linear_to_rect_inv(v));
         trace!("hex_pos={} {:?}", pos_lin, pos);
 
         let screen_shift = Point::new(
@@ -280,7 +280,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         let flags = self.reader.read_u32::<BigEndian>()?;
         let flags = BitFlags::from_bits(flags)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+            .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData,
                 format!("unknown object flags: {:x}", flags)))?;
 
         let elevation = self.reader.read_u32::<BigEndian>()?;
@@ -305,7 +305,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
         let updated_flags = self.reader.read_u32::<BigEndian>()?;
         let updated_flags = BitFlags::from_bits(updated_flags)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+            .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData,
                     format!("unknown updated flags: {:x}", updated_flags)))?;
         trace!("updated_flags: {:?}", updated_flags);
 
@@ -317,7 +317,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
 
             let damage_flags = self.reader.read_u32::<BigEndian>()?;
             let damage_flags = BitFlags::from_bits(damage_flags)
-                .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData,
                     format!("unknown damage flags: {:x}", damage_flags)))?;
 
             let ai_packet = self.reader.read_i32::<BigEndian>()?;
@@ -389,7 +389,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
                         SceneryKind::Door => {
                             let flags = self.reader.read_u32::<BigEndian>()?;
                             let flags = BitFlags::from_bits(flags)
-                                .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                                .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData,
                                     format!("unknown door flags: {:x}", flags)))?;
                             trace!("door flags: {:?}", flags);
                             SubObject::Scenery(object::Scenery::Door(object::Door { flags }))
@@ -438,7 +438,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
     //              obj->art_fid = art_id_(OBJ_TYPE_MISC, v7 + 16, (obj->art_fid & 0xFF0000) >> 16, 0);
     //          }*/
                         let pos = self.reader.read_u32::<BigEndian>()?;
-                        let pos = TileGrid::default().from_linear_inv(pos as u32);
+                        let pos = TileGrid::default().linear_to_rect_inv(pos);
                         let elevation = self.reader.read_u32::<BigEndian>()?;
                         let pos = pos.elevated(elevation);
                         let direction = Direction::from_u32(self.reader.read_u32::<BigEndian>()?)
@@ -513,7 +513,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
     fn read_outline(&mut self) -> io::Result<Option<Outline>> {
         let flags_u32 = self.reader.read_u32::<BigEndian>()?;
         let flags = &mut BitFlags::from_bits(flags_u32)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+            .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData,
                 format!("unknown object outline flags: {:x}", flags_u32)))?;
 
         fn take_bit(flags: &mut BitFlags<OutlineFlag>, flag: OutlineFlag) -> bool {
@@ -570,7 +570,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
     fn read_sqr_tiles(&mut self, flags: u32) -> io::Result<SqrTiles> {
         let mut sqr_tiles: Vec<Option<_>> = Vec::with_capacity(ELEVATION_COUNT as usize);
         for i in 0..ELEVATION_COUNT {
-            if flags & (1 << (i as u32 + 1)) != 0 {
+            if flags & (1 << (i + 1)) != 0 {
                 debug!("no {} elevation", i);
                 sqr_tiles.push(None);
                 continue;

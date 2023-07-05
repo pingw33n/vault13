@@ -362,7 +362,7 @@ impl Widget for MessagePanel {
             }
             Event::MouseMove { .. } => match self.mouse_control {
                 MouseControl::Scroll => self.update_cursor(&mut ctx),
-                MouseControl::Pick => self.update_highlight(ctx.cursor_pos, &ctx.base),
+                MouseControl::Pick => self.update_highlight(ctx.cursor_pos, ctx.base),
             }
             Event::MouseLeave => {
                 self.highlighted = None;
@@ -379,7 +379,7 @@ impl Widget for MessagePanel {
 
     fn sync(&mut self, ctx: Sync) {
         if self.needs_update_highlight {
-            self.update_highlight(ctx.cursor_pos, &ctx.base);
+            self.update_highlight(ctx.cursor_pos, ctx.base);
             self.needs_update_highlight = false;
         }
     }

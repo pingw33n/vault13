@@ -106,7 +106,7 @@ impl ProtoDb {
     }
 
     fn read_proto_file(&self, path: &str) -> io::Result<Proto> {
-        let rd = &mut self.fs.reader(&path)?;
+        let rd = &mut self.fs.reader(path)?;
 
         let pid = ProtoId::read(rd)?;
         let message_id = rd.read_i32::<BigEndian>()?;
@@ -116,11 +116,11 @@ impl ProtoDb {
         let light_intensity = rd.read_i32::<BigEndian>()?;
         let v = rd.read_u32::<BigEndian>()?;
         let flags = BitFlags::from_bits(v)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+            .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData,
                 format!("invalid proto flags: {:x}", v)))?;
         let v = rd.read_u32::<BigEndian>()?;
         let mut flags_ext = BitFlags::from_bits(v)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+            .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData,
                 format!("invalid proto flags ext: {:x}", v)))?;
 
         let kind = pid.kind();
@@ -211,7 +211,7 @@ impl ProtoDb {
     fn read_container(rd: &mut impl Read) -> io::Result<Container> {
         let capacity = rd.read_i32::<BigEndian>()?;
         let flags = BitFlags::from_bits(rd.read_u32::<BigEndian>()?)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "invalid container flags"))?;
+            .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData, "invalid container flags"))?;
         Ok(Container {
             capacity,
             flags,
@@ -411,7 +411,7 @@ impl ProtoDb {
 
         let v = rd.read_u32::<BigEndian>()?;
         let flags = BitFlags::from_bits(v)
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+            .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData,
                 format!("invalid critter proto flags: {:x}", v))).unwrap();
 
         let mut base_stats = EnumMap::new();
@@ -454,7 +454,7 @@ impl ProtoDb {
             SceneryKind::Door => {
                 let flags = rd.read_u32::<BigEndian>()?;
                 let flags = BitFlags::from_bits(flags)
-                    .ok_or_else(|| Error::new(ErrorKind::InvalidData,
+                    .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData,
                         format!("invalid door flags: {:x}", flags)))?;
                 let key_id = rd.read_i32::<BigEndian>()?;
                 SubScenery::Door(Door {

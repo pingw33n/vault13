@@ -294,7 +294,7 @@ impl World {
         }
 
         let mut scrolled = 0;
-        let mut pos = self.camera.hex().from_screen(self.camera.viewport.center());
+        let mut pos = self.camera.hex().screen_to_tile(self.camera.viewport.center());
         // Original doesn't use tile centers when measuring screen distance between dude and camera.
         let dude_pos_scr = hex::to_screen(
             self.objects.get(self.objects().dude()).pos().point) + hex::TILE_CENTER;

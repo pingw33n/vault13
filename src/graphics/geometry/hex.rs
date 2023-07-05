@@ -282,7 +282,7 @@ pub fn from_screen(p: Point) -> Point {
 
 /// Returns minimal rectangle in local coordinates that encloses the specified screen `rect`.
 pub fn from_screen_rect(rect: Rect) -> Rect {
-    super::from_screen_rect(rect, from_screen)
+    super::enclose(rect, from_screen)
 }
 
 // tile_coord()
@@ -322,11 +322,11 @@ impl View {
 }
 
 impl TileGridView for View {
-    fn from_screen(&self, p: Point) -> Point {
+    fn screen_to_tile(&self, p: Point) -> Point {
         from_screen(p - self.origin)
     }
 
-    fn to_screen(&self, p: Point) -> Point {
+    fn tile_to_screen(&self, p: Point) -> Point {
         to_screen(p) + self.origin
     }
 
@@ -462,14 +462,14 @@ impl TileGrid {
     /// Linear to rectangular coordinates.
     /// Note this is different from original since the `x` axis is not inverted,
     /// see `from_linear_inv()` for the inverted variant.
-    pub fn from_linear(&self, num: u32) -> Point {
+    pub fn linear_to_rect(&self, num: u32) -> Point {
         Point::new(num as i32 % self.width, num as i32 / self.width)
     }
 
     /// Rectangular to linear coordinates.
     /// Note this is different from original since the `x` axis is not inverted,
     /// see `to_linear_inv()` for the inverted variant.
-    pub fn to_linear(&self, p: Point) -> Option<u32> {
+    pub fn rect_to_linear(&self, p: Point) -> Option<u32> {
         if self.is_in_bounds(p) {
             Some((self.width * p.y + p.x) as u32)
         } else {
@@ -480,7 +480,7 @@ impl TileGrid {
     /// Rectangular to linear coordinates with `x` axis inverted.
     /// This method should be used when converting linears for use in the original assets
     /// (maps, scripts etc).
-    pub fn to_linear_inv(&self, p: Point) -> Option<u32> {
+    pub fn rect_to_linear_inv(&self, p: Point) -> Option<u32> {
         if self.is_in_bounds(p) {
             let x = self.width - 1 - p.x;
             Some((self.width * p.y + x) as u32)
@@ -492,7 +492,7 @@ impl TileGrid {
     /// Linear to rectangular coordinates with `x` axis inverted.
     /// This method should be used when converting linears for use in the original assets
     /// (maps, scripts etc).
-    pub fn from_linear_inv(&self, num: u32) -> Point {
+    pub fn linear_to_rect_inv(&self, num: u32) -> Point {
         let x = self.width - 1 - num as i32 % self.width;
         let y = num as i32 / self.width;
         Point::new(x, y)
@@ -563,9 +563,9 @@ mod test {
     #[test]
     fn view_from_screen() {
         let t = View::new(P(272, 182));
-        assert_eq!(t.from_screen(P(-320, -240)), P(-1, -37));
-        assert_eq!(t.from_screen(P(-320, 620)), P(-37, 17));
-        assert_eq!(t.from_screen(P(256, -242)), P(17, -28));
+        assert_eq!(t.screen_to_tile(P(-320, -240)), P(-1, -37));
+        assert_eq!(t.screen_to_tile(P(-320, 620)), P(-37, 17));
+        assert_eq!(t.screen_to_tile(P(256, -242)), P(17, -28));
     }
 
     #[test]
@@ -597,11 +597,11 @@ mod test {
 
         for &o in &[P(0, 0), P(100, 200)] {
             t.origin = o;
-            assert_eq!(t.from_screen(o + P(0, 0)), P(0, -1));
-            assert_eq!(t.from_screen(o + P(16, 0)), P(0, 0));
-            assert_eq!(t.from_screen(o + P(48, 0)), P(1, 0));
-            assert_eq!(t.from_screen(o + P(48, -1)), P(2, 0));
-            assert_eq!(t.from_screen(o + P(0, 4)), P(0, 0));
+            assert_eq!(t.screen_to_tile(o + P(0, 0)), P(0, -1));
+            assert_eq!(t.screen_to_tile(o + P(16, 0)), P(0, 0));
+            assert_eq!(t.screen_to_tile(o + P(48, 0)), P(1, 0));
+            assert_eq!(t.screen_to_tile(o + P(48, -1)), P(2, 0));
+            assert_eq!(t.screen_to_tile(o + P(0, 4)), P(0, 0));
         }
     }
 
@@ -609,13 +609,13 @@ mod test {
     fn view_to_screen1() {
         let t = TileGrid::default();
         let v = View::new(P(272, 182));
-        assert_eq!(v.to_screen(t.from_linear_inv(12702)), P(3616, 362));
+        assert_eq!(v.tile_to_screen(t.linear_to_rect_inv(12702)), P(3616, 362));
     }
 
     #[test]
     fn view_to_screen2() {
         let t = View::default();
-        assert_eq!(t.to_screen(P(0, 0)), P(0, 0));
+        assert_eq!(t.tile_to_screen(P(0, 0)), P(0, 0));
     }
 
     #[test]
@@ -660,24 +660,24 @@ mod test {
 
     #[test]
     fn is_in_front_of_() {
-        assert_eq!(is_in_front_of(P(111, 87), P(111, 79)), true);
-        assert_eq!(is_in_front_of(P(100, 100), P(100, 100)), true);
-        assert_eq!(is_in_front_of(P(101, 100), P(100, 100)), true);
-        assert_eq!(is_in_front_of(P(100, 101), P(100, 100)), true);
-        assert_eq!(is_in_front_of(P(100, 99), P(100, 100)), false);
+        assert!(is_in_front_of(P(111, 87), P(111, 79)));
+        assert!(is_in_front_of(P(100, 100), P(100, 100)));
+        assert!(is_in_front_of(P(101, 100), P(100, 100)));
+        assert!(is_in_front_of(P(100, 101), P(100, 100)));
+        assert!(!is_in_front_of(P(100, 99), P(100, 100)));
     }
 
     #[test]
     fn is_to_right_of_() {
-        assert_eq!(is_to_right_of(P(100, 100), P(100, 100)), true);
-        assert_eq!(is_to_right_of(P(99, 100), P(100, 100)), true);
-        assert_eq!(is_to_right_of(P(100, 99), P(100, 100)), true);
-        assert_eq!(is_to_right_of(P(100, 101), P(100, 100)), true);
-        assert_eq!(is_to_right_of(P(99, 99), P(100, 100)), true);
+        assert!(is_to_right_of(P(100, 100), P(100, 100)));
+        assert!(is_to_right_of(P(99, 100), P(100, 100)));
+        assert!(is_to_right_of(P(100, 99), P(100, 100)));
+        assert!(is_to_right_of(P(100, 101), P(100, 100)));
+        assert!(is_to_right_of(P(99, 99), P(100, 100)));
 
-        assert_eq!(is_to_right_of(P(101, 100), P(100, 100)), false);
-        assert_eq!(is_to_right_of(P(101, 99), P(100, 100)), false);
-        assert_eq!(is_to_right_of(P(101, 101), P(100, 100)), false);
+        assert!(!is_to_right_of(P(101, 100), P(100, 100)));
+        assert!(!is_to_right_of(P(101, 99), P(100, 100)));
+        assert!(!is_to_right_of(P(101, 101), P(100, 100)));
     }
 
     #[test]

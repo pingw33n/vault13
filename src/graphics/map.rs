@@ -21,13 +21,13 @@ fn render_square_tiles(canvas: &mut dyn Canvas, stg: &impl TileGridView, rect: R
         y_offset: i32,
         mut get_tex: impl FnMut(Point) -> Option<TextureHandle>,
         get_light: impl Fn(Point) -> u32) {
-    let sqr_rect = stg.from_screen_rect(rect);
+    let sqr_rect = stg.enclose(rect);
 
     let mut vertex_lights = [0; VERTEX_COUNT];
     for y in sqr_rect.top..sqr_rect.bottom {
         for x in (sqr_rect.left..sqr_rect.right).rev() {
             if let Some(tex) = get_tex(Point::new(x, y)) {
-                let scr_pt = stg.to_screen(Point::new(x, y)) - Point::new(0, y_offset);
+                let scr_pt = stg.tile_to_screen(Point::new(x, y)) - Point::new(0, y_offset);
 
                 let hex_pos = Point::new(x * 2, y * 2);
                 for i in 0..VERTEX_COUNT {

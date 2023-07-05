@@ -105,13 +105,13 @@ mod test {
         let pid = ProtoId::new(EntityKind::Item, 0).unwrap();
         assert_eq!(pid.id(), 0);
         assert_eq!(pid.pack(), 0x00_000000);
-        assert_eq!(pid.is_dude(), false);
+        assert!(!pid.is_dude());
         assert_eq!(pid, ProtoId::from_packed(pid.pack()).unwrap());
 
         let pid = ProtoId::new(EntityKind::Skilldex, 0xffffff).unwrap();
         assert_eq!(pid.id(), 0xffffff);
         assert_eq!(pid.pack(), 0x0a_ffffff);
-        assert_eq!(pid.is_dude(), false);
+        assert!(!pid.is_dude());
         assert_eq!(pid, ProtoId::from_packed(pid.pack()).unwrap());
 
         assert!(ProtoId::new(EntityKind::Critter, 0).unwrap().is_dude());

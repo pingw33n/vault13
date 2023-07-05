@@ -528,7 +528,7 @@ impl Internal {
         let weight_msg = if weight > 0 {
             let msg_id = if weight == 1 { 541 } else { 540 };
             let msg = &world.proto_db().messages().get(msg_id).unwrap().text;
-            sprintf(&msg, &[&weight.to_bstring()])
+            sprintf(msg, &[&weight.to_bstring()])
         } else {
             "".into()
         };
@@ -770,16 +770,14 @@ impl Internal {
                     self.toggle_mouse_mode(rpg, ui);
                 }
             }
-            UiCommandData::MoveWindow(c) => {
-                if let move_window::Command::Hide { ok } = c {
-                    let win = self.move_window.take().unwrap();
-                    if ok {
-                        self.world.borrow_mut().objects_mut()
-                            .reload_weapon_from_inventory(self.owner, win.weapon, win.ammo);
-                        self.sync_to_ui(rpg, ui);
-                    }
-                    win.win.hide(ui);
+            UiCommandData::MoveWindow(move_window::Command::Hide { ok }) => {
+                let win = self.move_window.take().unwrap();
+                if ok {
+                    self.world.borrow_mut().objects_mut()
+                        .reload_weapon_from_inventory(self.owner, win.weapon, win.ammo);
+                    self.sync_to_ui(rpg, ui);
                 }
+                win.win.hide(ui);
             }
             _ => {}
         }

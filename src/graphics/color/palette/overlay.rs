@@ -45,7 +45,7 @@ impl PaletteOverlay {
 
     pub fn get(&self, color_idx: u8) -> Option<Rgb18> {
         match self.ranges.binary_search_by(|r| {
-            if color_idx < r.start as u8 {
+            if color_idx < r.start {
                 cmp::Ordering::Greater
             } else if color_idx < r.end() {
                 cmp::Ordering::Equal

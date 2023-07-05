@@ -204,7 +204,7 @@ impl Widget for InventoryList {
 
         let mut item_rect = rect.with_height(self.item_height);
 
-        for item in self.items.iter().skip(self.scroll_idx as usize) {
+        for item in self.items.iter().skip(self.scroll_idx) {
             if !rect.contains_rect(item_rect) {
                 break;
             }

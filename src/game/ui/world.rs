@@ -111,7 +111,7 @@ impl WorldView {
 
     fn update_hex_cursor_pos(&mut self, screen_pos: Point) -> (EPoint, bool) {
         let mut world = self.world.borrow_mut();
-        let hex_pos = world.camera().hex().from_screen(screen_pos);
+        let hex_pos = world.camera().hex().screen_to_tile(screen_pos);
         let pos = EPoint::new(world.elevation(), hex_pos);
         let old_pos = world.objects().get(self.hex_cursor).pos();
         let changed = pos != old_pos;

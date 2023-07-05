@@ -7,30 +7,20 @@ use crate::graphics::Point;
 use crate::graphics::color::Rgb15;
 use crate::graphics::render::{Canvas, Outline, TextureHandle};
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Enum, Eq, PartialEq)]
 pub enum HorzAlign {
+    #[default]
     Left,
     Center,
     Right,
 }
 
-impl Default for HorzAlign {
-    fn default() -> Self {
-        HorzAlign::Left
-    }
-}
-
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Enum, Eq, PartialEq)]
 pub enum VertAlign {
+    #[default]
     Top,
     Middle,
     Bottom,
-}
-
-impl Default for VertAlign {
-    fn default() -> Self {
-        VertAlign::Top
-    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -222,9 +212,7 @@ impl Iterator for LineRanges0<'_, '_> {
                     overflown = true;
                     match boundary {
                         OverflowBoundary::Char => {
-                            if end > 0 {
-                                end -= 1;
-                            }
+                            end = end.saturating_sub(1);
                         }
                         OverflowBoundary::Word => {
                             if let Some(i) = self.text[start..end].iter()

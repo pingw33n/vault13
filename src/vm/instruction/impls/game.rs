@@ -59,13 +59,13 @@ fn resolve_script_msg(msg: Value, program_id: ProgramId, ctx: &mut Context) -> R
 }
 
 fn to_tile_num(ctx: &Context, p: Point) -> Option<i32> {
-    ctx.ext.world.hex_grid().to_linear_inv(p).map(|v| v as i32)
+    ctx.ext.world.hex_grid().rect_to_linear_inv(p).map(|v| v as i32)
 }
 
 fn from_tile_num(ctx: &Context, tile_num: i32) -> Option<Point> {
     u32::try_from(tile_num)
         .ok()
-        .map(|v| ctx.ext.world.hex_grid().from_linear_inv(v))
+        .map(|v| ctx.ext.world.hex_grid().linear_to_rect_inv(v))
 }
 
 #[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
@@ -223,7 +223,7 @@ pub fn create_object_sid(ctx: Context) -> Result<()> {
         prg_id.map(|prg_id| ScriptPid::new(kind, prg_id))
     };
 
-    let pos = ctx.ext.world.hex_grid().from_linear_inv(tile_num);
+    let pos = ctx.ext.world.hex_grid().linear_to_rect_inv(tile_num);
     let pos = pos.elevated(elevation);
     let mut obj = ctx.ext.world.objects_mut()
         .create(None, Some(proto), Some(pos), Some(ctx.ext.rpg));
@@ -354,8 +354,8 @@ pub fn end_dialogue(ctx: Context) -> Result<()> {
 #[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
 #[repr(u32)]
 enum FloatingTextStyle {
-    Sequential  = 0xffff_fffe,
-    Warning     = 0xffff_ffff,
+    Sequential  = 0xffff_fffe_u32,
+    Warning     = 0xffff_ffff_u32,
     Normal      = 0,
     Black       = 1,
     Red         = 2,
@@ -413,7 +413,7 @@ pub fn float_msg(ctx: Context) -> Result<()> {
             DarkGray => Rgb15::from_packed(0x2108),
             LightGray => Rgb15::from_packed(0x3def),
         };
-        ctx.ext.world.show_floating_text(obj, &*msg, floating_text::Options {
+        ctx.ext.world.show_floating_text(obj, &msg, floating_text::Options {
             font_key,
             color,
             outline_color: Some(BLACK),
@@ -1182,7 +1182,7 @@ pub fn tile_contains_pid_obj(ctx: Context) -> Result<()> {
     let elevation = ctx.prg.data_stack.pop()?.into_int()? as u32;
     let tile_num = ctx.prg.data_stack.pop()?.into_int()?;
 
-    let pos = ctx.ext.world.hex_grid().from_linear_inv(tile_num as u32)
+    let pos = ctx.ext.world.hex_grid().linear_to_rect_inv(tile_num as u32)
         .elevated(elevation);
 
     let r = ctx.ext.world.objects().at(pos).iter()
