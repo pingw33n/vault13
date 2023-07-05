@@ -6,12 +6,12 @@ pub mod palette;
 pub mod proto;
 pub mod script;
 
-use enumflags2_derive::EnumFlags;
 use enum_map_derive::Enum;
 use enum_primitive_derive::Primitive;
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
 use std::io::prelude::*;
+use enumflags2::bitflags;
 
 use crate::graphics::EPoint;
 use crate::graphics::geometry::hex::Direction;
@@ -547,7 +547,8 @@ impl WeaponKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, EnumFlags)]
+#[bitflags]
+#[derive(Clone, Copy, Debug)]
 #[repr(u32)]
 pub enum Flag {
     TurnedOff       = 0x1,
@@ -584,7 +585,8 @@ pub enum Flag {
     ShootThru       = 0x80000000,
 }
 
-#[derive(Clone, Copy, Debug, EnumFlags)]
+#[bitflags]
+#[derive(Clone, Copy, Debug)]
 #[repr(u32)]
 pub enum FlagExt {
     /// Tells an object (probably always a scenery) is lying on the ground.
@@ -629,7 +631,8 @@ impl FlagExt {
     pub const ITEM_HIDDEN: Self = FlagExt::WallEastOrWest;
 }
 
-#[derive(Clone, Copy, Debug, EnumFlags)]
+#[bitflags]
+#[derive(Clone, Copy, Debug)]
 #[repr(u32)]
 pub enum DoorFlag {
     Open = 1,
@@ -675,10 +678,7 @@ pub enum AttackCategory {
 impl AttackCategory {
     #[must_use]
     pub fn is_melee(self) -> bool {
-        match self {
-            Self::MeleeUnarmed | Self::MeleeWeapon => true,
-            _ => false
-        }
+        matches!(self, Self::MeleeUnarmed | Self::MeleeWeapon)
     }
 }
 
@@ -704,7 +704,7 @@ pub fn read_lst(rd: &mut impl BufRead) -> io::Result<Vec<LstEntry>> {
     let mut r = Vec::new();
     for l in rd.lines() {
         let l = l?;
-        let l = l.splitn(2, |c|
+        let l = l.split(|c|
                 c == ' '
                 || c == ';'
                 || c == '\t'
@@ -720,7 +720,7 @@ pub fn read_lst(rd: &mut impl BufRead) -> io::Result<Vec<LstEntry>> {
 pub fn read_gam(rd: &mut impl BufRead, tag: &str) -> io::Result<Vec<i32>> {
     let mut r = Vec::new();
     let mut lines = rd.lines();
-    while let Some(l) = lines.next() {
+    for l in lines.by_ref() {
         if l?.starts_with(tag) {
             break;
         }
@@ -732,7 +732,7 @@ pub fn read_gam(rd: &mut impl BufRead, tag: &str) -> io::Result<Vec<i32>> {
             continue;
         }
 
-        let l = l.splitn(2, |c| c == ';').next().unwrap_or(&l);
+        let l = l.split(|c| c == ';').next().unwrap_or(l);
         let i = l.find(":=")
             .ok_or_else(|| Error::new(ErrorKind::InvalidData, "couldn't parse .gam var line"))?;
         let v = l[i + 2..].trim();

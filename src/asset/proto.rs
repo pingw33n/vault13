@@ -2,7 +2,7 @@ mod db;
 mod id;
 
 use bstring::{bstr, BString};
-use enumflags2::BitFlags;
+use enumflags2::{bitflags, BitFlags};
 use enum_map::EnumMap;
 use num_traits::cast::FromPrimitive;
 
@@ -126,7 +126,7 @@ impl SubProto {
     }
 
     pub fn is_misc(&self) -> bool {
-        if let SubProto::Misc = self { true } else { false }
+        matches!(self, SubProto::Misc)
     }
 
     pub fn as_armor(&self) -> Option<&Armor> {
@@ -207,10 +207,8 @@ impl Armor {
             Some(self.armor_class)
         } else if let Some(d) = stat.resist_damage_kind() {
             Some(self.damage_resistance[d])
-        } else if let Some(d) = stat.thresh_damage_kind() {
-            Some(self.damage_threshold[d])
         } else {
-            None
+            stat.thresh_damage_kind().map(|d| self.damage_threshold[d])
         }
     }
 }
@@ -221,7 +219,8 @@ pub struct Container {
     pub flags: BitFlags<ContainerFlag>,
 }
 
-#[derive(Clone, Copy, Debug, EnumFlags, Eq, PartialEq)]
+#[bitflags]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum ContainerFlag {
     CannotPickUp = 1,
@@ -322,7 +321,8 @@ pub struct Critter {
     pub team_id: i32,
 }
 
-#[derive(Clone, Copy, Debug, EnumFlags, Eq, PartialEq)]
+#[bitflags]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum CritterFlag {
     NoBarter        = 0x00000002, // Can barter with.
@@ -453,7 +453,7 @@ impl MapExit {
             TargetMap::CurrentMap
         };
         let elevation = location & 0x3ffffff;
-        let pos = TileGrid::default().from_linear_inv((location & 0xE0000000) >> 29)
+        let pos = TileGrid::default().linear_to_rect_inv((location & 0xE0000000) >> 29)
             .elevated(elevation);
         let direction = Direction::from_u32((location & 0x1C000000) >> 26)?;
         Some(MapExit {

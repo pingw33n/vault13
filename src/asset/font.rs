@@ -53,7 +53,7 @@ fn read_aaf(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Result<
 
 fn read_fon(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Result<Font> {
     let glyph_count = rd.read_i32::<LittleEndian>()?;
-    if glyph_count < 0 || glyph_count > 256 {
+    if !(0..=256).contains(&glyph_count) {
         return Err(Error::new(ErrorKind::InvalidData, "invalid glyph_count in FON file"));
     }
     let glyph_count = glyph_count as usize;
@@ -79,7 +79,7 @@ fn read_fon(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Result<
 
     let mut glyphs = Vec::with_capacity(glyph_count);
     for (width, offset) in glyph_info {
-        let data = &data[offset as usize..];
+        let data = &data[offset..];
         let row_len = row_bytes(width);
         let mut glyph_pixels = Vec::with_capacity((width * height) as usize);
         for y in 0..height as usize {

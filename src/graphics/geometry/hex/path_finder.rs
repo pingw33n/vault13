@@ -196,11 +196,11 @@ impl PathFinder {
     }
 
     fn close(&mut self, pos: Point) {
-        self.closed.set(self.tile_grid.to_linear(pos).unwrap() as usize, true);
+        self.closed.set(self.tile_grid.rect_to_linear(pos).unwrap() as usize, true);
     }
 
     fn is_closed(&self, pos: Point) -> bool {
-        self.closed.get(self.tile_grid.to_linear(pos).unwrap() as usize).unwrap()
+        self.closed.get(self.tile_grid.rect_to_linear(pos).unwrap() as usize).unwrap()
     }
 
     fn estimate(&self, from: Point, to: Point) -> u32 {

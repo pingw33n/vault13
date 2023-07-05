@@ -187,14 +187,8 @@ impl Value {
     }
 
     pub fn div(self, other: Value, strings: &StringMap) -> Result<Value> {
-        let lkind_bad = match self.kind() {
-            ValueKind::Int | ValueKind::Float => false,
-            _ => true
-        };
-        let rkind_bad = match other.kind() {
-            ValueKind::Int | ValueKind::Float => false,
-            _ => true
-        };
+        let lkind_bad = !matches!(self.kind(), ValueKind::Int | ValueKind::Float);
+        let rkind_bad = !matches!(other.kind(), ValueKind::Int | ValueKind::Float);
         if lkind_bad || rkind_bad {
             return Err(Error::BadValue(BadValue::Type));
         }
@@ -211,14 +205,8 @@ impl Value {
     }
 
     pub fn mul(self, other: Value, strings: &StringMap) -> Result<Value> {
-        let lkind_bad = match self.kind() {
-            ValueKind::Int | ValueKind::Float => false,
-            _ => true
-        };
-        let rkind_bad = match other.kind() {
-            ValueKind::Int | ValueKind::Float => false,
-            _ => true
-        };
+        let lkind_bad = !matches!(self.kind(), ValueKind::Int | ValueKind::Float);
+        let rkind_bad = !matches!(other.kind(), ValueKind::Int | ValueKind::Float);
         if lkind_bad || rkind_bad {
             return Err(Error::BadValue(BadValue::Type));
         }
@@ -237,14 +225,8 @@ impl Value {
     }
 
     pub fn sub(self, other: Value, strings: &StringMap) -> Result<Value> {
-        let lkind_bad = match self.kind() {
-            ValueKind::Int | ValueKind::Float => false,
-            _ => true
-        };
-        let rkind_bad = match other.kind() {
-            ValueKind::Int | ValueKind::Float => false,
-            _ => true
-        };
+        let lkind_bad = !matches!(self.kind(), ValueKind::Int | ValueKind::Float);
+        let rkind_bad = !matches!(other.kind(), ValueKind::Int | ValueKind::Float);
         if lkind_bad || rkind_bad {
             return Err(Error::BadValue(BadValue::Type));
         }

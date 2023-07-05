@@ -105,7 +105,7 @@ pub fn call(ctx: Context) -> Result<()> {
     let proc_id = ctx.prg.data_stack.pop()?.into_int()? as ProcedureId;
     let body_pos = {
         let proc = ctx.prg.program.proc(proc_id)
-            .ok_or_else(|| Error::BadProcedureId(proc_id))?;
+            .ok_or(Error::BadProcedureId(proc_id))?;
         if proc.flags.contains(ProcedureFlag::Import) {
             return Err(Error::Misc("calling imported procedure is not supported".into()));
         }
@@ -194,7 +194,7 @@ pub fn exit_prog(ctx: Context) -> Result<()> {
 
 pub fn export_var(ctx: Context) -> Result<()> {
     let name = ctx.prg.data_stack.pop()?;
-    let name = name.into_string(&ctx.prg.names())?;
+    let name = name.into_string(ctx.prg.names())?;
     if !ctx.ext.external_vars.contains_key(&name) {
         log_a1!(ctx.prg, &name);
         ctx.ext.external_vars.insert(name, None);
@@ -205,7 +205,7 @@ pub fn export_var(ctx: Context) -> Result<()> {
 }
 
 pub fn fetch_external(ctx: Context) -> Result<()> {
-    let name = ctx.prg.data_stack.pop()?.into_string(&ctx.prg.names())?;
+    let name = ctx.prg.data_stack.pop()?.into_string(ctx.prg.names())?;
 
     let r = ctx.ext.external_vars.get(&name).cloned()
         .ok_or_else(|| Error::BadExternalVar(name.clone()))?
@@ -404,7 +404,7 @@ pub fn store_global(ctx: Context) -> Result<()> {
 pub fn store_external(ctx: Context) -> Result<()> {
     let name = ctx.prg.data_stack.pop()?;
     let value = ctx.prg.data_stack.pop()?;
-    let name = name.into_string(&ctx.prg.names())?;
+    let name = name.into_string(ctx.prg.names())?;
     let v = ctx.ext.external_vars.get_mut(&name)
         .ok_or_else(|| Error::BadExternalVar(name.clone()))?;
     *v = Some(value);

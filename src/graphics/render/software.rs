@@ -175,7 +175,7 @@ impl CanvasImpl {
         Self::do_draw(&mut self.back_buf, pos.x, pos.y, &tex, self.clip_rect,
             |dst, _, _, _, _, src| {
                 let color = Self::make_translucent(src, *dst, color, pal,
-                    |rgb15| grayscale_func(rgb15));
+                    &grayscale_func);
                 *dst = pal.darken(color, light);
             }
         );

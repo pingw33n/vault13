@@ -57,9 +57,9 @@ mod test {
                 ] {
             let p = Point::new(x, y);
             c.look_at(p);
-            assert_eq!(c.hex().to_screen(p), expected_hex);
+            assert_eq!(c.hex().tile_to_screen(p), expected_hex);
             let expected_sqr =  expected_sqr[y as usize % 2][x as usize % 2];
-            assert_eq!(c.sqr().to_screen(p / 2), expected_sqr);
+            assert_eq!(c.sqr().tile_to_screen(p / 2), expected_sqr);
         }
     }
 }

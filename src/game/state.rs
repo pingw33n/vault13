@@ -374,7 +374,7 @@ impl GameState {
 
     fn handle_seq_events(&mut self, ctx: &mut state::Update) {
         use sequence::Event::*;
-        let mut events = std::mem::replace(&mut self.seq_events, Vec::new());
+        let mut events = std::mem::take(&mut self.seq_events);
         for event in events.drain(..) {
             match event {
                 ObjectMoved { obj, new_pos, .. } => {
@@ -407,7 +407,7 @@ impl GameState {
                 }
             }
         }
-        std::mem::replace(&mut self.seq_events, events);
+        self.seq_events = events;
     }
 
     fn actions(&self, objh: object::Handle) -> Vec<(Action, UiCommandData)> {
@@ -665,7 +665,7 @@ impl GameState {
         } else {
             assert_eq!(talker, self.world.borrow().objects().dude());
             let msg = &self.misc_msgs.get(2000).unwrap().text;
-            self.push_message(&msg, ui);
+            self.push_message(msg, ui);
         }
     }
 
@@ -829,7 +829,7 @@ impl GameState {
         let need_open = if dooro.frame_idx > 0 { // Indicates the door is open
             if world.objects().has_blocker_at(dooro.pos(), None) {
                 let msg = &self.proto_db.messages().get(MSG_DOORWAY_SEEMS_TO_BE_BLOCKED).unwrap().text;
-                self.push_message(&msg, ui);
+                self.push_message(msg, ui);
                 return
             }
             false
@@ -1200,7 +1200,7 @@ impl AppState for GameState {
             }
             SdlEvent::KeyDown { keycode: Some(Keycode::R), .. } => {
                 let mut wv = ui.widget_mut::<WorldView>(self.world_view);
-                wv.roof_visible = wv.roof_visible;
+                wv.roof_visible = !wv.roof_visible;
             }
             SdlEvent::KeyDown { keycode: Some(Keycode::P), .. } => {
                 self.user_paused = !self.user_paused;

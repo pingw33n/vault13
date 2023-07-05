@@ -1,5 +1,6 @@
 use super::*;
 
+#[allow(clippy::unusual_byte_groupings)]
 impl FrameId {
     pub const BLANK: FrameId = FrameId::Generic(Generic(0x6000_000));
     pub const MOUSE_HEX: FrameId = FrameId::Generic(Generic(0x6000_001));

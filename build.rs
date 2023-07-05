@@ -19,7 +19,7 @@ impl LastGitCommit {
 
 fn last_git_commit() -> LastGitCommit {
     let output = Command::new("git")
-        .args(&["log", "-1", "--format=%H %cd", "--date=format-local:%Y-%m-%dT%H:%M:%SZ"])
+        .args(["log", "-1", "--format=%H %cd", "--date=format-local:%Y-%m-%dT%H:%M:%SZ"])
         .env("TZ", "UTC")
         .output().unwrap();
     let parts: Vec<_> = std::str::from_utf8(&output.stdout).unwrap().trim()
@@ -45,18 +45,15 @@ enum GitVersionStatus {
 // Dev:
 // 1.2.3-1-g70e989d
 // 0c6cf14
-// snapshot-2020-05-27-29-g5adcc79
 //
 // Dirty:
 // 1.2.3-dirty
 // 1.2.3-broken
 // 0c6cf14-dirty
 // 0c6cf14-broken
-// snapshot-2020-05-27-29-g5adcc79-dirty
-// snapshot-2020-05-27-29-g5adcc79-broken
 fn git_version_status() -> GitVersionStatus {
     let o = Command::new("git")
-        .args(&["describe", "--always", "--dirty", "--broken"])
+        .args(["describe", "--always", "--dirty", "--broken", "--exclude", "snapshot-*"])
         .output()
         .unwrap();
     let o = std::str::from_utf8(&o.stdout).unwrap().trim();

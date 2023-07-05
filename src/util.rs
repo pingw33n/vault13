@@ -8,6 +8,7 @@ use enum_map::Enum;
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
+use slotmap::KeyData;
 
 #[derive(Clone, Copy, Debug)]
 pub struct RangeInclusive<T> {
@@ -124,7 +125,7 @@ impl<T: Enum<()>> Iterator for EnumIter<T> {
     }
 }
 
-#[derive(Clone, Copy, Default, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[repr(transparent)]
 pub struct SmKey(slotmap::KeyData);
 
@@ -140,7 +141,11 @@ impl From<SmKey> for slotmap::KeyData {
     }
 }
 
-impl slotmap::Key for SmKey { }
+unsafe impl slotmap::Key for SmKey {
+    fn data(&self) -> KeyData {
+        self.0
+    }
+}
 
 impl fmt::Debug for SmKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

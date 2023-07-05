@@ -31,11 +31,7 @@ pub enum Error {
 
 impl Error {
     pub fn is_halted(&self) -> bool {
-        if let Error::Halted = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, Error::Halted)
     }
 }
 

@@ -173,13 +173,13 @@ impl FrameDb {
     }
 
     fn read_by_name(&self, kind: EntityKind, name: &str) -> io::Result<Box<dyn BufRead + Send>> {
-        let path = Self::full_path(kind, &name, self.language.as_ref());
+        let path = Self::full_path(kind, name, self.language.as_ref());
         let path = if self.fs.exists(&path) ||
                 // Let the fs.reader() fail with NotFound.
                 self.language.is_none() {
             path
         } else {
-            Self::full_path(kind, &name, None)
+            Self::full_path(kind, name, None)
         };
         self.fs.reader(&path)
     }

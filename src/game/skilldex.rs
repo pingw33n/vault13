@@ -33,18 +33,18 @@ pub enum Skill {
     Repair,
 }
 
-impl Into<crate::asset::Skill> for Skill {
-    fn into(self) -> crate::asset::Skill {
+impl From<Skill> for crate::asset::Skill {
+    fn from(val: Skill) -> Self {
         use crate::asset::Skill::*;
-        match self {
-            Self::Sneak => Sneak,
-            Self::Lockpick => Lockpick,
-            Self::Steal => Steal,
-            Self::Traps => Traps,
-            Self::FirstAid => FirstAid,
-            Self::Doctor => Doctor,
-            Self::Science => Science,
-            Self::Repair => Repair,
+        match val {
+            Skill::Sneak => Sneak,
+            Skill::Lockpick => Lockpick,
+            Skill::Steal => Steal,
+            Skill::Traps => Traps,
+            Skill::FirstAid => FirstAid,
+            Skill::Doctor => Doctor,
+            Skill::Science => Science,
+            Skill::Repair => Repair,
         }
     }
 }

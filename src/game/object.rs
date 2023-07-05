@@ -1,12 +1,10 @@
-use enumflags2::BitFlags;
-use enumflags2_derive::EnumFlags;
+use enumflags2::{bitflags, BitFlags};
 use enum_primitive_derive::Primitive;
 use if_chain::if_chain;
 use log::*;
 use slotmap::{SecondaryMap, SlotMap};
 use std::cell::{Ref, RefCell, RefMut};
 use std::cmp;
-use std::mem;
 use std::rc::Rc;
 
 use crate::asset::*;
@@ -1393,10 +1391,7 @@ impl Objects {
                 if !o.flags.contains(Flag::TurnedOff) &&
                     (!o.flags.contains(Flag::NoBlock) || non_shoot_thru) &&
                     h != obj &&
-                    match o.kind() {
-                        EntityKind::Scenery | EntityKind::Wall | EntityKind::Critter => true,
-                        _ => false,
-                    }
+                    matches!(o.kind(), EntityKind::Scenery | EntityKind::Wall | EntityKind::Critter)
                 {
                     return Some(h);
                 }
@@ -1634,7 +1629,7 @@ impl Objects {
                     };
 
                     if let Some(egg) = egg {
-                        if self.is_egg_hit(p.point, &*obj, egg, tile_grid) {
+                        if self.is_egg_hit(p.point, &obj, egg, tile_grid) {
                             hit.with_egg = true;
                         }
                     }
@@ -1779,7 +1774,7 @@ impl Objects {
     }
 
     fn get_render_hex_rect(screen_rect: Rect, tile_grid: &impl TileGridView) -> Rect {
-        tile_grid.from_screen_rect(Rect {
+        tile_grid.enclose(Rect {
             left: -320,
             top: -190,
             right: screen_rect.width() + 320,
@@ -1886,7 +1881,7 @@ impl Objects {
     }
 
     fn remove_from_tile_grid(&mut self, h: Handle) -> Option<EPoint> {
-        let old_pos = mem::replace(&mut self.get_mut(h).pos, None);
+        let old_pos = self.get_mut(h).pos.take();
         let list = if let Some(old_pos) = old_pos {
             self.at_mut(old_pos)
         } else {
@@ -2001,7 +1996,8 @@ pub struct CritterCombat {
     pub who_hit_me: i32,
 }
 
-#[derive(Clone, Copy, Debug, EnumFlags, Primitive)]
+#[bitflags]
+#[derive(Clone, Copy, Debug, Primitive)]
 #[repr(u32)]
 pub enum DamageFlag {
   KnockedOut = 0x1,
@@ -2043,7 +2039,8 @@ pub struct Door {
     pub flags: BitFlags<DoorFlag>,
 }
 
-#[derive(Clone, Copy, Debug, EnumFlags)]
+#[bitflags]
+#[derive(Clone, Copy, Debug)]
 #[repr(u32)]
 pub enum UpdatedFlag {
     Locked = 0x2_00_00_00,

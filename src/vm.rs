@@ -92,8 +92,7 @@ pub mod value;
 
 use bstring::{bstr, BString};
 use byteorder::{BigEndian, ByteOrder, ReadBytesExt};
-use enumflags2::BitFlags;
-use enumflags2_derive::EnumFlags;
+use enumflags2::{bitflags, BitFlags};
 use log::*;
 use matches::matches;
 use slotmap::{SecondaryMap, SlotMap};
@@ -269,7 +268,8 @@ impl StringMap {
 
 pub type ProcedureId = u32;
 
-#[derive(Clone, Copy, Debug, EnumFlags, Eq, PartialEq)]
+#[bitflags]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u32)]
 pub enum ProcedureFlag {
     Timed           = 0x01,
@@ -416,7 +416,7 @@ impl Program {
                         "invalid procedure name reference"))?
                     .clone();
                 let flags = BitFlags::from_bits(rd.read_u32::<BigEndian>()?)
-                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
+                    .ok().ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData,
                         "invalid procedure flags"))?;
                 let delay = Duration::from_millis(rd.read_u32::<BigEndian>()? as u64);
                 let condition_pos = rd.read_u32::<BigEndian>()? as usize;
@@ -531,7 +531,7 @@ impl ProgramState {
 
     pub fn execute_proc(&mut self, id: ProcedureId, ctx: &mut Context) -> Result<InvocationResult> {
         let proc_pos = self.program.proc(id)
-            .ok_or_else(|| Error::BadProcedureId(id))?
+            .ok_or(Error::BadProcedureId(id))?
             .body_pos;
 
         // setupCallWithReturnVal()
@@ -646,12 +646,12 @@ impl ProgramState {
 
     fn base_val(&self, id: usize) -> Result<&Value> {
         let base = self.base()?;
-        self.data_stack.get(base + id as usize)
+        self.data_stack.get(base + id)
     }
 
     fn base_val_mut(&mut self, id: usize) -> Result<&mut Value> {
         let base = self.base()?;
-        self.data_stack.get_mut(base + id as usize)
+        self.data_stack.get_mut(base + id)
     }
 
     fn global_base(&self) -> Result<usize> {
@@ -661,12 +661,12 @@ impl ProgramState {
 
     fn global(&self, id: usize) -> Result<&Value> {
         let base = self.global_base()?;
-        self.data_stack.get(base + id as usize)
+        self.data_stack.get(base + id)
     }
 
     fn global_mut(&mut self, id: usize) -> Result<&mut Value> {
         let base = self.global_base()?;
-        self.data_stack.get_mut(base + id as usize)
+        self.data_stack.get_mut(base + id)
     }
 }
 

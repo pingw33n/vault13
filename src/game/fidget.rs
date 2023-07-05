@@ -35,7 +35,7 @@ impl Fidget {
 
         let elevation = world.elevation();
 
-        let hex_rect = world.camera().hex().from_screen_rect(Rect {
+        let hex_rect = world.camera().hex().enclose(Rect {
             left: world.camera().viewport.left - 320,
             top: world.camera().viewport.top - 190,
             right: world.camera().viewport.width() + 320,

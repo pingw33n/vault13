@@ -23,7 +23,7 @@ macro_rules! new_handle_type {
 
         $(#[$outer])*
         #[derive(Copy, Clone, Default,
-                 Eq, PartialEq, Ord, PartialOrd,
+                 Eq, Hash, PartialEq, Ord, PartialOrd,
                  Debug)]
         #[repr(transparent)]
         $vis struct $name($crate::util::SmKey);
@@ -40,7 +40,11 @@ macro_rules! new_handle_type {
             }
         }
 
-        impl ::slotmap::Key for $name {}
+        unsafe impl ::slotmap::Key for $name {
+            fn data(&self) -> ::slotmap::KeyData {
+                self.0.data()
+            }
+        }
 
         )*
     };
