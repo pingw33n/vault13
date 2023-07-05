@@ -13,31 +13,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-16.04, macos-10.15, windows-2019]
+        os: [ubuntu-latest, macos-latest, windows-2019]
         arch: [x86, x86_64]
         exclude:
-          - os: macos-10.15
+          - os: macos-latest
             arch: x86
         include:
-          - os: ubuntu-16.04
+          - os: ubuntu-latest
             os_kind: linux
 
-          - os: macos-10.15
+          - os: macos-latest
             os_kind: macos
 
           - os: windows-2019
             os_kind: windows
             vcvars_cmd: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
 
-          - os: ubuntu-16.04
+          - os: ubuntu-latest
             arch: x86
             target: i686-unknown-linux-gnu
 
-          - os: ubuntu-16.04
+          - os: ubuntu-latest
             arch: x86_64
             target: x86_64-unknown-linux-gnu
 
-          - os: macos-10.15
+          - os: macos-latest
             arch: x86_64
             target: x86_64-apple-darwin
 
@@ -151,7 +151,7 @@ jobs:
 
   release:
     needs: [build]
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-latest
     steps:
     - name: Make artifact base name
       id: artifact_base_name
