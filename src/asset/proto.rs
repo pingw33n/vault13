@@ -125,10 +125,6 @@ impl SubProto {
         }
     }
 
-    pub fn is_misc(&self) -> bool {
-        matches!(self, SubProto::Misc)
-    }
-
     pub fn as_armor(&self) -> Option<&Armor> {
         self.as_item()?.sub.as_armor()
     }
