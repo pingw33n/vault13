@@ -125,7 +125,6 @@ jobs:
       run: |
         brew install p7zip
         cp ../target/release/${NAME} .
-        cp -r ../target/release/${NAME}.dSYM .
 
     - name: Package (Linux)
       if: runner.os == 'Linux'
