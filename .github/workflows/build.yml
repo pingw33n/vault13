@@ -166,8 +166,7 @@ jobs:
       working-directory: dist
       run: |
         cp ../target/release/${NAME} .
-        SO_PATH=$(ldconfig -p | grep libSDL2 | awk '{print $4}')
-        ldconfig -p | grep libSDL2
+        SO_PATH=$(ldconfig -p | grep libSDL2 | head -n1 | awk '{print $4}')
         cp ${SO_PATH} libSDL2.so
         patchelf --replace-needed $(basename $SO_PATH) libSDL2.so ${NAME}
 
