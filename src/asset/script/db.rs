@@ -80,7 +80,7 @@ fn read_lst(rd: &mut impl BufRead) -> io::Result<Vec<ScriptInfo>> {
             let i = l.find('#')
                 .and_then(|i| l[i + 1..].find(LOCAL_VARS).map(|j| i + 1 + j + LOCAL_VARS.len()));
             let local_var_count = if let Some(i) = i {
-                let mut l = l[i..].as_bytes();
+                let mut l = &l.as_bytes()[i..];
                 while let Some(c) = l.last() {
                     if c.is_ascii_digit() {
                         break;

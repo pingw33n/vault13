@@ -1,200 +1,117 @@
-name: Snapshot
+name: Create snapshot release
 
 on:
-  push:
-    tags: snapshot-*
-env:
-  NAME: vault13
-  # Changing here, change also in build.yml.
-  RUST_VERSION: 1.70.0
-  RUST_BACKTRACE: full
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allow manual trigger
+
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-2019]
-        arch: [x86, x86_64]
-        exclude:
-          - os: macos-latest
-            arch: x86
-        include:
-          - os: ubuntu-latest
-            os_kind: linux
-
-          - os: macos-latest
-            os_kind: macos
-
-          - os: windows-2019
-            os_kind: windows
-            vcvars_cmd: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
-
-          - os: ubuntu-latest
-            arch: x86
-            target: i686-unknown-linux-gnu
-
-          - os: ubuntu-latest
-            arch: x86_64
-            target: x86_64-unknown-linux-gnu
-
-          - os: macos-latest
-            arch: x86_64
-            target: x86_64-apple-darwin
-
-          - os: windows-2019
-            arch: x86
-            target: i686-pc-windows-msvc
-            vc_arch: x86
-
-          - os: windows-2019
-            arch: x86_64
-            target: x86_64-pc-windows-msvc
-            vc_arch: x86_amd64
-    runs-on: ${{ matrix.os }}
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Install 32-bit compatibility libs (Linux x86)
-      if: runner.os == 'Linux' && matrix.arch == 'x86'
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install gcc-multilib g++-multilib -y
-
-    - name: Install deps (Linux x86)
-      if: runner.os == 'Linux' && matrix.arch == 'x86'
-      shell: bash
-      run: |
-        sudo dpkg --add-architecture i386
-        sudo apt-get update
-        sudo apt-get install libsndio-dev:i386 -y
-
-    - name: Install deps (Linux x86_64)
-      if: runner.os == 'Linux' && matrix.arch == 'x86_64'
-      shell: bash
-      run: |
-        sudo apt-get update
-        sudo apt-get install libsndio-dev -y
-
-    - name: Install Rust
-      shell: bash
-      run: |
-        rustup default ${{ env.RUST_VERSION }}-${{ matrix.target }}
-        rustc -vV
-        cargo -vV
-
-    - name: Setup vcvars (Windows)
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: call "${{ matrix.vcvars_cmd }}" ${{ matrix.vc_arch }}
-
-    - name: cargo test
-      shell: bash
-      run: cargo test --release --verbose
-
-    - name: cargo build
-      shell: bash
-      run: cargo build --release --verbose
-
-    - name: Check repo clean
-      shell: bash
-      run: git diff --exit-code
-
-    - name: App version
-      shell: bash
-      run: target/release/${NAME} -v
-
-    - name: Pre-package
-      shell: bash
-      run: mkdir dist
-
-    - name: Package (Windows)
-      if: runner.os == 'Windows'
-      shell: bash
-      working-directory: dist
-      run: |
-        cp ../target/release/${NAME}.exe .
-        cp ../target/release/${NAME}.pdb .
-
-    - name: Package (macOS)
-      if: runner.os == 'macOS'
-      shell: bash
-      working-directory: dist
-      run: |
-        brew install p7zip
-        cp ../target/release/${NAME} .
-
-    - name: Package (Linux)
-      if: runner.os == 'Linux'
-      shell: bash
-      working-directory: dist
-      run: |
-        cp ../target/release/${NAME} .
-
-    - name: Make artifact name
-      id: artifact_name
-      shell: bash
-      # This must match the artifact_base_name step from the 'release' job below.
-      run: echo ::set-output name=value::${{ env.NAME }}-${GITHUB_REF#refs/tags/}-${{ matrix.os_kind }}-${{ matrix.arch }}.zip
-
-    - name: Post-package
-      shell: bash
-      working-directory: dist
-      run: 7z a ../${{ steps.artifact_name.outputs.value }} *
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v1
-      with:
-        name: ${{ steps.artifact_name.outputs.value }}
-        path: ${{ steps.artifact_name.outputs.value }}
-
   release:
-    needs: [build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+
     steps:
-    - name: Make artifact base name
-      id: artifact_base_name
-      shell: bash
-      # This must match the artifact_name step from the 'build' job above.
-      run: echo ::set-output name=value::${{ env.NAME }}-${GITHUB_REF#refs/tags/}
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Download Linux x86
-      uses: actions/download-artifact@v1
-      with:
-        name: ${{ steps.artifact_base_name.outputs.value }}-linux-x86.zip
-        path: .
+      - name: Get latest successful workflow run
+        id: get_run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list \
+            --workflow=build.yml \
+            --branch=master \
+            --status=success \
+            --limit=1 \
+            --json databaseId \
+            --jq '.[0].databaseId')
+          
+          if [ -z "$run_id" ] || [ "$run_id" = "null" ]; then
+            echo "No successful workflow runs found"
+            exit 1
+          fi
+          
+          echo "run_id=$run_id" >> $GITHUB_OUTPUT
+          
+          commit_sha=$(gh run view "$run_id" --json headSha --jq '.headSha')
+          echo "commit_sha=$commit_sha" >> $GITHUB_OUTPUT
+          echo "short_sha=${commit_sha:0:7}" >> $GITHUB_OUTPUT
 
-    - name: Download Linux x86_64
-      uses: actions/download-artifact@v1
-      with:
-        name: ${{ steps.artifact_base_name.outputs.value }}-linux-x86_64.zip
-        path: .
+      - name: Check if release already exists for this commit
+        id: check_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest_release_tag=$(gh release list \
+            --limit=1 \
+            --json tagName \
+            --jq '.[0].tagName // empty')
+          
+          if [ -z "$latest_release_tag" ]; then
+            echo "No existing releases found"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Get the commit SHA that the latest release tag points to
+          latest_release_sha=$(git rev-list -n 1 "$latest_release_tag" 2>/dev/null || echo "")
+          
+          if [ -z "$latest_release_sha" ]; then
+            echo "Could not find commit for tag $latest_release_tag"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Latest release tag: $latest_release_tag"
+          echo "Latest release SHA: $latest_release_sha"
+          echo "Current build SHA: ${{ steps.get_run.outputs.commit_sha }}"
+          
+          if [ "$latest_release_sha" = "${{ steps.get_run.outputs.commit_sha }}" ]; then
+            echo "No changes since last release"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "New changes detected"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
 
-    - name: Download MacOS x86_64
-      uses: actions/download-artifact@v1
-      with:
-        name: ${{ steps.artifact_base_name.outputs.value }}-macos-x86_64.zip
-        path: .
+      - name: Download artifacts
+        if: steps.check_release.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p artifacts
+          gh run download ${{ steps.get_run.outputs.run_id }} --dir artifacts
 
-    - name: Download Windows x86
-      uses: actions/download-artifact@v1
-      with:
-        name: ${{ steps.artifact_base_name.outputs.value }}-windows-x86.zip
-        path: .
+      - name: Compress artifacts
+        if: steps.check_release.outputs.should_release == 'true'
+        run: |
+          mkdir -p release
+          cd artifacts
+          for dir in */; do
+            name="${dir%/}"
+            zip -r "../release/${name}.zip" "$dir"
+          done
 
-    - name: Download Windows x86_64
-      uses: actions/download-artifact@v1
-      with:
-        name: ${{ steps.artifact_base_name.outputs.value }}-windows-x86_64.zip
-        path: .
+      - name: Generate release tag
+        if: steps.check_release.outputs.should_release == 'true'
+        id: tag
+        run: |
+          tag="snapshot-$(date -u +%Y%m%d-%H%M%S)-${{ steps.get_run.outputs.short_sha }}"
+          echo "tag=$tag" >> $GITHUB_OUTPUT
 
-    - run: ls -l *.zip
-
-    - name: Release
-      uses: softprops/action-gh-release@v0.1.5
-      with:
-        body:
-        files: '*.zip'
-        prerelease: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        if: steps.check_release.outputs.should_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            --title "Snapshot Build ${{ steps.tag.outputs.tag }}" \
+            --notes "Automated snapshot release from commit ${{ steps.get_run.outputs.commit_sha }}" \
+            --prerelease \
+            --target ${{ steps.get_run.outputs.commit_sha }} \
+            release/*.zip

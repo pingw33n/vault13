@@ -312,7 +312,7 @@ impl Stat {
     }
 
     pub fn is_base(self) -> bool {
-        Self::base().iter().any(|&s| s == self)
+        Self::base().contains(&self)
     }
 
     pub fn thresh_damage_kind(self) -> Option<DamageKind> {
@@ -704,11 +704,7 @@ pub fn read_lst(rd: &mut impl BufRead) -> io::Result<Vec<LstEntry>> {
     let mut r = Vec::new();
     for l in rd.lines() {
         let l = l?;
-        let l = l.split(|c|
-                c == ' '
-                || c == ';'
-                || c == '\t'
-            ).next().unwrap_or(&l);
+        let l = l.split([' ', ';', '\t']).next().unwrap_or(&l);
         let fields = l.split(',').map(|s| s.to_owned()).collect();
         r.push(LstEntry {
             fields,
@@ -732,7 +728,7 @@ pub fn read_gam(rd: &mut impl BufRead, tag: &str) -> io::Result<Vec<i32>> {
             continue;
         }
 
-        let l = l.split(|c| c == ';').next().unwrap_or(l);
+        let l = l.split(';').next().unwrap_or(l);
         let i = l.find(":=")
             .ok_or_else(|| Error::new(ErrorKind::InvalidData, "couldn't parse .gam var line"))?;
         let v = l[i + 2..].trim();

@@ -399,7 +399,7 @@ mod test {
             p: (i32, i32),
         }
 
-        let expected = vec![
+        let expected = [
             enum_map! {
                 Direction::NE => vec![
                     P { i: 0,   p: (1, -1) },

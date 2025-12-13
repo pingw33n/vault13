@@ -224,7 +224,7 @@ fn critter_anim_codes(weapon_kind: WeaponKind, anim: CritterAnim) -> Option<(cha
             (Unarmed.anim_code(), 'n')
         }
         _ => (weapon_kind.anim_code(), 'e')
-    }).map(|(c1, c2)| (c1, c2))
+    })
 }
 
 #[cfg(test)]

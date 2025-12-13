@@ -205,10 +205,10 @@ impl Rect {
 
     pub fn full() -> Self {
         Self {
-            left: i32::min_value(),
-            top: i32::min_value(),
-            right: i32::max_value(),
-            bottom: i32::max_value(),
+            left: i32::MIN,
+            top: i32::MIN,
+            right: i32::MAX,
+            bottom: i32::MAX,
         }
     }
 

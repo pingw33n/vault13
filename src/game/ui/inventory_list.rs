@@ -130,7 +130,7 @@ impl Widget for InventoryList {
 
     fn handle_event(&mut self, mut ctx: HandleEvent) {
         match ctx.event {
-            Event::MouseDown { pos: _, button} if button == MouseButton::Left => {
+            Event::MouseDown { pos: _, button: MouseButton::Left} => {
                 if let Some(idx) = self.item_index_at(ctx.base.rect(), ctx.cursor_pos) {
                     match self.mouse_mode {
                         MouseMode::Action => {
@@ -144,7 +144,7 @@ impl Widget for InventoryList {
                     }
                 }
             }
-            Event::MouseUp { pos: _, button } if button == MouseButton::Left => {
+            Event::MouseUp { pos: _, button: MouseButton::Left } => {
                 match self.mouse_mode {
                     MouseMode::Action => {
                         self.action_menu_state = None;

@@ -61,7 +61,7 @@ impl Move {
 
     fn rebuild_path(&mut self, world: &mut World) {
         // TODO non-smooth
-        self.path = world.objects().path(self.obj, self.to, true).unwrap_or(Vec::new());
+        self.path = world.objects().path(self.obj, self.to, true).unwrap_or_default();
     }
 
     fn to_point(&self, world: &World) -> Point {

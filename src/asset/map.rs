@@ -143,7 +143,7 @@ impl<'a, R: 'a + Read> MapReader<'a, R> {
             if script_count > 0 {
                 let script_count = script_count as usize;
                 const NODE_LEN: usize = 16;
-                let node_count = script_count / NODE_LEN + (script_count % NODE_LEN != 0) as usize;
+                let node_count = script_count / NODE_LEN + !script_count.is_multiple_of(NODE_LEN) as usize;
                 debug!("node_count: {}", node_count);
                 let mut scripts = Vec::new();
                 for _ in 0..node_count {

@@ -110,7 +110,7 @@ impl Font {
         self.height + self.vert_spacing
     }
 
-    pub fn line_ranges<'a>(&'a self, text: &'a bstr, horz_overflow: Option<Overflow>) -> LineRanges
+    pub fn line_ranges<'a>(&'a self, text: &'a bstr, horz_overflow: Option<Overflow>) -> LineRanges<'a>
     {
         LineRanges(LineRanges0::new(self, text, horz_overflow))
     }

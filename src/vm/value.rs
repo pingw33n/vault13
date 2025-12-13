@@ -416,12 +416,12 @@ mod test {
     fn value_variants(string_id: usize) -> Vec<Value> {
         vec![
             Int(0),
-            Int(i32::max_value()),
-            Int(i32::min_value()),
+            Int(i32::MAX),
+            Int(i32::MIN),
             Float(0.0),
             Float(-0.0),
-            Float(::std::f32::MIN),
-            Float(::std::f32::MAX),
+            Float(f32::MIN),
+            Float(f32::MAX),
             String(Indirect(string_id)),
             String(Direct(Rc::new("".into()))),
             String(Direct(Rc::new("test".into()))),
@@ -528,7 +528,7 @@ mod test {
             (Float(1.0), Ok(Float(-1.0))),
             (Float(-0.0), Ok(Float(0.0))),
             (Float(-1.0), Ok(Float(1.0))),
-            (String(Indirect(usize::max_value())), bad_type()),
+            (String(Indirect(usize::MAX)), bad_type()),
         ];
         fill_bad_type_unary_variants(&mut d, 0);
         for (inp, exp) in d {
@@ -548,7 +548,7 @@ mod test {
             (Float(-1.0), true),
             (String(Indirect(0)), true),
             (String(Indirect(1)), true),
-            (String(Indirect(usize::max_value())), true),
+            (String(Indirect(usize::MAX)), true),
             (String(Direct(Rc::new("".into()))), true),
             (String(Direct(Rc::new("123".into()))), true),
             (Object(None), false),
@@ -583,9 +583,9 @@ mod test {
             // Same types.
 
             (Int(0), Int(0), Ok(Some(Equal))),
-            (Int(i32::min_value()), Int(i32::min_value()), Ok(Some(Equal))),
-            (Int(i32::max_value()), Int(i32::max_value()), Ok(Some(Equal))),
-            (Int(i32::min_value()), Int(i32::max_value()), Ok(Some(Less))),
+            (Int(i32::MIN), Int(i32::MIN), Ok(Some(Equal))),
+            (Int(i32::MAX), Int(i32::MAX), Ok(Some(Equal))),
+            (Int(i32::MIN), Int(i32::MAX), Ok(Some(Less))),
 
             (Float(0.0), Float(0.0), Ok(Some(Equal))),
             (Float(-0.0), Float(0.0), Ok(Some(Equal))),
@@ -661,7 +661,7 @@ mod test {
             (String(Indirect(S[0].0)), Float(12.123), Ok("s1_12.12300".into())),
             (Float(12.123), String(Indirect(S[0].0)), Ok("12.12300s1_".into())),
 
-            (String(Indirect(usize::max_value())), Int(0), Err(Error::BadValue(BadValue::Content))),
+            (String(Indirect(usize::MAX)), Int(0), Err(Error::BadValue(BadValue::Content))),
         ];
         generate_string_direct_cases(&mut d, &strings);
         fill_bad_type_binary_variants(&mut d, S[0].0, true);
@@ -693,7 +693,7 @@ mod test {
             (Float(123.456), Float(456.789), Ok(Float(123.456 / 456.789))),
 
             (Int(456), Int(0), Err(Error::BadValue(BadValue::Content))),
-            (Int(i32::min_value()), Int(-1), Err(Error::BadValue(BadValue::Content))),
+            (Int(i32::MIN), Int(-1), Err(Error::BadValue(BadValue::Content))),
 
             (String(Indirect(S[0].0)), String(Indirect(S[1].0)), Err(Error::BadValue(BadValue::Type))),
             (String(Indirect(S[0].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
@@ -704,7 +704,7 @@ mod test {
             (Int(42), String(Indirect(S[3].0)), Err(Error::BadValue(BadValue::Type))),
             (String(Indirect(S[0].0)), Float(12.123), Err(Error::BadValue(BadValue::Type))),
             (Float(12.123), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
-            (String(Indirect(usize::max_value())), Int(0), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(usize::MAX)), Int(0), Err(Error::BadValue(BadValue::Type))),
         ];
         generate_string_direct_cases(&mut d, &strings);
 
@@ -730,8 +730,8 @@ mod test {
             (Int(123), Float(456.789), Ok(Float(123.0 * 456.789))),
             (Float(123.456), Float(456.789), Ok(Float(123.456 * 456.789))),
 
-            (Int(i32::min_value()), Int(-1), Err(Error::BadValue(BadValue::Content))),
-            (Int(i32::max_value()), Int(2), Err(Error::BadValue(BadValue::Content))),
+            (Int(i32::MIN), Int(-1), Err(Error::BadValue(BadValue::Content))),
+            (Int(i32::MAX), Int(2), Err(Error::BadValue(BadValue::Content))),
 
             (String(Indirect(S[0].0)), String(Indirect(S[1].0)), Err(Error::BadValue(BadValue::Type))),
             (String(Indirect(S[0].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
@@ -742,7 +742,7 @@ mod test {
             (Int(42), String(Indirect(S[3].0)), Err(Error::BadValue(BadValue::Type))),
             (String(Indirect(S[0].0)), Float(12.123), Err(Error::BadValue(BadValue::Type))),
             (Float(12.123), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
-            (String(Indirect(usize::max_value())), Int(0), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(usize::MAX)), Int(0), Err(Error::BadValue(BadValue::Type))),
         ];
         generate_string_direct_cases(&mut d, &strings);
         fill_bad_type_binary_variants(&mut d, S[0].0, true);
@@ -771,7 +771,7 @@ mod test {
             (Int(456), Int(123), Ok(Int(456 % 123))),
 
             (Int(456), Int(0), Err(Error::BadValue(BadValue::Content))),
-            (Int(i32::min_value()), Int(-1), Err(Error::BadValue(BadValue::Content))),
+            (Int(i32::MIN), Int(-1), Err(Error::BadValue(BadValue::Content))),
 
             (Int(123), Float(456.789), Err(Error::BadValue(BadValue::Type))),
             (Float(123.456), Float(456.789), Err(Error::BadValue(BadValue::Type))),
@@ -785,7 +785,7 @@ mod test {
             (Int(42), String(Indirect(S[3].0)), Err(Error::BadValue(BadValue::Type))),
             (String(Indirect(S[0].0)), Float(12.123), Err(Error::BadValue(BadValue::Type))),
             (Float(12.123), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
-            (String(Indirect(usize::max_value())), Int(0), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(usize::MAX)), Int(0), Err(Error::BadValue(BadValue::Type))),
         ];
         generate_string_direct_cases(&mut d, &strings);
 
@@ -810,7 +810,7 @@ mod test {
             (Int(123), Float(456.789), Ok(Float(123.0 - 456.789))),
             (Float(123.456), Float(456.789), Ok(Float(123.456 - 456.789))),
 
-            (Int(i32::min_value()), Int(1), Err(Error::BadValue(BadValue::Content))),
+            (Int(i32::MIN), Int(1), Err(Error::BadValue(BadValue::Content))),
 
             (String(Indirect(S[0].0)), String(Indirect(S[1].0)), Err(Error::BadValue(BadValue::Type))),
             (String(Indirect(S[0].0)), Int(42), Err(Error::BadValue(BadValue::Type))),
@@ -821,7 +821,7 @@ mod test {
             (Int(42), String(Indirect(S[3].0)), Err(Error::BadValue(BadValue::Type))),
             (String(Indirect(S[0].0)), Float(12.123), Err(Error::BadValue(BadValue::Type))),
             (Float(12.123), String(Indirect(S[0].0)), Err(Error::BadValue(BadValue::Type))),
-            (String(Indirect(usize::max_value())), Int(0), Err(Error::BadValue(BadValue::Type))),
+            (String(Indirect(usize::MAX)), Int(0), Err(Error::BadValue(BadValue::Type))),
         ];
         generate_string_direct_cases(&mut d, &strings);
 

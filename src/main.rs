@@ -26,7 +26,6 @@ use sdl2::keyboard::Keycode;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::time::{Instant, Duration};
-
 use crate::asset::EntityKind;
 use crate::asset::font::load_fonts;
 use crate::asset::frame::{FrameDb, FrameId};
@@ -165,7 +164,12 @@ fn log_sdl_info() {
                 SDL_RENDERER_TARGETTEXTURE,
             ].iter()
             .filter(|&&v| driver.flags & (v as u32) != 0)
-            .map(|&v| format!("{:?}", v)[13..].to_ascii_lowercase())
+            .map(|&v| match v {
+                SDL_RENDERER_SOFTWARE => "software",
+                SDL_RENDERER_ACCELERATED => "accelerated",
+                SDL_RENDERER_PRESENTVSYNC => "presentvsync",
+                SDL_RENDERER_TARGETTEXTURE => "targettexture",
+            })
             .collect();
         info!("  {}: {} (0x{:x}), {:?}, {} x {}",
             driver.name,

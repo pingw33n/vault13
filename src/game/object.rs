@@ -197,11 +197,11 @@ impl Object {
         self.proto.as_ref().map(|v| v.as_ref())
     }
 
-    pub fn proto(&self) -> Option<Ref<Proto>> {
+    pub fn proto(&self) -> Option<Ref<'_, Proto>> {
         self.proto_ref().map(|v| v.borrow())
     }
 
-    pub fn proto_mut(&self) -> Option<RefMut<Proto>> {
+    pub fn proto_mut(&self) -> Option<RefMut<'_, Proto>> {
         self.proto_ref().map(|v| v.borrow_mut())
     }
 
@@ -901,7 +901,7 @@ impl Objects {
         proto: Option<ProtoRef>,
         pos: Option<EPoint>,
         rpg: Option<&Rpg>,
-    ) -> RefMut<Object> {
+    ) -> RefMut<'_, Object> {
         let fid = fid.or_else(|| proto.as_ref().map(|p| p.borrow().fid)).unwrap();
         let mut obj = Object::new(fid, proto, pos, SubObject::None);
         if let Some(proto_flags) = obj.proto().map(|p| p.flags) {
@@ -1116,11 +1116,11 @@ impl Objects {
         &self.objects[h]
     }
 
-    pub fn get(&self, h: Handle) -> Ref<Object> {
+    pub fn get(&self, h: Handle) -> Ref<'_, Object> {
         self.get_ref(h).borrow()
     }
 
-    pub fn get_mut(&self, h: Handle) -> RefMut<Object> {
+    pub fn get_mut(&self, h: Handle) -> RefMut<'_, Object> {
         self.get_ref(h).borrow_mut()
     }
 
@@ -1195,11 +1195,11 @@ impl Objects {
         self.dude.unwrap()
     }
 
-    pub fn dude_ref(&self) -> Ref<Object> {
+    pub fn dude_ref(&self) -> Ref<'_, Object> {
         self.get(self.dude())
     }
 
-    pub fn dude_mut(&self) -> RefMut<Object> {
+    pub fn dude_mut(&self) -> RefMut<'_, Object> {
         self.get_mut(self.dude())
     }
 
@@ -1439,7 +1439,7 @@ impl Objects {
                     }
                     last_blocker = Some(blocker);
                 }
-            };
+            }
             if p == target_pos.point {
                 break;
             }

@@ -14,7 +14,7 @@ impl PCStatDef {
         enum_map! {
             UnspentSkillPoints => Self {
                 min: 0,
-                max: i32::max_value(),
+                max: i32::MAX,
                 default: 0,
             },
             Level => Self {
@@ -24,7 +24,7 @@ impl PCStatDef {
             },
             Experience => Self {
                 min: 0,
-                max: i32::max_value(),
+                max: i32::MAX,
                 default: 0,
             },
             Reputation => Self {
@@ -34,7 +34,7 @@ impl PCStatDef {
             },
             Karma => Self {
                 min: 0,
-                max: i32::max_value(),
+                max: i32::MAX,
                 default: 0,
             },
         }

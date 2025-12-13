@@ -1123,7 +1123,7 @@ pub fn rm_timer_event(ctx: Context) -> Result<()> {
 }
 
 pub fn set_light_level(ctx: Context) -> Result<()> {
-    let v = cmp::min(cmp::max(ctx.prg.data_stack.pop()?.into_int()?, 0), 100) as u32;
+    let v = (ctx.prg.data_stack.pop()?.into_int()?).clamp(0, 100) as u32;
 
     const MIN: u32 = 0x4000;
     const MID: u32 = 0xA000;

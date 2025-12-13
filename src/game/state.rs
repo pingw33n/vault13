@@ -251,13 +251,11 @@ impl GameState {
 
         self.map_id = Some(map.id);
 
-        for elev in &map.sqr_tiles {
-            if let Some(ref elev) = elev {
-                for &(floor, roof) in elev.as_slice() {
-                    self.frm_db.get(FrameId::new_generic(EntityKind::SqrTile, floor).unwrap()).unwrap();
-                    self.frm_db.get(FrameId::new_generic(EntityKind::SqrTile, roof).unwrap()).unwrap();
-                }
-            } else {}
+        for elev in map.sqr_tiles.iter().flatten() {
+            for &(floor, roof) in elev.as_slice() {
+                self.frm_db.get(FrameId::new_generic(EntityKind::SqrTile, floor).unwrap()).unwrap();
+                self.frm_db.get(FrameId::new_generic(EntityKind::SqrTile, roof).unwrap()).unwrap();
+            }
         }
 
         fn for_each_direction(fid: FrameId, mut f: impl FnMut(FrameId)) {
@@ -282,7 +280,7 @@ impl GameState {
         world.set_sqr_tiles(map.sqr_tiles);
 
         {
-            let mut dude_obj = dude_obj.objects.get_mut(dude_obj.root).unwrap();
+            let dude_obj = dude_obj.objects.get_mut(dude_obj.root).unwrap();
             dude_obj.direction = map.entrance_direction;
             dude_obj.set_light_emitter(LightEmitter {
                 intensity: 0x10000,

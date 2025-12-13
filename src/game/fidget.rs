@@ -1,5 +1,4 @@
 use log::*;
-use std::cmp;
 use std::time::{Duration, Instant};
 
 use crate::asset::{CritterAnim, EntityKind, Flag};
@@ -103,7 +102,7 @@ impl Fidget {
         let factor = if obj_count == 0 {
             7
         } else {
-            cmp::min(cmp::max(20 / obj_count, 1), 7)
+            (20 / obj_count).clamp(1, 7)
         };
         let next_delay = random(0, 3000) + 1000 * factor as i32;
         Duration::from_millis(next_delay as u64)

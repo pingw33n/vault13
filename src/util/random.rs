@@ -1,8 +1,8 @@
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 
 // roll_random()
 pub fn random(from_inclusive: i32, to_inclusive: i32) -> i32 {
-    thread_rng().gen_range(from_inclusive..=to_inclusive)
+    rng().random_range(from_inclusive..=to_inclusive)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, enum_primitive_derive::Primitive)]

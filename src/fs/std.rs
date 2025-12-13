@@ -20,7 +20,7 @@ impl StdFileSystem {
     fn to_fs_path(&self, path: &str) -> PathBuf {
         let mut r = PathBuf::new();
         r.push(&self.root);
-        for s in path.split(|c| c == '/' || c == '\\') {
+        for s in path.split(['/', '\\']) {
             r.push(s);
         }
         r

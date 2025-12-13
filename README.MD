@@ -8,7 +8,7 @@ Reimplementation of Fallout 2 engine.
 
 # Binaries
 
-There's automated daily build job that uploads development snapshot build as pre-releases on 
+There's automated nightly build job that uploads development snapshot build as pre-releases on 
 [Releases page](https://github.com/pingw33n/vault13/releases).
 
 # Running demo
