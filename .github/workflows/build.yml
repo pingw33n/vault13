@@ -111,7 +111,7 @@ jobs:
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install libsdl2-dev libsndio-dev -y
+        sudo apt-get install libsdl2-dev libsndio-dev patchelf -y
 
     - name: cargo clippy
       if: runner.os == 'Linux'
@@ -167,13 +167,14 @@ jobs:
       run: |
         cp ../target/release/${NAME} .
         SO_PATH=$(ldconfig -p | grep libSDL2 | awk '{print $4}')
-        cp $(ldconfig -p | grep libSDL2 | awk '{print $4}') libSDL2.so
+        cp ${SO_PATH} libSDL2.so
         patchelf --replace-needed $(basename $SO_PATH) libSDL2.so ${NAME}
 
     - name: Check package
       shell: bash
       working-directory: dist
       run: |
+        ls -l
         ./${NAME} -v
 
     - name: Make artifact name
