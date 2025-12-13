@@ -157,7 +157,7 @@ jobs:
       run: |
         cp ../target/release/${NAME} .
         DYLIB_PATH=/opt/homebrew/opt/sdl2/lib/libSDL2-2.0.0.dylib
-        cp ${DYLIB_PATH} .
+        cp ${DYLIB_PATH} libSDL2.dylib
         install_name_tool -change ${DYLIB_PATH} libSDL2.dylib ${NAME}
 
     - name: Package (Linux)
@@ -167,6 +167,7 @@ jobs:
       run: |
         cp ../target/release/${NAME} .
         SO_PATH=$(ldconfig -p | grep libSDL2 | awk '{print $4}')
+        ldconfig -p | grep libSDL2
         cp ${SO_PATH} libSDL2.so
         patchelf --replace-needed $(basename $SO_PATH) libSDL2.so ${NAME}
 
