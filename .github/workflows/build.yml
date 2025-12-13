@@ -156,6 +156,9 @@ jobs:
       working-directory: dist
       run: |
         cp ../target/release/${NAME} .
+        DYLIB_PATH=/opt/homebrew/opt/sdl2/lib/libSDL2-2.0.0.dylib
+        cp ${DYLIB_PATH} .
+        install_name_tool -change ${DYLIB_PATH} libSDL2.dylib ${NAME}
 
     - name: Package (Linux)
       if: runner.os == 'Linux'
@@ -163,16 +166,20 @@ jobs:
       working-directory: dist
       run: |
         cp ../target/release/${NAME} .
+        SO_PATH=$(ldconfig -p | grep libSDL2 | awk '{print $4}')
+        cp $(ldconfig -p | grep libSDL2 | awk '{print $4}') libSDL2.so
+        patchelf --replace-needed $(basename $SO_PATH) libSDL2.so ${NAME}
+
+    - name: Check package
+      shell: bash
+      working-directory: dist
+      run: |
+        ./${NAME} -v
 
     - name: Make artifact name
       id: artifact_name
       shell: bash
       run: echo "value=${{ env.NAME }}-$(git rev-parse --short $GITHUB_SHA)-${{ matrix.package_name_os }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
-
-#    - name: Post-package
-#      shell: bash
-#      working-directory: dist
-#      run: 7z a ../${{ steps.artifact_name.outputs.value }} *
 
     - name: Upload
       uses: actions/upload-artifact@v6
