@@ -264,11 +264,11 @@ impl Ui {
         h
     }
 
-    pub fn widget_base_ref(&self, handle: Handle) -> Ref<Base> {
+    pub fn widget_base_ref(&self, handle: Handle) -> Ref<'_, Base> {
         self.widget_bases[handle].borrow()
     }
 
-    pub fn widget_base_mut(&self, handle: Handle) -> RefMut<Base> {
+    pub fn widget_base_mut(&self, handle: Handle) -> RefMut<'_, Base> {
         self.widget_bases[handle].borrow_mut()
     }
 
@@ -276,11 +276,11 @@ impl Ui {
         &self.widgets[handle]
     }
 
-    pub fn widget_ref<T: Widget>(&self, handle: Handle) -> Ref<T> {
+    pub fn widget_ref<T: Widget>(&self, handle: Handle) -> Ref<'_, T> {
         Ref::map(self.widget(handle).borrow(), |w| w.downcast_ref::<T>().unwrap())
     }
 
-    pub fn widget_mut<T: Widget>(&self, handle: Handle) -> RefMut<T> {
+    pub fn widget_mut<T: Widget>(&self, handle: Handle) -> RefMut<'_, T> {
         RefMut::map(self.widget(handle).borrow_mut(), |w| w.downcast_mut::<T>().unwrap())
     }
 

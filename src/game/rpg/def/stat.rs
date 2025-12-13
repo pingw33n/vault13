@@ -38,7 +38,7 @@ impl StatDef {
             HitPoints => Self::new(10, 0, 999, 0),
             ActionPoints => Self::new(75, 1, 99, 0),
             ArmorClass => Self::new(18, 0, 999, 0),
-            UnarmedDmg => Self::new(31, 0, i32::max_value(), 0),
+            UnarmedDmg => Self::new(31, 0, i32::MAX, 0),
             MeleeDmg => Self::new(32, 0, 500, 0),
             CarryWeight => Self::new(20, 0, 999, 0),
             Sequence => Self::new(24, 0, 60, 0),

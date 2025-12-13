@@ -89,7 +89,7 @@ impl Mask {
                 bit(pixels[i + 7]) << 7
         }
 
-        let mut bitmask = vec![0; (pix_len + 7) / 8];
+        let mut bitmask = vec![0; pix_len.div_ceil(8)];
         let mut i = 0;
         let mut j = 0;
         let end_i = pix_len / 8 * 8;

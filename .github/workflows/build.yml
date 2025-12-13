@@ -8,82 +8,113 @@ on:
 
 env:
   NAME: vault13
-  # Changing here, change also in snapshot.yml.
-  RUST_VERSION: 1.70.0
+  RUST_VERSION: 1.92.0
   RUST_BACKTRACE: full
 jobs:
-  main:
+  build:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-2019]
-        arch: [x86_64]
+        os: [ubuntu, macos, windows]
+        arch: [amd64, arm64]
+        exclude:
+          - os: windows
+            arch: arm64
         include:
-          - os: ubuntu-latest
-            os_kind: linux
+          - os: ubuntu
+            package_name_os: linux
 
-          - os: macos-latest
-            os_kind: macos
+          - os: ubuntu
+            arch: amd64
+            workflow_label: ubuntu-24.04
+            rust_target: x86_64-unknown-linux-gnu
 
-          - os: windows-2019
-            os_kind: windows
-            vcvars_cmd: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+          - os: ubuntu
+            arch: arm64
+            workflow_label: ubuntu-24.04-arm
+            rust_target: aarch64-unknown-linux-gnu
 
-          - os: ubuntu-latest
-            arch: x86_64
-            target: x86_64-unknown-linux-gnu
+          - os: macos
+            package_name_os: macos
 
-          - os: macos-latest
-            arch: x86_64
-            target: x86_64-apple-darwin
+          - os: macos
+            arch: amd64
+            workflow_label: macos-15-intel
+            rust_target: x86_64-apple-darwin
 
-          - os: windows-2019
-            arch: x86_64
-            target: x86_64-pc-windows-msvc
-            vc_arch: x86_amd64
-    runs-on: ${{ matrix.os }}
+          - os: macos
+            arch: arm64
+            workflow_label: macos-15
+            rust_target: aarch64-apple-darwin
+
+          - os: windows
+            arch: amd64
+            package_name_os: windows
+            workflow_label: windows-2025
+            rust_target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.workflow_label }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
 
     - name: Calc hashes
       id: hash
       shell: bash
       run: |
-        echo ::set-output name=cargo_lock::${{ hashFiles('Cargo.lock') }}
-        echo ::set-output name=workflow_yml::${{ hashFiles('.github/workflows/build.yml') }}
+        echo "cargo_lock=${{ hashFiles('Cargo.lock') }}" >> $GITHUB_OUTPUT
+        echo "workflow_yml=${{ hashFiles('.github/workflows/build.yml') }}" >> $GITHUB_OUTPUT
 
     - name: Cache target/release/build
-      uses: actions/cache@v1
+      uses: actions/cache@v5
       with:
         path: target/release/build
-        key: ${{ runner.os }}-target-build-${{ steps.hash.outputs.cargo_lock }}-${{ steps.hash.outputs.workflow_yml }}
+        key: ${{ matrix.workflow_label }}-target-build-${{ steps.hash.outputs.cargo_lock }}-${{ steps.hash.outputs.workflow_yml }}
     - name: Cache target/release/deps
-      uses: actions/cache@v1
+      uses: actions/cache@v5
       with:
         path: target/release/deps
-        key: ${{ runner.os }}-target-deps-${{ steps.hash.outputs.cargo_lock }}-${{ steps.hash.outputs.workflow_yml }}
+        key: ${{ matrix.workflow_label }}-target-deps-${{ steps.hash.outputs.cargo_lock }}-${{ steps.hash.outputs.workflow_yml }}
+
+    - name: Show OS info (Linux)
+      if: matrix.os == 'ubuntu'
+      shell: bash
+      run: |
+        cat /etc/lsb-release
+        uname -a
+        echo
+        echo "Environment variables:"
+        echo
+        env | sort
 
     - name: Install Rust
       shell: bash
       run: |
-        rustup default ${{ env.RUST_VERSION }}-${{ matrix.target }}
+        rustup default ${{ env.RUST_VERSION }}-${{ matrix.rust_target }}
         rustc -vV
         cargo -vV
 
-    - name: Setup vcvars (Windows)
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.vc_arch }}
+    - name: Install deps (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        brew install sdl2
+        echo "LIBRARY_PATH=$LIBRARY_PATH:$(brew --prefix)/lib" >> $GITHUB_ENV
 
-    - name: Install deps (Linux)
-      if: runner.os == 'Linux'
+    - name: Copy SDL2 libs (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        cp sdl2_windows_binaries/* "$(rustc --print target-libdir)"
+        cp sdl2_windows_binaries/* .
+
+    - name: Install deps (Ubuntu)
+      if: matrix.os == 'ubuntu'
       shell: bash
       run: |
         sudo apt-get update
-        sudo apt-get install libsndio-dev -y
+        sudo apt-get install libsdl2-dev libsndio-dev patchelf -y
 
     - name: cargo clippy
-      if: runner.os == 'Linux'
+      if: runner.os == 'Linux' && matrix.arch == 'amd64'
       shell: bash
       run: |
         rustup component add clippy
@@ -117,14 +148,17 @@ jobs:
       run: |
         cp ../target/release/${NAME}.exe .
         cp ../target/release/${NAME}.pdb .
+        cp ../sdl2_windows_binaries/SDL2.dll .
 
     - name: Package (macOS)
       if: runner.os == 'macOS'
       shell: bash
       working-directory: dist
       run: |
-        brew install p7zip
         cp ../target/release/${NAME} .
+        DYLIB_PATH=$(otool -L ${NAME} | grep libSDL2 | awk '{print $1}')
+        cp ${DYLIB_PATH} libSDL2.dylib
+        install_name_tool -change ${DYLIB_PATH} libSDL2.dylib ${NAME}
 
     - name: Package (Linux)
       if: runner.os == 'Linux'
@@ -132,19 +166,24 @@ jobs:
       working-directory: dist
       run: |
         cp ../target/release/${NAME} .
+        SO_PATH=$(ldconfig -p | grep libSDL2 | head -n1 | awk '{print $4}')
+        cp ${SO_PATH} libSDL2.so
+        patchelf --replace-needed $(basename $SO_PATH) libSDL2.so ${NAME}
+
+    - name: Check package
+      shell: bash
+      working-directory: dist
+      run: |
+        ls -l
+        ./${NAME} -v
 
     - name: Make artifact name
       id: artifact_name
       shell: bash
-      run: echo ::set-output name=value::${{ env.NAME }}-$(git rev-parse --short $GITHUB_SHA)-${{ matrix.os_kind }}-${{ matrix.arch }}.zip
-
-    - name: Post-package
-      shell: bash
-      working-directory: dist
-      run: 7z a ../${{ steps.artifact_name.outputs.value }} *
+      run: echo "value=${{ env.NAME }}-$(git rev-parse --short $GITHUB_SHA)-${{ matrix.package_name_os }}-${{ matrix.arch }}" >> $GITHUB_OUTPUT
 
     - name: Upload
-      uses: actions/upload-artifact@v1
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ steps.artifact_name.outputs.value }}
-        path: ${{ steps.artifact_name.outputs.value }}
+        path: dist/*

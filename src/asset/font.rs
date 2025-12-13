@@ -62,7 +62,7 @@ fn read_fon(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Result<
     let _garbage = rd.read_u32::<LittleEndian>()?;
     let _garbage = rd.read_u32::<LittleEndian>()?;
 
-    let row_bytes = |w| (w as usize + 7) / 8;
+    let row_bytes = |w| (w as usize).div_ceil(8);
     let glyph_bytes = |w| row_bytes(w) * height as usize;
 
     let mut glyph_info = Vec::with_capacity(glyph_count);

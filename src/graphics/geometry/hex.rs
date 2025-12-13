@@ -15,8 +15,9 @@ pub const TILE_HEIGHT: i32 = 16;
 pub const TILE_INNER_HEIGHT: i32 = 8;
 pub const TILE_CENTER: Point = Point::new(TILE_WIDTH / 2, TILE_HEIGHT / 2);
 
-#[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Default, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 pub enum Direction {
+    #[default]
     NE  = 0,
     E   = 1,
     SE  = 2,
@@ -36,12 +37,6 @@ impl Direction {
             o += Self::len() as isize;
         }
         Self::from_ordinal(o as usize)
-    }
-}
-
-impl Default for Direction {
-    fn default() -> Self {
-        Self::NE
     }
 }
 
@@ -370,7 +365,7 @@ pub fn try_distance(mut p1: Point, p2: Point, max: u32) -> Option<u32> {
 }
 
 pub fn distance(p1: Point, p2: Point) -> u32 {
-    try_distance(p1, p2, u32::max_value()).unwrap()
+    try_distance(p1, p2, u32::MAX).unwrap()
 }
 
 /// Is `p1` located in front of `p2` if looking in SE direction?

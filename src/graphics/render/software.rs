@@ -120,7 +120,7 @@ impl Textures {
         self.0.borrow_mut().new_texture(width, height, data)
     }
 
-    fn get(&self, h: &TextureHandle) -> Ref<Texture> {
+    fn get(&self, h: &TextureHandle) -> Ref<'_, Texture> {
         let t = self.0.borrow();
         Ref::map(t, |t| &t.textures[h.0.key])
     }
