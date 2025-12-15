@@ -110,7 +110,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ steps.tag.outputs.tag }}" \
-            --title "Snapshot Build ${{ steps.tag.outputs.tag }}" \
+            --title "${{ steps.tag.outputs.tag }}" \
             --notes "Automated snapshot release from commit ${{ steps.get_run.outputs.commit_sha }}" \
             --prerelease \
             --target ${{ steps.get_run.outputs.commit_sha }} \

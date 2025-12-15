@@ -1,15 +1,3 @@
-macro_rules! unwrap_or_return {
-    ($expr:expr, $pat:pat => $res:expr) => {
-        match $expr {
-            $pat => $res,
-            _ => return,
-        }
-    };
-    ($expr:expr, Some) => {
-        unwrap_or_return!($expr, Some(v) => v)
-    };
-}
-
 macro_rules! new_handle_type {
     ( $( $(#[$outer:meta])* $vis:vis struct $name:ident; )* ) => {
         $(

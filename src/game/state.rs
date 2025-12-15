@@ -2,51 +2,51 @@ use bstring::{bstr, BString};
 use linearize::{static_map, StaticMap};
 use log::*;
 use measure_time::*;
-use sdl2::event::{Event as SdlEvent};
+use sdl2::event::Event as SdlEvent;
 use sdl2::keyboard::Keycode;
 use std::cell::RefCell;
 use std::cmp;
 use std::rc::Rc;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
-use crate::asset::{self, *};
 use crate::asset::frame::{FrameDb, FrameId};
-use crate::asset::map::{ELEVATION_COUNT, MapId, MapReader};
 use crate::asset::map::db::MapDb;
-use crate::asset::message::{BULLET, Messages};
+use crate::asset::map::{MapId, MapReader, ELEVATION_COUNT};
+use crate::asset::message::{Messages, BULLET};
 use crate::asset::proto::*;
 use crate::asset::script::db::ScriptDb;
+use crate::asset::{self, *};
 use crate::fs::FileSystem;
 use crate::game::dialog::Dialog;
 use crate::game::fidget::Fidget;
 use crate::game::inventory::Inventory;
 use crate::game::object::{self, *};
 use crate::game::rpg::Rpg;
-use crate::game::sequence::ObjSequencer;
+use crate::game::script::{self, ScriptKind, Scripts};
 use crate::game::sequence::frame_anim::{AnimDirection, FrameAnim, FrameAnimOptions};
 use crate::game::sequence::move_seq::Move;
 use crate::game::sequence::stand::Stand;
-use crate::game::script::{self, Scripts, ScriptKind};
+use crate::game::sequence::ObjSequencer;
 use crate::game::skilldex::{self, Skilldex};
 use crate::game::ui::action_menu::{self, Action};
 use crate::game::ui::hud;
 use crate::game::ui::scroll_area::ScrollArea;
 use crate::game::ui::world::{HexCursorStyle, WorldView};
 use crate::game::world::{ScrollDirection, World, WorldRef};
-use crate::graphics::{EPoint, Rect};
 use crate::graphics::font::Fonts;
 use crate::graphics::geometry::hex::{self, Direction};
-use crate::sequence::{self, Sequencer};
-use crate::sequence::event::PushEvent;
+use crate::graphics::{EPoint, Rect};
 use crate::sequence::chain::Chain;
+use crate::sequence::event::PushEvent;
+use crate::sequence::{self, Sequencer};
 use crate::state::{self, *};
-use crate::ui::{self, Ui};
-use crate::ui::command::*;
 use crate::ui::command::inventory::Command;
+use crate::ui::command::*;
 use crate::ui::message_panel::MessagePanel;
-use crate::util::{EnumExt, sprintf};
+use crate::ui::{self, Ui};
 use crate::util::random::random;
-use crate::vm::{Vm, PredefinedProc, Suspend};
+use crate::util::{sprintf, EnumExt};
+use crate::vm::{PredefinedProc, Suspend, Vm};
 
 const SCROLL_STEP: i32 = 10;
 
@@ -628,7 +628,7 @@ impl GameState {
     // talk_to(), gdialogEnter()
     fn talk(&mut self, talker: object::Handle, talked: object::Handle, ui: &mut Ui) {
         if self.world.borrow().objects().can_talk_now(talker, talked) {
-            let world = &mut self.world.borrow_mut();
+            let world = &mut *self.world.borrow_mut();
             self.obj_sequencer.clear();
             self.obj_sequencer.sync(&mut sequence::Sync {
                 world,
@@ -731,9 +731,7 @@ impl GameState {
         let (used_kind, script) = {
             let world = self.world.borrow();
             let usedo = world.objects().get(used);
-            let used_kind = unwrap_or_return!(
-                usedo.proto().map(|p| p.kind()),
-                Some(ExactEntityKind::Scenery(v)) => v);
+            let Some(ExactEntityKind::Scenery(used_kind)) = usedo.proto().map(|p| p.kind()) else { return };
             (used_kind, usedo.script)
         };
 

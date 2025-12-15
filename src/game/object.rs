@@ -1,26 +1,26 @@
-use enumflags2::{bitflags, BitFlags};
 use enum_primitive_derive::Primitive;
+use enumflags2::{bitflags, BitFlags};
 use log::*;
 use slotmap::{SecondaryMap, SlotMap};
 use std::cell::{Ref, RefCell, RefMut};
 use std::cmp;
 use std::rc::Rc;
 
-use crate::asset::*;
 use crate::asset::frame::*;
 use crate::asset::proto::*;
 use crate::asset::script::ProgramId;
+use crate::asset::*;
 use crate::game::rpg::Rpg;
-use crate::game::script::{Scripts, ScriptIid};
-use crate::graphics::{EPoint, Point, Rect};
-use crate::graphics::geometry::TileGridView;
-use crate::graphics::geometry::hex::{self, Direction, TileGrid};
+use crate::game::script::{ScriptIid, Scripts};
 use crate::graphics::geometry::hex::path_finder::*;
+use crate::graphics::geometry::hex::{self, Direction, TileGrid};
+use crate::graphics::geometry::TileGridView;
 use crate::graphics::lighting::light_grid::*;
 use crate::graphics::render::Canvas;
 use crate::graphics::sprite::*;
-use crate::util::{EnumExt, VecExt};
+use crate::graphics::{EPoint, Point, Rect};
 use crate::util::array2d::Array2d;
+use crate::util::{EnumExt, VecExt};
 use crate::vm::PredefinedProc;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1721,7 +1721,7 @@ impl Objects {
             let idx = owner.inventory.items.iter()
                 .position(|i| i.object == ammo.handle())
                 .unwrap();
-            let left = unwrap_or_return!(weapon.reload_weapon(ammo), Some);
+            let Some(left) = weapon.reload_weapon(ammo) else { return };
             if left == 0 && owner.inventory.items[idx].count - 1 == 0 {
                 owner.inventory.items.remove(idx);
                 true
