@@ -4,7 +4,7 @@ pub mod random;
 pub mod test;
 
 use bstring::{bstr, BString};
-use enum_map::Enum;
+use linearize::{Linearize, LinearizeExt};
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::RangeBounds;
@@ -44,29 +44,29 @@ impl<T> VecExt<T> for Vec<T> {
     }
 }
 
-pub fn enum_iter<T: Enum<()> + Copy, R: RangeBounds<T>>(r: R) -> EnumIter<T> {
+pub fn enum_iter<T: Linearize + Copy, R: RangeBounds<T>>(r: R) -> EnumIter<T> {
     use std::ops::Bound;
     let i = match r.start_bound() {
-        Bound::Included(b) => b.to_usize(),
+        Bound::Included(b) => b.linearize(),
         Bound::Excluded(_) => unreachable!(),
         Bound::Unbounded => 0,
     };
     let end = match r.end_bound() {
-        Bound::Included(b) => b.to_usize().checked_add(1).unwrap(),
-        Bound::Excluded(b) => b.to_usize(),
-        Bound::Unbounded => T::POSSIBLE_VALUES,
+        Bound::Included(b) => b.linearize().checked_add(1).unwrap(),
+        Bound::Excluded(b) => b.linearize(),
+        Bound::Unbounded => T::LENGTH,
     };
     if i > end {
         panic!("slice index starts at ordinal {} but ends at ordinal {}", i, end);
-    } else if end > T::POSSIBLE_VALUES {
-        panic!("ordinal {} out of range for enum of length {}", i, T::POSSIBLE_VALUES);
+    } else if end > T::LENGTH {
+        panic!("ordinal {} out of range for enum of length {}", i, T::LENGTH);
     }
     EnumIter::new(i, end)
 }
 
-pub trait EnumExt: Enum<()> + Copy {
+pub trait EnumExt: Linearize + Copy {
     fn len() -> usize {
-        Self::POSSIBLE_VALUES
+        Self::LENGTH
     }
 
     fn iter() -> EnumIter<Self> {
@@ -74,7 +74,7 @@ pub trait EnumExt: Enum<()> + Copy {
     }
 
     fn from_ordinal(v: usize) -> Self {
-        Enum::from_usize(v)
+        LinearizeExt::from_linear(v).unwrap()
     }
 
     fn try_from_ordinal(v: usize) -> Option<Self> {
@@ -86,11 +86,11 @@ pub trait EnumExt: Enum<()> + Copy {
     }
 
     fn ordinal(self) -> usize {
-        Enum::to_usize(self)
+        Linearize::linearize(&self)
     }
 }
 
-impl<T: Enum<()> + Copy> EnumExt for T {}
+impl<T: Linearize + Copy> EnumExt for T {}
 
 pub struct EnumIter<T> {
     i: usize,
@@ -98,7 +98,7 @@ pub struct EnumIter<T> {
     _t: PhantomData<T>,
 }
 
-impl<T: Enum<()>> EnumIter<T> {
+impl<T: Linearize> EnumIter<T> {
     fn new(i: usize, end: usize) -> Self {
         Self {
             i,
@@ -112,14 +112,14 @@ impl<T: Enum<()>> EnumIter<T> {
     }
 }
 
-impl<T: Enum<()>> Iterator for EnumIter<T> {
+impl<T: Linearize> Iterator for EnumIter<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.i == self.end {
             return None;
         }
-        let r = T::from_usize(self.i);
+        let r = T::from_linear(self.i).unwrap();
         self.i += 1;
         Some(r)
     }

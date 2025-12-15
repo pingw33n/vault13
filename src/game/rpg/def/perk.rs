@@ -1,4 +1,4 @@
-use enum_map::{enum_map, EnumMap};
+use linearize::{static_map, StaticMap};
 
 use crate::asset::{Perk, Skill, Stat};
 
@@ -41,7 +41,7 @@ pub struct PerkDef {
 }
 
 impl PerkDef {
-    pub fn defaults() -> EnumMap<Perk, PerkDef> {
+    pub fn defaults() -> StaticMap<Perk, PerkDef> {
         use Perk::*;
         use ReqTarget::*;
         use ReqValue::*;
@@ -49,7 +49,7 @@ impl PerkDef {
         use crate::asset::Stat::*;
         use crate::game::script::GVAR_PLAYER_REPUTATION;
 
-        enum_map! {
+        static_map! {
         BonusAwareness => Self {
             image_fid_id: 72,
             max_rank: Some(1),

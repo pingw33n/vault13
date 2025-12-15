@@ -1,7 +1,7 @@
 use bstring::BString;
 use byteorder::{BigEndian, ReadBytesExt};
-use enum_map::EnumMap;
-use enum_map_derive::Enum;
+use linearize::{static_map, StaticMap};
+use linearize::Linearize;
 use enum_primitive_derive::Primitive;
 use num_traits::FromPrimitive;
 use log::*;
@@ -22,7 +22,7 @@ use crate::vm::value::Value;
 
 pub const GVAR_PLAYER_REPUTATION: usize = 0;
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum ScriptKind {
     System = 0x0,
     Spatial = 0x1,
@@ -191,13 +191,15 @@ pub struct Script {
 /// Interface for instantiating new scripts from within a script context.
 /// The instantiation itself is deferred until the script procedure returns.
 pub struct NewScripts {
-    unused_sids: EnumMap<ScriptKind, ScriptIid>,
+    unused_sids: StaticMap<ScriptKind, ScriptIid>,
     new_scripts: Vec<(ScriptIid, ProgramId)>,
 }
 
 impl NewScripts {
     fn new(scripts: &Scripts) -> Self {
-        let mut unused_sids = EnumMap::from(|k| ScriptIid::new(k, 0));
+        let mut unused_sids = static_map! {
+            k => ScriptIid::new(k, 0)
+        } ;
         for &sid in scripts.scripts.keys() {
             if sid.id() > unused_sids[sid.kind()].id() {
                 unused_sids[sid.kind()] = sid;
@@ -422,7 +424,7 @@ impl Scripts {
         // Execute map script first.
         // MapEnter is ignored since it's executed separately immediately after map loaded.
         if proc != PredefinedProc::MapEnter
-            && let Some(sid) = self.map_sid 
+            && let Some(sid) = self.map_sid
         {
             self.execute_predefined_proc(sid, proc, ctx)
                 .map(|r| r.suspend.map(|_| panic!("can't suspend in {:?}", proc)));

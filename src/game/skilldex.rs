@@ -1,4 +1,4 @@
-use enum_map::EnumMap;
+use linearize::StaticMap;
 use std::convert::TryInto;
 
 use crate::asset::frame::FrameId;
@@ -20,7 +20,7 @@ const TEXT_FONT: FontKey = FontKey::antialiased(3);
 const TEXT_COLOR: Rgb15 = unsafe { Rgb15::rgb15_from_packed_unchecked(0x4a23) };
 const TEXT_COLOR_DOWN: Rgb15 = unsafe { Rgb15::rgb15_from_packed_unchecked(0x3983) };
 
-#[derive(Clone, Copy, Debug, enum_map_derive::Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, linearize::Linearize, Eq, PartialEq)]
 pub enum Skill {
     // Order is important here.
     Sneak,
@@ -75,7 +75,7 @@ impl Skilldex {
 
     pub fn show(&mut self,
         ui: &mut Ui,
-        levels: EnumMap<Skill, i32>,
+        levels: StaticMap<Skill, i32>,
         target: Option<object::Handle>,
     ) {
         assert!(self.window.is_none());

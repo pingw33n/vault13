@@ -1,6 +1,6 @@
 pub mod path_finder;
 
-use enum_map_derive::Enum;
+use linearize::Linearize;
 use enum_primitive_derive::Primitive;
 use num_traits::{clamp, FromPrimitive};
 use std::cmp;
@@ -15,7 +15,7 @@ pub const TILE_HEIGHT: i32 = 16;
 pub const TILE_INNER_HEIGHT: i32 = 8;
 pub const TILE_CENTER: Point = Point::new(TILE_WIDTH / 2, TILE_HEIGHT / 2);
 
-#[derive(Clone, Copy, Debug, Default, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Default, Linearize, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 pub enum Direction {
     #[default]
     NE  = 0,
@@ -62,7 +62,7 @@ fn go0(mut p: Point, direction: Direction, distance: u32, is_in_bounds: impl Fn(
     -> Point
 {
     // Advance per each direction for even/odd hex.
-    static ADVANCE_MAP: [[(i32, i32); enum_len!(Direction)]; 2] = [
+    static ADVANCE_MAP: [[(i32, i32); Direction::LENGTH]; 2] = [
         [(1, -1), (1, 0), (0, 1), (-1, 0), (-1, -1), (0, -1)],
         [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (0, -1)],
     ];

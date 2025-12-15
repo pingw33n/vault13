@@ -1,7 +1,6 @@
 use bstring::bstr;
 use byteorder::{BigEndian, ReadBytesExt};
-use enum_map::{enum_map, EnumMap};
-use num_traits::FromPrimitive;
+use linearize::{static_map, StaticMap};
 use std::cell::RefCell;
 use std::collections::hash_map::{self, HashMap};
 use std::convert::{TryFrom, TryInto};
@@ -20,7 +19,7 @@ pub struct ProtoDb {
     fs: Rc<FileSystem>,
     lst: Lst,
     messages: Messages,
-    entity_messages: EnumMap<EntityKind, Messages>,
+    entity_messages: StaticMap<EntityKind, Messages>,
     protos: RefCell<HashMap<ProtoId, ProtoRef>>,
 }
 
@@ -43,9 +42,9 @@ impl ProtoDb {
             script: None,
             sub: SubProto::Critter(Critter {
                 flags: BitFlags::empty(),
-                base_stats: EnumMap::new(),
-                bonus_stats: EnumMap::new(),
-                skills: EnumMap::new(),
+                base_stats: StaticMap::default(),
+                bonus_stats: StaticMap::default(),
+                skills: StaticMap::default(),
                 body_kind: BodyKind::Biped,
                 experience: 0,
                 kill_kind: CritterKillKind::Man,
@@ -95,9 +94,9 @@ impl ProtoDb {
     }
 
     fn read_entity_messages(fs: &FileSystem, language: &str)
-        -> io::Result<EnumMap<EntityKind, Messages>>
+        -> io::Result<StaticMap<EntityKind, Messages>>
     {
-        let mut map = EnumMap::new();
+        let mut map = StaticMap::default();
         for k in proto_entity_kinds() {
             let path = format!("game/pro_{}.msg", &k.dir()[..4]);
             map[k] = Messages::read_file(fs, language, &path)?;
@@ -220,11 +219,11 @@ impl ProtoDb {
 
     fn read_armor(rd: &mut impl Read) -> io::Result<Armor> {
         let armor_class = rd.read_i32::<BigEndian>()?;
-        let mut damage_resistance = EnumMap::new();
+        let mut damage_resistance = StaticMap::default();
         for &dmg in DamageKind::basic() {
             damage_resistance[dmg] = rd.read_i32::<BigEndian>()?;
         }
-        let mut damage_threshold = EnumMap::new();
+        let mut damage_threshold = StaticMap::default();
         for &dmg in DamageKind::basic() {
             damage_threshold[dmg] = rd.read_i32::<BigEndian>()?;
         }
@@ -316,7 +315,7 @@ impl ProtoDb {
     fn read_weapon(rd: &mut impl Read, flags_ext: &mut BitFlags<FlagExt>) -> io::Result<Weapon> {
         let primary = get_enum(flags_ext.bits() & 0xf, "invalid weapon primary attack kind")?;
         let secondary = get_enum((flags_ext.bits() >> 4) & 0xf, "invalid weapon secondary attack kind")?;
-        let attack_kinds = enum_map! {
+        let attack_kinds = static_map! {
             AttackGroup::Primary => primary,
             AttackGroup::Secondary => secondary,
         };
@@ -330,7 +329,7 @@ impl ProtoDb {
         let damage_kind = read_enum(rd, "invalid weapon damage kind")?;
         let primary = rd.read_i32::<BigEndian>()?;
         let secondary = rd.read_i32::<BigEndian>()?;
-        let max_ranges = enum_map! {
+        let max_ranges = static_map! {
             AttackGroup::Primary => primary,
             AttackGroup::Secondary => secondary,
         };
@@ -338,7 +337,7 @@ impl ProtoDb {
         let min_strength = rd.read_i32::<BigEndian>()?;
         let primary = rd.read_i32::<BigEndian>()?;
         let secondary = rd.read_i32::<BigEndian>()?;
-        let ap_costs = enum_map! {
+        let ap_costs = static_map! {
             AttackGroup::Primary => primary,
             AttackGroup::Secondary => secondary,
         };
@@ -414,15 +413,15 @@ impl ProtoDb {
             .ok().ok_or_else(|| Error::new(ErrorKind::InvalidData,
                 format!("invalid critter proto flags: {:x}", v))).unwrap();
 
-        let mut base_stats = EnumMap::new();
+        let mut base_stats = StaticMap::default();
         for stat in 0..35 {
             base_stats[Stat::from_usize(stat).unwrap()] = rd.read_i32::<BigEndian>()?;
         }
-        let mut bonus_stats = EnumMap::new();
+        let mut bonus_stats = StaticMap::default();
         for stat in 0..35 {
             bonus_stats[Stat::from_usize(stat).unwrap()] = rd.read_i32::<BigEndian>()?;
         }
-        let mut skills = EnumMap::new();
+        let mut skills = StaticMap::default();
         for skill in 0..18 {
             skills[Skill::from_usize(skill).unwrap()] = rd.read_i32::<BigEndian>()?;
         }
@@ -540,12 +539,12 @@ impl ProtoDb {
 }
 
 struct Lst {
-    lst: EnumMap<EntityKind, Vec<LstEntry>>,
+    lst: StaticMap<EntityKind, Vec<LstEntry>>,
 }
 
 impl Lst {
     pub fn read(fs: &FileSystem) -> io::Result<Self> {
-        let mut lst = EnumMap::new();
+        let mut lst = StaticMap::default();
         for k in proto_entity_kinds() {
             lst[k] = Self::read_lst_file(fs, k)?;
         }

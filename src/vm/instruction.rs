@@ -1,6 +1,6 @@
 mod impls;
 
-use enum_map_derive::Enum;
+use linearize::Linearize;
 use enum_primitive_derive::Primitive;
 use std::collections::HashMap;
 
@@ -30,7 +30,7 @@ pub struct Context<'a, 'b> {
     pub ext: &'a mut super::Context<'b>,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Hash, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Hash, Eq, PartialEq, Primitive)]
 #[repr(u16)]
 pub enum Opcode {
     Noop8000                    = 0x8000,
@@ -402,7 +402,7 @@ pub(in super) mod instructions {
     use self::Opcode::*;
     use self::impls::*;
 
-    pub static INSTRUCTIONS: [Instruction; enum_len!(Opcode)] = [
+    pub static INSTRUCTIONS: [Instruction; Opcode::LENGTH] = [
         i!(ActionBeingUsed,             action_being_used),
         i!(Activateregion,              unimplemented),
         i!(Add,                         add),

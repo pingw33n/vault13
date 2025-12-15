@@ -1,13 +1,12 @@
 mod def;
 
 use bstring::bstr;
-use enum_map::EnumMap;
+use linearize::{static_map, StaticMap};
 use num_traits::clamp;
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io;
-
 use crate::asset::{DamageKind, ExactEntityKind, Perk, PCStat, Skill, Stat, Trait};
 use crate::asset::message::{Messages, MessageId};
 use crate::asset::proto::ProtoId;
@@ -50,14 +49,14 @@ pub struct Rpg {
     stat_msgs: Messages,
     skill_msgs: Messages,
     perk_msgs: Messages,
-    stat_defs: EnumMap<Stat, StatDef>,
-    skill_defs: EnumMap<Skill, SkillDef>,
-    perk_defs: EnumMap<Perk, PerkDef>,
-    traits: EnumMap<Trait, bool>,
-    perks: HashMap<ProtoId, EnumMap<Perk, u32>>,
-    tagged: EnumMap<Skill, Tagged>,
-    pc_stat_defs: EnumMap<PCStat, PCStatDef>,
-    pc_stats: EnumMap<PCStat, i32>,
+    stat_defs: StaticMap<Stat, StatDef>,
+    skill_defs: StaticMap<Skill, SkillDef>,
+    perk_defs: StaticMap<Perk, PerkDef>,
+    traits: StaticMap<Trait, bool>,
+    perks: HashMap<ProtoId, StaticMap<Perk, u32>>,
+    tagged: StaticMap<Skill, Tagged>,
+    pc_stat_defs: StaticMap<PCStat, PCStatDef>,
+    pc_stats: StaticMap<PCStat, i32>,
 }
 
 impl Rpg {
@@ -75,7 +74,9 @@ impl Rpg {
         perks.insert(ProtoId::DUDE, Default::default());
 
         let pc_stat_defs = PCStatDef::defaults();
-        let pc_stats = EnumMap::from(|s| pc_stat_defs[s].default);
+        let pc_stats: StaticMap<PCStat, i32> = static_map! {
+            s => pc_stat_defs[s].default
+        };
 
         Ok(Self {
             stat_msgs,

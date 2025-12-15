@@ -1,5 +1,5 @@
 use bstring::BString;
-use enum_map::{enum_map, EnumMap};
+use linearize::{static_map, StaticMap};
 
 use crate::graphics::font::{DrawOptions, FontKey, HorzAlign, VertAlign};
 use crate::graphics::color::Rgb15;
@@ -7,7 +7,7 @@ use crate::graphics::sprite::Sprite;
 use crate::ui::command::UiCommandData;
 use super::*;
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Ord, PartialOrd)]
 pub enum State {
     Disabled,
     Down,
@@ -41,7 +41,7 @@ impl Text {
 }
 
 pub struct Button {
-    configs: EnumMap<State, Config>,
+    configs: StaticMap<State, Config>,
     command: Option<UiCommandData>,
     state: State,
 }
@@ -49,7 +49,7 @@ pub struct Button {
 impl Button {
     pub fn new(up: FrameId, down: FrameId, command: Option<UiCommandData>) -> Self {
         Self {
-            configs: enum_map! {
+            configs: static_map! {
                 State::Disabled => Config {
                     background: None,
                     text: None,
@@ -109,7 +109,7 @@ impl Widget for Button {
                 self.state = State::Up;
                 // FIXME should optionally hit test the frame as in original.
                 if ctx.base.rect.contains(pos)
-                    && let Some(cmd) = self.command 
+                    && let Some(cmd) = self.command
                 {
                     ctx.out(cmd);
                 }

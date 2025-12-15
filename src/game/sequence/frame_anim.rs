@@ -1,5 +1,4 @@
-use enum_map_derive::Enum;
-use if_chain::if_chain;
+use linearize::Linearize;
 use std::time::{Duration, Instant};
 
 use crate::asset::CritterAnim;
@@ -14,7 +13,7 @@ enum State {
     Done,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq)]
 pub enum AnimDirection {
     Forward,
     Backward,
@@ -63,14 +62,12 @@ impl FrameAnim {
     fn init(&mut self, world: &mut World) {
         let mut obj = world.objects().get_mut(self.obj);
 
-        obj.fid = if_chain! {
-            if let Some(anim) = self.options.anim;
-            if let Some(fid) = obj.fid.critter();
-            then {
-                fid.with_anim(anim).into()
-            } else {
-                obj.fid
-            }
+        obj.fid = if let Some(anim) = self.options.anim &&
+            let Some(fid) = obj.fid.critter()
+        {
+            fid.with_anim(anim).into()
+        } else {
+            obj.fid
         };
 
         self.frame_len = Duration::from_millis(1000 / world.frm_db().get(obj.fid).unwrap().fps as u64);

@@ -1,5 +1,5 @@
-use enum_map::EnumMap;
-use enum_map_derive::Enum;
+use linearize::StaticMap;
+use linearize::Linearize;
 use std::rc::Rc;
 
 use crate::asset::frame::{FrameId, FrameDb};
@@ -12,7 +12,7 @@ use crate::graphics::render::{Canvas, Outline, TextureHandle};
 pub struct FrameSet {
     pub fps: u16,
     pub action_frame: u16,
-    pub frame_lists: EnumMap<Direction, FrameList>,
+    pub frame_lists: StaticMap<Direction, FrameList>,
 }
 
 impl FrameSet {
@@ -136,7 +136,7 @@ impl Mask {
     }
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq)]
 pub enum Translucency {
     Energy,
     Glass,
@@ -145,7 +145,7 @@ pub enum Translucency {
     Wall,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq)]
 pub enum OutlineStyle {
     GlowingRed,
     Red,

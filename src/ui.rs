@@ -9,7 +9,7 @@ pub use sdl2::mouse::MouseButton;
 pub use sdl2::keyboard::Keycode;
 
 use downcast_rs::{Downcast, impl_downcast};
-use enum_map_derive::Enum;
+use linearize::Linearize;
 use sdl2::event::{Event as SdlEvent};
 use slotmap::{SecondaryMap, SlotMap};
 use std::cell::{Ref, RefCell, RefMut};
@@ -540,7 +540,7 @@ impl Ui {
             let win_base = self.widget_bases[winh].borrow();
             if win_base.visible {
                 if win_base.modal
-                    && let Some(c) = win_base.cursor 
+                    && let Some(c) = win_base.cursor
                 {
                     return c;
                 }

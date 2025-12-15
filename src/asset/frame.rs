@@ -2,7 +2,7 @@ mod db;
 mod id;
 
 use byteorder::{BigEndian, ReadBytesExt};
-use enum_map::EnumMap;
+use linearize::{static_map, StaticMap};
 use std::io::{self, prelude::*};
 
 pub use id::{FrameId, Idx};
@@ -28,24 +28,24 @@ pub fn read_frm(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Res
     let frames_per_direction = rd.read_u16::<BigEndian>()? as usize;
     assert!(frames_per_direction > 0);
 
-    let mut centers_x = EnumMap::new();
+    let mut centers_x = StaticMap::default();
     for dir in Direction::iter() {
         centers_x[dir] = rd.read_i16::<BigEndian>()? as i32;
     }
-    let mut centers_y = EnumMap::new();
+    let mut centers_y = StaticMap::default();
     for dir in Direction::iter() {
         centers_y[dir] = rd.read_i16::<BigEndian>()? as i32;
     }
 
-    let mut frame_offsets = EnumMap::new();
+    let mut frame_offsets = StaticMap::default();
     for dir in Direction::iter() {
         frame_offsets[dir] = rd.read_u32::<BigEndian>()?;
     }
 
     let _data_len = rd.read_u32::<BigEndian>()?;
 
-    let mut loaded_offsets: EnumMap<Direction, Option<u32>> = EnumMap::new();
-    let mut frame_lists: EnumMap<Direction, Option<FrameList>> = EnumMap::new();
+    let mut loaded_offsets: StaticMap<Direction, Option<u32>> = StaticMap::default();
+    let mut frame_lists: StaticMap<Direction, Option<FrameList>> = StaticMap::default();
     for dir in Direction::iter() {
         let offset = frame_offsets[dir];
         let already_loaded_dir = loaded_offsets
@@ -93,6 +93,6 @@ pub fn read_frm(rd: &mut impl Read, texture_factory: &TextureFactory) -> io::Res
     Ok(FrameSet {
         fps,
         action_frame,
-        frame_lists: EnumMap::from(|k| frame_lists[k].take().unwrap()),
+        frame_lists: static_map! { k => frame_lists[k].take().unwrap() },
     })
 }

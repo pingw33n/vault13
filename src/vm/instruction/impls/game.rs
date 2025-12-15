@@ -1,6 +1,5 @@
-use enum_map_derive::Enum;
+use linearize::Linearize;
 use enum_primitive_derive::Primitive;
-use if_chain::if_chain;
 use log::*;
 use num_traits::FromPrimitive;
 use static_assertions::const_assert;
@@ -22,14 +21,14 @@ use crate::sequence::chain::Chain;
 use crate::util::random::{random as rand, RollCheckResult};
 
 /// This is also known as "trait" by `has_trait()`, `critter_add_trait` etc instructions.
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 enum Attribute {
     Perk = 0,
     Object = 1,
     Trait = 2,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 enum ObjectTrait {
     AiPacket = 5,
     TeamId = 6,
@@ -68,7 +67,7 @@ fn from_tile_num(ctx: &Context, tile_num: i32) -> Option<Point> {
         .map(|v| ctx.ext.world.hex_grid().linear_to_rect_inv(v))
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 enum Metarule {
     SignalEndGame   = 13,
     TestFirstrun    = 14,
@@ -96,7 +95,7 @@ enum Metarule {
     CarTrunkGetAnim = 53,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 enum Metarule3 {
     ClrFixedTimedEvents = 100,
     MarkSubtile         = 101,
@@ -123,7 +122,7 @@ pub fn action_being_used(ctx: Context) -> Result<()> {
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, Hash, Ord, PartialEq, PartialOrd, Primitive)]
 enum RegAnimFuncOp {
     Begin = 1,
     Clear = 2,
@@ -351,7 +350,7 @@ pub fn end_dialogue(ctx: Context) -> Result<()> {
     Ok(())
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 #[repr(u32)]
 enum FloatingTextStyle {
     Sequential  = 0xffff_fffe_u32,
@@ -632,15 +631,13 @@ pub fn has_trait(ctx: Context) -> Result<()> {
         Attribute::Perk => {
             let perk = Perk::from_i32(kind)
                 .ok_or(Error::BadValue(BadValue::Content))?;
-            let r = if_chain! {
-                if let Some(obj) = obj;
-                if let Some(proto_id) = ctx.ext.world.objects().get(obj).proto_id();
-                then {
-                    ctx.ext.rpg.has_perk(perk, proto_id).into()
-                } else {
-                    log_error!(ctx.prg, "object is null or doesn't have proto");
-                    false.into()
-                }
+            let r = if let Some(obj) = obj &&
+                let Some(proto_id) = ctx.ext.world.objects().get(obj).proto_id()
+            {
+                ctx.ext.rpg.has_perk(perk, proto_id).into()
+            } else {
+                log_error!(ctx.prg, "object is null or doesn't have proto");
+                false.into()
             };
             log_a3r1!(ctx.prg, attr, obj, perk, r);
             r
