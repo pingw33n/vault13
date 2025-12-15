@@ -1,4 +1,4 @@
-use enum_map::EnumMap;
+use linearize::StaticMap;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind, prelude::*};
@@ -13,7 +13,7 @@ use crate::util::EnumExt;
 pub struct FrameDb {
     fs: Rc<FileSystem>,
     language: Option<String>,
-    lst: EnumMap<EntityKind, Vec<LstEntry>>,
+    lst: StaticMap<EntityKind, Vec<LstEntry>>,
     frms: RefCell<HashMap<FrameId, Rc<FrameSet>>>,
     texture_factory: TextureFactory,
 }
@@ -120,8 +120,8 @@ impl FrameDb {
         self.read_by_name(fid.kind(), &name)
     }
 
-    fn read_lst_files(fs: &FileSystem) -> io::Result<EnumMap<EntityKind, Vec<LstEntry>>> {
-        let mut lst = EnumMap::new();
+    fn read_lst_files(fs: &FileSystem) -> io::Result<StaticMap<EntityKind, Vec<LstEntry>>> {
+        let mut lst = StaticMap::default();
         for kind in EntityKind::iter() {
             let path = Self::full_path(kind, &format!("{}.lst", kind.dir()), None);
             lst[kind] = read_lst(&mut fs.reader(&path)?)?;

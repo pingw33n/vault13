@@ -1,6 +1,5 @@
 use bstring::{bstr, BString};
-use enum_map::{enum_map, EnumMap};
-use if_chain::if_chain;
+use linearize::{static_map, StaticMap};
 use log::*;
 use measure_time::*;
 use sdl2::event::{Event as SdlEvent};
@@ -72,7 +71,7 @@ pub struct GameState {
     in_combat: bool,
     seq_events: Vec<sequence::Event>,
     misc_msgs: Rc<Messages>,
-    scroll_areas: EnumMap<ScrollDirection, ui::Handle>,
+    scroll_areas: StaticMap<ScrollDirection, ui::Handle>,
     rpg: Rpg,
     skilldex: Skilldex,
     inventory: Inventory,
@@ -480,26 +479,24 @@ impl GameState {
             lookedo.script.map(|(v, _)| v)
         };
 
-        if_chain! {
-            if let Some(sid) = sid;
-            if let Some(r) = self.scripts.execute_predefined_proc(sid, PredefinedProc::LookAt,
-                &mut script::Context {
-                    world: &mut self.world.borrow_mut(),
-                    obj_sequencer: &mut self.obj_sequencer,
-                    dialog: &mut self.dialog,
-                    ui,
-                    message_panel: self.message_panel,
-                    map_id: self.map_id.unwrap(),
-                    source_obj: Some(looker),
-                    target_obj: Some(looked),
-                    skill: None,
-                    rpg: &mut self.rpg,
-                });
-            then {
-                assert!(r.suspend.is_none(), "can't suspend");
-                if r.script_overrides {
-                    return None;
-                }
+        if let Some(sid) = sid &&
+            let Some(r) = self.scripts.execute_predefined_proc(sid, PredefinedProc::LookAt,
+            &mut script::Context {
+                world: &mut self.world.borrow_mut(),
+                obj_sequencer: &mut self.obj_sequencer,
+                dialog: &mut self.dialog,
+                ui,
+                message_panel: self.message_panel,
+                map_id: self.map_id.unwrap(),
+                source_obj: Some(looker),
+                target_obj: Some(looked),
+                skill: None,
+                rpg: &mut self.rpg,
+            })
+       {
+            assert!(r.suspend.is_none(), "can't suspend");
+            if r.script_overrides {
+                return None;
             }
         }
 
@@ -510,14 +507,12 @@ impl GameState {
         } else {
             490
         };
-        if_chain! {
-            if let Some(msg) = self.proto_db.messages().get(msg_id);
-            if let Some(name) = world.object_name(looked);
-            then {
-                Some(sprintf(&msg.text, &[&*name]))
-            } else {
-                None
-            }
+        if let Some(msg) = self.proto_db.messages().get(msg_id) &&
+            let Some(name) = world.object_name(looked)
+        {
+            Some(sprintf(&msg.text, &[&*name]))
+        } else {
+            None
         }
     }
 
@@ -545,27 +540,25 @@ impl GameState {
             examinedo.script.map(|(v, _)| v)
         };
 
-        let script_overrides = if_chain! {
-            if let Some(sid) = sid;
-            if let Some(r) = self.scripts.execute_predefined_proc(sid, PredefinedProc::Description,
-                &mut script::Context {
-                    world: &mut self.world.borrow_mut(),
-                    obj_sequencer: &mut self.obj_sequencer,
-                    dialog: &mut self.dialog,
-                    ui,
-                    message_panel: self.message_panel,
-                    map_id: self.map_id.unwrap(),
-                    source_obj: Some(examiner),
-                    target_obj: Some(examined),
-                    skill: None,
-                    rpg: &mut self.rpg,
-                });
-            then {
-                assert!(r.suspend.is_none(), "can't suspend");
-                r.script_overrides
-            } else {
-                false
-            }
+        let script_overrides = if let Some(sid) = sid &&
+            let Some(r) = self.scripts.execute_predefined_proc(sid, PredefinedProc::Description,
+            &mut script::Context {
+                world: &mut self.world.borrow_mut(),
+                obj_sequencer: &mut self.obj_sequencer,
+                dialog: &mut self.dialog,
+                ui,
+                message_panel: self.message_panel,
+                map_id: self.map_id.unwrap(),
+                source_obj: Some(examiner),
+                target_obj: Some(examined),
+                skill: None,
+                rpg: &mut self.rpg,
+            })
+        {
+            assert!(r.suspend.is_none(), "can't suspend");
+            r.script_overrides
+        } else {
+            false
         };
 
         let mut r = Vec::new();
@@ -783,12 +776,12 @@ impl GameState {
             } else {
                 false
             };
-            if !script_overrides && user == world.objects().dude() {
-                if let Some(obj_name) = world.object_name(used) {
-                    let msg = &self.proto_db.messages().get(MSG_YOU_SEE_X).unwrap().text;
-                    let msg = sprintf(msg, &[&obj_name]);
-                    self.push_message(&msg, ui);
-                }
+            if !script_overrides && user == world.objects().dude()
+                && let Some(obj_name) = world.object_name(used)
+            {
+                let msg = &self.proto_db.messages().get(MSG_YOU_SEE_X).unwrap().text;
+                let msg = sprintf(msg, &[&obj_name]);
+                self.push_message(&msg, ui);
             }
         }
     }
@@ -891,7 +884,7 @@ impl GameState {
         }
     }
 
-    fn create_scroll_areas(rect: Rect, ui: &mut Ui) -> EnumMap<ScrollDirection, ui::Handle> {
+    fn create_scroll_areas(rect: Rect, ui: &mut Ui) -> StaticMap<ScrollDirection, ui::Handle> {
         let mut new = |rect, cur, curx| {
             let win = ui.new_window(rect, None);
             ui.new_widget(win, Rect::with_size(0, 0, rect.width(), rect.height()), None, None,
@@ -899,7 +892,7 @@ impl GameState {
         };
         use ui::Cursor::*;
         use ScrollDirection::*;
-        enum_map! {
+        static_map! {
             N => new(
                 Rect::new(rect.left + 1, rect.top, rect.right - 1, rect.top + 1),
                 ScrollNorth, ScrollNorthX),
@@ -957,8 +950,9 @@ impl GameState {
     fn show_skilldex(&mut self, ui: &mut Ui, target: Option<object::Handle>) {
         let world = self.world.borrow();
         let dude_obj = world.objects().get(world.objects().dude());
-        let levels = EnumMap::from(
-            |skill: skilldex::Skill| self.rpg.skill(skill.into(), &dude_obj, world.objects()));
+        let levels: StaticMap<skilldex::Skill, _> = static_map! {
+            skill => self.rpg.skill(skill.into(), &dude_obj, world.objects())
+        };
         self.skilldex.show(ui, levels, target);
     }
 

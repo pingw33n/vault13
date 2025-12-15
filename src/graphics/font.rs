@@ -1,5 +1,5 @@
 use bstring::bstr;
-use enum_map_derive::Enum;
+use linearize::Linearize;
 use std::collections::HashMap;
 use std::ops::Range;
 
@@ -7,7 +7,7 @@ use crate::graphics::Point;
 use crate::graphics::color::Rgb15;
 use crate::graphics::render::{Canvas, Outline, TextureHandle};
 
-#[derive(Clone, Copy, Debug, Default, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Linearize, Eq, PartialEq)]
 pub enum HorzAlign {
     #[default]
     Left,
@@ -15,7 +15,7 @@ pub enum HorzAlign {
     Right,
 }
 
-#[derive(Clone, Copy, Debug, Default, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Linearize, Eq, PartialEq)]
 pub enum VertAlign {
     #[default]
     Top,
@@ -207,29 +207,29 @@ impl Iterator for LineRanges0<'_, '_> {
 
             cur_width += glyph.width + self.font.horz_spacing;
 
-            if let Some(Overflow { size, boundary, action }) = self.horz_overflow {
-                if !overflown && cur_width > size {
-                    overflown = true;
-                    match boundary {
-                        OverflowBoundary::Char => {
-                            end = end.saturating_sub(1);
-                        }
-                        OverflowBoundary::Word => {
-                            if let Some(i) = self.text[start..end].iter()
-                                .rposition(|&c| Self::can_wrap_after(c))
-                                .map(|i| start + i)
-                            {
-                                end = i;
-                                self.i = i + 1;
-                            } else {
-                                self.i -= 1;
-                            }
+            if let Some(Overflow { size, boundary, action }) = self.horz_overflow
+                && !overflown && cur_width > size
+            {
+                overflown = true;
+                match boundary {
+                    OverflowBoundary::Char => {
+                        end = end.saturating_sub(1);
+                    }
+                    OverflowBoundary::Word => {
+                        if let Some(i) = self.text[start..end].iter()
+                            .rposition(|&c| Self::can_wrap_after(c))
+                            .map(|i| start + i)
+                        {
+                            end = i;
+                            self.i = i + 1;
+                        } else {
+                            self.i -= 1;
                         }
                     }
-                    match action {
-                        OverflowAction::Truncate => {} // keep looking for line end
-                        OverflowAction::Wrap => break,
-                    }
+                }
+                match action {
+                    OverflowAction::Truncate => {} // keep looking for line end
+                    OverflowAction::Wrap => break,
                 }
             }
         }

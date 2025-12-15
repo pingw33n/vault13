@@ -184,15 +184,15 @@ impl Widget for InventoryList {
                 self.default_action = None;
             }
             Event::Tick => {
-                if let Some((start, item)) = self.action_menu_state {
-                    if ctx.now - start >= Duration::from_millis(500) {
-                        self.default_action = None;
-                        self.action_menu_state = None;
+                if let Some((start, item)) = self.action_menu_state
+                    && ctx.now - start >= Duration::from_millis(500) 
+                {
+                    self.default_action = None;
+                    self.action_menu_state = None;
 
-                        ctx.out(UiCommandData::Inventory(Command::ActionMenu {
-                            object: self.items[item].object,
-                        }));
-                    }
+                    ctx.out(UiCommandData::Inventory(Command::ActionMenu {
+                        object: self.items[item].object,
+                    }));
                 }
             }
             _ => {}

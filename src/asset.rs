@@ -6,7 +6,7 @@ pub mod palette;
 pub mod proto;
 pub mod script;
 
-use enum_map_derive::Enum;
+use linearize::Linearize;
 use enum_primitive_derive::Primitive;
 use std::collections::HashMap;
 use std::io::{self, Error, ErrorKind};
@@ -16,7 +16,7 @@ use enumflags2::bitflags;
 use crate::graphics::EPoint;
 use crate::graphics::geometry::hex::Direction;
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum EntityKind {
     Item = 0x0,
     Critter = 0x1,
@@ -83,7 +83,7 @@ impl ExactEntityKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Enum, PartialEq, Ord, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Eq, Linearize, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum SceneryKind {
     Door = 0x0,
     Stairs = 0x1,
@@ -104,7 +104,7 @@ pub enum ItemKind {
     Key = 0x6,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Ord, PartialOrd, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Ord, PartialOrd, Primitive)]
 pub enum CritterAnim {
     // basic animations  0-19
     Stand                   =  0, // AA, [D-M]A
@@ -199,7 +199,7 @@ impl CritterAnim {
     }
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 pub enum Material {
     Glass       = 0,
     Metal       = 1,
@@ -211,7 +211,7 @@ pub enum Material {
     Leather     = 7,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 pub enum DamageKind {
     Melee       = 0,
     Laser       = 1,
@@ -260,7 +260,7 @@ impl DamageKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Eq, Linearize, PartialEq, Primitive)]
 pub enum Stat {
     Strength = 0x0,
     Perception = 0x1,
@@ -348,7 +348,7 @@ impl Stat {
     }
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 pub enum PCStat {
     UnspentSkillPoints = 0,
     Level = 1,
@@ -357,7 +357,7 @@ pub enum PCStat {
     Karma = 4,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 pub enum Perk {
     BonusAwareness = 0x0,
     BonusHthAttacks = 0x1,
@@ -480,7 +480,7 @@ pub enum Perk {
     Jinxed = 0x76,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 pub enum Skill {
     SmallGuns = 0x0,
     BigGuns = 0x1,
@@ -502,7 +502,7 @@ pub enum Skill {
     Outdoorsman = 0x11,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 pub enum Trait {
     FastMetabolism = 0,
     Bruiser = 1,
@@ -522,7 +522,7 @@ pub enum Trait {
     Gifted = 15,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 pub enum WeaponKind {
     Unarmed     = 0,
     Knife       = 1,
@@ -640,13 +640,13 @@ pub enum DoorFlag {
     Jammed = 0x4_00_00_00,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq)]
 pub enum AttackGroup {
     Primary,
     Secondary,
 }
 
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq, Primitive)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq, Primitive)]
 pub enum AttackKind {
     Stand           = 0,
     Punch           = 1,
@@ -666,7 +666,7 @@ impl AttackKind {
 }
 
 // item_w_subtype
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq)]
 pub enum AttackCategory {
     Stand,
     MeleeUnarmed,

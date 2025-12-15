@@ -1,6 +1,5 @@
 use bstring::{bstr, BString};
 use bstring::bfmt::ToBString;
-use if_chain::if_chain;
 use sdl2::mouse::MouseButton;
 use std::time::Duration;
 
@@ -459,26 +458,22 @@ impl Internal {
                 }
                 misc.push(b'\n');
 
-                if_chain! {
-                    if let Some(max_ammo) = proto.max_ammo_count();
-                    if max_ammo > 0;
-                    then {
-                        let item = item.sub.as_item().unwrap();
+                if let Some(max_ammo) = proto.max_ammo_count() && max_ammo > 0 {
+                    let item = item.sub.as_item().unwrap();
 
-                        // Ammo: 5/10
-                        misc.push_str(msg(MSG_AMMO));
+                    // Ammo: 5/10
+                    misc.push_str(msg(MSG_AMMO));
+                    misc.push(b' ');
+                    misc.push_str(item.ammo_count.to_bstring());
+                    misc.push(b'/');
+                    misc.push_str(max_ammo.to_bstring());
+
+                    if let Some(ammo_proto) = item.ammo_proto.as_ref() {
+                        let ammo_proto = ammo_proto.borrow();
+                        let ammo_name = ammo_proto.name().unwrap();
+                        // .44 Magnum JHP
                         misc.push(b' ');
-                        misc.push_str(item.ammo_count.to_bstring());
-                        misc.push(b'/');
-                        misc.push_str(max_ammo.to_bstring());
-
-                        if let Some(ammo_proto) = item.ammo_proto.as_ref() {
-                            let ammo_proto = ammo_proto.borrow();
-                            let ammo_name = ammo_proto.name().unwrap();
-                            // .44 Magnum JHP
-                            misc.push(b' ');
-                            misc.push_str(ammo_name);
-                        }
+                        misc.push_str(ammo_name);
                     }
                 }
                 misc.push(b'\n');
@@ -642,19 +637,18 @@ impl Internal {
                 }
 
                 // Check for weapon reload.
-                let reload = if_chain! {
-                    if let Some(target_obj) = target_obj;
-                    let weapon = world.objects().get(target_obj);
-                    if let Some(max_count) = weapon.can_reload_weapon(&src_obj);
-                    then {
-                        actions.push(Action::Reload {
-                            weapon: weapon.handle(),
-                            max_count,
-                        });
-                        true
-                    } else {
-                        false
-                    }
+                let reload = if
+                    let Some(target_obj) = target_obj &&
+                    let weapon = world.objects().get(target_obj) &&
+                    let Some(max_count) = weapon.can_reload_weapon(&src_obj)
+                {
+                    actions.push(Action::Reload {
+                        weapon: weapon.handle(),
+                        max_count,
+                    });
+                    true
+                } else {
+                    false
                 };
 
                 // Default actions are to move/replace.

@@ -62,28 +62,26 @@ fn version() -> String {
         VERSION, GIT_SHORT_HASH, GIT_DATE, dev=dev, dirty=dirty)
 }
 
-fn args() -> clap::App<'static, 'static> {
+fn args() -> clap::Command {
     use clap::*;
 
-    App::new(format!("Vault 13 {} ({})", VERSION, GIT_DATE))
-        .arg(Arg::with_name("RESOURCE_DIR")
-            .help("One or more resource directories where master.dat, critter.dat and patchXXX.dat \
+    Command::new("Vault13")
+        .version(VERSION)
+        .long_version(Box::leak(format!("{} ({})", VERSION, GIT_DATE).into_boxed_str()) as &_)
+        .arg(Arg::new("RESOURCE_DIR")
+            .help("Resource directory where master.dat, critter.dat and patchXXX.dat \
                    can be found")
-            .required_unless("version"))
-        .arg(Arg::with_name("MAP")
+            .required_unless_present("version"))
+        .arg(Arg::new("MAP")
             .help("Map name to load. For example: artemple")
-            .required_unless("version"))
-        .arg(Arg::with_name("version")
-            .short("v")
-            .long("version")
-            .help("Prints version information"))
+            .required_unless_present("version"))
         .after_help(
             "EXAMPLE:\n\
           \x20   vault13 /path/to/fallout2 artemple")
 }
 
 fn setup_file_system(fs: &mut fs::FileSystem, args: &clap::ArgMatches) {
-    let res_dir = Path::new(args.value_of("RESOURCE_DIR").unwrap());
+    let res_dir = Path::new(args.get_one::<String>("RESOURCE_DIR").unwrap());
     info!("Using resources dir: {}", res_dir.display());
 
     let mut dat_files = Vec::new();
@@ -181,9 +179,11 @@ fn log_sdl_info() {
 }
 
 fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
-    if std::env::var("RUST_LOG") == Err(std::env::VarError::NotPresent) {
-        std::env::set_var("RUST_LOG", "vault13=info");
+    unsafe {
+        std::env::set_var("RUST_BACKTRACE", "1");
+        if std::env::var("RUST_LOG") == Err(std::env::VarError::NotPresent) {
+            std::env::set_var("RUST_LOG", "vault13=info");
+        }
     }
 
     env_logger::init();
@@ -197,14 +197,9 @@ fn main() {
     {
         let args = &args().get_matches();
 
-        if args.is_present("version") {
-            println!("{}", version());
-            return;
-        }
-
         setup_file_system(&mut fs, args);
 
-        let s = args.value_of("MAP").unwrap().to_lowercase();
+        let s = args.get_one::<String>("MAP").unwrap().to_lowercase();
         map_name = if s.ends_with(".map") {
             s[..s.len() - 4].into()
         } else {
@@ -227,7 +222,7 @@ fn main() {
     let video = sdl.video().unwrap();
     info!("Using video driver: {}", video.current_video_driver());
 
-    let window = video.window("Vault 13", 640, 480)
+    let window = video.window("Vault13", 640, 480)
         .position_centered()
         .allow_highdpi()
         .build()

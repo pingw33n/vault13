@@ -3,7 +3,7 @@ mod id;
 
 use bstring::{bstr, BString};
 use enumflags2::{bitflags, BitFlags};
-use enum_map::EnumMap;
+use linearize::StaticMap;
 use num_traits::cast::FromPrimitive;
 
 pub use id::ProtoId;
@@ -116,9 +116,9 @@ impl SubProto {
     pub fn kind(&self) -> ExactEntityKind {
         use self::SubProto::*;
         match self {
-            Item(ref v) => ExactEntityKind::Item(v.sub.kind()),
+            Item(v) => ExactEntityKind::Item(v.sub.kind()),
             Critter(_) => ExactEntityKind::Critter,
-            Scenery(ref v) => ExactEntityKind::Scenery(v.sub.kind()),
+            Scenery(v) => ExactEntityKind::Scenery(v.sub.kind()),
             Wall(_) => ExactEntityKind::Wall,
             SqrTile(_) => ExactEntityKind::SqrTile,
             Misc => ExactEntityKind::Misc,
@@ -190,8 +190,8 @@ impl SubItem {
 #[derive(Debug)]
 pub struct Armor {
   pub armor_class: i32,
-  pub damage_resistance: EnumMap<DamageKind, i32>,
-  pub damage_threshold: EnumMap<DamageKind, i32>,
+  pub damage_resistance: StaticMap<DamageKind, i32>,
+  pub damage_threshold: StaticMap<DamageKind, i32>,
   pub perk: Option<Perk>,
   pub male_fidx: Idx,
   pub female_fidx: Idx,
@@ -251,15 +251,15 @@ pub struct Drug {
 
 #[derive(Debug)]
 pub struct Weapon {
-    pub attack_kinds: EnumMap<AttackGroup, AttackKind>,
+    pub attack_kinds: StaticMap<AttackGroup, AttackKind>,
     pub kind: WeaponKind,
     // item_w_damage_min_max
     pub damage: RangeInclusive<i32>,
     pub damage_kind: DamageKind,
-    pub max_ranges: EnumMap<AttackGroup, i32>,
+    pub max_ranges: StaticMap<AttackGroup, i32>,
     pub projectile_pid: Option<ProtoId>,
     pub min_strength: i32,
-    pub ap_costs: EnumMap<AttackGroup, i32>,
+    pub ap_costs: StaticMap<AttackGroup, i32>,
     pub crit_failure_table: i32,
     pub perk: Option<Perk>,
     // Number of bullets per burst shot.
@@ -304,9 +304,9 @@ pub enum BodyKind {
 #[derive(Debug)]
 pub struct Critter {
     pub flags: BitFlags<CritterFlag>,
-    pub base_stats: EnumMap<Stat, i32>,
-    pub bonus_stats: EnumMap<Stat, i32>,
-    pub skills: EnumMap<Skill, i32>,
+    pub base_stats: StaticMap<Stat, i32>,
+    pub bonus_stats: StaticMap<Stat, i32>,
+    pub skills: StaticMap<Skill, i32>,
     pub body_kind: BodyKind,
     pub experience: i32,
     //proto.msg:1450
@@ -380,7 +380,7 @@ impl SubScenery {
             Door(_) => SceneryKind::Door,
             Stairs(_) => SceneryKind::Stairs,
             Elevator(_) => SceneryKind::Elevator,
-            Ladder(ref l) => match l.kind {
+            Ladder(l) => match l.kind {
                 LadderKind::Up => SceneryKind::LadderUp,
                 LadderKind::Down => SceneryKind::LadderDown,
             }

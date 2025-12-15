@@ -31,7 +31,7 @@ struct ScriptInfo {
 }
 
 #[bitflags]
-#[derive(Clone, Copy, Debug, Enum, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Linearize, Eq, PartialEq)]
 #[repr(u32)]
 pub enum OutlineFlag {
     GlowingRed      = 0x1,

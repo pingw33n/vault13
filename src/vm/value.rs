@@ -397,18 +397,18 @@ mod test {
     fn generate_string_direct_cases<T: Clone>(d: &mut Vec<(Value, Value, T)>, strings: &StringMap) {
         for i in 0..d.len() {
             let (left, right, exp) = d[i].clone();
-            if let String(Indirect(left_id)) = left {
-                if let Some(left) = strings.get(left_id).cloned() {
-                    d.push((left.into(), right, exp));
-                }
+            if let String(Indirect(left_id)) = left
+                && let Some(left) = strings.get(left_id).cloned()
+            {
+                d.push((left.into(), right, exp));
             }
         }
         for i in 0..d.len() {
             let (left, right, exp) = d[i].clone();
-            if let String(Indirect(right_id)) = right {
-                if let Some(right) = strings.get(right_id).cloned() {
-                    d.push((left, right.into(), exp));
-                }
+            if let String(Indirect(right_id)) = right
+                && let Some(right) = strings.get(right_id).cloned()
+            {
+                d.push((left, right.into(), exp));
             }
         }
     }

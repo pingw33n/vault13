@@ -153,7 +153,9 @@ impl<P> Rgb<P> {
     #[inline(always)]
     pub const unsafe fn rgb15_from_packed_unchecked(rgb: u32) -> Self {
         let (r, g, b) = unpack(rgb, Color5::BITS, Color5::MASK);
-        Self::new_unchecked(r, g, b)
+        unsafe {
+            Self::new_unchecked(r, g, b)
+        }
     }
 }
 

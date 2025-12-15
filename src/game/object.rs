@@ -1,6 +1,5 @@
 use enumflags2::{bitflags, BitFlags};
 use enum_primitive_derive::Primitive;
-use if_chain::if_chain;
 use log::*;
 use slotmap::{SecondaryMap, SlotMap};
 use std::cell::{Ref, RefCell, RefMut};
@@ -481,15 +480,13 @@ impl Object {
     // obj_action_can_talk_to()
     #[must_use]
     pub fn can_talk_to(&self) -> bool {
-        if_chain! {
-            if let SubObject::Critter(c) = &self.sub;
-            if c.is_active();
-            if let Some(proto) = self.proto();
-            then {
-                proto.can_talk_to()
-            } else {
-                false
-            }
+        if let SubObject::Critter(c) = &self.sub &&
+            c.is_active() &&
+            let Some(proto) = self.proto()
+        {
+            proto.can_talk_to()
+        } else {
+            false
         }
     }
 
@@ -1427,18 +1424,16 @@ impl Objects {
         for p in hex::ray(pos.point, target_pos.point) {
             let blocker = self.shot_blocker_at(shooter, p.elevated(pos.elevation));
 
-            if_chain! {
-                if blocker != last_blocker;
-                if let Some(blocker) = blocker;
-                then {
-                    if blocker != shooter && blocker != target {
-                        let o = self.get(blocker);
-                        if o.kind() != EntityKind::Critter {
-                            return true;
-                        }
+            if blocker != last_blocker &&
+                let Some(blocker) = blocker
+            {
+                if blocker != shooter && blocker != target {
+                    let o = self.get(blocker);
+                    if o.kind() != EntityKind::Critter {
+                        return true;
                     }
-                    last_blocker = Some(blocker);
                 }
+                last_blocker = Some(blocker);
             }
             if p == target_pos.point {
                 break;
@@ -1628,10 +1623,10 @@ impl Objects {
                         continue;
                     };
 
-                    if let Some(egg) = egg {
-                        if self.is_egg_hit(p.point, &obj, egg, tile_grid) {
-                            hit.with_egg = true;
-                        }
+                    if let Some(egg) = egg
+                        && self.is_egg_hit(p.point, &obj, egg, tile_grid)
+                    {
+                        hit.with_egg = true;
                     }
 
                     r.push((objh, hit));
@@ -1742,34 +1737,32 @@ impl Objects {
     // obj_intersects_with()
     #[must_use]
     fn is_egg_hit(&self, p: Point, obj: &Object, egg: Egg, tile_grid: &impl TileGridView) -> bool {
-        if_chain! {
-            if let Some(obj_pos) = obj.pos;
-            let obj_pos = obj_pos.point;
-            if let Some(proto) = obj.proto.as_ref();
-            let proto = proto.borrow();
-            if proto.id().kind() == EntityKind::Wall || proto.id().kind() == EntityKind::Scenery;
-            then {
-                if !egg.hit_test(p, tile_grid, &self.frm_db) {
-                    return false;
-                }
-
-                // Is masked?
-                if proto.flags_ext.intersects(
-                    FlagExt::WallEastOrWest | FlagExt::WallWestCorner)
-                {
-                    hex::is_in_front_of(obj_pos, egg.pos)
-                } else if proto.flags_ext.contains(FlagExt::WallNorthCorner) {
-                    hex::is_in_front_of(obj_pos, egg.pos) ||
-                        hex::is_to_right_of(obj_pos, egg.pos)
-                } else if proto.flags_ext.contains(FlagExt::WallSouthCorner) {
-                    hex::is_in_front_of(obj_pos, egg.pos) &&
-                        hex::is_to_right_of(obj_pos, egg.pos)
-                } else {
-                    hex::is_to_right_of(obj_pos, egg.pos)
-                }
-            } else {
-                false
+        if let Some(obj_pos) = obj.pos &&
+            let obj_pos = obj_pos.point &&
+            let Some(proto) = obj.proto.as_ref() &&
+            let proto = proto.borrow() &&
+            matches!(proto.id().kind(), EntityKind::Wall | EntityKind::Scenery)
+        {
+            if !egg.hit_test(p, tile_grid, &self.frm_db) {
+                return false;
             }
+
+            // Is masked?
+            if proto.flags_ext.intersects(
+                FlagExt::WallEastOrWest | FlagExt::WallWestCorner)
+            {
+                hex::is_in_front_of(obj_pos, egg.pos)
+            } else if proto.flags_ext.contains(FlagExt::WallNorthCorner) {
+                hex::is_in_front_of(obj_pos, egg.pos) ||
+                    hex::is_to_right_of(obj_pos, egg.pos)
+            } else if proto.flags_ext.contains(FlagExt::WallSouthCorner) {
+                hex::is_in_front_of(obj_pos, egg.pos) &&
+                    hex::is_to_right_of(obj_pos, egg.pos)
+            } else {
+                hex::is_to_right_of(obj_pos, egg.pos)
+            }
+        } else {
+            false
         }
     }
 

@@ -1,5 +1,4 @@
-use enum_map::{enum_map, EnumMap};
-
+use linearize::{static_map, StaticMap};
 use crate::asset::Stat;
 
 #[derive(Clone)]
@@ -25,9 +24,9 @@ impl StatDef {
         }
     }
 
-    pub fn defaults() -> EnumMap<Stat, Self> {
+    pub fn defaults() -> StaticMap<Stat, Self> {
         use Stat::*;
-        enum_map! {
+        static_map! {
             Strength => Self::new(0, 1, 10, 5),
             Perception => Self::new(1, 1, 10, 5),
             Endurance => Self::new(2, 1, 10, 5),

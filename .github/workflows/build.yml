@@ -135,7 +135,7 @@ jobs:
 
     - name: App version
       shell: bash
-      run: target/release/${NAME} -v
+      run: target/release/${NAME} --version
 
     - name: Pre-package
       shell: bash
@@ -175,7 +175,7 @@ jobs:
       working-directory: dist
       run: |
         ls -l
-        ./${NAME} -v
+        ./${NAME} --version
 
     - name: Make artifact name
       id: artifact_name

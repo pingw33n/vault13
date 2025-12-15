@@ -219,8 +219,8 @@ impl Widget for WorldView {
                 self.pick_state = PickState::Idle;
             }
             Event::Tick => {
-                if let Some((time, obj)) = self.action_menu_state {
-                    if ctx.now - time >= Duration::from_millis(500) {
+                if let Some((time, obj)) = self.action_menu_state
+                    && ctx.now - time >= Duration::from_millis(500) {
                         self.action_menu_state = None;
                         self.default_action_icon = None;
 
@@ -229,7 +229,6 @@ impl Widget for WorldView {
                             obj,
                         });
                     }
-                }
 
                 match self.pick_state {
                     PickState::Idle => {}

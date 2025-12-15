@@ -54,10 +54,10 @@ impl Widget for Panel {
             };
 
             let mut options = text.options.clone();
-            if let Some(o) = options.horz_overflow.as_mut() {
-                if o.size == 0 {
-                    o.size = ctx.base.unwrap().rect.width();
-                }
+            if let Some(o) = options.horz_overflow.as_mut()
+                && o.size == 0
+            {
+                o.size = ctx.base.unwrap().rect.width();
             }
             ctx.canvas.draw_text(
                 &text.text,

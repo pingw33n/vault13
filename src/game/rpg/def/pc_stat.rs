@@ -1,4 +1,4 @@
-use enum_map::{enum_map, EnumMap};
+use linearize::{static_map, StaticMap};
 
 use crate::asset::PCStat;
 
@@ -9,9 +9,9 @@ pub struct PCStatDef {
 }
 
 impl PCStatDef {
-    pub fn defaults() -> EnumMap<PCStat, Self> {
+    pub fn defaults() -> StaticMap<PCStat, Self> {
         use PCStat::*;
-        enum_map! {
+        static_map! {
             UnspentSkillPoints => Self {
                 min: 0,
                 max: i32::MAX,

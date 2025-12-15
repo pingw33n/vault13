@@ -1,8 +1,8 @@
 #[macro_use] mod macros;
-mod core;
+mod base;
 mod game;
 
-pub use self::core::*;
+pub use self::base::*;
 pub use self::game::*;
 
 use super::Context;

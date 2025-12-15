@@ -1,4 +1,4 @@
-use enum_map::EnumMap;
+use linearize::{static_map, StaticMap};
 use num_traits::clamp;
 
 use crate::graphics::geometry::hex::{self, Direction};
@@ -136,7 +136,7 @@ impl LightGrid {
 
 #[derive(Debug)]
 struct LightCones {
-    cones: [EnumMap<Direction, Box<[Point]>>; 2],
+    cones: [StaticMap<Direction, Box<[Point]>>; 2],
     radiuses: Box<[u32]>,
 }
 
@@ -144,9 +144,13 @@ impl LightCones {
     pub fn new(radius: u32) -> Self {
         let mut radiuses = Vec::with_capacity(radius as usize);
         let cones = [
-            EnumMap::from(|dir| Self::make(false, dir, radius,
-                |r| if dir == Direction::NE { radiuses.push(r) })),
-            EnumMap::from(|dir| Self::make(true, dir, radius, |_| {})),
+            static_map! {
+                dir => Self::make(false, dir, radius,
+                    |r| if dir == Direction::NE { radiuses.push(r) })
+            },
+            static_map! {
+                dir => Self::make(true, dir, radius, |_| {})
+            },
         ];
         Self {
             cones,
@@ -158,7 +162,7 @@ impl LightCones {
         self.radiuses.len()
     }
 
-    pub fn cones(&self, odd: bool) -> &EnumMap<Direction, Box<[Point]>> {
+    pub fn cones(&self, odd: bool) -> &StaticMap<Direction, Box<[Point]>> {
         &self.cones[odd as usize]
     }
 
@@ -185,13 +189,13 @@ impl LightCones {
 }
 
 struct LightBlock {
-    cones: EnumMap<Direction, [bool; LIGHT_CONE_LEN]>,
+    cones: StaticMap<Direction, [bool; LIGHT_CONE_LEN]>,
 }
 
 impl LightBlock {
     pub fn new() -> Self {
         Self {
-            cones: EnumMap::from(|_| [false; LIGHT_CONE_LEN]),
+            cones: static_map! { _ => [false; LIGHT_CONE_LEN] },
         }
     }
 
@@ -376,7 +380,6 @@ impl LightBlock {
 #[cfg(test)]
 mod test {
     use super::*;
-    use enum_map::enum_map;
 
     #[test]
     fn light_cones() {
@@ -400,7 +403,7 @@ mod test {
         }
 
         let expected = [
-            enum_map! {
+            static_map! {
                 Direction::NE => vec![
                     P { i: 0,   p: (1, -1) },
                     P { i: 7,   p: (8, -4) },
@@ -409,7 +412,7 @@ mod test {
                 ],
                 _ => vec![],
             },
-            enum_map! {
+            static_map! {
                 Direction::NE => vec![
                     P { i: 0,   p: (1, 0) },
                     P { i: 7,   p: (8, -4) },

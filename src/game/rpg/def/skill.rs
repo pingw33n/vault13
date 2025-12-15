@@ -1,4 +1,4 @@
-use enum_map::{enum_map, EnumMap};
+use linearize::{static_map, StaticMap};
 
 use crate::asset::{Skill, Stat};
 
@@ -13,10 +13,10 @@ pub struct SkillDef {
 }
 
 impl SkillDef {
-    pub fn defaults() -> EnumMap<Skill, Self> {
+    pub fn defaults() -> StaticMap<Skill, Self> {
         use Skill::*;
         use Stat::*;
-        enum_map! {
+        static_map! {
             SmallGuns => Self {
                 image_fid_id: 0x1c,
                 base: 5,
