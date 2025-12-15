@@ -1741,7 +1741,7 @@ impl Objects {
             let obj_pos = obj_pos.point &&
             let Some(proto) = obj.proto.as_ref() &&
             let proto = proto.borrow() &&
-            (proto.id().kind() == EntityKind::Wall || proto.id().kind() == EntityKind::Scenery)
+            matches!(proto.id().kind(), EntityKind::Wall | EntityKind::Scenery)
         {
             if !egg.hit_test(p, tile_grid, &self.frm_db) {
                 return false;

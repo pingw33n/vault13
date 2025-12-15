@@ -380,7 +380,6 @@ impl LightBlock {
 #[cfg(test)]
 mod test {
     use super::*;
-    use enum_map::enum_map;
 
     #[test]
     fn light_cones() {
