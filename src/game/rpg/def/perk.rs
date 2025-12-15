@@ -30,7 +30,7 @@ pub struct PerkDef {
     pub min_level: u32,
     pub stat_bonuses: &'static [(Stat, i32)],
 
-    /// All of the requirements must match.
+    /// All the requirements must match.
     /// Empty makes this test always pass.
     pub all: &'static [Req],
 

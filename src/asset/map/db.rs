@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::io::{self, BufRead};
 
 use crate::fs::FileSystem;
-use crate::graphics::EPoint;
 use crate::graphics::geometry::hex::TileGrid;
+use crate::graphics::EPoint;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct MapDef {
@@ -33,16 +33,8 @@ impl MapDb {
         let mut maps = Vec::new();
         for i in 0..1000 {
             let n = format!("Map {:03}", i);
-            let section = if let Some(v) = ini.get(&n) {
-                v
-            } else {
-                break;
-            };
-            let lookup_name = if let Some(v) = section.get("lookup_name") {
-                v.clone()
-            } else {
-                break;
-            };
+            let Some(section) = ini.get(&n) else { break };
+            let Some(lookup_name) = section.get("lookup_name").cloned() else { break };
             let name = section.get("map_name").map(|v| v.to_owned()).expect("missing map_name");
             let music = section.get("music").map(|v| v.to_owned()).to_owned();
 
@@ -142,9 +134,9 @@ impl MapDb {
 
 #[cfg(test)]
 mod test {
-    use std::io::*;
     use super::*;
     use crate::graphics::Point;
+    use std::io::*;
 
     #[test]
     fn read() {

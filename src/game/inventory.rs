@@ -1,30 +1,30 @@
-use bstring::{bstr, BString};
 use bstring::bfmt::ToBString;
+use bstring::{bstr, BString};
 use sdl2::mouse::MouseButton;
 use std::time::Duration;
 
-use crate::asset::*;
 use crate::asset::frame::FrameId;
-use crate::asset::message::{Messages, MessageId};
+use crate::asset::message::{MessageId, Messages};
+use crate::asset::*;
 use crate::fs::FileSystem;
-use crate::game::object::{self, EquipmentSlot, Hand, Object, InventoryItem};
+use crate::game::object::{self, EquipmentSlot, Hand, InventoryItem, Object};
 use crate::game::rpg::Rpg;
 use crate::game::ui::action_menu::{self, Action};
-use crate::game::ui::inventory_list::{self, InventoryList, Scroll, MouseMode};
+use crate::game::ui::inventory_list::{self, InventoryList, MouseMode, Scroll};
 use crate::game::ui::move_window::MoveWindow;
 use crate::game::world::WorldRef;
-use crate::graphics::{Point, Rect};
 use crate::graphics::color::{GREEN, RED};
 use crate::graphics::font::*;
 use crate::graphics::sprite::{Anchor, Sprite};
-use crate::sequence::{Sequence, Sequencer};
+use crate::graphics::{Point, Rect};
 use crate::sequence::cancellable::Cancel;
-use crate::ui::{self, Ui, button, Widget, HandleEvent, Cursor};
+use crate::sequence::{Sequence, Sequencer};
 use crate::ui::button::Button;
-use crate::ui::command::{move_window, UiCommand, UiCommandData};
 use crate::ui::command::inventory::Command;
+use crate::ui::command::{move_window, UiCommand, UiCommandData};
 use crate::ui::panel::{self, Panel};
 use crate::ui::sequence::background_anim::BackgroundAnim;
+use crate::ui::{self, button, Cursor, HandleEvent, Ui, Widget};
 use crate::util::sprintf;
 
 const MSG_NO_ITEM: MessageId = 14;
@@ -587,11 +587,11 @@ impl Internal {
     ) {
         let src_slot = self.slot_from_widget(src).unwrap();
 
-        let target = unwrap_or_return!(ui.widget_at(pos), Some);
+        let Some(target) = ui.widget_at(pos) else { return };
         if target == src {
             return;
         }
-        let target_slot = unwrap_or_return!(self.slot_from_widget(target), Some);
+        let Some(target_slot) = self.slot_from_widget(target) else { return };
 
         assert_ne!(src_slot, target_slot);
 
@@ -734,7 +734,7 @@ impl Internal {
     fn unload(&self, weapon: object::Handle, rpg: &Rpg, ui: &Ui) {
         {
             let mut world = self.world.borrow_mut();
-            let ammo = unwrap_or_return!(world.objects_mut().unload_weapon(weapon), Some);
+            let Some(ammo) = world.objects_mut().unload_weapon(weapon) else { return };
             world.objects_mut().move_into_inventory(self.owner, ammo, 1);
         }
         self.sync_to_ui(rpg, ui);

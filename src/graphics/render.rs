@@ -6,9 +6,9 @@ use std::fmt;
 use std::rc::Rc;
 use std::time::Instant;
 
-use crate::graphics::{Point, Rect};
 use crate::graphics::color::Rgb15;
 use crate::graphics::font::{self, FontKey, Fonts};
+use crate::graphics::{Point, Rect};
 
 #[derive(Clone)]
 pub struct TextureHandle(Rc<TextureHandleInner>);
@@ -82,7 +82,7 @@ pub trait Canvas {
                    mask: &TextureHandle, mask_pos: Point,
                    light: u32);
 
-    /// Alpha blends from `src` color to `dst` color with alpha mask specified by the `mask.
+    /// Alpha-blends from `src` color to `dst` color with alpha mask specified by the `mask.
     /// If `dst` is `None` the current color of pixels in back buffer is used.
     /// `color`. `mask` values are in range [0..7]. Note the meaning here is inverted compared to
     /// `draw_masked()`: 0 is fully transparent `src` (and fully opaque `dst`),
