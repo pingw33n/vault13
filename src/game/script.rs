@@ -406,10 +406,10 @@ impl Scripts {
         // TODO avoid allocation
         let sids: Vec<_> = self.scripts.keys().cloned().collect();
         for sid in sids {
-            if filter(sid) {
-                if let Some(r) = self.execute_predefined_proc(sid, proc, ctx) {
-                    assert!(r.suspend.is_none(), "can't suspend in {:?}", proc);
-                }
+            if filter(sid)
+                && let Some(r) = self.execute_predefined_proc(sid, proc, ctx)
+            {
+                assert!(r.suspend.is_none(), "can't suspend in {:?}", proc);
             }
         }
     }
@@ -421,11 +421,11 @@ impl Scripts {
 
         // Execute map script first.
         // MapEnter is ignored since it's executed separately immediately after map loaded.
-        if proc != PredefinedProc::MapEnter {
-            if let Some(sid) = self.map_sid {
-                self.execute_predefined_proc(sid, proc, ctx)
-                    .map(|r| r.suspend.map(|_| panic!("can't suspend in {:?}", proc)));
-            }
+        if proc != PredefinedProc::MapEnter
+            && let Some(sid) = self.map_sid 
+        {
+            self.execute_predefined_proc(sid, proc, ctx)
+                .map(|r| r.suspend.map(|_| panic!("can't suspend in {:?}", proc)));
         }
 
         // Execute other non-map scripts.

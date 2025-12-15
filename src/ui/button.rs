@@ -108,10 +108,10 @@ impl Widget for Button {
             Event::MouseUp { pos, button } if button == MouseButton::Left && self.state != State::Disabled => {
                 self.state = State::Up;
                 // FIXME should optionally hit test the frame as in original.
-                if ctx.base.rect.contains(pos) {
-                    if let Some(cmd) = self.command {
-                        ctx.out(cmd);
-                    }
+                if ctx.base.rect.contains(pos)
+                    && let Some(cmd) = self.command 
+                {
+                    ctx.out(cmd);
                 }
                 ctx.release();
             }

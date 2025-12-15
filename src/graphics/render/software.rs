@@ -436,15 +436,15 @@ impl Canvas for CanvasImpl {
                     } else {
                         None
                     };
-                    if src_x >= src_rect.left {
-                        if let Some(dst_x) = dst_x {
-                            dst[dst_x] = if let Some(trans_color_idx) = trans_color_idx {
-                                Self::make_translucent(color_idx, dst[dst_x], trans_color_idx,
-                                    &self.palette, Rgb15::grayscale)
-                            } else {
-                                color_idx
-                            };
-                        }
+                    if src_x >= src_rect.left
+                        && let Some(dst_x) = dst_x 
+                    {
+                        dst[dst_x] = if let Some(trans_color_idx) = trans_color_idx {
+                            Self::make_translucent(color_idx, dst[dst_x], trans_color_idx,
+                                &self.palette, Rgb15::grayscale)
+                        } else {
+                            color_idx
+                        };
                     }
                     dst_x_i += 1;
                 }

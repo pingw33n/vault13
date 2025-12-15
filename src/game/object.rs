@@ -1628,10 +1628,10 @@ impl Objects {
                         continue;
                     };
 
-                    if let Some(egg) = egg {
-                        if self.is_egg_hit(p.point, &obj, egg, tile_grid) {
-                            hit.with_egg = true;
-                        }
+                    if let Some(egg) = egg
+                        && self.is_egg_hit(p.point, &obj, egg, tile_grid) 
+                    {
+                        hit.with_egg = true;
                     }
 
                     r.push((objh, hit));

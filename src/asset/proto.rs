@@ -116,9 +116,9 @@ impl SubProto {
     pub fn kind(&self) -> ExactEntityKind {
         use self::SubProto::*;
         match self {
-            Item(ref v) => ExactEntityKind::Item(v.sub.kind()),
+            Item(v) => ExactEntityKind::Item(v.sub.kind()),
             Critter(_) => ExactEntityKind::Critter,
-            Scenery(ref v) => ExactEntityKind::Scenery(v.sub.kind()),
+            Scenery(v) => ExactEntityKind::Scenery(v.sub.kind()),
             Wall(_) => ExactEntityKind::Wall,
             SqrTile(_) => ExactEntityKind::SqrTile,
             Misc => ExactEntityKind::Misc,
@@ -380,7 +380,7 @@ impl SubScenery {
             Door(_) => SceneryKind::Door,
             Stairs(_) => SceneryKind::Stairs,
             Elevator(_) => SceneryKind::Elevator,
-            Ladder(ref l) => match l.kind {
+            Ladder(l) => match l.kind {
                 LadderKind::Up => SceneryKind::LadderUp,
                 LadderKind::Down => SceneryKind::LadderDown,
             }

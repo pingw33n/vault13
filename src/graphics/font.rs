@@ -207,29 +207,29 @@ impl Iterator for LineRanges0<'_, '_> {
 
             cur_width += glyph.width + self.font.horz_spacing;
 
-            if let Some(Overflow { size, boundary, action }) = self.horz_overflow {
-                if !overflown && cur_width > size {
-                    overflown = true;
-                    match boundary {
-                        OverflowBoundary::Char => {
-                            end = end.saturating_sub(1);
-                        }
-                        OverflowBoundary::Word => {
-                            if let Some(i) = self.text[start..end].iter()
-                                .rposition(|&c| Self::can_wrap_after(c))
-                                .map(|i| start + i)
-                            {
-                                end = i;
-                                self.i = i + 1;
-                            } else {
-                                self.i -= 1;
-                            }
+            if let Some(Overflow { size, boundary, action }) = self.horz_overflow
+                && !overflown && cur_width > size 
+            {
+                overflown = true;
+                match boundary {
+                    OverflowBoundary::Char => {
+                        end = end.saturating_sub(1);
+                    }
+                    OverflowBoundary::Word => {
+                        if let Some(i) = self.text[start..end].iter()
+                            .rposition(|&c| Self::can_wrap_after(c))
+                            .map(|i| start + i)
+                        {
+                            end = i;
+                            self.i = i + 1;
+                        } else {
+                            self.i -= 1;
                         }
                     }
-                    match action {
-                        OverflowAction::Truncate => {} // keep looking for line end
-                        OverflowAction::Wrap => break,
-                    }
+                }
+                match action {
+                    OverflowAction::Truncate => {} // keep looking for line end
+                    OverflowAction::Wrap => break,
                 }
             }
         }

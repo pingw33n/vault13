@@ -539,10 +539,10 @@ impl Ui {
         for &winh in self.windows_order.iter().rev() {
             let win_base = self.widget_bases[winh].borrow();
             if win_base.visible {
-                if win_base.modal {
-                    if let Some(c) = win_base.cursor {
-                        return c;
-                    }
+                if win_base.modal
+                    && let Some(c) = win_base.cursor 
+                {
+                    return c;
                 }
                 break;
             }

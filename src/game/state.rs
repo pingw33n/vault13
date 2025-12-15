@@ -783,12 +783,12 @@ impl GameState {
             } else {
                 false
             };
-            if !script_overrides && user == world.objects().dude() {
-                if let Some(obj_name) = world.object_name(used) {
-                    let msg = &self.proto_db.messages().get(MSG_YOU_SEE_X).unwrap().text;
-                    let msg = sprintf(msg, &[&obj_name]);
-                    self.push_message(&msg, ui);
-                }
+            if !script_overrides && user == world.objects().dude()
+                && let Some(obj_name) = world.object_name(used) 
+            {
+                let msg = &self.proto_db.messages().get(MSG_YOU_SEE_X).unwrap().text;
+                let msg = sprintf(msg, &[&obj_name]);
+                self.push_message(&msg, ui);
             }
         }
     }
